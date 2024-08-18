@@ -26,17 +26,14 @@ pub(crate) fn analyze(
     context.assigned_var_ids.clear();
 
     if let Some(last_comparison_expr) = stmt.2.last() {
-        context.for_loop_init_bounds = (last_comparison_expr.pos().end_offset() as u32, pos.end_offset() as u32);
+        context.for_loop_init_bounds = (
+            last_comparison_expr.pos().end_offset() as u32,
+            pos.end_offset() as u32,
+        );
     }
 
     for init_expr in stmt.0 {
-        expression_analyzer::analyze(
-            statements_analyzer,
-            init_expr,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, init_expr, analysis_data, context)?;
     }
 
     context.for_loop_init_bounds = (0, 0);

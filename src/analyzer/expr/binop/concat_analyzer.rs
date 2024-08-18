@@ -23,13 +23,7 @@ pub(crate) fn analyze<'expr>(
     concat_nodes.push(right);
 
     for concat_node in &concat_nodes {
-        expression_analyzer::analyze(
-            statements_analyzer,
-            concat_node,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, concat_node, analysis_data, context)?;
     }
 
     let result_type =

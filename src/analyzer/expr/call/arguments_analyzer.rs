@@ -54,7 +54,6 @@ pub(crate) fn check_arguments_match(
     calling_classlike_storage: Option<&ClassLikeInfo>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     template_result: &mut TemplateResult,
     function_call_pos: &Pos,
     function_name_pos: Option<&Pos>,
@@ -194,13 +193,7 @@ pub(crate) fn check_arguments_match(
 
         // don't analyse closures here
         if !matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
-            expression_analyzer::analyze(
-                statements_analyzer,
-                arg_expr,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context)?;
         }
 
         if !was_inside_call {
@@ -259,13 +252,7 @@ pub(crate) fn check_arguments_match(
                 &param_type,
             );
 
-            expression_analyzer::analyze(
-                statements_analyzer,
-                arg_expr,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context)?;
 
             arg_value_type = analysis_data
                 .get_expr_type(arg_expr.pos())
@@ -334,7 +321,6 @@ pub(crate) fn check_arguments_match(
             unpacked_arg,
             analysis_data,
             context,
-            if_body_context,
         )?;
     }
 
@@ -908,7 +894,6 @@ pub(crate) fn evaluate_arbitrary_param(
     is_inout: bool,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let was_inside_call = context.inside_general_use;
     context.inside_general_use = true;
@@ -918,7 +903,6 @@ pub(crate) fn evaluate_arbitrary_param(
         expr,
         analysis_data,
         context,
-        if_body_context,
     )?;
 
     if !was_inside_call {

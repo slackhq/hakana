@@ -41,7 +41,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     lhs_type_part: &TAtomic,
     classlike_name: Option<StrId>,
     result: &mut AtomicMethodCallAnalysisResult,
@@ -76,7 +75,6 @@ pub(crate) fn analyze(
                     ),
                     lhs_type_part,
                     context,
-                    if_body_context,
                 );
             }
         }
@@ -166,7 +164,6 @@ pub(crate) fn analyze(
         Some(&expr.1 .0),
         analysis_data,
         context,
-        if_body_context,
         None,
         None,
     )?);

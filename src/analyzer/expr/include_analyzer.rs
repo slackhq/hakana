@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
@@ -31,7 +31,7 @@ pub(crate) fn analyze(
         HPos::new(call_pos, *statements_analyzer.get_file_path()),
     );
 
-    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, &mut None)?;
+    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;
 
     let arg_type = analysis_data.get_expr_type(expr.pos()).cloned();
 

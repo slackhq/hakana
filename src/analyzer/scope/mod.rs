@@ -100,11 +100,6 @@ pub struct BlockContext {
     pub inside_throw: bool,
 
     /**
-     * Whether or not we're inside a try
-     */
-    pub inside_try: bool,
-
-    /**
      * Whether or not we're inside an assignment
      */
     pub inside_assignment: bool,
@@ -168,6 +163,8 @@ pub struct BlockContext {
 
     /* Effects for pipe var, if applicable */
     pub pipe_var_effects: u8,
+
+    pub if_body_context: Option<Rc<RefCell<Self>>>,
 }
 
 impl BlockContext {
@@ -187,7 +184,6 @@ impl BlockContext {
             inside_throw: false,
             inside_assignment: false,
             inside_assignment_op: false,
-            inside_try: false,
             inside_awaitall: false,
             inside_loop_exprs: false,
 
@@ -209,6 +205,8 @@ impl BlockContext {
             for_loop_init_bounds: (0, 0),
 
             pipe_var_effects: EFFECT_PURE,
+
+            if_body_context: None,
         }
     }
 

@@ -60,7 +60,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_file_analyzer().codebase;
 
-    let mut if_scope = IfScope::new();
+    let mut if_scope = IfScope::default();
 
     let if_conditional_scope = if_conditional_analyzer::analyze(
         statements_analyzer,

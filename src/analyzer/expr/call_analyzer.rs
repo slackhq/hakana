@@ -14,8 +14,8 @@ use oxidized::ast::CallExpr;
 use rustc_hash::FxHashMap;
 
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
@@ -40,7 +40,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let function_name_expr = &expr.func;
 
@@ -56,7 +55,6 @@ pub(crate) fn analyze(
             pos,
             analysis_data,
             context,
-            if_body_context,
         ),
         aast::Expr_::ObjGet(boxed) => {
             let (lhs_expr, rhs_expr, nullfetch, prop_or_method) =
@@ -75,7 +73,6 @@ pub(crate) fn analyze(
                     pos,
                     analysis_data,
                     context,
-                    if_body_context,
                     matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
                 ),
                 _ => {
@@ -85,7 +82,6 @@ pub(crate) fn analyze(
                         pos,
                         analysis_data,
                         context,
-                        if_body_context,
                     )?;
                     Ok(())
                 }
@@ -106,7 +102,6 @@ pub(crate) fn analyze(
                 pos,
                 analysis_data,
                 context,
-                if_body_context,
             )
         }
         _ => expression_call_analyzer::analyze(
@@ -115,7 +110,6 @@ pub(crate) fn analyze(
             pos,
             analysis_data,
             context,
-            if_body_context,
         ),
     }
 }
@@ -378,7 +372,6 @@ pub(crate) fn check_method_args(
     ),
     template_result: &mut TemplateResult,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     pos: &Pos,
     method_name_pos: Option<&Pos>,
 ) -> Result<(), AnalysisError> {
@@ -398,7 +391,6 @@ pub(crate) fn check_method_args(
         Some(calling_class_storage),
         analysis_data,
         context,
-        if_body_context,
         template_result,
         pos,
         method_name_pos,

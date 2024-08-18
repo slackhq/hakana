@@ -14,9 +14,9 @@ use crate::expr::expression_identifier::{
 };
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::loop_scope::LoopScope;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::{
     break_analyzer, continue_analyzer, do_analyzer, for_analyzer, foreach_analyzer,
@@ -70,13 +70,7 @@ pub(crate) fn analyze(
 
     match &stmt.1 {
         aast::Stmt_::Expr(boxed) => {
-            expression_analyzer::analyze(
-                statements_analyzer,
-                boxed,
-                analysis_data,
-                context,
-                &mut None,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
 
             if statements_analyzer.get_config().find_unused_expressions {
                 detect_unused_statement_expressions(
@@ -157,13 +151,7 @@ pub(crate) fn analyze(
         aast::Stmt_::Throw(boxed) => {
             context.inside_throw = true;
 
-            expression_analyzer::analyze(
-                statements_analyzer,
-                boxed,
-                analysis_data,
-                context,
-                &mut None,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
 
             context.inside_throw = false;
             context.has_returned = true;
@@ -197,7 +185,6 @@ pub(crate) fn analyze(
                     boxed_expr,
                     analysis_data,
                     context,
-                    &mut None,
                 )?;
             }
 
@@ -471,7 +458,7 @@ fn analyze_awaitall(
     context.inside_awaitall = true;
 
     for (assignment_id, expr) in boxed.0 {
-        expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, &mut None)?;
+        expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;
 
         let mut assignment_type = None;
 

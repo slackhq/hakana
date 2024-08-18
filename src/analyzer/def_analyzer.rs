@@ -3,9 +3,9 @@ use crate::custom_hook::AfterDefAnalysisData;
 use crate::file_analyzer::InternalError;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::FunctionLikeAnalyzer;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::loop_scope::LoopScope;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, stmt_analyzer};
@@ -93,7 +93,6 @@ pub(crate) fn analyze(
                 &boxed.value,
                 analysis_data,
                 &mut context,
-                &mut None,
             ) {
                 return Err(InternalError(error, pos));
             }

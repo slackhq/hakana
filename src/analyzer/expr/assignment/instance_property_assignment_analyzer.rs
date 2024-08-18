@@ -227,13 +227,7 @@ pub(crate) fn analyze_regular_assignment(
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
 
-    expression_analyzer::analyze(
-        statements_analyzer,
-        stmt_var,
-        analysis_data,
-        context,
-        &mut None,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, stmt_var, analysis_data, context)?;
 
     context.inside_general_use = was_inside_general_use;
 
@@ -360,9 +354,7 @@ pub(crate) fn analyze_regular_assignment(
     if let Some(var_id) = var_id {
         let context_type = Rc::new(context_type.unwrap_or(get_mixed_any()).clone());
 
-        context
-            .locals
-            .insert(var_id.to_owned(), context_type);
+        context.locals.insert(var_id.to_owned(), context_type);
     }
 
     Ok(assigned_properties)

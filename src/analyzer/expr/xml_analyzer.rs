@@ -41,7 +41,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
     let xhp_class_name =
@@ -88,7 +87,6 @@ pub(crate) fn analyze(
                     xhp_simple,
                     analysis_data,
                     context,
-                    if_body_context,
                 )?;
             }
             aast::XhpAttribute::XhpSpread(xhp_expr) => {
@@ -98,7 +96,6 @@ pub(crate) fn analyze(
                     xhp_class_name,
                     analysis_data,
                     context,
-                    if_body_context,
                     codebase,
                 )?);
             }
@@ -174,7 +171,6 @@ pub(crate) fn analyze(
             inner_expr,
             analysis_data,
             context,
-            if_body_context,
         )?;
 
         analysis_data.combine_effects(inner_expr.pos(), pos, pos);
@@ -251,7 +247,6 @@ fn handle_attribute_spread(
     element_name: &StrId,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     codebase: &CodebaseInfo,
 ) -> Result<FxHashSet<StrId>, AnalysisError> {
     expression_analyzer::analyze(
@@ -259,7 +254,6 @@ fn handle_attribute_spread(
         xhp_expr,
         analysis_data,
         context,
-        if_body_context,
     )?;
 
     let mut used_attributes = FxHashSet::default();
@@ -346,14 +340,12 @@ fn analyze_xhp_attribute_assignment(
     attribute_info: &aast::XhpSimple<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(
         statements_analyzer,
         &attribute_info.expr,
         analysis_data,
         context,
-        if_body_context,
     )?;
 
     let property_id = (*element_name, attribute_name);

@@ -111,13 +111,7 @@ pub(crate) fn analyze(
                 // eg. $class::$foo
                 let was_inside_general_use = context.inside_general_use;
                 context.inside_general_use = true;
-                expression_analyzer::analyze(
-                    statements_analyzer,
-                    expr,
-                    analysis_data,
-                    context,
-                    &mut None,
-                )?;
+                expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;
                 context.inside_general_use = was_inside_general_use;
 
                 let lhs_type = analysis_data.get_expr_type(&expr.1.clone());

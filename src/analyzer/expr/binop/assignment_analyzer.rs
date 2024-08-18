@@ -127,7 +127,6 @@ pub(crate) fn analyze(
                     ),
                     analysis_data,
                     context,
-                    &mut None,
                 )?;
 
                 context.inside_assignment_op = false;
@@ -155,7 +154,6 @@ pub(crate) fn analyze(
                     assign_value,
                     analysis_data,
                     context,
-                    &mut None,
                 )?;
             }
         };

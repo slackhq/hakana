@@ -13,8 +13,8 @@ use oxidized::file_pos::FilePos;
 use oxidized::pos_span_raw::PosSpanRaw;
 use relative_path::RelativePath;
 
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::CaseScope;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
 use rustc_hash::FxHashMap;
@@ -90,13 +90,7 @@ pub(crate) fn analyze_case(
     let mut case_equality_expr = None;
 
     if let Some(case_cond) = case_cond {
-        expression_analyzer::analyze(
-            statements_analyzer,
-            case_cond,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, case_cond, analysis_data, context)?;
 
         add_branch_dataflow(statements_analyzer, case_cond, analysis_data);
 
@@ -123,7 +117,6 @@ pub(crate) fn analyze_case(
                     &previous_empty_case.0,
                     analysis_data,
                     context,
-                    &mut None,
                 )?;
             }
             let mut case_conds = previous_empty_cases

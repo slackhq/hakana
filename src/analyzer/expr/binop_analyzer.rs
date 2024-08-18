@@ -1,7 +1,7 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
@@ -18,7 +18,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     match &expr.0 {
         oxidized::ast_defs::Bop::Plus
@@ -52,7 +51,6 @@ pub(crate) fn analyze(
                 expr.2,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
 
             add_decision_dataflow(
@@ -74,7 +72,6 @@ pub(crate) fn analyze(
                 expr.2,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
 
             add_decision_dataflow(
@@ -97,21 +94,9 @@ pub(crate) fn analyze(
         | oxidized::ast_defs::Bop::Lte
         | oxidized::ast_defs::Bop::Gt
         | oxidized::ast_defs::Bop::Gte => {
-            expression_analyzer::analyze(
-                statements_analyzer,
-                expr.1,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
 
-            expression_analyzer::analyze(
-                statements_analyzer,
-                expr.2,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, expr.2, analysis_data, context)?;
 
             let lhs_type = analysis_data.get_rc_expr_type(expr.1.pos());
             let rhs_type = analysis_data.get_rc_expr_type(expr.2.pos());
@@ -194,21 +179,9 @@ pub(crate) fn analyze(
         }
 
         oxidized::ast_defs::Bop::Cmp => {
-            expression_analyzer::analyze(
-                statements_analyzer,
-                expr.1,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
 
-            expression_analyzer::analyze(
-                statements_analyzer,
-                expr.2,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, expr.2, analysis_data, context)?;
 
             add_decision_dataflow(
                 statements_analyzer,
@@ -232,7 +205,6 @@ pub(crate) fn analyze(
                 expr.2,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
 
             Ok(())

@@ -284,13 +284,7 @@ fn analyze_variable_static_property_fetch(
         let was_inside_general_use = context.inside_general_use;
         context.inside_general_use = true;
 
-        expression_analyzer::analyze(
-            statements_analyzer,
-            stmt_class_expr,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, stmt_class_expr, analysis_data, context)?;
 
         context.inside_general_use = was_inside_general_use;
         analysis_data.get_expr_type(stmt_class_expr.pos()).cloned()

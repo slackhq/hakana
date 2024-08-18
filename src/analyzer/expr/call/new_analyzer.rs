@@ -45,7 +45,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     //let method_id = None;
 
@@ -115,7 +114,6 @@ pub(crate) fn analyze(
                     lhs_expr,
                     analysis_data,
                     context,
-                    if_body_context,
                 )?;
                 context.inside_general_use = was_inside_general_use;
                 analysis_data
@@ -138,7 +136,6 @@ pub(crate) fn analyze(
             pos,
             analysis_data,
             context,
-            if_body_context,
             lhs_type_part,
             can_extend,
             &mut result,
@@ -164,7 +161,6 @@ fn analyze_atomic(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     lhs_type_part: &TAtomic,
     can_extend: bool,
     result: &mut AtomicMethodCallAnalysisResult,
@@ -243,7 +239,6 @@ fn analyze_atomic(
         pos,
         analysis_data,
         context,
-        if_body_context,
         classlike_name,
         from_static,
         from_classname,
@@ -263,7 +258,6 @@ fn analyze_named_constructor(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     classlike_name: StrId,
     from_static: bool,
     from_classname: bool,
@@ -379,7 +373,6 @@ fn analyze_named_constructor(
             ),
             &mut template_result,
             context,
-            if_body_context,
             pos,
             None,
         )?;

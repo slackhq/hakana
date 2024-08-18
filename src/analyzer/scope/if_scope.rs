@@ -6,7 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::control_action::ControlAction;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct IfScope {
     pub new_vars: Option<BTreeMap<String, TUnion>>,
 
@@ -40,31 +40,4 @@ pub struct IfScope {
     pub final_actions: FxHashSet<ControlAction>,
 
     pub if_actions: FxHashSet<ControlAction>,
-}
-
-impl Default for IfScope {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl IfScope {
-    pub fn new() -> Self {
-        Self {
-            new_vars: None,
-            new_vars_possibly_in_scope: FxHashSet::default(),
-            redefined_vars: None,
-            assigned_var_ids: None,
-            possibly_assigned_var_ids: FxHashSet::default(),
-            possibly_redefined_vars: FxHashMap::default(),
-            updated_vars: FxHashSet::default(),
-            negated_types: BTreeMap::new(),
-            if_cond_changed_var_ids: FxHashSet::default(),
-            negated_clauses: Vec::new(),
-            reasonable_clauses: Vec::new(),
-            final_actions: FxHashSet::default(),
-            if_actions: FxHashSet::default(),
-            removed_var_ids: FxHashSet::default(),
-        }
-    }
 }

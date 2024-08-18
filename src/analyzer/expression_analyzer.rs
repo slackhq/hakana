@@ -49,7 +49,6 @@ pub(crate) fn analyze(
     expr: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     if statements_analyzer.get_config().add_fixmes {
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
@@ -83,7 +82,6 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
         aast::Expr_::Lvar(lid) => {
@@ -121,13 +119,7 @@ pub(crate) fn analyze(
         aast::Expr_::Is(boxed) => {
             let (lhs_expr, _) = (&boxed.0, &boxed.1);
 
-            expression_analyzer::analyze(
-                statements_analyzer,
-                lhs_expr,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, lhs_expr, analysis_data, context)?;
 
             add_decision_dataflow(
                 statements_analyzer,
@@ -147,7 +139,6 @@ pub(crate) fn analyze(
                 boxed.is_nullable,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
         aast::Expr_::Call(boxed) => {
@@ -157,7 +148,6 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
         aast::Expr_::ArrayGet(boxed) => {
@@ -187,7 +177,6 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
         aast::Expr_::Shape(shape_fields) => {
@@ -215,7 +204,6 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
         aast::Expr_::ObjGet(boxed) => {
@@ -250,7 +238,6 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
         aast::Expr_::ClassGet(boxed) => {
@@ -298,7 +285,6 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
         aast::Expr_::Lfun(boxed) => {
@@ -320,17 +306,10 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
         aast::Expr_::Clone(boxed) => {
-            expression_analyzer::analyze(
-                statements_analyzer,
-                boxed,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
 
             if let Some(stmt_type) = analysis_data
                 .expr_types
@@ -355,7 +334,6 @@ pub(crate) fn analyze(
                     concat_node,
                     analysis_data,
                     context,
-                    &mut None,
                 )?;
             }
 
@@ -377,7 +355,6 @@ pub(crate) fn analyze(
                 boxed,
                 analysis_data,
                 context,
-                if_body_context,
                 expr,
             )?;
         }
@@ -391,20 +368,13 @@ pub(crate) fn analyze(
                 expr.pos(),
                 statements_analyzer,
                 analysis_data,
-                if_body_context,
             )?;
         }
         aast::Expr_::Await(boxed) => {
             let was_inside_use = context.inside_general_use;
             context.inside_general_use = true;
             analysis_data.inside_await = true;
-            expression_analyzer::analyze(
-                statements_analyzer,
-                boxed,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
+            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
             context.inside_general_use = was_inside_use;
             analysis_data.inside_await = false;
 
@@ -456,7 +426,6 @@ pub(crate) fn analyze(
                 &boxed.1,
                 analysis_data,
                 context,
-                if_body_context,
             );
         }
         aast::Expr_::Yield(boxed) => {
@@ -466,7 +435,6 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
         aast::Expr_::List(_) => {

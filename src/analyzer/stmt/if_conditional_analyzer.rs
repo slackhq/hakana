@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 use crate::{
     expression_analyzer,
@@ -97,13 +97,18 @@ pub(crate) fn analyze(
         externally_applied_context.inside_conditional = true;
     }
 
+    let tmp_if_body_context = externally_applied_context.if_body_context;
+
+    externally_applied_context.if_body_context = None;
+
     expression_analyzer::analyze(
         statements_analyzer,
         externally_applied_if_cond_expr,
         analysis_data,
         &mut externally_applied_context,
-        &mut None,
     )?;
+
+    externally_applied_context.if_body_context = tmp_if_body_context;
 
     let first_cond_assigned_var_ids = externally_applied_context.assigned_var_ids.clone();
 
@@ -123,9 +128,14 @@ pub(crate) fn analyze(
         Some(if_body_context)
     } else {
         Some(externally_applied_context.clone())
-    };
+    }
+    .unwrap();
 
-    let mut if_conditional_context = if_body_context.clone().unwrap();
+    let tmp_if_body_context_nested = if_body_context.if_body_context;
+    if_body_context.if_body_context = None;
+
+    let mut if_conditional_context = if_body_context.clone();
+    if_conditional_context.if_body_context = Some(Rc::new(RefCell::new(if_body_context)));
 
     // we need to clone the current context so our ongoing updates
     // to $outer_context don't mess with elseif/else blocks
@@ -147,7 +157,6 @@ pub(crate) fn analyze(
             cond,
             analysis_data,
             &mut if_conditional_context,
-            &mut if_body_context,
         )?;
 
         add_branch_dataflow(statements_analyzer, cond, analysis_data);
@@ -194,8 +203,14 @@ pub(crate) fn analyze(
 
     cond_referenced_var_ids.extend(newish_var_ids);
 
+    let mut if_body_context = Rc::try_unwrap(if_conditional_context.if_body_context.unwrap())
+        .unwrap()
+        .into_inner();
+
+    if_body_context.if_body_context = tmp_if_body_context_nested;
+
     Ok(IfConditionalScope {
-        if_body_context: if_body_context.unwrap(),
+        if_body_context,
         post_if_context,
         outer_context: externally_applied_context,
         cond_referenced_var_ids,

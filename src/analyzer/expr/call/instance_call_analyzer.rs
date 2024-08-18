@@ -28,7 +28,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     nullsafe: bool,
 ) -> Result<(), AnalysisError> {
     context.inside_general_use = true;
@@ -38,7 +37,6 @@ pub(crate) fn analyze(
         expr.0,
         analysis_data,
         context,
-        if_body_context,
     )?;
 
     if let aast::Expr_::Id(_) = &expr.1 .2 {
@@ -49,7 +47,6 @@ pub(crate) fn analyze(
             expr.1,
             analysis_data,
             context,
-            if_body_context,
         )?;
     }
 
@@ -151,7 +148,6 @@ pub(crate) fn analyze(
                 pos,
                 analysis_data,
                 context,
-                if_body_context,
                 lhs_atomic_type,
                 &lhs_var_id,
                 &mut analysis_result,

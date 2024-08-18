@@ -42,7 +42,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let name = expr.0 .1;
 
@@ -65,7 +64,6 @@ pub(crate) fn analyze(
             pos,
             analysis_data,
             context,
-            if_body_context,
         );
     }
 
@@ -77,7 +75,6 @@ pub(crate) fn analyze(
             first_arg,
             analysis_data,
             context,
-            if_body_context,
         )?;
         context.inside_unset = false;
         analysis_data.expr_effects.insert(
@@ -165,7 +162,6 @@ pub(crate) fn analyze(
         None,
         analysis_data,
         context,
-        if_body_context,
         &mut template_result,
         pos,
         Some(expr.0 .0),

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
@@ -27,7 +27,6 @@ pub(crate) fn analyze<'expr>(
     null_if_false: bool,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let mut root_expr = left.clone();
     let mut has_arrayget_key = false;
@@ -80,22 +79,10 @@ pub(crate) fn analyze<'expr>(
                 | aast::Expr_::Await(..)
         )
     {
-        replacement_left = get_fake_as_var(
-            left,
-            statements_analyzer,
-            analysis_data,
-            context,
-            if_body_context,
-        );
+        replacement_left = get_fake_as_var(left, statements_analyzer, analysis_data, context);
     } else if let aast::Expr_::Lvar(var) = root_expr.2 {
         if var.1 .1 == "$$" {
-            replacement_left = get_fake_as_var(
-                left,
-                statements_analyzer,
-                analysis_data,
-                context,
-                if_body_context,
-            );
+            replacement_left = get_fake_as_var(left, statements_analyzer, analysis_data, context);
         }
     }
 
@@ -139,13 +126,7 @@ pub(crate) fn analyze<'expr>(
     let old_expr_types = analysis_data.expr_types.clone();
     analysis_data.expr_types.clone_from(&old_expr_types);
 
-    expression_analyzer::analyze(
-        statements_analyzer,
-        &ternary,
-        analysis_data,
-        context,
-        if_body_context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, &ternary, analysis_data, context)?;
 
     let mut ternary_type = analysis_data
         .get_expr_type(stmt_pos)
@@ -207,27 +188,17 @@ fn get_fake_as_var(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Option<aast::Expr<(), ()>> {
     let left_var_id = format!("$<tmp coalesce var>{}", left.pos().start_offset());
 
-    expression_analyzer::analyze(
-        statements_analyzer,
-        left,
-        analysis_data,
-        context,
-        if_body_context,
-    )
-    .ok();
+    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context).ok();
 
     let condition_type = analysis_data
         .get_rc_expr_type(left.pos())
         .cloned()
         .unwrap_or(Rc::new(get_mixed_any()));
 
-    context
-        .locals
-        .insert(left_var_id.clone(), condition_type);
+    context.locals.insert(left_var_id.clone(), condition_type);
 
     return Some(aast::Expr(
         (),

@@ -15,7 +15,6 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let was_inside_use = context.inside_general_use;
     context.inside_general_use = true;
@@ -26,7 +25,6 @@ pub(crate) fn analyze(
             key_expr,
             analysis_data,
             context,
-            if_body_context,
         )?;
     };
 
@@ -39,7 +37,6 @@ pub(crate) fn analyze(
         value_expr,
         analysis_data,
         context,
-        if_body_context,
     )?;
 
     context.inside_general_use = was_inside_use;

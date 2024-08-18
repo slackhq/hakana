@@ -17,14 +17,12 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(
         statements_analyzer,
         expr.1,
         analysis_data,
         context,
-        if_body_context,
     )?;
 
     let mut pipe_expr_type = analysis_data
@@ -63,7 +61,6 @@ pub(crate) fn analyze(
         expr.2,
         analysis_data,
         context,
-        if_body_context,
     );
 
     context.locals.remove("$$");

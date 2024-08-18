@@ -347,13 +347,7 @@ fn analyze_vals_item(
     let key_item_type = get_literal_int(offset.try_into().unwrap());
 
     // Now check types of the values
-    expression_analyzer::analyze(
-        statements_analyzer,
-        item_value,
-        analysis_data,
-        context,
-        &mut None,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, item_value, analysis_data, context)?;
 
     array_creation_info.effects |= analysis_data
         .expr_effects
@@ -406,13 +400,7 @@ fn analyze_keyvals_item(
     analysis_data: &mut FunctionAnalysisData,
 ) -> Result<(), AnalysisError> {
     // Analyze type for key
-    expression_analyzer::analyze(
-        statements_analyzer,
-        &item.0,
-        analysis_data,
-        context,
-        &mut None,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, &item.0, analysis_data, context)?;
 
     array_creation_info.effects |= analysis_data
         .expr_effects
@@ -436,13 +424,7 @@ fn analyze_keyvals_item(
     );
 
     // Now check types of the values
-    expression_analyzer::analyze(
-        statements_analyzer,
-        &item.1,
-        analysis_data,
-        context,
-        &mut None,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, &item.1, analysis_data, context)?;
 
     array_creation_info.effects |= analysis_data
         .expr_effects

@@ -43,13 +43,7 @@ pub(crate) fn analyze(
 
     let mut inferred_return_type = if let Some(return_expr) = return_expr {
         context.inside_return = true;
-        expression_analyzer::analyze(
-            statements_analyzer,
-            return_expr,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, return_expr, analysis_data, context)?;
         context.inside_return = false;
 
         if let Some(mut inferred_return_type) = analysis_data.get_expr_type(&return_expr.1).cloned()

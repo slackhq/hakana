@@ -1,7 +1,7 @@
 use crate::{
-    expression_analyzer, function_analysis_data::FunctionAnalysisData,
-    scope_analyzer::ScopeAnalyzer, scope::BlockContext,
-    statements_analyzer::StatementsAnalyzer, stmt_analyzer::AnalysisError,
+    expression_analyzer, function_analysis_data::FunctionAnalysisData, scope::BlockContext,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
     code_location::StmtStart,
@@ -111,13 +111,7 @@ pub(crate) fn analyze(
         };
 
         // Now check types of the values
-        expression_analyzer::analyze(
-            statements_analyzer,
-            value_expr,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, value_expr, analysis_data, context)?;
 
         effects |= analysis_data
             .expr_effects

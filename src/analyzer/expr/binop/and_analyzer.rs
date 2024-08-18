@@ -18,7 +18,6 @@ pub(crate) fn analyze<'expr>(
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let mut left_context = context.clone();
 
@@ -32,13 +31,7 @@ pub(crate) fn analyze<'expr>(
 
     analysis_data.set_expr_type(stmt_pos, get_bool());
 
-    expression_analyzer::analyze(
-        statements_analyzer,
-        left,
-        analysis_data,
-        &mut left_context,
-        if_body_context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, left, analysis_data, &mut left_context)?;
 
     if let Some(cond_type) = analysis_data.get_rc_expr_type(left.pos()).cloned() {
         handle_paradoxical_condition(
@@ -73,9 +66,7 @@ pub(crate) fn analyze<'expr>(
 
     for (var_id, var_type) in &left_context.locals {
         if left_context.assigned_var_ids.contains_key(var_id) {
-            context
-                .locals
-                .insert(var_id.clone(), var_type.clone());
+            context.locals.insert(var_id.clone(), var_type.clone());
         }
     }
 
@@ -160,7 +151,6 @@ pub(crate) fn analyze<'expr>(
         right,
         analysis_data,
         &mut right_context,
-        if_body_context,
     )?;
 
     if let Some(cond_type) = analysis_data.get_rc_expr_type(right.pos()).cloned() {
@@ -185,26 +175,26 @@ pub(crate) fn analyze<'expr>(
             .extend(right_context.assigned_var_ids);
     }
 
-    if let Some(ref mut if_body_context) = if_body_context {
+    if let Some(if_body_context) = &context.if_body_context {
+        let mut if_body_context_inner = if_body_context.borrow_mut();
+
         if !context.inside_negation {
             context.locals = right_context.locals;
 
-            if_body_context
-                .locals
-                .extend(context.locals.clone());
+            if_body_context_inner.locals.extend(context.locals.clone());
 
-            if_body_context
+            if_body_context_inner
                 .cond_referenced_var_ids
                 .extend(context.cond_referenced_var_ids.clone());
-            if_body_context
+            if_body_context_inner
                 .assigned_var_ids
                 .extend(context.assigned_var_ids.clone());
 
-            if_body_context
+            if_body_context_inner
                 .reconciled_expression_clauses
                 .extend(partitioned_clauses.1);
 
-            if_body_context.allow_taints = right_context.allow_taints;
+            if_body_context_inner.allow_taints = right_context.allow_taints;
         } else {
             context.locals = left_context.locals;
         }

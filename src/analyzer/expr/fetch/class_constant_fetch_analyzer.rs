@@ -25,7 +25,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
@@ -54,7 +53,6 @@ pub(crate) fn analyze(
                     lhs_expr,
                     analysis_data,
                     context,
-                    if_body_context,
                 )?;
 
                 context.inside_general_use = was_inside_general_use;

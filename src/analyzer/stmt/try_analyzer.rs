@@ -60,12 +60,7 @@ pub(crate) fn analyze(
     let assigned_var_ids = context.assigned_var_ids.clone();
     context.assigned_var_ids = FxHashMap::default();
 
-    let was_inside_try = context.inside_try;
-    context.inside_try = true;
-
     statements_analyzer.analyze(&stmt.0 .0, analysis_data, context, loop_scope)?;
-
-    context.inside_try = was_inside_try;
 
     context.has_returned = false;
     try_context.has_returned = false;

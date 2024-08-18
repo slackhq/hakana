@@ -55,7 +55,6 @@ pub(crate) fn analyze(
     method_name_pos: Option<&Pos>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     lhs_var_id: Option<&String>,
     lhs_var_pos: Option<&Pos>,
 ) -> Result<TUnion, AnalysisError> {
@@ -211,7 +210,6 @@ pub(crate) fn analyze(
         call_expr,
         &mut template_result,
         context,
-        if_body_context,
         pos,
         method_name_pos,
     )?;

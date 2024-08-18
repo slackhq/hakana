@@ -2,8 +2,8 @@ use crate::expression_analyzer;
 use crate::file_analyzer::FileAnalyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::{update_analysis_result_with_tast, FunctionLikeAnalyzer};
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
@@ -155,7 +155,6 @@ impl<'a> ClassLikeAnalyzer<'a> {
                         expr,
                         &mut analysis_data,
                         &mut class_context,
-                        &mut None,
                     )?;
 
                     if codebase.enum_exists(&name) {
@@ -209,7 +208,6 @@ impl<'a> ClassLikeAnalyzer<'a> {
                     default,
                     &mut analysis_data,
                     &mut class_context,
-                    &mut None,
                 )?;
             }
         }

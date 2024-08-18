@@ -30,7 +30,6 @@ pub(crate) fn analyze(
     boxed: &(String, aast::Expr<(), ()>),
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     expr: &aast::Expr<(), ()>,
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(
@@ -38,7 +37,6 @@ pub(crate) fn analyze(
         &boxed.1,
         analysis_data,
         context,
-        if_body_context,
     )?;
 
     let inner_type = if let Some(t) = analysis_data.expr_types.get(&(

@@ -28,11 +28,10 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
-    let mut if_scope = IfScope::new();
+    let mut if_scope = IfScope::default();
 
     let if_conditional_scope = if_conditional_analyzer::analyze(
         statements_analyzer,
@@ -234,7 +233,6 @@ pub(crate) fn analyze(
             if_branch,
             analysis_data,
             &mut if_context,
-            if_body_context,
         )?;
 
         analysis_data.combine_effects(if_branch.pos(), pos, pos);
@@ -294,7 +292,6 @@ pub(crate) fn analyze(
         expr.2,
         analysis_data,
         &mut temp_else_context,
-        if_body_context,
     )?;
 
     analysis_data.combine_effects(expr.2.pos(), pos, pos);

@@ -51,13 +51,7 @@ pub(crate) fn analyze(
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
 
-    expression_analyzer::analyze(
-        statements_analyzer,
-        stmt.0,
-        analysis_data,
-        context,
-        &mut None,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, stmt.0, analysis_data, context)?;
 
     context.inside_general_use = was_inside_general_use;
 

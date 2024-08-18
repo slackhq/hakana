@@ -15,7 +15,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
         context.inside_negation = !context.inside_negation;
@@ -25,7 +24,6 @@ pub(crate) fn analyze(
         expr.1,
         analysis_data,
         context,
-        if_body_context,
     )?;
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
         context.inside_negation = !context.inside_negation;
@@ -102,7 +100,6 @@ pub(crate) fn analyze(
                 ),
                 analysis_data,
                 context,
-                &mut None,
             );
             context.inside_assignment_op = false;
 

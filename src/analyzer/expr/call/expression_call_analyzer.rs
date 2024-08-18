@@ -28,7 +28,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
@@ -37,7 +36,6 @@ pub(crate) fn analyze(
         &expr.func,
         analysis_data,
         context,
-        if_body_context,
     )?;
     context.inside_general_use = was_inside_general_use;
 
@@ -112,7 +110,6 @@ pub(crate) fn analyze(
                 None,
                 analysis_data,
                 context,
-                if_body_context,
                 &mut template_result,
                 pos,
                 None,

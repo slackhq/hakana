@@ -20,15 +20,8 @@ pub(crate) fn analyze(
     inner_expr: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
-    expression_analyzer::analyze(
-        statements_analyzer,
-        inner_expr,
-        analysis_data,
-        context,
-        if_body_context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, inner_expr, analysis_data, context)?;
 
     let expr_type = analysis_data
         .get_rc_expr_type(inner_expr.pos())

@@ -53,7 +53,6 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
     lhs_type_part: &TAtomic,
     lhs_var_id: &Option<String>,
     result: &mut AtomicMethodCallAnalysisResult,
@@ -75,7 +74,6 @@ pub(crate) fn analyze(
                 expr,
                 lhs_type_part,
                 context,
-                if_body_context,
             )?;
         }
         TAtomic::TReference {
@@ -158,7 +156,6 @@ pub(crate) fn analyze(
                     matches!(param_kind, ParamKind::Pinout(_)),
                     analysis_data,
                     context,
-                    if_body_context,
                 )?;
             }
 
@@ -186,7 +183,6 @@ pub(crate) fn handle_method_call_on_named_object(
     ),
     lhs_type_part: &TAtomic,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
@@ -248,7 +244,6 @@ pub(crate) fn handle_method_call_on_named_object(
                     pos,
                     context,
                     expr.3,
-                    if_body_context,
                 );
             };
 
@@ -263,7 +258,6 @@ pub(crate) fn handle_method_call_on_named_object(
                 pos,
                 context,
                 expr.3,
-                if_body_context,
             );
         }
 
@@ -278,7 +272,6 @@ pub(crate) fn handle_method_call_on_named_object(
             Some(expr.1.pos()),
             analysis_data,
             context,
-            if_body_context,
             lhs_var_id.as_ref(),
             Some(expr.0.pos()),
         )?;
@@ -296,7 +289,6 @@ pub(crate) fn handle_method_call_on_named_object(
                 matches!(param_kind, ParamKind::Pinout(_)),
                 analysis_data,
                 context,
-                if_body_context,
             )?;
         }
 
@@ -314,7 +306,6 @@ fn handle_nonexistent_method(
     pos: &Pos,
     context: &mut BlockContext,
     expr_args: &Vec<(ParamKind, aast::Expr<(), ()>)>,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     analysis_data.maybe_add_issue(
         Issue::new(
@@ -338,7 +329,6 @@ fn handle_nonexistent_method(
             matches!(param_kind, ParamKind::Pinout(_)),
             analysis_data,
             context,
-            if_body_context,
         )?;
     }
 

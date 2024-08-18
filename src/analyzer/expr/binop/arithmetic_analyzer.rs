@@ -28,14 +28,8 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
     analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context, &mut None)?;
-    expression_analyzer::analyze(
-        statements_analyzer,
-        right,
-        analysis_data,
-        context,
-        &mut None,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, right, analysis_data, context)?;
 
     let fallback = get_mixed_any();
     let e1_type = match analysis_data.get_rc_expr_type(&left.1).cloned() {
@@ -106,7 +100,11 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             continue;
         }
 
-        if let TAtomic::TEnumLiteralCase { constraint_type: Some(constraint), .. } = &e1_type_atomic {
+        if let TAtomic::TEnumLiteralCase {
+            constraint_type: Some(constraint),
+            ..
+        } = &e1_type_atomic
+        {
             e1_type_atomic = e1_type_atomic.clone();
         }
 
@@ -142,7 +140,11 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                 continue;
             }
 
-            if let TAtomic::TEnumLiteralCase { constraint_type: Some(constraint), .. } = &e2_type_atomic {
+            if let TAtomic::TEnumLiteralCase {
+                constraint_type: Some(constraint),
+                ..
+            } = &e2_type_atomic
+            {
                 e2_type_atomic = e2_type_atomic.clone();
             }
 

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
@@ -20,7 +20,6 @@ pub(crate) fn analyze<'expr>(
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let mut root_expr = left;
     let mut root_not_left = false;
@@ -65,7 +64,6 @@ pub(crate) fn analyze<'expr>(
             statements_analyzer,
             left,
             analysis_data,
-            if_body_context,
             left,
             &None,
             true,
@@ -79,7 +77,6 @@ pub(crate) fn analyze<'expr>(
                 root_expr,
                 analysis_data,
                 &mut isset_context,
-                if_body_context,
             )
             .ok();
 
@@ -104,7 +101,6 @@ pub(crate) fn analyze<'expr>(
                 statements_analyzer,
                 left,
                 analysis_data,
-                if_body_context,
                 root_expr,
                 &root_type,
                 false,
@@ -116,7 +112,6 @@ pub(crate) fn analyze<'expr>(
                     statements_analyzer,
                     left,
                     analysis_data,
-                    if_body_context,
                     left,
                     &None,
                     true,
@@ -157,14 +152,7 @@ pub(crate) fn analyze<'expr>(
     let old_expr_types = analysis_data.expr_types.clone();
     analysis_data.expr_types.clone_from(&old_expr_types);
 
-    expression_analyzer::analyze(
-        statements_analyzer,
-        &ternary,
-        analysis_data,
-        context,
-        if_body_context,
-    )
-    .ok();
+    expression_analyzer::analyze(statements_analyzer, &ternary, analysis_data, context).ok();
 
     let ternary_type = analysis_data
         .get_rc_expr_type(pos)
@@ -184,7 +172,6 @@ fn get_left_expr(
     statements_analyzer: &StatementsAnalyzer,
     left: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    if_body_context: &mut Option<BlockContext>,
     root_expr: &aast::Expr<(), ()>,
     root_type: &Option<Rc<TUnion>>,
     make_nullable: bool,
@@ -200,7 +187,6 @@ fn get_left_expr(
             root_expr,
             analysis_data,
             &mut isset_context,
-            if_body_context,
         )
         .ok();
 

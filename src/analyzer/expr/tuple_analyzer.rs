@@ -29,13 +29,7 @@ pub(crate) fn analyze(
     let mut known_items = BTreeMap::new();
     for (i, value_expr) in tuple_fields.iter().enumerate() {
         // Now check types of the values
-        expression_analyzer::analyze(
-            statements_analyzer,
-            value_expr,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, value_expr, analysis_data, context)?;
 
         let value_item_type = analysis_data
             .get_expr_type(value_expr.pos())

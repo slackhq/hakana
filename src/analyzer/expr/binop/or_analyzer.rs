@@ -2,8 +2,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use crate::reconciler;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
@@ -20,7 +20,6 @@ pub(crate) fn analyze<'expr>(
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
@@ -31,7 +30,7 @@ pub(crate) fn analyze<'expr>(
     // we cap this at max depth of 4 to prevent quadratic behaviour
     // when analysing <expr> || <expr> || <expr> || <expr> || <expr>
     if !is_or(left, 3) {
-        let mut if_scope = IfScope::new();
+        let mut if_scope = IfScope::default();
 
         let if_conditional_scope = if_conditional_analyzer::analyze(
             statements_analyzer,
@@ -53,13 +52,12 @@ pub(crate) fn analyze<'expr>(
         left_context = context.clone();
         left_context.assigned_var_ids = FxHashMap::default();
 
-        expression_analyzer::analyze(
-            statements_analyzer,
-            left,
-            analysis_data,
-            &mut left_context,
-            &mut None,
-        )?;
+        let tmp_if_body_context = left_context.if_body_context;
+        left_context.if_body_context = None;
+
+        expression_analyzer::analyze(statements_analyzer, left, analysis_data, &mut left_context)?;
+
+        left_context.if_body_context = tmp_if_body_context;
 
         for var_id in &left_context.parent_conflicting_clause_vars {
             context.remove_var_from_conflicting_clauses(var_id, None, None, analysis_data);
@@ -88,9 +86,7 @@ pub(crate) fn analyze<'expr>(
                     )),
                 );
             } else if left_context.assigned_var_ids.contains_key(var_id) {
-                context
-                    .locals
-                    .insert(var_id.clone(), left_type.clone());
+                context.locals.insert(var_id.clone(), left_type.clone());
             }
         }
 
@@ -230,13 +226,17 @@ pub(crate) fn analyze<'expr>(
     let pre_assigned_var_ids = right_context.assigned_var_ids.clone();
     right_context.assigned_var_ids = FxHashMap::default();
 
+    let tmp_if_body_context = right_context.if_body_context;
+    right_context.if_body_context = None;
+
     expression_analyzer::analyze(
         statements_analyzer,
         right,
         analysis_data,
         &mut right_context,
-        &mut None,
     )?;
+
+    right_context.if_body_context = tmp_if_body_context;
 
     if let Some(cond_type) = analysis_data.get_rc_expr_type(right.pos()).cloned() {
         handle_paradoxical_condition(
@@ -322,27 +322,28 @@ pub(crate) fn analyze<'expr>(
         .assigned_var_ids
         .extend(right_context.assigned_var_ids);
 
-    if let Some(ref mut if_body_context) = if_body_context {
+    if let Some(if_body_context) = &context.if_body_context {
+        let mut if_body_context_inner = if_body_context.borrow_mut();
         let left_vars = left_context.locals.clone();
-        let if_vars = if_body_context.locals.clone();
+        let if_vars = if_body_context_inner.locals.clone();
         for (var_id, right_type) in right_context.locals.clone() {
             if let Some(if_type) = if_vars.get(&var_id) {
-                if_body_context.locals.insert(
+                if_body_context_inner.locals.insert(
                     var_id,
                     Rc::new(combine_union_types(&right_type, if_type, codebase, false)),
                 );
             } else if let Some(left_type) = left_vars.get(&var_id) {
-                if_body_context.locals.insert(
+                if_body_context_inner.locals.insert(
                     var_id,
                     Rc::new(combine_union_types(&right_type, left_type, codebase, false)),
                 );
             }
         }
 
-        if_body_context
+        if_body_context_inner
             .cond_referenced_var_ids
             .extend(context.cond_referenced_var_ids.clone());
-        if_body_context
+        if_body_context_inner
             .assigned_var_ids
             .extend(context.assigned_var_ids.clone());
     }

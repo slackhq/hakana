@@ -11,16 +11,9 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     context.inside_isset = true;
-    expression_analyzer::analyze(
-        statements_analyzer,
-        expr,
-        analysis_data,
-        context,
-        if_body_context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;
     context.inside_isset = false;
     analysis_data.copy_effects(expr.pos(), pos);
 

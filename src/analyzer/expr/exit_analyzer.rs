@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
@@ -32,13 +32,7 @@ pub(crate) fn analyze(
 
     for (i, (_, arg_expr)) in args.iter().enumerate() {
         context.inside_general_use = true;
-        expression_analyzer::analyze(
-            statements_analyzer,
-            arg_expr,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context)?;
         context.inside_general_use = false;
 
         let arg_type = analysis_data.get_rc_expr_type(arg_expr.pos()).cloned();
