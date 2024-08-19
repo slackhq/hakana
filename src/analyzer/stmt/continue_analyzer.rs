@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use hakana_type::combine_union_types;
+use hakana_code_info::ttype::combine_union_types;
 use rustc_hash::FxHashSet;
 
 use crate::{
@@ -33,7 +33,7 @@ pub(crate) fn analyze(
         for (var_id, var_type) in redefined_vars {
             loop_scope.possibly_redefined_loop_vars.insert(
                 var_id.clone(),
-                hakana_type::add_optional_union_type(
+                hakana_code_info::ttype::add_optional_union_type(
                     var_type,
                     loop_scope.possibly_redefined_loop_vars.get(&var_id),
                     codebase,

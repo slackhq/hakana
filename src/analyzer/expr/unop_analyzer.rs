@@ -3,7 +3,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_type::{get_bool, get_literal_int};
+use hakana_code_info::ttype::{get_bool, get_literal_int};
 use oxidized::ast::Binop;
 use oxidized::ast_defs::Bop;
 use oxidized::pos::Pos;

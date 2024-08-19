@@ -1,5 +1,5 @@
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
+use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 pub fn is_contained_by(
     codebase: &CodebaseInfo,

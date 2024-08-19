@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     ast_signature::DefSignatureNode, code_location::FilePath, diff::CodebaseDiff,
     file_info::FileInfo,
 };

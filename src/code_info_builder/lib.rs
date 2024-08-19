@@ -3,19 +3,19 @@ use std::sync::Arc;
 
 use crate::typehint_resolver::get_type_from_hint;
 use hakana_aast_helper::Uses;
-use hakana_reflection_info::attribute_info::AttributeInfo;
-use hakana_reflection_info::file_info::FileInfo;
-use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
-use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{
+use hakana_code_info::attribute_info::AttributeInfo;
+use hakana_code_info::file_info::FileInfo;
+use hakana_code_info::functionlike_info::FunctionLikeInfo;
+use hakana_code_info::t_union::TUnion;
+use hakana_code_info::{
     ast_signature::DefSignatureNode, class_constant_info::ConstantInfo, classlike_info::Variance,
     code_location::HPos, codebase_info::CodebaseInfo, t_atomic::TAtomic,
     taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
     type_resolution::TypeResolutionContext,
 };
-use hakana_reflection_info::{FileSource, GenericParent};
+use hakana_code_info::{FileSource, GenericParent};
 use hakana_str::{StrId, ThreadedInterner};
-use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
+use hakana_code_info::ttype::{get_bool, get_int, get_mixed_any, get_string};
 use no_pos_hash::{position_insensitive_hash, Hasher};
 use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;

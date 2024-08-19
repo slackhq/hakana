@@ -1,21 +1,21 @@
 use bstr::BString;
-use hakana_reflection_info::classlike_info::ClassConstantType;
-use hakana_reflection_info::code_location::HPos;
-use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
-use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
-use hakana_reflection_info::data_flow::path::{ArrayDataKind, PathKind};
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
-use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
-use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::{GenericParent, EFFECT_IMPURE};
+use hakana_code_info::classlike_info::ClassConstantType;
+use hakana_code_info::code_location::HPos;
+use hakana_code_info::codebase_info::CodebaseInfo;
+use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
+use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
+use hakana_code_info::data_flow::path::{ArrayDataKind, PathKind};
+use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::functionlike_info::FunctionLikeInfo;
+use hakana_code_info::t_atomic::{DictKey, TAtomic};
+use hakana_code_info::t_union::TUnion;
+use hakana_code_info::taint::SinkType;
+use hakana_code_info::{GenericParent, EFFECT_IMPURE};
 use hakana_str::{Interner, StrId};
-use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_type::type_comparator::union_type_comparator;
-use hakana_type::type_expander::TypeExpansionOptions;
-use hakana_type::{
+use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
+use hakana_code_info::ttype::{
     add_union_type, extend_dataflow_uniquely, get_arrayish_params, get_float, get_int,
     get_literal_string, get_mixed, get_mixed_any, get_mixed_vec, get_nothing, get_null, get_object,
     get_string, get_vec, template, type_expander, wrap_atomic,
@@ -33,7 +33,7 @@ use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 
-use hakana_type::template::{TemplateBound, TemplateResult};
+use hakana_code_info::ttype::template::{TemplateBound, TemplateResult};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 

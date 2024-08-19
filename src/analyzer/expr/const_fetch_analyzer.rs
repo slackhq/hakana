@@ -1,15 +1,15 @@
 use std::path::Path;
 use std::rc::Rc;
 
-use hakana_reflection_info::issue::Issue;
-use hakana_reflection_info::issue::IssueKind;
+use hakana_code_info::issue::Issue;
+use hakana_code_info::issue::IssueKind;
 use hakana_str::StrId;
-use hakana_type::get_literal_string;
-use hakana_type::get_mixed_any;
-use hakana_type::get_string;
-use hakana_type::type_expander;
-use hakana_type::type_expander::TypeExpansionOptions;
-use hakana_type::wrap_atomic;
+use hakana_code_info::ttype::get_literal_string;
+use hakana_code_info::ttype::get_mixed_any;
+use hakana_code_info::ttype::get_string;
+use hakana_code_info::ttype::type_expander;
+use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
+use hakana_code_info::ttype::wrap_atomic;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;

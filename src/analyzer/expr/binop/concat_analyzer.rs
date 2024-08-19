@@ -2,13 +2,13 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
-use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{
+use hakana_code_info::t_union::TUnion;
+use hakana_code_info::{
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     taint::SinkType,
 };
-use hakana_type::{get_literal_string, get_string, wrap_atomic};
+use hakana_code_info::ttype::{get_literal_string, get_string, wrap_atomic};
 use oxidized::aast;
 
 pub(crate) fn analyze<'expr>(

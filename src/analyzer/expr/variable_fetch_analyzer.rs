@@ -3,7 +3,7 @@ use crate::{
     scope::BlockContext, statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
-use hakana_reflection_info::{
+use hakana_code_info::{
     code_location::HPos,
     data_flow::{
         graph::{DataFlowGraph, GraphKind},
@@ -15,7 +15,7 @@ use hakana_reflection_info::{
     taint::SourceType,
     VarId, EFFECT_READ_GLOBALS,
 };
-use hakana_type::{get_int, get_mixed_any, get_mixed_dict};
+use hakana_code_info::ttype::{get_int, get_mixed_any, get_mixed_dict};
 use oxidized::{ast_defs::Pos, tast::Lid};
 use std::rc::Rc;
 

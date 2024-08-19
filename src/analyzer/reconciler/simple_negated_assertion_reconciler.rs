@@ -3,7 +3,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
 };
-use hakana_reflection_info::{
+use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
@@ -11,7 +11,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_type::{
+use hakana_code_info::ttype::{
     get_mixed_any, get_nothing, get_null, intersect_union_types,
     type_comparator::union_type_comparator, wrap_atomic,
 };

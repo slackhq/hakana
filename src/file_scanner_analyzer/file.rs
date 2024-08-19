@@ -1,7 +1,7 @@
 use std::{fs, path::Path, time::SystemTime};
 
 use hakana_analyzer::config::Config;
-use hakana_reflection_info::{code_location::FilePath, data_flow::graph::GraphKind};
+use hakana_code_info::{code_location::FilePath, data_flow::graph::GraphKind};
 use hakana_str::Interner;
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};

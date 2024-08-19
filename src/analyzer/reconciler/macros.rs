@@ -27,7 +27,7 @@ macro_rules! intersect_simple {
                 } else if let TAtomic::TTypeVariable { name } = atomic {
                     if let Some(pos) = $pos {
                         if let Some((lower_bounds, _)) = $analysis_data.type_variable_bounds.get_mut(name) {
-                            let mut bound = hakana_type::template::TemplateBound::new($max_type.clone(), 0, None, None);
+                            let mut bound = hakana_code_info::ttype::template::TemplateBound::new($max_type.clone(), 0, None, None);
                             bound.pos = Some($statements_analyzer.get_hpos(pos));
                             lower_bounds.push(bound);
                         }

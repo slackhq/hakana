@@ -8,7 +8,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
-use hakana_type::get_bool;
+use hakana_code_info::ttype::get_bool;
 use oxidized::aast;
 
 pub(crate) fn analyze<'expr>(

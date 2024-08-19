@@ -9,9 +9,9 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, stmt_analyzer};
-use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::function_context::FunctionContext;
-use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_code_info::analysis_result::AnalysisResult;
+use hakana_code_info::function_context::FunctionContext;
+use hakana_code_info::issue::{Issue, IssueKind};
 use oxidized::aast;
 
 pub(crate) fn analyze(

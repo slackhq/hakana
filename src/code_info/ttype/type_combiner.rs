@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use hakana_reflection_info::{
+use crate::{
     classlike_info::Variance,
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
     t_atomic::{DictKey, TAtomic},
@@ -10,7 +10,7 @@ use hakana_str::StrId;
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{
+use crate::ttype::{
     combine_union_types, get_int,
     type_combination::{self, TypeCombination},
     type_comparator::{object_type_comparator, type_comparison_result::TypeComparisonResult},

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_str::Interner;
 use hakana_workhorse::file::FileStatus;
 use hakana_workhorse::{scan_and_analyze_async, SuccessfulScanData};

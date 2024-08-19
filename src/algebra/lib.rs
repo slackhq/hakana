@@ -1,7 +1,7 @@
 pub mod clause;
 
 pub use clause::Clause;
-use hakana_reflection_info::assertion::Assertion;
+use hakana_code_info::assertion::Assertion;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use rand::Rng;

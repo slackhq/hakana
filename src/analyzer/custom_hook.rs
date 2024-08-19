@@ -1,6 +1,6 @@
-use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::{
+use hakana_code_info::analysis_result::AnalysisResult;
+use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::{
     codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo, t_union::TUnion,
 };
 use hakana_str::{Interner, StrId};

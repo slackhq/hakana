@@ -1,10 +1,10 @@
-use hakana_reflection_info::issue::IssueKind;
+use hakana_code_info::issue::IssueKind;
 
-use hakana_reflection_info::issue::Issue;
+use hakana_code_info::issue::Issue;
 
-use hakana_type::combine_union_types;
+use hakana_code_info::ttype::combine_union_types;
 
-use hakana_type::combine_optional_union_types;
+use hakana_code_info::ttype::combine_optional_union_types;
 use oxidized::aast;
 use oxidized::aast::CallExpr;
 use oxidized::ast::Binop;
@@ -35,7 +35,7 @@ use super::if_conditional_analyzer::add_branch_dataflow;
 
 use oxidized::ast_defs;
 
-use hakana_type::get_mixed_any;
+use hakana_code_info::ttype::get_mixed_any;
 
 use crate::expression_analyzer;
 

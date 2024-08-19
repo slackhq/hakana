@@ -1,19 +1,19 @@
 use std::rc::Rc;
 
-use hakana_reflection_info::analysis_result::Replacement;
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::method_identifier::MethodIdentifier;
-use hakana_reflection_info::{
+use hakana_code_info::analysis_result::Replacement;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::method_identifier::MethodIdentifier;
+use hakana_code_info::{
     assertion::Assertion,
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_reflection_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
+use hakana_code_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
 use hakana_str::StrId;
-use hakana_type::get_null;
-use hakana_type::template::standin_type_replacer;
-use hakana_type::{
+use hakana_code_info::ttype::get_null;
+use hakana_code_info::ttype::template::standin_type_replacer;
+use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
 };
 use indexmap::IndexMap;
@@ -287,7 +287,7 @@ fn handle_shapes_static_method(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
-    codebase: &hakana_reflection_info::codebase_info::CodebaseInfo,
+    codebase: &hakana_code_info::codebase_info::CodebaseInfo,
 ) -> Option<TUnion> {
     match method_id.1 {
         StrId::KEY_EXISTS => {

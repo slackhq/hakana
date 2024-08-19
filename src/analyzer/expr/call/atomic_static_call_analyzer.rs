@@ -1,4 +1,4 @@
-use hakana_reflection_info::{
+use hakana_code_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     EFFECT_IMPURE,

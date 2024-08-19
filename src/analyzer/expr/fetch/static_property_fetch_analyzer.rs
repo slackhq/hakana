@@ -6,13 +6,13 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
-use hakana_reflection_info::ast::get_id_name;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::EFFECT_READ_PROPS;
-use hakana_type::type_expander::TypeExpansionOptions;
-use hakana_type::{
+use hakana_code_info::ast::get_id_name;
+use hakana_code_info::data_flow::node::DataFlowNode;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::EFFECT_READ_PROPS;
+use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
+use hakana_code_info::ttype::{
     get_named_object,
     type_expander::{self, StaticClassType},
 };

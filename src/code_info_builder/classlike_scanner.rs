@@ -5,7 +5,7 @@ use hakana_str::{StrId, ThreadedInterner};
 use no_pos_hash::{position_insensitive_hash, Hasher, NoPosHash};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     ast_signature::DefSignatureNode,
     attribute_info::AttributeInfo,
     class_constant_info::ConstantInfo,
@@ -19,7 +19,7 @@ use hakana_reflection_info::{
     type_resolution::TypeResolutionContext,
     FileSource, GenericParent,
 };
-use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
+use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use oxidized::{
     aast::{self, ClassConstKind},
     ast_defs::{self, ClassishKind},

@@ -1,5 +1,5 @@
-use hakana_reflection_info::classlike_info::ClassLikeInfo;
-use hakana_reflection_info::method_identifier::MethodIdentifier;
+use hakana_code_info::classlike_info::ClassLikeInfo;
+use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_str::StrId;
 
 pub(crate) struct MethodCallInfo<'a> {

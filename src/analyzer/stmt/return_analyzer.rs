@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use crate::scope::BlockContext;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::{
+use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::{
     data_flow::{
         graph::{DataFlowGraph, GraphKind},
         node::DataFlowNode,
@@ -15,14 +15,14 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use hakana_str::{Interner, StrId};
-use hakana_type::{combine_union_types, extend_dataflow_uniquely};
-use hakana_type::{
+use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
+use hakana_code_info::ttype::{
     get_mixed_any, get_null, get_void,
     type_comparator::type_comparison_result::TypeComparisonResult,
     type_expander::{self, TypeExpansionOptions},
     wrap_atomic,
 };
-use hakana_type::{type_comparator::union_type_comparator, type_expander::StaticClassType};
+use hakana_code_info::ttype::{type_comparator::union_type_comparator, type_expander::StaticClassType};
 use oxidized::aast;
 use rustc_hash::FxHashSet;
 

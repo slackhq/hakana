@@ -2,8 +2,8 @@ use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
-use hakana_reflection_info::data_flow::graph::WholeProgramKind;
-use hakana_reflection_info::{
+use hakana_code_info::data_flow::graph::WholeProgramKind;
+use hakana_code_info::{
     data_flow::{
         graph::GraphKind,
         node::DataFlowNode,
@@ -12,7 +12,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_type::{get_mixed_any, get_nothing, wrap_atomic};
+use hakana_code_info::ttype::{get_mixed_any, get_nothing, wrap_atomic};
 use oxidized::{aast, ast_defs::Pos};
 
 use std::collections::BTreeMap;

@@ -5,18 +5,18 @@ use crate::{
     function_analysis_data::FunctionAnalysisData,
 };
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::{
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_reflection_info::{GenericParent, VarId};
+use hakana_code_info::{GenericParent, VarId};
 use hakana_str::StrId;
-use hakana_type::type_expander::TypeExpansionOptions;
-use hakana_type::{
+use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
+use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
     template::{inferred_type_replacer, TemplateResult},
     type_expander::{self, StaticClassType},

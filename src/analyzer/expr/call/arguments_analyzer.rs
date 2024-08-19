@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use hakana_reflection_info::assertion::Assertion;
-use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
+use hakana_code_info::assertion::Assertion;
+use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
 
-use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::taint::SinkType;
+use hakana_code_info::data_flow::node::DataFlowNode;
+use hakana_code_info::taint::SinkType;
 use hakana_str::{Interner, StrId};
 use rustc_hash::FxHashMap;
 
@@ -20,20 +20,20 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, functionlike_analyzer};
-use hakana_reflection_info::classlike_info::ClassLikeInfo;
-use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
-use hakana_reflection_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::t_union::{populate_union_type, TUnion};
+use hakana_code_info::classlike_info::ClassLikeInfo;
+use hakana_code_info::codebase_info::CodebaseInfo;
+use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
+use hakana_code_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_union::{populate_union_type, TUnion};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
-use hakana_type::template::{
+use hakana_code_info::ttype::template::{
     self, inferred_type_replacer, standin_type_replacer, TemplateBound, TemplateResult,
 };
-use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
-use hakana_type::{
+use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
+use hakana_code_info::ttype::{
     add_optional_union_type, combine_optional_union_types, get_arraykey, get_mixed_any, wrap_atomic,
 };
 use indexmap::IndexMap;

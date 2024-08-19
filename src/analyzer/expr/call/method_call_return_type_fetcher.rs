@@ -1,20 +1,20 @@
 use std::rc::Rc;
 
-use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::{ExprId, GenericParent, VarId};
+use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_code_info::{ExprId, GenericParent, VarId};
 use hakana_str::{Interner, StrId};
-use hakana_type::get_mixed;
+use hakana_code_info::ttype::get_mixed;
 use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
 
-use hakana_reflection_info::classlike_info::ClassLikeInfo;
-use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
-use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::method_identifier::MethodIdentifier;
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::t_union::TUnion;
-use hakana_type::{
+use hakana_code_info::classlike_info::ClassLikeInfo;
+use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
+use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::method_identifier::MethodIdentifier;
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::{
     get_mixed_any, get_nothing, get_string, template,
     type_expander::{self, TypeExpansionOptions},
 };
@@ -25,8 +25,8 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
-use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
-use hakana_type::template::{TemplateBound, TemplateResult};
+use hakana_code_info::functionlike_info::FunctionLikeInfo;
+use hakana_code_info::ttype::template::{TemplateBound, TemplateResult};
 
 use super::function_call_return_type_fetcher::add_special_param_dataflow;
 
@@ -503,7 +503,7 @@ fn add_dataflow(
             &FxHashMap::default(),
             data_flow_graph,
             &method_call_node,
-            PathKind::UnknownArrayFetch(hakana_reflection_info::data_flow::path::ArrayDataKind::ArrayValue),
+            PathKind::UnknownArrayFetch(hakana_code_info::data_flow::path::ArrayDataKind::ArrayValue),
         );
     }
 

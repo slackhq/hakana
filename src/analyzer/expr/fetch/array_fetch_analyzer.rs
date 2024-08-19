@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
@@ -11,7 +11,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_type::{
+use hakana_code_info::ttype::{
     add_optional_union_type, add_union_type, get_arraykey, get_int, get_mixed_any,
     get_mixed_maybe_from_loop, get_nothing, get_null, get_string,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},

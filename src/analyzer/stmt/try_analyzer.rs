@@ -6,11 +6,11 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
-use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::VarId;
-use hakana_type::{combine_union_types, get_named_object};
+use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
+use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::VarId;
+use hakana_code_info::ttype::{combine_union_types, get_named_object};
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;

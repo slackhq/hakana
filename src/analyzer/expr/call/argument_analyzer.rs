@@ -3,22 +3,24 @@ use crate::expr::fetch::array_fetch_analyzer::{
     add_array_fetch_dataflow, handle_array_access_on_dict, handle_array_access_on_vec,
 };
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
-use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
-use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
-use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::taint::{string_to_sink_types, SinkType};
+use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
+use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
+use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_union::TUnion;
+use hakana_code_info::taint::{string_to_sink_types, SinkType};
+use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::{
+    add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing,
+};
 use hakana_str::Interner;
-use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_type::type_comparator::union_type_comparator;
-use hakana_type::{add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 

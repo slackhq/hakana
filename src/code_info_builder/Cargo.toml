@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hakana-type = { path = "../ttype" }
-hakana-reflection-info = { path = "../code_info" }
+hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
 hakana-aast-helper = { path = "../aast_utils" }
 indexmap = "1.8.0"

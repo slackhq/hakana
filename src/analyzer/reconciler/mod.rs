@@ -10,7 +10,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_reflection_info::{
+use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -21,7 +21,7 @@ use hakana_reflection_info::{
     VarId,
 };
 use hakana_str::{Interner, StrId};
-use hakana_type::{
+use hakana_code_info::ttype::{
     add_union_type, get_mixed_any, get_null, get_value_param,
     type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
@@ -875,12 +875,12 @@ fn get_value_for_key(
                             | TAtomic::TLiteralString { .. }
                             | TAtomic::TStringWithFlags(..)
                     ) {
-                        return Some(hakana_type::get_string());
+                        return Some(hakana_code_info::ttype::get_string());
                     } else if matches!(
                         existing_key_type_part,
                         TAtomic::TNothing | TAtomic::TMixedFromLoopIsset
                     ) {
-                        return Some(hakana_type::get_mixed_maybe_from_loop(inside_loop));
+                        return Some(hakana_code_info::ttype::get_mixed_maybe_from_loop(inside_loop));
                     } else if let TAtomic::TNamedObject {
                         name,
                         type_params: Some(type_params),
@@ -911,15 +911,15 @@ fn get_value_for_key(
                                 }
                             }
                             _ => {
-                                return Some(hakana_type::get_mixed_any());
+                                return Some(hakana_code_info::ttype::get_mixed_any());
                             }
                         }
                     } else {
-                        return Some(hakana_type::get_mixed_any());
+                        return Some(hakana_code_info::ttype::get_mixed_any());
                     }
 
                     new_base_type = if let Some(new_base_type) = new_base_type {
-                        Some(hakana_type::add_union_type(
+                        Some(hakana_code_info::ttype::add_union_type(
                             new_base_type,
                             &new_base_type_candidate,
                             codebase,
@@ -1001,7 +1001,7 @@ fn get_value_for_key(
                     }
 
                     new_base_type = if let Some(new_base_type) = new_base_type {
-                        Some(hakana_type::add_union_type(
+                        Some(hakana_code_info::ttype::add_union_type(
                             new_base_type,
                             &class_property_type,
                             codebase,

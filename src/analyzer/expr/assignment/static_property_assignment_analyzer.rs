@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     ast::get_id_name,
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_type::{
+use hakana_code_info::ttype::{
     get_mixed_any,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
     type_expander::{self, StaticClassType, TypeExpansionOptions},

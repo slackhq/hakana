@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
 
-use hakana_reflection_info::t_union::TUnion;
-use hakana_type::{combine_union_types, extend_dataflow_uniquely};
+use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 

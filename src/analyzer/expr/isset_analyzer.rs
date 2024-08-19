@@ -2,7 +2,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
-use hakana_type::get_bool;
+use hakana_code_info::ttype::get_bool;
 use oxidized::{aast, ast::Pos};
 
 pub(crate) fn analyze(

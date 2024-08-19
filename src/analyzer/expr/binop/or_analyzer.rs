@@ -10,7 +10,7 @@ use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
 use crate::{function_analysis_data::FunctionAnalysisData, scope::if_scope::IfScope};
-use hakana_type::combine_union_types;
+use hakana_code_info::ttype::combine_union_types;
 use oxidized::ast::{Binop, Uop};
 use oxidized::{aast, ast};
 

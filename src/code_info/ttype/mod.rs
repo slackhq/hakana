@@ -1,7 +1,7 @@
 use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use hakana_reflection_info::{
+use crate::{
     codebase_info::CodebaseInfo,
     data_flow::node::DataFlowNode,
     t_atomic::{DictKey, TAtomic},

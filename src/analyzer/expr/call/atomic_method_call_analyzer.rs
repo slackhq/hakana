@@ -1,11 +1,11 @@
 use hakana_str::StrId;
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_type::get_mixed_any;
+use hakana_code_info::ttype::get_mixed_any;
 use oxidized::{
     aast,
     ast_defs::{self, ParamKind, Pos},
@@ -276,7 +276,7 @@ pub(crate) fn handle_method_call_on_named_object(
             Some(expr.0.pos()),
         )?;
 
-        result.return_type = Some(hakana_type::add_optional_union_type(
+        result.return_type = Some(hakana_code_info::ttype::add_optional_union_type(
             return_type_candidate,
             result.return_type.as_ref(),
             codebase,

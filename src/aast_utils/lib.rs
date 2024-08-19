@@ -1,7 +1,7 @@
 use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
 
-use hakana_reflection_info::code_location::{FilePath, HPos};
-use hakana_reflection_info::file_info::ParserError;
+use hakana_code_info::code_location::{FilePath, HPos};
+use hakana_code_info::file_info::ParserError;
 use hakana_str::{StrId, ThreadedInterner};
 use name_context::NameContext;
 use naming_visitor::Scanner;

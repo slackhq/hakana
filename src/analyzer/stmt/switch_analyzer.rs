@@ -1,6 +1,6 @@
-use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_str::{Interner, StrId};
-use hakana_type::{combine_union_types, get_mixed_any};
+use hakana_code_info::ttype::{combine_union_types, get_mixed_any};
 use indexmap::IndexMap;
 use oxidized::{aast, aast::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};

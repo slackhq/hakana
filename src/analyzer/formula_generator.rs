@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use hakana_algebra::Clause;
-use hakana_reflection_info::symbol_references::ReferenceSource;
-use hakana_reflection_info::FileSource;
-use hakana_reflection_info::{
+use hakana_code_info::symbol_references::ReferenceSource;
+use hakana_code_info::FileSource;
+use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
 };
 use hakana_str::{Interner, StrId};

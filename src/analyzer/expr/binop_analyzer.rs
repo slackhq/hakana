@@ -5,10 +5,10 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_type::type_comparator::union_type_comparator;
-use hakana_type::{get_bool, get_int};
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::ttype::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::{get_bool, get_int};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast};
 

@@ -1,6 +1,5 @@
-use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
-
-use crate::template::TemplateBound;
+use crate::{t_atomic::TAtomic, t_union::TUnion};
+use crate::ttype::template::TemplateBound;
 
 #[derive(Debug)]
 pub struct TypeComparisonResult {

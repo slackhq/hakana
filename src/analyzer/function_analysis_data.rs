@@ -1,8 +1,8 @@
 use crate::{config::Config, scope::CaseScope};
-use hakana_reflection_info::analysis_result::Replacement;
-use hakana_reflection_info::code_location::StmtStart;
-use hakana_reflection_info::FileSource;
-use hakana_reflection_info::{
+use hakana_code_info::analysis_result::Replacement;
+use hakana_code_info::code_location::StmtStart;
+use hakana_code_info::FileSource;
+use hakana_code_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind, WholeProgramKind},
     functionlike_info::FunctionLikeInfo,
@@ -10,7 +10,7 @@ use hakana_reflection_info::{
     symbol_references::SymbolReferences,
     t_union::TUnion,
 };
-use hakana_type::template::TemplateBound;
+use hakana_code_info::ttype::template::TemplateBound;
 use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};

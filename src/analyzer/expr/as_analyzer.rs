@@ -7,13 +7,13 @@ use crate::stmt_analyzer::AnalysisError;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::EFFECT_IMPURE;
-use hakana_reflection_info::{data_flow::graph::DataFlowGraph, t_union::populate_union_type};
+use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::EFFECT_IMPURE;
+use hakana_code_info::{data_flow::graph::DataFlowGraph, t_union::populate_union_type};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
-use hakana_type::wrap_atomic;
-use hakana_type::{
+use hakana_code_info::ttype::wrap_atomic;
+use hakana_code_info::ttype::{
     get_mixed_any,
     type_expander::{self, TypeExpansionOptions},
 };

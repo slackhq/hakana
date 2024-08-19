@@ -22,24 +22,24 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
 use hakana_algebra::Clause;
-use hakana_reflection_info::ast::get_id_name;
-use hakana_reflection_info::code_location::StmtStart;
-use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::method_identifier::MethodIdentifier;
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::EFFECT_IMPURE;
-use hakana_reflector::simple_type_inferer::int_from_string;
-use hakana_str::StrId;
-use hakana_type::type_expander::get_closure_from_id;
-use hakana_type::{
+use hakana_code_info::ast::get_id_name;
+use hakana_code_info::code_location::StmtStart;
+use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::data_flow::node::DataFlowNode;
+use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::method_identifier::MethodIdentifier;
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::type_expander::get_closure_from_id;
+use hakana_code_info::ttype::{
     extend_dataflow_uniquely, get_bool, get_false, get_float, get_int, get_literal_int,
     get_literal_string, get_mixed_any, get_null, get_true, wrap_atomic,
 };
+use hakana_code_info::EFFECT_IMPURE;
+use hakana_reflector::simple_type_inferer::int_from_string;
+use hakana_str::StrId;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -142,13 +142,7 @@ pub(crate) fn analyze(
             )?;
         }
         aast::Expr_::Call(boxed) => {
-            call_analyzer::analyze(
-                statements_analyzer,
-                boxed,
-                &expr.1,
-                analysis_data,
-                context,
-            )?;
+            call_analyzer::analyze(statements_analyzer, boxed, &expr.1, analysis_data, context)?;
         }
         aast::Expr_::ArrayGet(boxed) => {
             let keyed_array_var_id = expression_identifier::get_var_id(
@@ -429,13 +423,7 @@ pub(crate) fn analyze(
             );
         }
         aast::Expr_::Yield(boxed) => {
-            yield_analyzer::analyze(
-                &expr.1,
-                boxed,
-                statements_analyzer,
-                analysis_data,
-                context,
-            )?;
+            yield_analyzer::analyze(&expr.1, boxed, statements_analyzer, analysis_data, context)?;
         }
         aast::Expr_::List(_) => {
             panic!("should not happen")

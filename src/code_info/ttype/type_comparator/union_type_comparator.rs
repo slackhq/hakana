@@ -1,5 +1,5 @@
-use crate::{template::TemplateBound, wrap_atomic};
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
+use crate::ttype::{template::TemplateBound, wrap_atomic};
+use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
 
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
 

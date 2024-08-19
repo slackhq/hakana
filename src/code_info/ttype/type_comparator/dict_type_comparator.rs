@@ -1,5 +1,5 @@
-use crate::{get_arrayish_params, get_arraykey, get_mixed};
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
+use crate::ttype::{get_arrayish_params, get_arraykey, get_mixed};
+use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 use super::{
     generic_type_comparator::update_failed_result_from_nested,

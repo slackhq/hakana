@@ -6,11 +6,11 @@ use crate::{
     stmt_analyzer::AnalysisError,
 };
 use hakana_algebra::Clause;
-use hakana_reflection_info::{
+use hakana_code_info::{
     analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS,
     EFFECT_READ_PROPS,
 };
-use hakana_type::{combine_union_types, extend_dataflow_uniquely};
+use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};

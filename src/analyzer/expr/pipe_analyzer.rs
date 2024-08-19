@@ -4,11 +4,11 @@ use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
-use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::{VarId, EFFECT_IMPURE, EFFECT_PURE};
+use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::data_flow::node::DataFlowNode;
+use hakana_code_info::{VarId, EFFECT_IMPURE, EFFECT_PURE};
 use hakana_str::StrId;
-use hakana_type::get_mixed_any;
+use hakana_code_info::ttype::get_mixed_any;
 use oxidized::{aast, aast_defs, ast_defs::Pos};
 
 pub(crate) fn analyze(

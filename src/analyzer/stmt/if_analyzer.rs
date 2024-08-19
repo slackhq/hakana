@@ -9,8 +9,8 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
-use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_type::add_union_type;
+use hakana_code_info::codebase_info::CodebaseInfo;
+use hakana_code_info::ttype::add_union_type;
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -200,7 +200,7 @@ pub(crate) fn update_if_scope(
             if let Some(if_var_type) = if_context.locals.get(&new_var_id) {
                 new_vars.insert(
                     new_var_id,
-                    hakana_type::add_union_type(new_type, if_var_type, codebase, false),
+                    hakana_code_info::ttype::add_union_type(new_type, if_var_type, codebase, false),
                 );
             } else {
                 new_vars.remove(&new_var_id);
@@ -246,7 +246,7 @@ pub(crate) fn update_if_scope(
             if let Some(redefined_var_type) = redefined_vars.get(&redefined_var_id) {
                 scope_redefined_vars.insert(
                     redefined_var_id.clone(),
-                    hakana_type::combine_union_types(
+                    hakana_code_info::ttype::combine_union_types(
                         redefined_var_type,
                         &scope_redefined_type,
                         codebase,

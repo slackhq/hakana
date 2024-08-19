@@ -3,11 +3,11 @@ use std::sync::Arc;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     classlike_info::ClassLikeInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
     GenericParent,
 };
-use hakana_type::{add_optional_union_type, get_mixed_any, wrap_atomic};
+use hakana_code_info::ttype::{add_optional_union_type, get_mixed_any, wrap_atomic};
 use indexmap::IndexMap;
 
 pub(crate) fn collect(

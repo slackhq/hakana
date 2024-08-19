@@ -1,6 +1,6 @@
 use std::{error::Error, path::Path};
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     data_flow::{graph::GraphKind, tainted_node::TaintedNode},
     issue::{Issue, IssueKind},
     taint::{SinkType, SourceType},

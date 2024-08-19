@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, rc::Rc};
 
-use hakana_reflection_info::t_union::TUnion;
+use hakana_code_info::t_union::TUnion;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::control_action::ControlAction;

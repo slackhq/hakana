@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::code_location::HPos;
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::{
+use hakana_code_info::code_location::HPos;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::{
     GenericParent, EFFECT_CAN_THROW, EFFECT_IMPURE, EFFECT_PURE, EFFECT_WRITE_PROPS,
 };
 use hakana_str::StrId;
-use hakana_type::template::standin_type_replacer::get_relevant_bounds;
-use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_type::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::template::standin_type_replacer::get_relevant_bounds;
+use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::type_comparator::union_type_comparator;
 use itertools::Itertools;
 use oxidized::ast::CallExpr;
 use rustc_hash::FxHashMap;
@@ -18,13 +18,13 @@ use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
-use hakana_reflection_info::method_identifier::MethodIdentifier;
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::t_union::TUnion;
-use hakana_type::get_mixed_any;
-use hakana_type::template::{TemplateBound, TemplateResult};
+use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
+use hakana_code_info::method_identifier::MethodIdentifier;
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::get_mixed_any;
+use hakana_code_info::ttype::template::{TemplateBound, TemplateResult};
 use indexmap::IndexMap;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};

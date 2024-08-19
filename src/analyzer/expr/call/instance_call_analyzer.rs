@@ -7,10 +7,10 @@ use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::EFFECT_WRITE_PROPS;
-use hakana_type::{add_union_type, get_mixed_any, get_null};
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::EFFECT_WRITE_PROPS;
+use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 

@@ -3,7 +3,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
-use hakana_reflection_info::{
+use hakana_code_info::{
     code_location::StmtStart,
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
@@ -13,7 +13,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_type::{get_mixed_any, wrap_atomic};
+use hakana_code_info::ttype::{get_mixed_any, wrap_atomic};
 use oxidized::{
     aast,
     ast_defs::{Pos, ShapeFieldName},

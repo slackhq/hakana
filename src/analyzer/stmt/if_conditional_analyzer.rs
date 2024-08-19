@@ -6,7 +6,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     stmt_analyzer::AnalysisError,
 };
-use hakana_reflection_info::{
+use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},

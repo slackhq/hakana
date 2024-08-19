@@ -8,9 +8,9 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
-use hakana_type::get_mixed_any;
+use hakana_code_info::ttype::get_mixed_any;
 use oxidized::aast;
 
 pub(crate) fn analyze(

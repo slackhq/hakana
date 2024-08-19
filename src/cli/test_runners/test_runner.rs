@@ -1,11 +1,11 @@
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_logger::Logger;
-use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::code_location::FilePath;
-use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::graph::WholeProgramKind;
-use hakana_reflection_info::issue::IssueKind;
+use hakana_code_info::analysis_result::AnalysisResult;
+use hakana_code_info::code_location::FilePath;
+use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::data_flow::graph::WholeProgramKind;
+use hakana_code_info::issue::IssueKind;
 use hakana_str::Interner;
 use hakana_workhorse::wasm::get_single_file_codebase;
 use hakana_workhorse::SuccessfulScanData;

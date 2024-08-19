@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use hakana_reflection_info::{
+use crate::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };

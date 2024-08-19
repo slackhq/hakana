@@ -7,7 +7,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_reflection_info::{
+use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
@@ -15,7 +15,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_type::{
+use hakana_code_info::ttype::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
     type_comparator::{
         atomic_type_comparator::{self, expand_constant_value},

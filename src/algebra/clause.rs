@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use std::num::Wrapping;
 
-use hakana_reflection_info::assertion::Assertion;
+use hakana_code_info::assertion::Assertion;
 use hakana_str::Interner;
 use indexmap::IndexMap;
 

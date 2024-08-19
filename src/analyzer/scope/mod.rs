@@ -2,9 +2,9 @@ use std::cell::RefCell;
 use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
-use hakana_reflection_info::function_context::FunctionContext;
-use hakana_reflection_info::EFFECT_PURE;
-use hakana_reflection_info::{assertion::Assertion, t_union::TUnion};
+use hakana_code_info::function_context::FunctionContext;
+use hakana_code_info::EFFECT_PURE;
+use hakana_code_info::{assertion::Assertion, t_union::TUnion};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{

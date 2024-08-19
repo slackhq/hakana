@@ -1,5 +1,5 @@
-use crate::get_arrayish_params;
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
+use crate::ttype::get_arrayish_params;
+use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
 

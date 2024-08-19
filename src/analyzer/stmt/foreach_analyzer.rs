@@ -11,14 +11,14 @@ use crate::{
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
-use hakana_reflection_info::{
+use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_type::{
+use hakana_code_info::ttype::{
     add_optional_union_type, add_union_type, combine_optional_union_types, get_arraykey, get_int,
     get_literal_int, get_literal_string, get_mixed_any, get_nothing,
 };

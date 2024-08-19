@@ -2,11 +2,11 @@ use clap::{arg, Command};
 use hakana_analyzer::config::{self};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_logger::{Logger, Verbosity};
-use hakana_reflection_info::analysis_result::{
+use hakana_code_info::analysis_result::{
     AnalysisResult, CheckPointEntry, FullEntry, HhClientEntry, Replacement,
 };
-use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
-use hakana_reflection_info::issue::IssueKind;
+use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
+use hakana_code_info::issue::IssueKind;
 use hakana_str::Interner;
 use indexmap::IndexMap;
 use rand::Rng;

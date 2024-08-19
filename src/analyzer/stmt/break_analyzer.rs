@@ -8,7 +8,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
 };
-use hakana_type::{combine_optional_union_types, combine_union_types};
+use hakana_code_info::ttype::{combine_optional_union_types, combine_union_types};
 use rustc_hash::FxHashMap;
 
 pub(crate) fn analyze(
@@ -39,7 +39,7 @@ pub(crate) fn analyze(
                 if let Some(existing_redefined_loop_parent_var) =
                     loop_scope.possibly_redefined_loop_parent_vars.get(var_id)
                 {
-                    Rc::new(hakana_type::add_union_type(
+                    Rc::new(hakana_code_info::ttype::add_union_type(
                         (**var_type).clone(),
                         existing_redefined_loop_parent_var,
                         codebase,

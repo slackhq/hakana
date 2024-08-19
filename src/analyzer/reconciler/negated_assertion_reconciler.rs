@@ -4,13 +4,13 @@ use super::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
-use hakana_reflection_info::{
+use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_type::{get_nothing, get_placeholder, wrap_atomic};
-use hakana_type::{
+use hakana_code_info::ttype::{get_nothing, get_placeholder, wrap_atomic};
+use hakana_code_info::ttype::{
     type_combiner,
     type_comparator::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,

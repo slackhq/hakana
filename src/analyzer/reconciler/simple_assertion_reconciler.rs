@@ -5,7 +5,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, intersect_simple, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_reflection_info::{
+use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
@@ -13,7 +13,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_type::{
+use hakana_code_info::ttype::{
     get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
     get_mixed_dict, get_mixed_keyset, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing,
     get_null, get_num, get_object, get_scalar, get_string, get_true, intersect_union_types,

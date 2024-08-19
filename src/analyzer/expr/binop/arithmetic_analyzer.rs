@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_type::template::TemplateBound;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::ttype::template::TemplateBound;
 use rustc_hash::FxHashMap;
 
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -10,13 +10,13 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, expression_analyzer};
-use hakana_reflection_info::{
+use hakana_code_info::{
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     t_union::TUnion,
     taint::SinkType,
 };
-use hakana_type::{get_mixed_any, get_num, type_combiner};
+use hakana_code_info::ttype::{get_mixed_any, get_num, type_combiner};
 use oxidized::{aast, ast, ast_defs::Pos};
 
 pub(crate) fn analyze<'expr: 'tast, 'tast>(

@@ -1,14 +1,14 @@
 use chrono::Utc;
 use hakana_analyzer::config::Config;
-use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
-use hakana_reflection_info::classlike_info::ClassLikeInfo;
-use hakana_reflection_info::code_location::StmtStart;
-use hakana_reflection_info::codebase_info::symbols::SymbolKind;
-use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
-use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::member_visibility::MemberVisibility;
-use hakana_reflection_info::property_info::PropertyKind;
+use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
+use hakana_code_info::classlike_info::ClassLikeInfo;
+use hakana_code_info::code_location::StmtStart;
+use hakana_code_info::codebase_info::symbols::SymbolKind;
+use hakana_code_info::codebase_info::{CodebaseInfo, Symbols};
+use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::member_visibility::MemberVisibility;
+use hakana_code_info::property_info::PropertyKind;
 use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 

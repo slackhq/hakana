@@ -1,5 +1,4 @@
-use crate::get_mixed_any;
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
+use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, ttype::get_mixed_any};
 
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
 

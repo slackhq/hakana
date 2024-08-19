@@ -1,6 +1,6 @@
-use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
+use hakana_code_info::t_atomic::{DictKey, TAtomic};
 use hakana_str::StrId;
-use hakana_type::{get_nothing, wrap_atomic};
+use hakana_code_info::ttype::{get_nothing, wrap_atomic};
 use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, num::ParseIntError, sync::Arc};

@@ -2,13 +2,13 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
-use hakana_reflection_info::ast::get_id_name;
-use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
+use hakana_code_info::ast::get_id_name;
+use hakana_code_info::codebase_info::CodebaseInfo;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::{t_atomic::TAtomic, t_union::TUnion};
 use hakana_str::StrId;
-use hakana_type::type_expander::{StaticClassType, TypeExpansionOptions};
-use hakana_type::{
+use hakana_code_info::ttype::type_expander::{StaticClassType, TypeExpansionOptions};
+use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
     type_expander::{self},
     wrap_atomic,

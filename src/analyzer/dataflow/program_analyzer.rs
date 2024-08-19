@@ -1,9 +1,9 @@
 use hakana_logger::Logger;
 use hakana_logger::Verbosity;
-use hakana_reflection_info::code_location::FilePath;
-use hakana_reflection_info::data_flow::node::DataFlowNodeId;
-use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::code_location::FilePath;
+use hakana_code_info::data_flow::node::DataFlowNodeId;
+use hakana_code_info::data_flow::node::DataFlowNodeKind;
+use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use itertools::Itertools;
@@ -13,13 +13,13 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use crate::config::Config;
-use hakana_reflection_info::data_flow::graph::DataFlowGraph;
-use hakana_reflection_info::data_flow::path::ArrayDataKind;
-use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::data_flow::tainted_node::TaintedNode;
-use hakana_reflection_info::issue::Issue;
-use hakana_reflection_info::issue::IssueKind;
-use hakana_reflection_info::taint::SinkType;
+use hakana_code_info::data_flow::graph::DataFlowGraph;
+use hakana_code_info::data_flow::path::ArrayDataKind;
+use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::data_flow::tainted_node::TaintedNode;
+use hakana_code_info::issue::Issue;
+use hakana_code_info::issue::IssueKind;
+use hakana_code_info::taint::SinkType;
 
 pub fn find_tainted_data(
     graph: &DataFlowGraph,

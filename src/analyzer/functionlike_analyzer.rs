@@ -13,26 +13,26 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{file_analyzer::FileAnalyzer, function_analysis_data::FunctionAnalysisData};
-use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
-use hakana_reflection_info::classlike_info::ClassLikeInfo;
-use hakana_reflection_info::code_location::{FilePath, HPos, StmtStart};
-use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
-use hakana_reflection_info::data_flow::node::{
+use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
+use hakana_code_info::classlike_info::ClassLikeInfo;
+use hakana_code_info::code_location::{FilePath, HPos, StmtStart};
+use hakana_code_info::codebase_info::CodebaseInfo;
+use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
+use hakana_code_info::data_flow::node::{
     DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind,
 };
-use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::function_context::{FunctionContext, FunctionLikeIdentifier};
-use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::member_visibility::MemberVisibility;
-use hakana_reflection_info::method_identifier::MethodIdentifier;
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::t_union::TUnion;
+use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::function_context::{FunctionContext, FunctionLikeIdentifier};
+use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::member_visibility::MemberVisibility;
+use hakana_code_info::method_identifier::MethodIdentifier;
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_union::TUnion;
 use hakana_str::{Interner, StrId};
-use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
-use hakana_type::{
+use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
+use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any, get_nothing, get_void, type_comparator, wrap_atomic,
 };
 use itertools::Itertools;
@@ -896,7 +896,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {
                 for type_node in param_type.get_all_child_nodes() {
-                    if let hakana_reflection_info::t_union::TypeNode::Atomic(atomic) = type_node {
+                    if let hakana_code_info::t_union::TypeNode::Atomic(atomic) = type_node {
                         match atomic {
                             TAtomic::TReference { name, .. }
                             | TAtomic::TClosureAlias {
@@ -1034,7 +1034,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     );
 
                     for type_node in param_type.get_all_child_nodes() {
-                        if let hakana_reflection_info::t_union::TypeNode::Atomic(
+                        if let hakana_code_info::t_union::TypeNode::Atomic(
                             TAtomic::TReference { name, .. },
                         ) = type_node
                         {

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::{
+use crate::{
     classlike_info::ClassConstantType,
     code_location::FilePath,
     codebase_info::CodebaseInfo,
@@ -14,15 +14,13 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_reflection_info::{
-    functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
-};
+use crate::{functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier};
 use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{extend_dataflow_uniquely, get_nothing, template, type_combiner, wrap_atomic};
+use crate::ttype::{extend_dataflow_uniquely, get_nothing, template, type_combiner, wrap_atomic};
 
 #[derive(Debug)]
 pub enum StaticClassType<'a, 'b> {

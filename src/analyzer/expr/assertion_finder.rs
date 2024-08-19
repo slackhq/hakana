@@ -1,12 +1,12 @@
 use super::expression_identifier::{get_dim_id, get_var_id};
 use crate::expr::expression_identifier::get_static_functionlike_id_from_call;
 use crate::{formula_generator::AssertionContext, function_analysis_data::FunctionAnalysisData};
-use hakana_reflection_info::code_location::HPos;
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::symbol_references::ReferenceSource;
-use hakana_reflection_info::t_atomic::DictKey;
-use hakana_reflection_info::{
+use hakana_code_info::code_location::HPos;
+use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::symbol_references::ReferenceSource;
+use hakana_code_info::t_atomic::DictKey;
+use hakana_code_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
@@ -14,9 +14,9 @@ use hakana_reflection_info::{
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_str::StrId;
-use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_type::type_comparator::union_type_comparator;
-use hakana_type::type_expander::{self, TypeExpansionOptions};
+use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::type_expander::{self, TypeExpansionOptions};
 use oxidized::{
     aast,
     aast_defs::Hint,

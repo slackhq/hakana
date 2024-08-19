@@ -1,12 +1,12 @@
-use hakana_reflection_info::analysis_result::Replacement;
-use hakana_reflection_info::code_location::HPos;
-use hakana_reflection_info::data_flow::node::DataFlowNodeId;
-use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
-use hakana_reflection_info::data_flow::node::VariableSourceKind;
-use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::EFFECT_PURE;
-use hakana_reflection_info::EFFECT_READ_GLOBALS;
-use hakana_reflection_info::EFFECT_READ_PROPS;
+use hakana_code_info::analysis_result::Replacement;
+use hakana_code_info::code_location::HPos;
+use hakana_code_info::data_flow::node::DataFlowNodeId;
+use hakana_code_info::data_flow::node::DataFlowNodeKind;
+use hakana_code_info::data_flow::node::VariableSourceKind;
+use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::EFFECT_PURE;
+use hakana_code_info::EFFECT_READ_GLOBALS;
+use hakana_code_info::EFFECT_READ_PROPS;
 use hakana_str::Interner;
 use oxidized::{
     aast,
@@ -21,9 +21,9 @@ use crate::dataflow::program_analyzer::{should_ignore_array_fetch, should_ignore
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
-use hakana_reflection_info::data_flow::graph::DataFlowGraph;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::data_flow::path::ArrayDataKind;
+use hakana_code_info::data_flow::graph::DataFlowGraph;
+use hakana_code_info::data_flow::node::DataFlowNode;
+use hakana_code_info::data_flow::path::ArrayDataKind;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
 

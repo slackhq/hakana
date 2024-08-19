@@ -3,9 +3,9 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::data_flow::path::PathKind;
+use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::data_flow::node::DataFlowNode;
+use hakana_code_info::data_flow::path::PathKind;
 use oxidized::aast;
 use oxidized::pos::Pos;
 

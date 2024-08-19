@@ -1,18 +1,18 @@
-use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::TAtomic;
 use hakana_str::StrId;
 
-use hakana_reflection_info::t_union::TUnion;
-use hakana_type::wrap_atomic;
+use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::wrap_atomic;
 
 use std::sync::Arc;
 
-use hakana_reflection_info::t_atomic::DictKey;
+use hakana_code_info::t_atomic::DictKey;
 
 use std::collections::BTreeMap;
 
 use std::rc::Rc;
 
-use hakana_type::get_string;
+use hakana_code_info::ttype::get_string;
 
 use crate::expression_analyzer;
 

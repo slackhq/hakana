@@ -1,9 +1,9 @@
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
-use crate::{
+use crate::ttype::{
     get_mixed_any, template,
     type_expander::{self, TypeExpansionOptions},
 };
-use hakana_reflection_info::{
+use crate::{
     classlike_info::Variance,
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},

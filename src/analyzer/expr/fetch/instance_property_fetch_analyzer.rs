@@ -3,10 +3,10 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, function_analysis_data::FunctionAnalysisData};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::EFFECT_READ_PROPS;
-use hakana_type::{add_union_type, get_mixed_any, get_null};
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::EFFECT_READ_PROPS;
+use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
 use itertools::Itertools;
 use oxidized::{
     aast::{self, Expr},

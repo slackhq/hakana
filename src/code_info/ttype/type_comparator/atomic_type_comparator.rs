@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::{get_arrayish_params, get_value_param, wrap_atomic};
-use hakana_reflection_info::{
+use crate::ttype::{get_arrayish_params, get_value_param, wrap_atomic};
+use crate::{
     class_constant_info::ConstantInfo,
     codebase_info::CodebaseInfo,
     t_atomic::{DictKey, TAtomic},

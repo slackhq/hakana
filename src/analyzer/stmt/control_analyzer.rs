@@ -1,6 +1,6 @@
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::control_action::ControlAction;
-use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_str::{Interner, StrId};
 use oxidized::{aast, ast::CallExpr};
 use rustc_hash::{FxHashMap, FxHashSet};

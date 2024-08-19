@@ -1,5 +1,5 @@
 use hakana_algebra::Clause;
-use hakana_reflection_info::t_union::TUnion;
+use hakana_code_info::t_union::TUnion;
 use oxidized::aast;
 use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, rc::Rc};

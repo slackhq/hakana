@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::{
-    codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion, GenericParent,
-};
+use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion, GenericParent};
 use hakana_str::StrId;
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{get_nothing, type_combiner, wrap_atomic};
+use crate::ttype::{get_nothing, type_combiner, wrap_atomic};
 
 use super::{
     standin_type_replacer::{self, get_most_specific_type_from_bounds},

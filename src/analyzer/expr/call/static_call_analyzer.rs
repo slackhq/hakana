@@ -4,10 +4,10 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::EFFECT_WRITE_PROPS;
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::EFFECT_WRITE_PROPS;
 use hakana_str::StrId;
-use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
+use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 

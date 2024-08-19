@@ -1,9 +1,9 @@
-use hakana_reflection_info::code_location::{HPos, StmtStart};
-use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::FnEffect;
-use hakana_reflection_info::EFFECT_PURE;
+use hakana_code_info::code_location::{HPos, StmtStart};
+use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_code_info::functionlike_info::FnEffect;
+use hakana_code_info::EFFECT_PURE;
 use hakana_str::StrId;
-use hakana_type::get_arrayish_params;
+use hakana_code_info::ttype::get_arrayish_params;
 use rustc_hash::FxHashSet;
 
 use crate::custom_hook::AfterStmtAnalysisData;
@@ -22,8 +22,8 @@ use crate::stmt::{
     break_analyzer, continue_analyzer, do_analyzer, for_analyzer, foreach_analyzer,
     ifelse_analyzer, return_analyzer, switch_analyzer, try_analyzer, while_analyzer,
 };
-use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TAtomic;
 use oxidized::{aast, ast_defs};
 
 pub enum AnalysisError {

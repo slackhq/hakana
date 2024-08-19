@@ -2,7 +2,7 @@ use std::{collections::HashSet, rc::Rc};
 
 use hakana_algebra::Clause;
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     assertion::Assertion,
     functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},

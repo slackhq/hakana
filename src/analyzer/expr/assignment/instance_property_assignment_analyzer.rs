@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     codebase_info::CodebaseInfo,
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     function_context::FunctionLikeIdentifier,
@@ -10,7 +10,7 @@ use hakana_reflection_info::{
     EFFECT_WRITE_PROPS,
 };
 use hakana_str::StrId;
-use hakana_type::{
+use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
     type_expander::{self, StaticClassType, TypeExpansionOptions},

@@ -9,15 +9,15 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_reflection_info::code_location::HPos;
-use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo, MetaStart};
-use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::{VarId, EFFECT_CAN_THROW};
+use hakana_code_info::code_location::HPos;
+use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo, MetaStart};
+use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::{VarId, EFFECT_CAN_THROW};
 use hakana_str::StrId;
-use hakana_type::get_mixed_any;
-use hakana_type::template::TemplateResult;
+use hakana_code_info::ttype::get_mixed_any;
+use hakana_code_info::ttype::template::TemplateResult;
 use indexmap::IndexMap;
 use oxidized::ast::CallExpr;
 use oxidized::pos::Pos;
@@ -123,7 +123,7 @@ pub(crate) fn analyze(
                 &expr.args,
             );
 
-            stmt_type = Some(hakana_type::combine_optional_union_types(
+            stmt_type = Some(hakana_code_info::ttype::combine_optional_union_types(
                 stmt_type.as_ref(),
                 match closure_return_type {
                     Some(t) => Some(t),

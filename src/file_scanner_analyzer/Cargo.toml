@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 hakana-reflector = { path = "../code_info_builder" }
-hakana-reflection-info = { path = "../code_info" }
+hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }

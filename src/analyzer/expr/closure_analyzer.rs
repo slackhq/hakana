@@ -5,17 +5,17 @@ use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{functionlike_analyzer::FunctionLikeAnalyzer, scope_analyzer::ScopeAnalyzer};
-use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_parameter::FnParameter;
-use hakana_reflection_info::symbol_references::SymbolReferences;
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_type::type_expander;
-use hakana_type::type_expander::TypeExpansionOptions;
-use hakana_type::wrap_atomic;
+use hakana_code_info::analysis_result::AnalysisResult;
+use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::data_flow::node::DataFlowNode;
+use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::functionlike_parameter::FnParameter;
+use hakana_code_info::symbol_references::SymbolReferences;
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::ttype::type_expander;
+use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
+use hakana_code_info::ttype::wrap_atomic;
 use oxidized::aast;
 
 pub(crate) fn analyze(

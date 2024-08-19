@@ -8,7 +8,7 @@ hakana-workhorse = { path = "../file_scanner_analyzer" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
 hakana-str = { path = "../str" }
-hakana-reflection-info = { path = "../code_info" }
+hakana-code-info = { path = "../code_info" }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 tokio = { version = "1.26.0", features = ["full"] }
 serde_json = "1.0"

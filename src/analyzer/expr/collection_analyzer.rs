@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_type::{
+use hakana_code_info::ttype::{
     get_arraykey, get_keyset, get_literal_int, get_mixed_any, get_nothing, type_combiner,
     wrap_atomic,
 };

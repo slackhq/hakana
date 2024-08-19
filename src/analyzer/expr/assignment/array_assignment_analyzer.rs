@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     codebase_info::CodebaseInfo,
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
@@ -12,7 +12,7 @@ use hakana_reflection_info::{
     VarId,
 };
 use hakana_str::StrId;
-use hakana_type::{
+use hakana_code_info::ttype::{
     combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
     template::TemplateBound, type_combiner, wrap_atomic,
 };
@@ -312,7 +312,7 @@ fn update_atomic_given_key(
                 ref mut known_count,
                 ..
             } => {
-                *type_param = Box::new(hakana_type::add_union_type(
+                *type_param = Box::new(hakana_code_info::ttype::add_union_type(
                     arrayish_params.unwrap().1,
                     current_type,
                     codebase,
@@ -325,7 +325,7 @@ fn update_atomic_given_key(
             TAtomic::TKeyset {
                 ref mut type_param, ..
             } => {
-                *type_param = Box::new(hakana_type::add_union_type(
+                *type_param = Box::new(hakana_code_info::ttype::add_union_type(
                     arrayish_params.unwrap().1,
                     current_type,
                     codebase,
@@ -343,10 +343,10 @@ fn update_atomic_given_key(
                 let key_type = key_type.clone().unwrap_or(Rc::new(get_int()));
 
                 *existing_params = Some((
-                    Box::new(hakana_type::add_union_type(
+                    Box::new(hakana_code_info::ttype::add_union_type(
                         params.0, &key_type, codebase, false,
                     )),
-                    Box::new(hakana_type::add_union_type(
+                    Box::new(hakana_code_info::ttype::add_union_type(
                         params.1,
                         current_type,
                         codebase,
@@ -635,7 +635,7 @@ fn update_array_assignment_child_type(
     if let Some(new_child_type) = new_child_type {
         new_child_type
     } else {
-        hakana_type::add_union_type(root_type, &array_assignment_type, codebase, true)
+        hakana_code_info::ttype::add_union_type(root_type, &array_assignment_type, codebase, true)
     }
 }
 

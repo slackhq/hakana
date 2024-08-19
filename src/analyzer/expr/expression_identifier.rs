@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use hakana_reflection_info::{
+use hakana_code_info::{
     ast::get_id_name, codebase_info::CodebaseInfo, functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::TAtomic, t_union::TUnion, ExprId, VarId,
 };
