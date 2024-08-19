@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
-hakana-reflection-info = { path = "../code_info" }
+hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
 hakana-workhorse = { path = "../file_scanner_analyzer" }
 oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
