@@ -105,7 +105,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             ..
         } = &e1_type_atomic
         {
-            e1_type_atomic = e1_type_atomic.clone();
+            e1_type_atomic = (**constraint).clone();
         }
 
         if let TAtomic::TFalse = e1_type_atomic {
@@ -145,7 +145,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                 ..
             } = &e2_type_atomic
             {
-                e2_type_atomic = e2_type_atomic.clone();
+                e2_type_atomic = (**constraint).clone();
             }
 
             if let TAtomic::TFalse = e2_type_atomic {
