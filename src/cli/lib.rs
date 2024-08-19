@@ -436,6 +436,16 @@ pub fn init(
                     .arg(arg!(<TEST> "The test to run"))
                     .arg_required_else_help(true),
             )
+            .subcommand(
+                Command::new("find-executable")
+                    .about("Finds all executable lines of code")
+                    .arg(arg!(--"root" <PATH>).required(false).help(
+                        "The root directory that Hakana runs in. Defaults to the current directory",
+                    ))
+                    .arg(arg!(--"output" <PATH>).required(true).help(
+                        "File to save output to"
+                    )),
+            )
             .get_matches();
 
     let cwd = (env::current_dir()).unwrap().to_str().unwrap().to_string();
@@ -650,6 +660,15 @@ pub fn init(
                 random_seed,
             );
         }
+        Some(("find-executable", sub_matches)) => {
+            do_find_executable(
+                sub_matches,
+                &root_dir,
+                &cwd,
+                threads,
+                logger,
+            );
+        }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
     }
 
@@ -715,6 +734,45 @@ fn do_fix(
             &root_dir,
             &successfull_run_data.interner,
         );
+    }
+}
+
+fn do_find_executable(
+    sub_matches: &clap::ArgMatches,
+    root_dir: &str,
+    cwd: &String,
+    threads: u8,
+    logger: Logger,
+) {
+    let output_file = sub_matches.value_of("output").unwrap().to_string();
+    let config = config::Config::new(root_dir.to_string(), FxHashSet::default());
+
+    match executable_finder::scan_files(
+        &vec![root_dir.to_string()],
+        None,
+        &Arc::new(config),
+        threads,
+        Arc::new(logger),
+    ) {
+        Ok(file_infos) => {
+            let output_path = if output_file.starts_with('/') {
+                output_file
+            } else {
+                format!("{}/{}", cwd, output_file)
+            };
+            let mut out = fs::File::create(Path::new(&output_path)).unwrap();
+            match write!(out, "{}", serde_json::to_string_pretty(&file_infos).unwrap()) {
+                Ok(_) => {
+                    println!("Done")
+                }
+                Err(err) => {
+                    println!("error: {}", err)
+                }
+            }
+        }
+        Err(_) => {
+            println!("error")
+        }
     }
 }
 
