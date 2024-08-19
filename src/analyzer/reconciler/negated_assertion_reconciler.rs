@@ -12,7 +12,7 @@ use hakana_str::StrId;
 use hakana_code_info::ttype::{get_nothing, get_placeholder, wrap_atomic};
 use hakana_code_info::ttype::{
     type_combiner,
-    type_comparator::{
+    comparison::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
     },
 };

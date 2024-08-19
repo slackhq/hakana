@@ -7,7 +7,7 @@ use crate::stmt_analyzer::AnalysisError;
 
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::ttype::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{get_bool, get_int};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast};

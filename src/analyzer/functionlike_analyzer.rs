@@ -30,10 +30,10 @@ use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
 use hakana_str::{Interner, StrId};
-use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
-    add_optional_union_type, get_mixed_any, get_nothing, get_void, type_comparator, wrap_atomic,
+    add_optional_union_type, get_mixed_any, get_nothing, get_void, comparison, wrap_atomic,
 };
 use itertools::Itertools;
 use oxidized::ast_defs::Pos;
@@ -690,7 +690,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if !return_result_handled {
                 if !analysis_data.inferred_return_types.is_empty() {
                     for callsite_return_type in &analysis_data.inferred_return_types {
-                        if type_comparator::union_type_comparator::is_contained_by(
+                        if comparison::union_type_comparator::is_contained_by(
                             codebase,
                             callsite_return_type,
                             &expected_return_type,

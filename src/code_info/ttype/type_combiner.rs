@@ -13,7 +13,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::ttype::{
     combine_union_types, get_int,
     type_combination::{self, TypeCombination},
-    type_comparator::{object_type_comparator, type_comparison_result::TypeComparisonResult},
+    comparison::{object_type_comparator, type_comparison_result::TypeComparisonResult},
     wrap_atomic,
 };
 

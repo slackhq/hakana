@@ -18,11 +18,11 @@ use hakana_str::{Interner, StrId};
 use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
 use hakana_code_info::ttype::{
     get_mixed_any, get_null, get_void,
-    type_comparator::type_comparison_result::TypeComparisonResult,
+    comparison::type_comparison_result::TypeComparisonResult,
     type_expander::{self, TypeExpansionOptions},
     wrap_atomic,
 };
-use hakana_code_info::ttype::{type_comparator::union_type_comparator, type_expander::StaticClassType};
+use hakana_code_info::ttype::{comparison::union_type_comparator, type_expander::StaticClassType};
 use oxidized::aast;
 use rustc_hash::FxHashSet;
 

@@ -14,8 +14,8 @@ use hakana_code_info::{
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_str::StrId;
-use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_code_info::ttype::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::type_expander::{self, TypeExpansionOptions};
 use oxidized::{
     aast,

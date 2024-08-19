@@ -12,7 +12,7 @@ use hakana_code_info::{
 use hakana_str::StrId;
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
-    type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+    comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
     type_expander::{self, StaticClassType, TypeExpansionOptions},
 };
 use oxidized::{

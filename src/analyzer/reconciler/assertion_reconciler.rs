@@ -17,7 +17,7 @@ use hakana_code_info::{
 use hakana_str::StrId;
 use hakana_code_info::ttype::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
-    type_comparator::{
+    comparison::{
         atomic_type_comparator::{self, expand_constant_value},
         type_comparison_result::TypeComparisonResult,
     },

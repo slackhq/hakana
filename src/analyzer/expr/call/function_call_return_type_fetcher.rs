@@ -12,8 +12,8 @@ use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::SinkType;
 use hakana_code_info::{GenericParent, EFFECT_IMPURE};
 use hakana_str::{Interner, StrId};
-use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_code_info::ttype::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::{
     add_union_type, extend_dataflow_uniquely, get_arrayish_params, get_float, get_int,

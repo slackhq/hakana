@@ -14,7 +14,7 @@ use type_combiner::combine;
 pub mod template;
 mod type_combination;
 pub mod type_combiner;
-pub mod type_comparator;
+pub mod comparison;
 pub mod type_expander;
 
 #[inline]

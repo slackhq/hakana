@@ -15,8 +15,8 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::{string_to_sink_types, SinkType};
-use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_code_info::ttype::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing,
 };

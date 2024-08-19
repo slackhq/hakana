@@ -1,7 +1,7 @@
 use crate::ttype::{
     add_union_type, get_arrayish_params, get_arraykey, get_mixed, get_mixed_any,
     get_mixed_maybe_from_loop, get_value_param, intersect_union_types, type_combiner,
-    type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+    comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
     type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
 };

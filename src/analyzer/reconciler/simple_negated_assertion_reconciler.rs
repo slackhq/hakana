@@ -13,7 +13,7 @@ use hakana_code_info::{
 use hakana_str::StrId;
 use hakana_code_info::ttype::{
     get_mixed_any, get_nothing, get_null, intersect_union_types,
-    type_comparator::union_type_comparator, wrap_atomic,
+    comparison::union_type_comparator, wrap_atomic,
 };
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;

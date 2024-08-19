@@ -18,7 +18,7 @@ use hakana_code_info::ttype::{
     get_mixed_dict, get_mixed_keyset, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing,
     get_null, get_num, get_object, get_scalar, get_string, get_true, intersect_union_types,
     template::TemplateBound,
-    type_comparator::{
+    comparison::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
     },
     wrap_atomic,

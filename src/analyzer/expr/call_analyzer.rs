@@ -7,8 +7,8 @@ use hakana_code_info::{
 };
 use hakana_str::StrId;
 use hakana_code_info::ttype::template::standin_type_replacer::get_relevant_bounds;
-use hakana_code_info::ttype::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_code_info::ttype::type_comparator::union_type_comparator;
+use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::comparison::union_type_comparator;
 use itertools::Itertools;
 use oxidized::ast::CallExpr;
 use rustc_hash::FxHashMap;

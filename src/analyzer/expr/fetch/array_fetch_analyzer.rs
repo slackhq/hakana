@@ -14,7 +14,7 @@ use hakana_str::StrId;
 use hakana_code_info::ttype::{
     add_optional_union_type, add_union_type, get_arraykey, get_int, get_mixed_any,
     get_mixed_maybe_from_loop, get_nothing, get_null, get_string,
-    type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+    comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
 };
 use oxidized::{aast, ast_defs::Pos};
 
