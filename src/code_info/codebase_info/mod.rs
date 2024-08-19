@@ -223,7 +223,7 @@ impl CodebaseInfo {
                 }]))
             } else if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
                 if matches!(classlike_storage.kind, SymbolKind::EnumClass) {
-                    return constant_storage.provided_type.as_ref().map(|t| t.clone());
+                    return constant_storage.provided_type.clone();
                 } else if let Some(provided_type) = &constant_storage.provided_type {
                     if provided_type.types.iter().all(|v| v.is_boring_scalar()) && !is_this {
                         if let Some(inferred_type) = &constant_storage.inferred_type {

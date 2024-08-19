@@ -1,4 +1,4 @@
-use std::{mem, sync::Arc};
+use std::sync::Arc;
 
 use hakana_reflection_info::{
     classlike_info::ClassConstantType,
@@ -276,7 +276,7 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        if let None = constraint_type {
+        if constraint_type.is_none() {
             if let Some(classlike_storage) = codebase.classlike_infos.get(enum_name) {
                 *constraint_type = classlike_storage.enum_constraint.clone();
             }
