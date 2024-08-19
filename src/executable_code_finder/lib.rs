@@ -1,7 +1,7 @@
 use hakana_analyzer::config::Config;
 use hakana_logger::Logger;
-use hakana_reflection_info::code_location::FilePath;
-use hakana_reflection_info::file_info::ParserError;
+use hakana_code_info::code_location::FilePath;
+use hakana_code_info::file_info::ParserError;
 use hakana_str::{Interner, ThreadedInterner};
 use hakana_workhorse::file::VirtualFileSystem;
 use hakana_workhorse::scanner::add_builtins_to_scan;
