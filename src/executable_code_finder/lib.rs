@@ -3,8 +3,8 @@ use hakana_logger::Logger;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::file_info::ParserError;
 use hakana_str::{Interner, ThreadedInterner};
-use hakana_workhorse::file::VirtualFileSystem;
-use hakana_workhorse::scanner::add_builtins_to_scan;
+use hakana_orchestrator::file::VirtualFileSystem;
+use hakana_orchestrator::scanner::add_builtins_to_scan;
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast::Stmt_;
 use oxidized::ast::Pos;
@@ -178,7 +178,7 @@ pub(crate) fn scan_file(
         .to_string();
 
     logger.log_debug_sync(&format!("scanning {}", str_path));
-    let aast = hakana_workhorse::get_aast_for_path(file_path, &str_path);
+    let aast = hakana_orchestrator::get_aast_for_path(file_path, &str_path);
     let aast = match aast {
         Ok(aast) => aast,
         Err(_) => panic!("invalid file: {}", str_path)

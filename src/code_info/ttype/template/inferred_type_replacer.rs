@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion, GenericParent};
+use crate::{codebase_info::CodebaseInfo, t_atomic::{TAtomic, TDict}, t_union::TUnion, GenericParent};
 use hakana_str::StrId;
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -272,11 +272,11 @@ fn replace_atomic(
                 }
             }
         }
-        TAtomic::TDict {
+        TAtomic::TDict(TDict {
             ref mut params,
             ref mut known_items,
             ..
-        } => {
+        }) => {
             if let Some(params) = params {
                 params.0 = Box::new(replace(&params.0, template_result, codebase));
                 params.1 = Box::new(replace(&params.1, template_result, codebase));

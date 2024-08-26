@@ -7,7 +7,7 @@ use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_code_info::data_flow::path::{ArrayDataKind, PathKind};
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
-use hakana_code_info::t_atomic::{DictKey, TAtomic};
+use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::SinkType;
 use hakana_code_info::{GenericParent, EFFECT_IMPURE};
@@ -295,7 +295,7 @@ fn handle_special_functions(
         }
         &StrId::DEBUG_BACKTRACE => Some(wrap_atomic(TAtomic::TVec {
             known_items: None,
-            type_param: Box::new(wrap_atomic(TAtomic::TDict {
+            type_param: Box::new(wrap_atomic(TAtomic::TDict(TDict {
                 known_items: Some(BTreeMap::from([
                     (
                         DictKey::String("file".to_string()),
@@ -329,7 +329,7 @@ fn handle_special_functions(
                 params: None,
                 non_empty: true,
                 shape_name: None,
-            })),
+            }))),
             known_count: None,
             non_empty: true,
         })),
@@ -542,7 +542,7 @@ fn handle_special_functions(
 
                 if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
                     for atomic_type in &dict_type.types {
-                        if let TAtomic::TDict { .. } = atomic_type {
+                        if let TAtomic::TDict(TDict { .. }) = atomic_type {
                             let mut expr_type_inner = handle_array_access_on_dict(
                                 statements_analyzer,
                                 pos,

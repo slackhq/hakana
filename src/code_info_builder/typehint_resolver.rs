@@ -2,6 +2,7 @@ use hakana_code_info::code_location::FilePath;
 use hakana_code_info::functionlike_parameter::FnParameter;
 use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::type_resolution::TypeResolutionContext;
 use hakana_code_info::GenericParent;
@@ -193,7 +194,7 @@ fn get_dict_type_from_hints(
     resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
-    TAtomic::TDict {
+    TAtomic::TDict(TDict {
         params: Some((
             Box::new(if let Some(k) = &key_hint {
                 get_type_from_hint(
@@ -225,7 +226,7 @@ fn get_dict_type_from_hints(
         known_items: None,
         non_empty: false,
         shape_name: None,
-    }
+    })
 }
 
 fn get_shape_type_from_hints(
@@ -272,7 +273,7 @@ fn get_shape_type_from_hints(
         }
     }
 
-    TAtomic::TDict {
+    TAtomic::TDict(TDict {
         params: if shape_info.allows_unknown_fields {
             Some((Box::new(get_arraykey(true)), Box::new(get_mixed_any())))
         } else {
@@ -286,7 +287,7 @@ fn get_shape_type_from_hints(
         },
         non_empty: false,
         shape_name: None,
-    }
+    })
 }
 
 fn get_function_type_from_hints(
@@ -610,7 +611,7 @@ pub fn get_type_from_hint(
                         non_empty: false,
                         known_count: None,
                     });
-                    TAtomic::TDict {
+                    TAtomic::TDict(TDict {
                         known_items: None,
                         params: Some((
                             Box::new(get_arraykey(true)),
@@ -620,7 +621,7 @@ pub fn get_type_from_hint(
                         )),
                         non_empty: false,
                         shape_name: None,
-                    }
+                    })
                 }
                 "Awaitable" | "HH\\Awaitable" => {
                     if let Some(param) = extra_info.first() {

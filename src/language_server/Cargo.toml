@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hakana-workhorse = { path = "../file_scanner_analyzer" }
+hakana-orchestrator = { path = "../orchestrator" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
 hakana-str = { path = "../str" }

@@ -7,7 +7,7 @@ use hakana_code_info::{
         node::{DataFlowNode, DataFlowNodeKind},
         path::{ArrayDataKind, PathKind},
     },
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
     VarId,
 };
@@ -262,12 +262,12 @@ fn update_atomic_given_key(
                         true,
                     ));
                 }
-                TAtomic::TDict {
+                TAtomic::TDict(TDict {
                     ref mut known_items,
                     ref mut non_empty,
                     ref mut shape_name,
                     ..
-                } => {
+                }) => {
                     let key = match key_value {
                         TAtomic::TLiteralString { value } => Some(DictKey::String(value.clone())),
                         TAtomic::TLiteralInt { value } => Some(DictKey::Int(*value as u64)),
@@ -332,13 +332,13 @@ fn update_atomic_given_key(
                     false,
                 ));
             }
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 ref mut known_items,
                 params: ref mut existing_params,
                 ref mut non_empty,
                 ref mut shape_name,
                 ..
-            } => {
+            }) => {
                 let params = arrayish_params.unwrap();
                 let key_type = key_type.clone().unwrap_or(Rc::new(get_int()));
 
@@ -507,7 +507,7 @@ fn update_array_assignment_child_type(
                     known_count: None,
                     non_empty: true,
                 }),
-                TAtomic::TDict { known_items, .. } => collection_types.push(TAtomic::TDict {
+                TAtomic::TDict(TDict { known_items, .. }) => collection_types.push(TAtomic::TDict(TDict {
                     params: Some((Box::new((*key_type).clone()), Box::new(value_type.clone()))),
                     known_items: if let Some(known_items) = known_items {
                         let known_item = Arc::new(value_type.clone());
@@ -522,7 +522,7 @@ fn update_array_assignment_child_type(
                     },
                     non_empty: true,
                     shape_name: None,
-                }),
+                })),
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
                     type_param: Box::new(value_type.clone()),
                 }),
@@ -580,14 +580,14 @@ fn update_array_assignment_child_type(
                         non_empty: true,
                     }
                 }),
-                TAtomic::TDict { .. } => {
+                TAtomic::TDict(TDict { .. }) => {
                     // should not happen, but works at runtime
-                    collection_types.push(TAtomic::TDict {
+                    collection_types.push(TAtomic::TDict(TDict {
                         params: Some((Box::new(get_int()), Box::new(value_type.clone()))),
                         known_items: None,
                         non_empty: true,
                         shape_name: None,
-                    })
+                    }))
                 }
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
                     type_param: Box::new(value_type.clone()),
@@ -720,12 +720,12 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             // We see this inside loops, and it may be
             // necessary to create an TUnknownEmptyArray or similar
             // if this becomes a real problem
-            let atomic = wrap_atomic(TAtomic::TDict {
+            let atomic = wrap_atomic(TAtomic::TDict(TDict {
                 known_items: None,
                 params: None,
                 non_empty: false,
                 shape_name: None,
-            });
+            }));
             array_expr_var_type = Rc::new(atomic);
 
             analysis_data.set_rc_expr_type(array_expr.0.pos(), array_expr_var_type.clone());

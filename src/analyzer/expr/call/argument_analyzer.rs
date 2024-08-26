@@ -12,7 +12,7 @@ use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TDict};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::{string_to_sink_types, SinkType};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
@@ -110,7 +110,7 @@ fn get_unpacked_type(
     let mut inner_types = inner_types
         .into_iter()
         .map(|atomic_type| match atomic_type {
-            TAtomic::TDict { .. } => handle_array_access_on_dict(
+            TAtomic::TDict(TDict { .. }) => handle_array_access_on_dict(
                 statements_analyzer,
                 pos,
                 analysis_data,

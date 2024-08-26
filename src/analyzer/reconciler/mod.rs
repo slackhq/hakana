@@ -16,7 +16,7 @@ use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
     VarId,
 };
@@ -398,10 +398,10 @@ fn adjust_array_type(
         }
 
         match base_atomic_type {
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 ref mut known_items,
                 ..
-            } => {
+            }) => {
                 let dictkey = if has_string_offset {
                     DictKey::String(arraykey_offset.clone())
                 } else if let Ok(arraykey_value) = arraykey_offset.parse::<u64>() {
@@ -786,7 +786,7 @@ fn get_value_for_key(
 
                     let mut new_base_type_candidate;
 
-                    if let TAtomic::TDict { known_items, .. } = &existing_key_type_part {
+                    if let TAtomic::TDict(TDict { known_items, .. }) = &existing_key_type_part {
                         let known_item = if !array_key.starts_with('$') {
                             if let Some(known_items) = known_items {
                                 let key_parts_key = array_key.replace('\'', "");

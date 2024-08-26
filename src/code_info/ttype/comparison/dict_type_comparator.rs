@@ -1,3 +1,4 @@
+use crate::t_atomic::TDict;
 use crate::ttype::{get_arrayish_params, get_arraykey, get_mixed};
 use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
@@ -15,17 +16,17 @@ pub(crate) fn is_contained_by(
 ) -> bool {
     let mut all_types_contain = true;
 
-    if let TAtomic::TDict {
+    if let TAtomic::TDict(TDict {
         known_items: container_known_items,
         params: container_params,
         ..
-    } = container_type_part
+    }) = container_type_part
     {
-        if let TAtomic::TDict {
+        if let TAtomic::TDict(TDict {
             known_items: input_known_items,
             params: input_params,
             ..
-        } = input_type_part
+        }) = input_type_part
         {
             if let Some(container_known_items) = container_known_items {
                 if let Some(input_known_items) = input_known_items {

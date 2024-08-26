@@ -14,7 +14,7 @@ use crate::{
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -247,11 +247,11 @@ fn check_iterator_type(
                     continue;
                 }
             }
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 params,
                 known_items: None,
                 ..
-            } => {
+            }) => {
                 if params.is_none() {
                     always_non_empty_array = false;
                     has_valid_iterator = true;
@@ -267,11 +267,11 @@ fn check_iterator_type(
         }
 
         match iterator_atomic_type {
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 known_items: None,
                 non_empty: false,
                 ..
-            } => {
+            }) => {
                 always_non_empty_array = false;
             }
             TAtomic::TVec {
@@ -288,13 +288,13 @@ fn check_iterator_type(
         }
 
         match iterator_atomic_type {
-            TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => {
+            TAtomic::TDict(TDict { .. }) | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => {
                 let (key_param, value_param) = match iterator_atomic_type {
-                    TAtomic::TDict {
+                    TAtomic::TDict(TDict {
                         known_items,
                         params,
                         ..
-                    } => {
+                    }) => {
                         let mut key_param;
                         let mut value_param;
 

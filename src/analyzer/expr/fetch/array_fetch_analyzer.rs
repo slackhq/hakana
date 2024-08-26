@@ -7,7 +7,7 @@ use hakana_code_info::{
         path::{ArrayDataKind, PathKind},
     },
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -344,7 +344,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     stmt_type = Some(new_type);
                 }
             }
-            TAtomic::TDict { .. } => {
+            TAtomic::TDict(TDict { .. }) => {
                 let new_type = handle_array_access_on_dict(
                     statements_analyzer,
                     stmt.2,
@@ -668,7 +668,7 @@ pub(crate) fn handle_array_access_on_dict(
 
     let key_param = if in_assignment || context.inside_isset {
         get_arraykey(false)
-    } else if let TAtomic::TDict { params, .. } = &dict {
+    } else if let TAtomic::TDict(TDict { params, .. }) = &dict {
         if let Some(params) = params {
             (*params.0).clone()
         } else {
@@ -693,11 +693,11 @@ pub(crate) fn handle_array_access_on_dict(
         *has_valid_expected_offset = true;
     }
 
-    if let TAtomic::TDict {
+    if let TAtomic::TDict(TDict {
         known_items: Some(known_items),
         params,
         ..
-    } = &dict
+    }) = &dict
     {
         if let Some(dict_key) = dim_type.get_single_dict_key() {
             let possible_value = known_items.get(&dict_key).cloned();
@@ -815,7 +815,7 @@ pub(crate) fn handle_array_access_on_dict(
         }
 
         return value_param;
-    } else if let TAtomic::TDict { params, .. } = dict {
+    } else if let TAtomic::TDict(TDict { params, .. }) = dict {
         // TODO Handle Assignments
         // if (context.inside_assignment && replacement_type) {
 

@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hakana-workhorse = { path = "../file_scanner_analyzer" }
-executable-finder = { path = "../executable_code_finder" }
+hakana-orchestrator = { path = "../orchestrator" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
 hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
+executable-finder = { path = "../executable_code_finder" }
 walkdir = "2"
 clap = { version = "3.2.6", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }

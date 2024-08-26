@@ -9,7 +9,7 @@ path = "lib.rs"
 
 [dependencies]
 wasm-bindgen = "0.2.79"
-hakana-workhorse = {path = "../file_scanner_analyzer"}
+hakana-orchestrator = {path = "../orchestrator"}
 hakana-code-info = {path = "../code_info"}
 hakana-str = {path = "../str"}
 getrandom = { version = "0.2", features = ["js"] }

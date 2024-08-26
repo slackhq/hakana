@@ -4,6 +4,7 @@ use super::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
+use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion,
@@ -239,7 +240,7 @@ fn subtract_complex_type(
 
                 acceptable_types.push(existing_atomic);
             }
-            (TAtomic::TDict { .. }, TAtomic::TDict { .. }) => {
+            (TAtomic::TDict(TDict { .. }), TAtomic::TDict(TDict { .. })) => {
                 *can_be_disjunct = true;
                 // todo subtract assertion dict from existing
                 acceptable_types.push(existing_atomic);

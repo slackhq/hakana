@@ -4,7 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{
     codebase_info::CodebaseInfo,
     data_flow::node::DataFlowNode,
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
     type_resolution::TypeResolutionContext,
 };
@@ -157,12 +157,12 @@ pub fn get_vec(type_param: TUnion) -> TUnion {
 }
 
 pub fn get_dict(key_param: TUnion, value_param: TUnion) -> TUnion {
-    wrap_atomic(TAtomic::TDict {
+    wrap_atomic(TAtomic::TDict(TDict {
         known_items: None,
         params: Some((Box::new(key_param), Box::new(value_param))),
         non_empty: false,
         shape_name: None,
-    })
+    }))
 }
 
 pub fn get_keyset(type_param: TUnion) -> TUnion {
@@ -333,11 +333,11 @@ pub fn intersect_union_types(
 
 pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<(TUnion, TUnion)> {
     match atomic {
-        TAtomic::TDict {
+        TAtomic::TDict(TDict {
             params,
             known_items,
             ..
-        } => {
+        }) => {
             let mut key_types = vec![];
             let mut value_param;
 
@@ -415,11 +415,11 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
 
 pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUnion> {
     match atomic {
-        TAtomic::TDict {
+        TAtomic::TDict(TDict {
             params,
             known_items,
             ..
-        } => {
+        }) => {
             let mut value_param;
 
             if let Some(params) = params {
@@ -570,12 +570,12 @@ pub fn get_atomic_syntax_type(
             str += ">";
             str
         }
-        TAtomic::TDict {
+        TAtomic::TDict(TDict {
             params,
             known_items,
             shape_name,
             ..
-        } => {
+        }) => {
             if let Some(shape_name) = shape_name {
                 return if let Some(shape_member_name) = &shape_name.1 {
                     format!(

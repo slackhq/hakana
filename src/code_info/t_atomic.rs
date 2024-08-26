@@ -38,6 +38,16 @@ impl DictKey {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+/// Corresponds to the `dict` type and also the `shape` type.
+pub struct TDict {
+    pub known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
+    pub params: Option<(Box<TUnion>, Box<TUnion>)>,
+    pub non_empty: bool,
+    pub shape_name: Option<(StrId, Option<StrId>)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
+#[derivative(Hash)]
 pub enum TAtomic {
     /// Corresponds to the arraykey type in Hack
     TArraykey {
@@ -53,13 +63,7 @@ pub enum TAtomic {
     TClassname {
         as_type: Box<self::TAtomic>,
     },
-    /// Corresponds to the `dict` type and also the `shape` type.
-    TDict {
-        known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
-        params: Option<(Box<TUnion>, Box<TUnion>)>,
-        non_empty: bool,
-        shape_name: Option<(StrId, Option<StrId>)>,
-    },
+    TDict(TDict),
     TEnum {
         name: StrId,
         base_type: Option<Box<TAtomic>>,
@@ -213,12 +217,12 @@ impl TAtomic {
                 str += ">";
                 str
             }
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 params,
                 known_items,
                 shape_name,
                 ..
-            } => {
+            }) => {
                 if let Some(shape_name) = shape_name {
                     return if let Some(interner) = interner {
                         if let Some(shape_member_name) = &shape_name.1 {
@@ -696,7 +700,7 @@ impl TAtomic {
 
     pub fn get_key(&self) -> String {
         match self {
-            TAtomic::TDict { .. } => "dict".to_string(),
+            TAtomic::TDict(TDict { .. }) => "dict".to_string(),
             TAtomic::TVec { .. } => "vec".to_string(),
             TAtomic::TKeyset { .. } => "keyset".to_string(),
             TAtomic::TClassname { as_type, .. } => {
@@ -915,17 +919,17 @@ impl TAtomic {
 
     pub fn is_non_empty_dict(&self) -> bool {
         match self {
-            TAtomic::TDict { non_empty, .. } => *non_empty,
+            TAtomic::TDict(TDict { non_empty, .. }) => *non_empty,
             _ => false,
         }
     }
 
     pub fn get_shape_name(&self) -> Option<&StrId> {
         match self {
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 shape_name: Some((shape_name, None)),
                 ..
-            } => Some(shape_name),
+            }) => Some(shape_name),
             _ => None,
         }
     }
@@ -1087,9 +1091,9 @@ impl TAtomic {
     }
 
     pub fn make_non_empty_dict(mut self) -> TAtomic {
-        if let TAtomic::TDict {
+        if let TAtomic::TDict(TDict {
             ref mut non_empty, ..
-        } = self
+        }) = self
         {
             *non_empty = true;
 
@@ -1130,11 +1134,11 @@ impl TAtomic {
                 }
                 false
             }
-            &TAtomic::TDict {
+            &TAtomic::TDict(TDict {
                 known_items,
                 non_empty,
                 ..
-            } => {
+            }) => {
                 if *non_empty {
                     return true;
                 }
@@ -1189,12 +1193,12 @@ impl TAtomic {
                 }
                 false
             }
-            &TAtomic::TDict {
+            &TAtomic::TDict(TDict {
                 known_items,
                 non_empty,
                 params,
                 ..
-            } => {
+            }) => {
                 if known_items.is_none() && params.is_none() && !non_empty {
                     return true;
                 }
@@ -1226,7 +1230,7 @@ impl TAtomic {
 
     pub fn is_array_accessible_with_string_key(&self, interner: &Interner) -> bool {
         match self {
-            TAtomic::TDict { .. } | TAtomic::TKeyset { .. } => true,
+            TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } => true,
             TAtomic::TNamedObject { name, .. } => {
                 matches!(interner.lookup(name), "HH\\KeyedContainer" | "HH\\AnyArray")
             }
@@ -1236,7 +1240,7 @@ impl TAtomic {
 
     pub fn is_array_accessible_with_int_or_string_key(&self, interner: &Interner) -> bool {
         match self {
-            TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => true,
+            TAtomic::TDict(TDict { .. }) | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => true,
             TAtomic::TNamedObject { name, .. } => matches!(
                 interner.lookup(name),
                 "HH\\KeyedContainer" | "HH\\Container" | "HH\\AnyArray"
@@ -1349,10 +1353,10 @@ impl TAtomic {
 
     pub fn remove_placeholders(&mut self) {
         match self {
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 params: Some(ref mut params),
                 ..
-            } => {
+            }) => {
                 if let TAtomic::TPlaceholder = params.0.get_single() {
                     params.0 = Box::new(TUnion::new(vec![TAtomic::TArraykey { from_any: true }]));
                 }
@@ -1472,12 +1476,12 @@ impl TAtomic {
             }
             TAtomic::TNull => true,
             TAtomic::TNothing => true,
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 known_items,
                 params,
                 shape_name,
                 ..
-            } => {
+            }) => {
                 if let Some((shape_name, None)) = shape_name {
                     if banned_type_aliases.contains(shape_name) {
                         return false;
@@ -1536,11 +1540,11 @@ impl TAtomic {
 impl HasTypeNodes for TAtomic {
     fn get_child_nodes(&self) -> Vec<TypeNode> {
         match self {
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 params,
                 known_items,
                 ..
-            } => {
+            }) => {
                 let mut vec = vec![];
 
                 if let Some(params) = params {
@@ -1665,11 +1669,11 @@ pub fn populate_atomic_type(
     force: bool,
 ) {
     match t_atomic {
-        TAtomic::TDict {
+        TAtomic::TDict(TDict {
             ref mut params,
             ref mut known_items,
             ..
-        } => {
+        }) => {
             if let Some(params) = params {
                 populate_union_type(
                     &mut params.0,

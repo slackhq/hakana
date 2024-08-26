@@ -17,7 +17,7 @@ hakana-cli = { path = "src/cli" }
 hakana-analyzer = { path = "src/analyzer" }
 hakana-str = { path = "src/str" }
 hakana-language-server = { path = "src/language_server" }
-hakana-workhorse = { path = "src/file_scanner_analyzer" }
+hakana-orchestrator = { path = "src/orchestrator" }
 executable-finder = { path = "src/executable_code_finder" }
 mimalloc = { version = "*", default-features = false }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
@@ -31,7 +31,7 @@ members = [
     "src/cli",
     "src/code_info",
     "src/code_info_builder",
-    "src/file_scanner_analyzer",
+    "src/orchestrator",
     "src/language_server",
     "src/logger",
     "src/js_interop",

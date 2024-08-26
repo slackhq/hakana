@@ -9,7 +9,7 @@ use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -218,11 +218,11 @@ pub(crate) fn reconcile(
                     ));
                 }
             }
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 known_items: None,
                 params: Some(params),
                 ..
-            } => {
+            }) => {
                 if params.0.is_placeholder() && params.1.is_placeholder() {
                     return Some(intersect_dict(
                         assertion,
@@ -889,7 +889,7 @@ fn intersect_dict(
 
     for atomic in &existing_var_type.types {
         match atomic {
-            TAtomic::TDict { .. } => {
+            TAtomic::TDict(TDict { .. }) => {
                 acceptable_types.push(atomic.clone());
             }
             TAtomic::TGenericParam { as_type, .. }
@@ -936,7 +936,7 @@ fn intersect_dict(
                 match *name {
                     StrId::CONTAINER => {
                         if let Some(typed_params) = type_params {
-                            acceptable_types.push(TAtomic::TDict {
+                            acceptable_types.push(TAtomic::TDict(TDict {
                                 params: Some((
                                     Box::new(get_arraykey(true)),
                                     Box::new(typed_params.first().unwrap().clone()),
@@ -944,12 +944,12 @@ fn intersect_dict(
                                 known_items: None,
                                 non_empty: false,
                                 shape_name: None,
-                            });
+                            }));
                         }
                     }
                     StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => {
                         if let Some(typed_params) = type_params {
-                            acceptable_types.push(TAtomic::TDict {
+                            acceptable_types.push(TAtomic::TDict(TDict {
                                 params: Some((
                                     Box::new(typed_params.first().unwrap().clone()),
                                     Box::new(typed_params.get(1).unwrap().clone()),
@@ -957,11 +957,11 @@ fn intersect_dict(
                                 known_items: None,
                                 non_empty: false,
                                 shape_name: None,
-                            });
+                            }));
                         }
                     }
                     StrId::XHP_CHILD => {
-                        acceptable_types.push(TAtomic::TDict {
+                        acceptable_types.push(TAtomic::TDict(TDict {
                             params: Some((
                                 Box::new(get_arraykey(true)),
                                 Box::new(wrap_atomic(atomic.clone())),
@@ -969,7 +969,7 @@ fn intersect_dict(
                             known_items: None,
                             non_empty: false,
                             shape_name: None,
-                        });
+                        }));
                     }
                     _ => {}
                 }
@@ -1464,7 +1464,7 @@ fn reconcile_truthy(
                 TAtomic::TVec { .. } => {
                     acceptable_types.push(atomic.get_non_empty_vec(None));
                 }
-                TAtomic::TDict { .. } => {
+                TAtomic::TDict(TDict { .. }) => {
                     acceptable_types.push(atomic.clone().make_non_empty_dict());
                 }
                 TAtomic::TMixed => {
@@ -1634,12 +1634,12 @@ fn reconcile_non_empty_countable(
             } else {
                 acceptable_types.push(atomic);
             }
-        } else if let TAtomic::TDict {
+        } else if let TAtomic::TDict(TDict {
             non_empty,
             params,
             known_items,
             ..
-        } = &atomic
+        }) = &atomic
         {
             if !non_empty {
                 did_remove_type = true;
@@ -1744,12 +1744,12 @@ fn reconcile_exactly_countable(
 
                 did_remove_type = true;
             }
-        } else if let TAtomic::TDict {
+        } else if let TAtomic::TDict(TDict {
             non_empty,
             params,
             known_items,
             ..
-        } = atomic
+        }) = atomic
         {
             if !non_empty {
                 if params.is_none() {
@@ -1920,11 +1920,11 @@ fn reconcile_has_array_key(
 
     for mut atomic in existing_var_types {
         match atomic {
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 ref mut known_items,
                 ref mut params,
                 ..
-            } => {
+            }) => {
                 if let Some(known_items) = known_items {
                     if let Some(known_item) = known_items.get_mut(key_name) {
                         if known_item.0 {
@@ -2105,11 +2105,11 @@ fn reconcile_has_nonnull_entry_for_key(
 
     for mut atomic in existing_var_types {
         match atomic {
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 ref mut known_items,
                 ref mut params,
                 ..
-            } => {
+            }) => {
                 if let Some(known_items) = known_items {
                     if let Some(known_item) = known_items.get_mut(key_name) {
                         let nonnull = subtract_null(

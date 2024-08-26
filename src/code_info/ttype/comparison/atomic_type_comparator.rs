@@ -1,12 +1,6 @@
-use std::{collections::BTreeMap, sync::Arc};
-
+use crate::t_atomic::TDict;
 use crate::ttype::{get_arrayish_params, get_value_param, wrap_atomic};
-use crate::{
-    class_constant_info::ConstantInfo,
-    codebase_info::CodebaseInfo,
-    t_atomic::{DictKey, TAtomic},
-    t_union::TUnion,
-};
+use crate::{class_constant_info::ConstantInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 use hakana_str::StrId;
 use itertools::Itertools;
 
@@ -132,7 +126,7 @@ pub fn is_contained_by(
             return true;
         }
 
-        if let TAtomic::TVec { .. } | TAtomic::TDict { .. } | TAtomic::TKeyset { .. } =
+        if let TAtomic::TVec { .. } | TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } =
             input_type_part
         {
             let arrayish_params = get_arrayish_params(input_type_part, codebase);
@@ -157,7 +151,7 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if let TAtomic::TVec { .. } | TAtomic::TDict { .. } | TAtomic::TKeyset { .. } =
+        if let TAtomic::TVec { .. } | TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } =
             input_type_part
         {
             let arrayish_params = get_arrayish_params(input_type_part, codebase);
@@ -221,12 +215,12 @@ pub fn is_contained_by(
     } = container_type_part
     {
         match input_type_part {
-            TAtomic::TDict { .. } => {
+            TAtomic::TDict(TDict { .. }) => {
                 if let Some(arrayish_params) = get_arrayish_params(container_type_part, codebase) {
                     return self::is_contained_by(
                         codebase,
                         input_type_part,
-                        &TAtomic::TDict {
+                        &TAtomic::TDict(TDict {
                             params: Some((
                                 Box::new(arrayish_params.0),
                                 Box::new(arrayish_params.1),
@@ -234,7 +228,7 @@ pub fn is_contained_by(
                             known_items: None,
                             non_empty: false,
                             shape_name: None,
-                        },
+                        }),
                         inside_assertion,
                         atomic_comparison_result,
                     );
@@ -276,8 +270,8 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TDict { .. } = container_type_part {
-        if let TAtomic::TDict { .. } = input_type_part {
+    if let TAtomic::TDict(TDict { .. }) = container_type_part {
+        if let TAtomic::TDict(TDict { .. }) = input_type_part {
             return dict_type_comparator::is_contained_by(
                 codebase,
                 input_type_part,
@@ -609,7 +603,7 @@ pub fn is_contained_by(
             *input_name,
             StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY
         ) {
-            if let TAtomic::TKeyset { .. } | TAtomic::TVec { .. } | TAtomic::TDict { .. } =
+            if let TAtomic::TKeyset { .. } | TAtomic::TVec { .. } | TAtomic::TDict(TDict { .. }) =
                 container_type_part
             {
                 atomic_comparison_result.type_coerced = Some(true);
@@ -1067,31 +1061,8 @@ pub(crate) fn can_be_identical<'a>(
         );
     }
 
-    if let (
-        TAtomic::TDict {
-            params: type_1_dict_params,
-            non_empty: type_1_non_empty,
-            known_items: type_1_known_items,
-            ..
-        },
-        TAtomic::TDict {
-            params: type_2_dict_params,
-            non_empty: type_2_non_empty,
-            known_items: type_2_known_items,
-            ..
-        },
-    ) = (type1_part, type2_part)
-    {
-        return dicts_can_be_identical(
-            type_1_dict_params,
-            type_2_dict_params,
-            type_1_known_items,
-            type_2_known_items,
-            type_1_non_empty,
-            type_2_non_empty,
-            codebase,
-            inside_assertion,
-        );
+    if let (TAtomic::TDict(type_1_dict), TAtomic::TDict(type_2_dict)) = (type1_part, type2_part) {
+        return dicts_can_be_identical(type_1_dict, type_2_dict, codebase, inside_assertion);
     }
 
     let mut first_comparison_result = TypeComparisonResult::new();
@@ -1136,17 +1107,13 @@ pub fn expand_constant_value(v: &ConstantInfo, codebase: &CodebaseInfo) -> TAtom
 }
 
 fn dicts_can_be_identical(
-    type_1_dict_params: &Option<(Box<TUnion>, Box<TUnion>)>,
-    type_2_dict_params: &Option<(Box<TUnion>, Box<TUnion>)>,
-    type_1_known_items: &Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
-    type_2_known_items: &Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
-    type_1_non_empty: &bool,
-    type_2_non_empty: &bool,
+    type_1_dict: &TDict,
+    type_2_dict: &TDict,
     codebase: &CodebaseInfo,
     inside_assertion: bool,
 ) -> bool {
-    if *type_1_non_empty || *type_2_non_empty {
-        return match (type_1_dict_params, type_2_dict_params) {
+    if type_1_dict.non_empty || type_2_dict.non_empty {
+        return match (&type_1_dict.params, &type_2_dict.params) {
             (None, None) | (None, Some(_)) | (Some(_), None) => true,
             (Some(type_1_dict_params), Some(type_2_dict_params)) => {
                 union_type_comparator::can_expression_types_be_identical(
@@ -1164,7 +1131,7 @@ fn dicts_can_be_identical(
         };
     }
 
-    match (type_1_known_items, type_2_known_items) {
+    match (&type_1_dict.known_items, &type_2_dict.known_items) {
         (Some(type_1_known_items), Some(type_2_known_items)) => {
             let mut all_keys = type_1_known_items.keys().collect_vec();
             all_keys.extend(type_2_known_items.keys());
@@ -1182,7 +1149,7 @@ fn dicts_can_be_identical(
                         }
                     }
                     (Some(type_1_entry), None) => {
-                        if let Some(type_2_dict_params) = type_2_dict_params {
+                        if let Some(type_2_dict_params) = &type_2_dict.params {
                             if !union_type_comparator::can_expression_types_be_identical(
                                 codebase,
                                 &type_1_entry.1,
@@ -1196,7 +1163,7 @@ fn dicts_can_be_identical(
                         }
                     }
                     (None, Some(type_2_entry)) => {
-                        if let Some(type_1_dict_params) = type_1_dict_params {
+                        if let Some(type_1_dict_params) = &type_1_dict.params {
                             if !union_type_comparator::can_expression_types_be_identical(
                                 codebase,
                                 &type_1_dict_params.1,
@@ -1217,7 +1184,7 @@ fn dicts_can_be_identical(
         }
         (Some(type_1_known_items), None) => {
             for type_1_entry in type_1_known_items.values() {
-                if let Some(type_2_dict_params) = type_2_dict_params {
+                if let Some(type_2_dict_params) = &type_2_dict.params {
                     if !union_type_comparator::can_expression_types_be_identical(
                         codebase,
                         &type_1_entry.1,
@@ -1233,7 +1200,7 @@ fn dicts_can_be_identical(
         }
         (None, Some(type_2_known_items)) => {
             for type_2_entry in type_2_known_items.values() {
-                if let Some(type_1_dict_params) = type_1_dict_params {
+                if let Some(type_1_dict_params) = &type_1_dict.params {
                     if !union_type_comparator::can_expression_types_be_identical(
                         codebase,
                         &type_1_dict_params.1,
@@ -1250,7 +1217,7 @@ fn dicts_can_be_identical(
         _ => {}
     };
 
-    match (type_1_dict_params, type_2_dict_params) {
+    match (&type_1_dict.params, &type_2_dict.params) {
         (None, None) | (None, Some(_)) | (Some(_), None) => true,
         (Some(type_1_dict_params), Some(type_2_dict_params)) => {
             union_type_comparator::can_expression_types_be_identical(

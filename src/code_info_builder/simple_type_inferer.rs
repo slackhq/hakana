@@ -1,4 +1,4 @@
-use hakana_code_info::t_atomic::{DictKey, TAtomic};
+use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict};
 use hakana_str::StrId;
 use hakana_code_info::ttype::{get_nothing, wrap_atomic};
 use oxidized::{aast, ast_defs};
@@ -58,12 +58,12 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
                 }
             }
 
-            Some(TAtomic::TDict {
+            Some(TAtomic::TDict(TDict {
                 non_empty: !known_items.is_empty(),
                 known_items: Some(known_items),
                 params: None,
                 shape_name: None,
-            })
+            }))
         }
         aast::Expr_::ValCollection(boxed) => {
             let mut entries = BTreeMap::new();
@@ -111,12 +111,12 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
 
             if known_items.len() < 100 {
                 match boxed.0 .1 {
-                    oxidized::tast::KvcKind::Dict => Some(TAtomic::TDict {
+                    oxidized::tast::KvcKind::Dict => Some(TAtomic::TDict(TDict {
                         non_empty: !known_items.is_empty(),
                         known_items: Some(known_items),
                         params: None,
                         shape_name: None,
-                    }),
+                    })),
                     _ => panic!(),
                 }
             } else {

@@ -7,8 +7,8 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::issue::IssueKind;
 use hakana_str::Interner;
-use hakana_workhorse::wasm::get_single_file_codebase;
-use hakana_workhorse::SuccessfulScanData;
+use hakana_orchestrator::wasm::get_single_file_codebase;
+use hakana_orchestrator::SuccessfulScanData;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashMap;
@@ -235,7 +235,7 @@ impl TestRunner {
 
         let interner = Interner::default();
 
-        let result = hakana_workhorse::scan_and_analyze(
+        let result = hakana_orchestrator::scan_and_analyze(
             stub_dirs,
             None,
             Some(FxHashSet::from_iter([
@@ -481,7 +481,7 @@ impl TestRunner {
         for (folder, change_after_scan) in folders {
             copy_recursively(folder.clone(), workdir_base.clone()).unwrap();
 
-            let run_result = hakana_workhorse::scan_and_analyze(
+            let run_result = hakana_orchestrator::scan_and_analyze(
                 stub_dirs.clone(),
                 None,
                 Some(FxHashSet::from_iter([

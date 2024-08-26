@@ -1,10 +1,6 @@
-use crate::ttype::{
-    add_union_type, get_arrayish_params, get_arraykey, get_mixed, get_mixed_any,
-    get_mixed_maybe_from_loop, get_value_param, intersect_union_types, type_combiner,
-    comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
-    type_expander::{self, StaticClassType, TypeExpansionOptions},
-    wrap_atomic,
-};
+use crate::{t_atomic::TDict, ttype::{
+    add_union_type, comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator}, get_arrayish_params, get_arraykey, get_mixed, get_mixed_any, get_mixed_maybe_from_loop, get_value_param, intersect_union_types, type_combiner, type_expander::{self, StaticClassType, TypeExpansionOptions}, wrap_atomic
+}};
 use crate::{
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
@@ -287,17 +283,17 @@ fn replace_atomic(
     let mut atomic_type = atomic_type.clone();
 
     match atomic_type {
-        TAtomic::TDict {
+        TAtomic::TDict(TDict {
             ref mut known_items,
             ref mut params,
             ..
-        } => {
+        }) => {
             if let Some(ref mut known_items) = known_items {
                 for (offset, (_, property)) in known_items {
-                    let input_type_param = if let Some(TAtomic::TDict {
+                    let input_type_param = if let Some(TAtomic::TDict(TDict {
                         known_items: Some(ref input_known_items),
                         ..
-                    }) = input_type
+                    })) = input_type
                     {
                         if let Some((_, t)) = input_known_items.get(offset) {
                             Some((**t).clone())
@@ -324,7 +320,7 @@ fn replace_atomic(
                     ));
                 }
             } else if let Some(params) = params {
-                let input_params = if let Some(TAtomic::TDict { .. }) = &input_type {
+                let input_params = if let Some(TAtomic::TDict(TDict { .. })) = &input_type {
                     if !params.0.is_arraykey() || !params.1.is_mixed() {
                         get_arrayish_params(&input_type.unwrap(), codebase)
                     } else {
@@ -522,7 +518,7 @@ fn replace_atomic(
                                 type_params: Some(ref input_type_parts),
                                 ..
                             } => input_type_parts.get(offset).cloned(),
-                            TAtomic::TDict { .. }
+                            TAtomic::TDict(TDict { .. })
                             | TAtomic::TVec { .. }
                             | TAtomic::TKeyset { .. } => {
                                 let (key_param, value_param) =
@@ -1514,11 +1510,11 @@ pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Ve
                 .types
                 .into_iter()
                 .map(|mut t| match t {
-                    TAtomic::TDict {
+                    TAtomic::TDict(TDict {
                         known_items: Some(_),
                         ref mut shape_name,
                         ..
-                    } => {
+                    }) => {
                         *shape_name = Some((*name, None));
                         t
                     }
@@ -1592,7 +1588,7 @@ fn find_matching_atomic_types_for_template(
                     continue;
                 }
             }
-            TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => {
+            TAtomic::TDict(TDict { .. }) | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => {
                 if let TAtomic::TNamedObject { name, .. } = base_type {
                     if is_array_container(name) {
                         matching_atomic_types.push(atomic_input_type.clone());

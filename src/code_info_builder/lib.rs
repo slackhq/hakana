@@ -6,6 +6,7 @@ use hakana_aast_helper::Uses;
 use hakana_code_info::attribute_info::AttributeInfo;
 use hakana_code_info::file_info::FileInfo;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
+use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::{
     ast_signature::DefSignatureNode, class_constant_info::ConstantInfo, classlike_info::Variance,
@@ -378,10 +379,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 simple_type_inferer::infer(attribute_param_expr, self.resolved_names);
 
             if let Some(atomic_param_attribute) = attribute_param_type {
-                if let TAtomic::TDict {
+                if let TAtomic::TDict(TDict {
                     known_items: Some(attribute_known_items),
                     ..
-                } = atomic_param_attribute
+                }) = atomic_param_attribute
                 {
                     for (name, (_, item_type)) in attribute_known_items {
                         let mut source_types = vec![];

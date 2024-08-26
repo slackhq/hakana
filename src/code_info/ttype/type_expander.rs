@@ -11,7 +11,7 @@ use crate::{
     },
     functionlike_info::FunctionLikeInfo,
     functionlike_parameter::FnParameter,
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
 use crate::{functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier};
@@ -125,12 +125,12 @@ fn expand_atomic(
     new_return_type_parts: &mut Vec<TAtomic>,
     extra_data_flow_nodes: &mut Vec<DataFlowNode>,
 ) {
-    if let TAtomic::TDict {
+    if let TAtomic::TDict(TDict {
         ref mut known_items,
         ref mut params,
         ref mut shape_name,
         ..
-    } = return_type_part
+    }) = return_type_part
     {
         if let Some(params) = params {
             expand_union(codebase, interner, &mut params.0, options, data_flow_graph);
@@ -423,11 +423,11 @@ fn expand_atomic(
                 .into_iter()
                 .map(|mut v| {
                     if type_params.is_none() {
-                        if let TAtomic::TDict {
+                        if let TAtomic::TDict(TDict {
                             known_items: Some(_),
                             ref mut shape_name,
                             ..
-                        } = v
+                        }) = v
                         {
                             if let (Some(shape_field_taints), Some(interner)) =
                                 (&type_definition.shape_field_taints, interner)
@@ -600,11 +600,11 @@ fn expand_atomic(
 
                         *skip_key = true;
                         new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
-                            if let TAtomic::TDict {
+                            if let TAtomic::TDict(TDict {
                                 known_items: Some(_),
                                 ref mut shape_name,
                                 ..
-                            } = v
+                            }) = v
                             {
                                 *shape_name = Some((*class_name, Some(*member_name)));
                             };

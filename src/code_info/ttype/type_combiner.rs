@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     classlike_info::Variance,
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -81,7 +81,7 @@ pub fn combine(
     let mut new_types = Vec::new();
 
     if combination.has_dict {
-        new_types.push(TAtomic::TDict {
+        new_types.push(TAtomic::TDict(TDict {
             known_items: if combination.dict_entries.is_empty() {
                 None
             } else {
@@ -94,7 +94,7 @@ pub fn combine(
             },
             non_empty: combination.dict_always_filled,
             shape_name: combination.dict_alias_name.unwrap_or(None),
-        });
+        }));
     }
 
     if let Some(vec_type_param) = combination.vec_type_param {
@@ -521,13 +521,13 @@ fn scrape_type_properties(
         return;
     }
 
-    if let TAtomic::TDict {
+    if let TAtomic::TDict(TDict {
         ref params,
         ref known_items,
         non_empty,
         shape_name,
         ..
-    } = atomic
+    }) = atomic
     {
         let had_previous_dict = combination.has_dict;
         combination.has_dict = true;

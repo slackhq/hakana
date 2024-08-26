@@ -3,6 +3,7 @@ use std::rc::Rc;
 use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
+use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::{
     assertion::Assertion,
     data_flow::{node::DataFlowNode, path::PathKind},
@@ -362,10 +363,10 @@ fn handle_shapes_static_method(
                         let dim_var_id = dim_var_id[1..dim_var_id.len() - 1].to_string();
 
                         for atomic_type in new_type.types.iter_mut() {
-                            if let TAtomic::TDict {
+                            if let TAtomic::TDict(TDict {
                                 known_items: Some(ref mut known_items),
                                 ..
-                            } = atomic_type
+                            }) = atomic_type
                             {
                                 known_items.remove(&DictKey::String(dim_var_id.clone()));
                             }
@@ -418,7 +419,7 @@ fn handle_shapes_static_method(
                     let is_nullable = dict_type.is_nullable();
 
                     for atomic_type in &dict_type.types {
-                        if let TAtomic::TDict { .. } = atomic_type {
+                        if let TAtomic::TDict(TDict { .. }) = atomic_type {
                             let mut expr_type_inner = handle_array_access_on_dict(
                                 statements_analyzer,
                                 pos,

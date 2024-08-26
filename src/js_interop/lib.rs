@@ -1,6 +1,6 @@
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_str::Interner;
-use hakana_workhorse::wasm::{get_single_file_codebase, scan_and_analyze_single_file};
+use hakana_orchestrator::wasm::{get_single_file_codebase, scan_and_analyze_single_file};
 use serde_json::json;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;

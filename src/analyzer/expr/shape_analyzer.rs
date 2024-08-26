@@ -10,7 +10,7 @@ use hakana_code_info::{
         node::DataFlowNode,
         path::{ArrayDataKind, PathKind},
     },
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
 use hakana_code_info::ttype::{get_mixed_any, wrap_atomic};
@@ -157,7 +157,7 @@ pub(crate) fn analyze(
         effects,
     );
 
-    let mut new_dict = wrap_atomic(TAtomic::TDict {
+    let mut new_dict = wrap_atomic(TAtomic::TDict(TDict {
         known_items: if !known_items.is_empty() {
             Some(known_items)
         } else {
@@ -166,7 +166,7 @@ pub(crate) fn analyze(
         params: None,
         non_empty: true,
         shape_name: None,
-    });
+    }));
 
     if !parent_nodes.is_empty() {
         let dict_node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(pos));

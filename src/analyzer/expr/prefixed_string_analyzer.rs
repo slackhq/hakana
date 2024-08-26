@@ -1,4 +1,4 @@
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TDict};
 use hakana_str::StrId;
 
 use hakana_code_info::t_union::TUnion;
@@ -32,12 +32,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     expr: &aast::Expr<(), ()>,
 ) -> Result<(), AnalysisError> {
-    expression_analyzer::analyze(
-        statements_analyzer,
-        &boxed.1,
-        analysis_data,
-        context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, &boxed.1, analysis_data, context)?;
 
     let inner_type = if let Some(t) = analysis_data.expr_types.get(&(
         boxed.1.pos().start_offset() as u32,
@@ -66,7 +61,7 @@ pub(crate) fn analyze(
 
             wrap_atomic(TAtomic::TTypeAlias {
                 name: StrId::LIB_REGEX_PATTERN,
-                type_params: Some(vec![wrap_atomic(TAtomic::TDict {
+                type_params: Some(vec![wrap_atomic(TAtomic::TDict(TDict {
                     known_items: if !shape_fields.is_empty() {
                         Some(shape_fields)
                     } else {
@@ -75,7 +70,7 @@ pub(crate) fn analyze(
                     params: None,
                     non_empty: true,
                     shape_name: None,
-                })]),
+                }))]),
                 as_type: Some(Box::new(wrap_atomic(TAtomic::TLiteralString {
                     value: inner_text,
                 }))),

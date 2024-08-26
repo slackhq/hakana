@@ -712,7 +712,7 @@ fn do_fix(
 
     config.allowed_issues = None;
 
-    let result = hakana_workhorse::scan_and_analyze(
+    let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
         filter,
         None,
@@ -809,7 +809,7 @@ fn do_remove_unused_fixmes(
 
     config.remove_fixmes = true;
 
-    let result = hakana_workhorse::scan_and_analyze(
+    let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
         filter,
         None,
@@ -886,7 +886,7 @@ fn do_add_fixmes(
 
     config.add_fixmes = true;
 
-    let result = hakana_workhorse::scan_and_analyze(
+    let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
         filter,
         None,
@@ -977,7 +977,7 @@ fn do_migrate(
 
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 
-    let result = hakana_workhorse::scan_and_analyze(
+    let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
         filter,
         None,
@@ -1049,7 +1049,7 @@ fn do_migration_candidates(
 
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 
-    let result = hakana_workhorse::scan_and_analyze(
+    let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
         filter,
         None,
@@ -1128,7 +1128,7 @@ fn do_codegen(
 
     let config = Arc::new(config);
 
-    let result = hakana_workhorse::scan_and_analyze(
+    let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
         None,
         None,
@@ -1252,7 +1252,7 @@ fn do_find_paths(
 
     let root_dir = config.root_dir.clone();
 
-    let result = hakana_workhorse::scan_and_analyze(
+    let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
         None,
         None,
@@ -1322,7 +1322,7 @@ fn do_security_check(
 
     let root_dir = config.root_dir.clone();
 
-    let result = hakana_workhorse::scan_and_analyze(
+    let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
         None,
         None,
@@ -1441,7 +1441,7 @@ fn do_analysis(
 
     let root_dir = config.root_dir.clone();
 
-    let result = hakana_workhorse::scan_and_analyze(
+    let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
         filter,
         ignored,

@@ -7,23 +7,23 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_code_info::{
-    assertion::Assertion,
-    codebase_info::CodebaseInfo,
-    functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{DictKey, TAtomic},
-    t_union::TUnion,
-};
-use hakana_str::StrId;
 use hakana_code_info::ttype::{
-    get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
     comparison::{
         atomic_type_comparator::{self, expand_constant_value},
         type_comparison_result::TypeComparisonResult,
     },
+    get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
     type_expander::{self, TypeExpansionOptions},
     wrap_atomic,
 };
+use hakana_code_info::{
+    assertion::Assertion,
+    codebase_info::CodebaseInfo,
+    functionlike_identifier::FunctionLikeIdentifier,
+    t_atomic::{DictKey, TAtomic, TDict},
+    t_union::TUnion,
+};
+use hakana_str::StrId;
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 
@@ -491,25 +491,8 @@ pub(crate) fn intersect_atomic_with_atomic(
                 return Some(type_1_atomic);
             }
         }
-        (
-            TAtomic::TDict {
-                known_items: type_1_known_items,
-                params: type_1_params,
-                ..
-            },
-            TAtomic::TDict {
-                known_items: type_2_known_items,
-                params: type_2_params,
-                ..
-            },
-        ) => {
-            return intersect_dicts(
-                type_1_params,
-                type_2_params,
-                type_1_known_items,
-                type_2_known_items,
-                codebase,
-            )
+        (TAtomic::TDict(type_1_dict), TAtomic::TDict(type_2_dict)) => {
+            return intersect_dicts(type_1_dict, type_2_dict, codebase)
         }
         (
             TAtomic::TVec {
@@ -537,11 +520,11 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_params: Some(type_1_params),
                 ..
             },
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 known_items: Some(type_2_known_items),
                 params: type_2_params,
                 ..
-            },
+            }),
         ) => {
             let (type_1_key_param, type_1_value_param) = if type_1_name == &StrId::CONTAINER {
                 (get_arraykey(true), &type_1_params[0])
@@ -570,12 +553,12 @@ pub(crate) fn intersect_atomic_with_atomic(
                 }
             }
 
-            return Some(TAtomic::TDict {
+            return Some(TAtomic::TDict(TDict {
                 known_items: Some(type_2_known_items),
                 params,
                 non_empty: true,
                 shape_name: None,
-            });
+            }));
         }
         (TAtomic::TGenericParam { as_type, .. }, TAtomic::TNamedObject { .. }) => {
             let new_as = intersect_union_with_atomic(codebase, as_type, type_2_atomic);
@@ -713,13 +696,11 @@ fn intersect_vecs(
 }
 
 fn intersect_dicts(
-    type_1_params: &Option<(Box<TUnion>, Box<TUnion>)>,
-    type_2_params: &Option<(Box<TUnion>, Box<TUnion>)>,
-    type_1_known_items: &Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
-    type_2_known_items: &Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
+    type_1_dict: &TDict,
+    type_2_dict: &TDict,
     codebase: &CodebaseInfo,
 ) -> Option<TAtomic> {
-    let params = match (type_1_params, type_2_params) {
+    let params = match (&type_1_dict.params, &type_2_dict.params) {
         (Some(type_1_params), Some(type_2_params)) => {
             let key = intersect_union_with_union(&type_1_params.0, &type_2_params.0, codebase);
             let value = intersect_union_with_union(&type_1_params.1, &type_2_params.1, codebase);
@@ -733,7 +714,7 @@ fn intersect_dicts(
         _ => None,
     };
 
-    match (type_1_known_items, type_2_known_items) {
+    match (&type_1_dict.known_items, &type_2_dict.known_items) {
         (Some(type_1_known_items), Some(type_2_known_items)) => {
             let mut intersected_items = BTreeMap::new();
 
@@ -754,7 +735,7 @@ fn intersect_dicts(
                             },
                         ),
                     );
-                } else if let Some(type_1_params) = type_1_params {
+                } else if let Some(type_1_params) = &type_1_dict.params {
                     intersected_items.insert(
                         type_2_key.clone(),
                         (
@@ -775,18 +756,18 @@ fn intersect_dicts(
                 }
             }
 
-            Some(TAtomic::TDict {
+            Some(TAtomic::TDict(TDict {
                 known_items: Some(intersected_items),
                 params,
                 non_empty: true,
                 shape_name: None,
-            })
+            }))
         }
         (None, Some(type_2_known_items)) => {
             let mut type_2_known_items = type_2_known_items.clone();
 
             for (_, type_2_value) in type_2_known_items.iter_mut() {
-                if let Some(type_1_params) = type_1_params {
+                if let Some(type_1_params) = &type_1_dict.params {
                     type_2_value.1 = if let Some(t) =
                         intersect_union_with_union(&type_2_value.1, &type_1_params.1, codebase)
                     {
@@ -794,23 +775,23 @@ fn intersect_dicts(
                     } else {
                         return None;
                     }
-                } else if type_2_params.is_none() && !type_2_value.0 {
+                } else if type_2_dict.params.is_none() && !type_2_value.0 {
                     return None;
                 }
             }
 
-            Some(TAtomic::TDict {
+            Some(TAtomic::TDict(TDict {
                 known_items: Some(type_2_known_items),
                 params,
                 non_empty: true,
                 shape_name: None,
-            })
+            }))
         }
         (Some(type_1_known_items), None) => {
             let mut type_1_known_items = type_1_known_items.clone();
 
             for (_, type_1_value) in type_1_known_items.iter_mut() {
-                if let Some(type_2_params) = type_2_params {
+                if let Some(type_2_params) = &type_2_dict.params {
                     type_1_value.1 = if let Some(t) =
                         intersect_union_with_union(&type_1_value.1, &type_2_params.1, codebase)
                     {
@@ -818,24 +799,24 @@ fn intersect_dicts(
                     } else {
                         return None;
                     }
-                } else if type_1_params.is_none() && !type_1_value.0 {
+                } else if type_1_dict.params.is_none() && !type_1_value.0 {
                     return None;
                 }
             }
 
-            Some(TAtomic::TDict {
+            Some(TAtomic::TDict(TDict {
                 known_items: Some(type_1_known_items),
                 params,
                 non_empty: true,
                 shape_name: None,
-            })
+            }))
         }
-        _ => Some(TAtomic::TDict {
+        _ => Some(TAtomic::TDict(TDict {
             known_items: None,
             params,
             non_empty: true,
             shape_name: None,
-        }),
+        })),
     }
 }
 

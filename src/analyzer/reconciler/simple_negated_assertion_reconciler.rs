@@ -7,7 +7,7 @@ use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -147,11 +147,11 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 known_items: None,
                 params: Some(params),
                 ..
-            } => {
+            }) => {
                 if params.0.is_placeholder() && params.1.is_placeholder() {
                     return Some(subtract_dict(
                         assertion,
@@ -590,7 +590,7 @@ fn subtract_dict(
             }
 
             did_remove_type = true;
-        } else if let TAtomic::TDict { .. } = atomic {
+        } else if let TAtomic::TDict(TDict { .. }) = atomic {
             did_remove_type = true;
 
             if is_equality {
@@ -1541,13 +1541,13 @@ fn reconcile_falsy(
                     };
                     acceptable_types.push(new_atomic);
                 }
-                TAtomic::TDict { .. } => {
-                    let new_atomic = TAtomic::TDict {
+                TAtomic::TDict(TDict { .. }) => {
+                    let new_atomic = TAtomic::TDict(TDict {
                         params: None,
                         known_items: None,
                         non_empty: false,
                         shape_name: None,
-                    };
+                    });
                     acceptable_types.push(new_atomic);
                 }
                 TAtomic::TMixed => {
@@ -1664,18 +1664,18 @@ fn reconcile_empty_countable(
                 };
                 acceptable_types.push(new_atomic);
             }
-        } else if let TAtomic::TDict { .. } = atomic {
+        } else if let TAtomic::TDict(TDict { .. }) = atomic {
             did_remove_type = true;
 
             if atomic.is_truthy() {
                 // don't keep
             } else {
-                let new_atomic = TAtomic::TDict {
+                let new_atomic = TAtomic::TDict(TDict {
                     params: None,
                     known_items: None,
                     non_empty: false,
                     shape_name: None,
-                };
+                });
                 acceptable_types.push(new_atomic);
             }
         } else {
@@ -1731,7 +1731,7 @@ fn reconcile_not_exactly_countable(
             } else if !atomic.is_falsy() {
                 did_remove_type = true;
             }
-        } else if let TAtomic::TDict { .. } = atomic {
+        } else if let TAtomic::TDict(TDict { .. }) = atomic {
             if !atomic.is_falsy() {
                 did_remove_type = true;
             }
@@ -1817,11 +1817,11 @@ fn reconcile_no_array_key(
 
     for mut atomic in existing_var_types {
         match atomic {
-            TAtomic::TDict {
+            TAtomic::TDict(TDict {
                 ref mut known_items,
                 ref mut params,
                 ..
-            } => {
+            }) => {
                 if let Some(known_items) = known_items {
                     if let Some(known_item) = known_items.get(key_name) {
                         if known_item.0 {
@@ -1952,7 +1952,7 @@ fn reconcile_no_nonnull_entry_for_key(existing_var_type: &TUnion, key_name: &Dic
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_type.types.iter_mut() {
-        if let TAtomic::TDict { known_items, .. } = atomic {
+        if let TAtomic::TDict(TDict { known_items, .. }) = atomic {
             let mut all_known_items_removed = false;
             if let Some(known_items_inner) = known_items {
                 if let Some(known_item) = known_items_inner.remove(key_name) {
