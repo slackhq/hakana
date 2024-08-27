@@ -27,7 +27,7 @@ pub(crate) fn get_control_actions(
         return control_actions;
     }
 
-    'outer: for stmt in stmts {
+    for stmt in stmts {
         let stmt_control_actions = get_stmt_control_actions(
             stmt,
             codebase,

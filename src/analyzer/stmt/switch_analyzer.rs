@@ -143,7 +143,7 @@ pub(crate) fn analyze(
             all_options_returned = false;
         }
 
-        let case_actions = case_action_map.get(i).unwrap();
+        let case_actions = &case_action_map[i];
 
         if !case
             .1
