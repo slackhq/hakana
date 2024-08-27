@@ -67,16 +67,12 @@ pub(crate) fn get_control_actions(
                     return control_actions;
                 }
 
-                if !control_actions.contains(&ControlAction::Break) {
-                    control_actions.insert(ControlAction::Break);
-                }
+                control_actions.insert(ControlAction::Break);
 
                 return control_actions;
             }
             aast::Stmt_::Continue => {
-                if !control_actions.contains(&ControlAction::Continue) {
-                    control_actions.insert(ControlAction::Continue);
-                }
+                control_actions.insert(ControlAction::Continue);
 
                 return control_actions;
             }
@@ -476,9 +472,7 @@ pub(crate) fn get_control_actions(
         }
     }
 
-    if !control_actions.contains(&ControlAction::None) {
-        control_actions.insert(ControlAction::None);
-    }
+    control_actions.insert(ControlAction::None);
 
     control_actions
 }
