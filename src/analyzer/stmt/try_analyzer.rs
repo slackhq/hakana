@@ -1,5 +1,5 @@
 use crate::scope::{
-    control_action::ControlAction, loop_scope::LoopScope, FinallyScope, BlockContext,
+    control_action::ControlAction, loop_scope::LoopScope, BlockContext, FinallyScope,
 };
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
@@ -9,8 +9,8 @@ use crate::{
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
 use hakana_code_info::data_flow::path::PathKind;
-use hakana_code_info::VarId;
 use hakana_code_info::ttype::{combine_union_types, get_named_object};
+use hakana_code_info::VarId;
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
@@ -29,23 +29,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
-    let mut all_catches_leave = true;
-
     let codebase = statements_analyzer.get_codebase();
-
-    for catch in stmt.1.iter() {
-        let catch_actions = control_analyzer::get_control_actions(
-            codebase,
-            statements_analyzer.get_interner(),
-            statements_analyzer.get_file_analyzer().resolved_names,
-            &catch.2 .0,
-            Some(analysis_data),
-            vec![],
-            true,
-        );
-
-        all_catches_leave = all_catches_leave && !catch_actions.contains(&ControlAction::None);
-    }
 
     let old_context = context.clone();
 
@@ -108,15 +92,6 @@ pub(crate) fn analyze(
         false
     };
 
-    for assigned_var_id in newly_assigned_var_ids.keys() {
-        if all_catches_leave {
-            &mut try_context
-        } else {
-            &mut *context
-        }
-        .remove_var_from_conflicting_clauses(assigned_var_id, None, None, analysis_data);
-    }
-
     // at this point we have two contexts – $context, in which it is assumed that everything was fine,
     // and $try_context - which allows all variables to have the union of the values before and after
     // the try was applied
@@ -125,6 +100,8 @@ pub(crate) fn analyze(
     let mut definitely_newly_assigned_var_ids = newly_assigned_var_ids.clone();
 
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+
+    let mut all_catches_leave = true;
 
     for catch in stmt.1 {
         let mut catch_context = original_context.clone();
@@ -144,9 +121,7 @@ pub(crate) fn analyze(
             } else {
                 let mut better_type = (*after_try_type).clone();
                 better_type.possibly_undefined_from_try = true;
-                catch_context
-                    .locals
-                    .insert(var_id, Rc::new(better_type));
+                catch_context.locals.insert(var_id, Rc::new(better_type));
             }
         }
 
@@ -246,6 +221,8 @@ pub(crate) fn analyze(
             true,
         );
 
+        all_catches_leave = all_catches_leave && !catch_actions.contains(&ControlAction::None);
+
         let new_catch_assigned_var_ids = catch_context.assigned_var_ids.clone();
         catch_context
             .assigned_var_ids
@@ -268,9 +245,7 @@ pub(crate) fn analyze(
                         ControlAction::End
                     )
                 {
-                    context
-                        .locals
-                        .insert(var_id.clone(), var_type.clone());
+                    context.locals.insert(var_id.clone(), var_type.clone());
                 } else if let Some(context_type) = context.locals.get(var_id).cloned() {
                     context.locals.insert(
                         var_id.clone(),
@@ -298,6 +273,15 @@ pub(crate) fn analyze(
                 }
             }
         }
+    }
+
+    for assigned_var_id in newly_assigned_var_ids.keys() {
+        if all_catches_leave {
+            &mut try_context
+        } else {
+            &mut *context
+        }
+        .remove_var_from_conflicting_clauses(assigned_var_id, None, None, analysis_data);
     }
 
     let finally_scope = try_context.finally_scope.clone();
@@ -372,9 +356,7 @@ pub(crate) fn analyze(
                             false,
                         ));
                     } else {
-                        context
-                            .locals
-                            .insert(var_id.clone(), finally_type.clone());
+                        context.locals.insert(var_id.clone(), finally_type.clone());
                     }
                 }
             }
