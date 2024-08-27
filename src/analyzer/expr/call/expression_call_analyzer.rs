@@ -5,8 +5,9 @@ use crate::expr::call::arguments_analyzer;
 use crate::expr::call_analyzer::apply_effects;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
+use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::code_location::HPos;
@@ -14,10 +15,10 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo, MetaStart};
 use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::{VarId, EFFECT_CAN_THROW};
-use hakana_str::StrId;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::template::TemplateResult;
+use hakana_code_info::{VarId, EFFECT_CAN_THROW};
+use hakana_str::StrId;
 use indexmap::IndexMap;
 use oxidized::ast::CallExpr;
 use oxidized::pos::Pos;
@@ -31,12 +32,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
-    expression_analyzer::analyze(
-        statements_analyzer,
-        &expr.func,
-        analysis_data,
-        context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, &expr.func, analysis_data, context)?;
     context.inside_general_use = was_inside_general_use;
 
     let lhs_type = analysis_data
@@ -138,6 +134,7 @@ pub(crate) fn analyze(
 
     if stmt_type.is_nothing() && !context.inside_loop {
         context.has_returned = true;
+        context.control_actions.insert(ControlAction::End);
     }
 
     analysis_data.set_expr_type(pos, stmt_type);

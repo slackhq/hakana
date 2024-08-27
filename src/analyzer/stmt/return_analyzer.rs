@@ -1,8 +1,17 @@
 use std::rc::Rc;
 
+use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
+use hakana_code_info::ttype::{
+    comparison::type_comparison_result::TypeComparisonResult,
+    get_mixed_any, get_null, get_void,
+    type_expander::{self, TypeExpansionOptions},
+    wrap_atomic,
+};
+use hakana_code_info::ttype::{comparison::union_type_comparator, type_expander::StaticClassType};
 use hakana_code_info::{
     data_flow::{
         graph::{DataFlowGraph, GraphKind},
@@ -15,14 +24,6 @@ use hakana_code_info::{
     t_union::TUnion,
 };
 use hakana_str::{Interner, StrId};
-use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
-use hakana_code_info::ttype::{
-    get_mixed_any, get_null, get_void,
-    comparison::type_comparison_result::TypeComparisonResult,
-    type_expander::{self, TypeExpansionOptions},
-    wrap_atomic,
-};
-use hakana_code_info::ttype::{comparison::union_type_comparator, type_expander::StaticClassType};
 use oxidized::aast;
 use rustc_hash::FxHashSet;
 
@@ -90,6 +91,7 @@ pub(crate) fn analyze(
     }
 
     context.has_returned = true;
+    context.control_actions.insert(ControlAction::Return);
 
     let functionlike_storage = if let Some(s) = statements_analyzer.get_functionlike_info() {
         s

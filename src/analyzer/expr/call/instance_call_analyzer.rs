@@ -3,14 +3,15 @@ use std::rc::Rc;
 use crate::expr::expression_identifier;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::EFFECT_WRITE_PROPS;
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
+use hakana_code_info::EFFECT_WRITE_PROPS;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 
@@ -32,22 +33,12 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     context.inside_general_use = true;
 
-    expression_analyzer::analyze(
-        statements_analyzer,
-        expr.0,
-        analysis_data,
-        context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context)?;
 
     if let aast::Expr_::Id(_) = &expr.1 .2 {
         // do nothing
     } else {
-        expression_analyzer::analyze(
-            statements_analyzer,
-            expr.1,
-            analysis_data,
-            context,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
     }
 
     let lhs_var_id = expression_identifier::get_var_id(
@@ -173,9 +164,12 @@ pub(crate) fn analyze(
                 false,
             );
         }
+
         if stmt_type.is_nothing() && !context.inside_loop {
             context.has_returned = true;
+            context.control_actions.insert(ControlAction::End);
         }
+
         analysis_data.set_expr_type(pos, stmt_type);
     }
 

@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::{collections::BTreeMap, rc::Rc};
 
+use control_action::ControlAction;
 use hakana_algebra::Clause;
 use hakana_code_info::function_context::FunctionContext;
 use hakana_code_info::EFFECT_PURE;
@@ -165,6 +166,8 @@ pub struct BlockContext {
     pub pipe_var_effects: u8,
 
     pub if_body_context: Option<Rc<RefCell<Self>>>,
+
+    pub control_actions: FxHashSet<ControlAction>,
 }
 
 impl BlockContext {
@@ -207,6 +210,7 @@ impl BlockContext {
             pipe_var_effects: EFFECT_PURE,
 
             if_body_context: None,
+            control_actions: FxHashSet::default(),
         }
     }
 

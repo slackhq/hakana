@@ -2,10 +2,10 @@ use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_union::TUnion;
-use hakana_code_info::{VarId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
-use hakana_str::StrId;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{get_arrayish_params, get_void};
+use hakana_code_info::{VarId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
+use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
@@ -14,6 +14,7 @@ use crate::expr::call_analyzer::{apply_effects, check_template_result};
 use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_analyzer};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
+use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -70,12 +71,7 @@ pub(crate) fn analyze(
     if (name == "unset" || name == "\\unset") && !expr.2.is_empty() {
         let first_arg = &expr.2.first().unwrap().1;
         context.inside_unset = true;
-        expression_analyzer::analyze(
-            statements_analyzer,
-            first_arg,
-            analysis_data,
-            context,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, first_arg, analysis_data, context)?;
         context.inside_unset = false;
         analysis_data.expr_effects.insert(
             (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -251,6 +247,7 @@ pub(crate) fn analyze(
         && context.function_context.is_production(codebase)
     {
         context.has_returned = true;
+        context.control_actions.insert(ControlAction::End);
     }
 
     match name {

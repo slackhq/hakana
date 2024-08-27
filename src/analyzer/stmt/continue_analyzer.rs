@@ -4,8 +4,8 @@ use hakana_code_info::ttype::combine_union_types;
 use rustc_hash::FxHashSet;
 
 use crate::{
-    scope_analyzer::ScopeAnalyzer,
     scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
+    scope_analyzer::ScopeAnalyzer,
 };
 
 use crate::{
@@ -21,6 +21,7 @@ pub(crate) fn analyze(
     let codebase = statements_analyzer.get_codebase();
     if let Some(loop_scope) = loop_scope {
         loop_scope.final_actions.insert(ControlAction::Continue);
+        context.control_actions.insert(ControlAction::Continue);
 
         let mut removed_var_ids = FxHashSet::default();
 

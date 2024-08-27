@@ -1,9 +1,9 @@
 use hakana_code_info::code_location::{HPos, StmtStart};
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FnEffect;
+use hakana_code_info::ttype::get_arrayish_params;
 use hakana_code_info::EFFECT_PURE;
 use hakana_str::StrId;
-use hakana_code_info::ttype::get_arrayish_params;
 use rustc_hash::FxHashSet;
 
 use crate::custom_hook::AfterStmtAnalysisData;
@@ -14,6 +14,7 @@ use crate::expr::expression_identifier::{
 };
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::scope::control_action::ControlAction;
 use crate::scope::loop_scope::LoopScope;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -152,6 +153,8 @@ pub(crate) fn analyze(
             context.inside_throw = true;
 
             expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
+
+            context.control_actions.insert(ControlAction::End);
 
             context.inside_throw = false;
             context.has_returned = true;

@@ -5,8 +5,8 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
 use crate::{
-    scope_analyzer::ScopeAnalyzer,
     scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
+    scope_analyzer::ScopeAnalyzer,
 };
 use hakana_code_info::ttype::{combine_optional_union_types, combine_union_types};
 use rustc_hash::FxHashMap;
@@ -28,9 +28,11 @@ pub(crate) fn analyze(
             false
         } {
             loop_scope.final_actions.insert(ControlAction::LeaveSwitch);
+            context.control_actions.insert(ControlAction::LeaveSwitch);
         } else {
             leaving_switch = false;
             loop_scope.final_actions.insert(ControlAction::Break);
+            context.control_actions.insert(ControlAction::Break);
         }
 
         for (var_id, var_type) in &context.locals {
@@ -79,6 +81,8 @@ pub(crate) fn analyze(
                 }
             }
         }
+    } else {
+        context.control_actions.insert(ControlAction::Break);
     }
 
     let case_scope = analysis_data.case_scopes.last_mut();

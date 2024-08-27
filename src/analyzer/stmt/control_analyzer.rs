@@ -33,7 +33,6 @@ pub(crate) fn get_control_actions(
             codebase,
             interner,
             resolved_names,
-            stmts,
             analysis_data,
             &break_context,
             return_is_exit,
@@ -56,7 +55,6 @@ fn get_stmt_control_actions(
     codebase: &CodebaseInfo,
     interner: &Interner,
     resolved_names: &FxHashMap<u32, StrId>,
-    stmts: &Vec<aast::Stmt<(), ()>>,
     analysis_data: Option<&FunctionAnalysisData>,
     break_context: &Vec<BreakContext>,
     return_is_exit: bool, // default true

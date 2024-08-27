@@ -85,6 +85,7 @@ pub(crate) fn analyze(
                 }
             }
         } else {
+            context.control_actions.insert(ControlAction::End);
             context.has_returned = true;
         }
     }
