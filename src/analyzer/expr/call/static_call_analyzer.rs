@@ -1,13 +1,14 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
+use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use hakana_code_info::EFFECT_WRITE_PROPS;
 use hakana_str::StrId;
-use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 
@@ -171,7 +172,16 @@ pub(crate) fn analyze(
         context.remove_mutable_object_vars();
     }
 
-    analysis_data.set_expr_type(pos, result.return_type.clone().unwrap_or(get_mixed_any()));
+    if let Some(stmt_type) = result.return_type {
+        if stmt_type.is_nothing() && !context.inside_loop {
+            context.has_returned = true;
+            context.control_actions.insert(ControlAction::End);
+        }
+
+        analysis_data.set_expr_type(pos, stmt_type);
+    } else {
+        analysis_data.set_expr_type(pos, get_mixed_any());
+    }
 
     Ok(())
 }
