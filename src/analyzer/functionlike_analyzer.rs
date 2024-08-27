@@ -29,12 +29,12 @@ use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
-use hakana_str::{Interner, StrId};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
-    add_optional_union_type, get_mixed_any, get_nothing, get_void, comparison, wrap_atomic,
+    add_optional_union_type, comparison, get_mixed_any, get_nothing, get_void, wrap_atomic,
 };
+use hakana_str::{Interner, StrId};
 use itertools::Itertools;
 use oxidized::ast_defs::Pos;
 use oxidized::{aast, tast};
@@ -895,108 +895,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     ) -> Result<(), AnalysisError> {
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {
-                for type_node in param_type.get_all_child_nodes() {
-                    if let hakana_code_info::t_union::TypeNode::Atomic(atomic) = type_node {
-                        match atomic {
-                            TAtomic::TReference { name, .. }
-                            | TAtomic::TClosureAlias {
-                                id: FunctionLikeIdentifier::Function(name),
-                            } => match context.function_context.calling_functionlike_id {
-                                Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                    analysis_data
-                                        .symbol_references
-                                        .add_symbol_reference_to_symbol(
-                                            calling_function,
-                                            *name,
-                                            true,
-                                        );
-                                }
-                                Some(FunctionLikeIdentifier::Method(
-                                    calling_classlike,
-                                    calling_function,
-                                )) => {
-                                    analysis_data
-                                        .symbol_references
-                                        .add_class_member_reference_to_symbol(
-                                            (calling_classlike, calling_function),
-                                            *name,
-                                            true,
-                                        );
-                                }
-                                _ => {}
-                            },
-
-                            TAtomic::TEnumLiteralCase {
-                                enum_name: name,
-                                member_name,
-                                ..
-                            }
-                            | TAtomic::TClosureAlias {
-                                id: FunctionLikeIdentifier::Method(name, member_name),
-                            } => match context.function_context.calling_functionlike_id {
-                                Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                    analysis_data
-                                        .symbol_references
-                                        .add_symbol_reference_to_class_member(
-                                            calling_function,
-                                            (*name, *member_name),
-                                            true,
-                                        );
-                                }
-                                Some(FunctionLikeIdentifier::Method(
-                                    calling_classlike,
-                                    calling_function,
-                                )) => {
-                                    analysis_data
-                                        .symbol_references
-                                        .add_class_member_reference_to_class_member(
-                                            (calling_classlike, calling_function),
-                                            (*name, *member_name),
-                                            true,
-                                        );
-                                }
-                                _ => {}
-                            },
-                            TAtomic::TClassTypeConstant {
-                                class_type,
-                                member_name,
-                                ..
-                            } => match class_type.as_ref() {
-                                TAtomic::TNamedObject { name, .. }
-                                | TAtomic::TReference { name, .. } => {
-                                    match context.function_context.calling_functionlike_id {
-                                        Some(FunctionLikeIdentifier::Function(
-                                            calling_function,
-                                        )) => {
-                                            analysis_data
-                                                .symbol_references
-                                                .add_symbol_reference_to_class_member(
-                                                    calling_function,
-                                                    (*name, *member_name),
-                                                    true,
-                                                );
-                                        }
-                                        Some(FunctionLikeIdentifier::Method(
-                                            calling_classlike,
-                                            calling_function,
-                                        )) => {
-                                            analysis_data
-                                                .symbol_references
-                                                .add_class_member_reference_to_class_member(
-                                                    (calling_classlike, calling_function),
-                                                    (*name, *member_name),
-                                                    true,
-                                                );
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                                _ => {}
-                            },
-                            _ => {}
-                        }
-                    }
-                }
+                add_symbol_references(
+                    param_type,
+                    context.function_context.calling_functionlike_id,
+                    analysis_data,
+                );
 
                 if param_type.is_mixed() {
                     param_type.clone()
@@ -1034,9 +937,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     );
 
                     for type_node in param_type.get_all_child_nodes() {
-                        if let hakana_code_info::t_union::TypeNode::Atomic(
-                            TAtomic::TReference { name, .. },
-                        ) = type_node
+                        if let hakana_code_info::t_union::TypeNode::Atomic(TAtomic::TReference {
+                            name,
+                            ..
+                        }) = type_node
                         {
                             analysis_data.add_issue(Issue::new(
                                 IssueKind::NonExistentClasslike,
@@ -1180,6 +1084,102 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         }
 
         Ok(())
+    }
+}
+
+fn add_symbol_references(
+    param_type: &TUnion,
+    calling_functionlike_id: Option<FunctionLikeIdentifier>,
+    analysis_data: &mut FunctionAnalysisData,
+) {
+    for type_node in param_type.get_all_child_nodes() {
+        if let hakana_code_info::t_union::TypeNode::Atomic(atomic) = type_node {
+            match atomic {
+                TAtomic::TReference { name, .. }
+                | TAtomic::TClosureAlias {
+                    id: FunctionLikeIdentifier::Function(name),
+                } => match calling_functionlike_id {
+                    Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                        analysis_data
+                            .symbol_references
+                            .add_symbol_reference_to_symbol(calling_function, *name, true);
+                    }
+                    Some(FunctionLikeIdentifier::Method(calling_classlike, calling_function)) => {
+                        analysis_data
+                            .symbol_references
+                            .add_class_member_reference_to_symbol(
+                                (calling_classlike, calling_function),
+                                *name,
+                                true,
+                            );
+                    }
+                    _ => {}
+                },
+
+                TAtomic::TEnumLiteralCase {
+                    enum_name: name,
+                    member_name,
+                    ..
+                }
+                | TAtomic::TClosureAlias {
+                    id: FunctionLikeIdentifier::Method(name, member_name),
+                } => match calling_functionlike_id {
+                    Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                        analysis_data
+                            .symbol_references
+                            .add_symbol_reference_to_class_member(
+                                calling_function,
+                                (*name, *member_name),
+                                true,
+                            );
+                    }
+                    Some(FunctionLikeIdentifier::Method(calling_classlike, calling_function)) => {
+                        analysis_data
+                            .symbol_references
+                            .add_class_member_reference_to_class_member(
+                                (calling_classlike, calling_function),
+                                (*name, *member_name),
+                                true,
+                            );
+                    }
+                    _ => {}
+                },
+                TAtomic::TClassTypeConstant {
+                    class_type,
+                    member_name,
+                    ..
+                } => match class_type.as_ref() {
+                    TAtomic::TNamedObject { name, .. } | TAtomic::TReference { name, .. } => {
+                        match calling_functionlike_id {
+                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                                analysis_data
+                                    .symbol_references
+                                    .add_symbol_reference_to_class_member(
+                                        calling_function,
+                                        (*name, *member_name),
+                                        true,
+                                    );
+                            }
+                            Some(FunctionLikeIdentifier::Method(
+                                calling_classlike,
+                                calling_function,
+                            )) => {
+                                analysis_data
+                                    .symbol_references
+                                    .add_class_member_reference_to_class_member(
+                                        (calling_classlike, calling_function),
+                                        (*name, *member_name),
+                                        true,
+                                    );
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
     }
 }
 
