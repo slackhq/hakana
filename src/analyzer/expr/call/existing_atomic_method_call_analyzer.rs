@@ -4,6 +4,11 @@ use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::TDict;
+use hakana_code_info::ttype::get_null;
+use hakana_code_info::ttype::template::standin_type_replacer;
+use hakana_code_info::ttype::{
+    add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
+};
 use hakana_code_info::{
     assertion::Assertion,
     data_flow::{node::DataFlowNode, path::PathKind},
@@ -12,11 +17,6 @@ use hakana_code_info::{
 };
 use hakana_code_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
 use hakana_str::StrId;
-use hakana_code_info::ttype::get_null;
-use hakana_code_info::ttype::template::standin_type_replacer;
-use hakana_code_info::ttype::{
-    add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
-};
 use indexmap::IndexMap;
 use oxidized::{
     aast,
@@ -465,7 +465,9 @@ fn handle_shapes_static_method(
                                         pos,
                                     );
                                 }
-                            } else if call_expr.1.len() == 2 && is_nullable {
+                            } else if call_expr.1.len() == 2
+                                && (is_nullable || !has_matching_dict_key)
+                            {
                                 expr_type_inner =
                                     add_union_type(expr_type_inner, &get_null(), codebase, false);
                             }
