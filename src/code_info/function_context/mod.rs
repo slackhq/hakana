@@ -12,6 +12,8 @@ pub struct FunctionContext {
     pub is_static: bool,
 
     pub calling_functionlike_id: Option<FunctionLikeIdentifier>,
+
+    pub ignore_noreturn_calls: bool,
 }
 
 impl Default for FunctionContext {
@@ -27,6 +29,7 @@ impl FunctionContext {
             is_static: false,
             calling_functionlike_id: None,
             calling_class_final: false,
+            ignore_noreturn_calls: false,
         }
     }
 

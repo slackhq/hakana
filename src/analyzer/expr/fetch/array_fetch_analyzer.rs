@@ -1,5 +1,11 @@
 use std::rc::Rc;
 
+use hakana_code_info::ttype::{
+    add_optional_union_type, add_union_type,
+    comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+    get_arraykey, get_int, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, get_null,
+    get_string,
+};
 use hakana_code_info::{
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
@@ -11,11 +17,6 @@ use hakana_code_info::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_code_info::ttype::{
-    add_optional_union_type, add_union_type, get_arraykey, get_int, get_mixed_any,
-    get_mixed_maybe_from_loop, get_nothing, get_null, get_string,
-    comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
-};
 use oxidized::{aast, ast_defs::Pos};
 
 use crate::{
@@ -313,7 +314,7 @@ pub(crate) fn get_array_access_type_given_offset(
 
     let mut stmt_type = None;
 
-    while let Some(mut atomic_var_type) = array_atomic_types.pop() {
+    while let Some(atomic_var_type) = array_atomic_types.pop() {
         if let TAtomic::TGenericParam { as_type, .. }
         | TAtomic::TClassTypeConstant { as_type, .. }
         | TAtomic::TTypeAlias {

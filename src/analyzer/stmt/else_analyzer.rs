@@ -1,9 +1,9 @@
 use super::{control_analyzer, if_analyzer};
 use crate::reconciler;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::control_action::ControlAction;
 use crate::scope::loop_scope::LoopScope;
 use crate::scope::{if_scope::IfScope, BlockContext};
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
@@ -101,7 +101,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_interner(),
             statements_analyzer.get_file_analyzer().resolved_names,
             &stmts.0,
-            Some(analysis_data),
+            analysis_data,
             Vec::new(),
             true,
         )

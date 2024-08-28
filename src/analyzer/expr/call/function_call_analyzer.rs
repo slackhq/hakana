@@ -242,10 +242,7 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(pos, stmt_type.clone());
 
-    if stmt_type.is_nothing()
-        && !context.inside_loop
-        && context.function_context.is_production(codebase)
-    {
+    if stmt_type.is_nothing() && !context.inside_loop {
         context.has_returned = true;
         context.control_actions.insert(ControlAction::End);
     }

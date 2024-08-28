@@ -54,7 +54,7 @@ pub(crate) fn analyze(
         statements_analyzer.get_interner(),
         statements_analyzer.get_file_analyzer().resolved_names,
         &stmt.0 .0,
-        Some(analysis_data),
+        analysis_data,
         vec![],
         true,
     );
@@ -216,7 +216,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_interner(),
             statements_analyzer.get_file_analyzer().resolved_names,
             &catch.2 .0,
-            Some(analysis_data),
+            analysis_data,
             vec![],
             true,
         );
@@ -330,7 +330,7 @@ pub(crate) fn analyze(
                 statements_analyzer.get_interner(),
                 statements_analyzer.get_file_analyzer().resolved_names,
                 &stmt.2 .0,
-                Some(analysis_data),
+                analysis_data,
                 vec![],
                 true,
             );

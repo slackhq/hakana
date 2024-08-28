@@ -113,6 +113,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let functionlike_id = FunctionLikeIdentifier::Function(name);
 
         function_context.calling_functionlike_id = Some(functionlike_id);
+        function_context.ignore_noreturn_calls = function_storage.ignore_noreturn_calls;
 
         self.analyze_functionlike(
             &mut statements_analyzer,
@@ -260,6 +261,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut function_context = FunctionContext::new();
         let functionlike_id = FunctionLikeIdentifier::Method(classlike_storage.name, method_name);
         function_context.calling_functionlike_id = Some(functionlike_id);
+        function_context.ignore_noreturn_calls = functionlike_storage.ignore_noreturn_calls;
         function_context.calling_class = Some(classlike_storage.name);
         function_context.calling_class_final = classlike_storage.is_final;
 

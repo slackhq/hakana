@@ -30,7 +30,7 @@ pub(crate) fn analyze(
     if_scope: &mut IfScope,
 ) -> Result<IfConditionalScope, AnalysisError> {
     let mut outer_context = outer_context.clone();
-    let mut old_outer_context = outer_context.clone();
+    let old_outer_context = outer_context.clone();
     let mut has_outer_context_changes = false;
 
     if !if_scope.negated_clauses.is_empty() {

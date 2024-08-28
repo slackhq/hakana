@@ -88,7 +88,7 @@ pub(crate) fn analyze<'a>(
         statements_analyzer.get_interner(),
         statements_analyzer.get_file_analyzer().resolved_names,
         stmts,
-        Some(analysis_data),
+        analysis_data,
         vec![],
         true,
     );

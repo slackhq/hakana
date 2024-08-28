@@ -2,7 +2,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::control_action::ControlAction;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_str::{Interner, StrId};
-use oxidized::{aast, ast::CallExpr};
+use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -16,7 +16,7 @@ pub(crate) fn get_control_actions(
     interner: &Interner,
     resolved_names: &FxHashMap<u32, StrId>,
     stmts: &Vec<aast::Stmt<(), ()>>,
-    analysis_data: Option<&FunctionAnalysisData>,
+    analysis_data: &FunctionAnalysisData,
     break_context: Vec<BreakContext>,
     return_is_exit: bool, // default true
 ) -> FxHashSet<ControlAction> {
@@ -30,24 +30,9 @@ pub(crate) fn get_control_actions(
     'outer: for stmt in stmts {
         match &stmt.1 {
             aast::Stmt_::Expr(boxed) => {
-                if let aast::Expr_::Call(call_expr) = &boxed.2 {
-                    if let Some(value) = handle_call(
-                        call_expr,
-                        resolved_names,
-                        codebase,
-                        interner,
-                        &control_actions,
-                    ) {
-                        return value;
-                    }
-                }
-
-                if let Some(analysis_data) = analysis_data {
-                    if let Some(t) = analysis_data.get_expr_type(boxed.pos()) {
-                        if t.is_nothing() {
-                            control_actions.insert(ControlAction::End);
-                            return control_actions;
-                        }
+                if let Some(t) = analysis_data.get_expr_type(boxed.pos()) {
+                    if t.is_nothing() {
+                        return control_end(control_actions);
                     }
                 }
             }
@@ -160,41 +145,11 @@ pub(crate) fn get_control_actions(
                 control_actions.retain(|action| action != &ControlAction::None);
 
                 // check for infinite loop behaviour
-                if let Some(types) = analysis_data {
-                    match &stmt.1 {
-                        aast::Stmt_::While(boxed) => {
-                            if let Some(expr_type) = types.get_expr_type(&boxed.0 .1) {
-                                if expr_type.is_always_truthy() {
-                                    //infinite while loop that only return don't have an exit path
-                                    let loop_only_ends = control_actions
-                                        .iter()
-                                        .filter(|action| {
-                                            *action != &ControlAction::End
-                                                && *action != &ControlAction::Return
-                                        })
-                                        .count()
-                                        == 0;
-
-                                    if loop_only_ends {
-                                        return control_actions;
-                                    }
-                                }
-                            }
-                        }
-                        aast::Stmt_::For(boxed) => {
-                            let mut is_infinite_loop = true;
-
-                            if let Some(for_cond) = &boxed.1 {
-                                if let Some(expr_type) = types.get_expr_type(&for_cond.1) {
-                                    if !expr_type.is_always_truthy() {
-                                        is_infinite_loop = false
-                                    }
-                                } else {
-                                    is_infinite_loop = false;
-                                }
-                            }
-
-                            if is_infinite_loop {
+                match &stmt.1 {
+                    aast::Stmt_::While(boxed) => {
+                        if let Some(expr_type) = analysis_data.get_expr_type(&boxed.0 .1) {
+                            if expr_type.is_always_truthy() {
+                                //infinite while loop that only return don't have an exit path
                                 let loop_only_ends = control_actions
                                     .iter()
                                     .filter(|action| {
@@ -209,8 +164,36 @@ pub(crate) fn get_control_actions(
                                 }
                             }
                         }
-                        _ => {}
                     }
+                    aast::Stmt_::For(boxed) => {
+                        let mut is_infinite_loop = true;
+
+                        if let Some(for_cond) = &boxed.1 {
+                            if let Some(expr_type) = analysis_data.get_expr_type(&for_cond.1) {
+                                if !expr_type.is_always_truthy() {
+                                    is_infinite_loop = false
+                                }
+                            } else {
+                                is_infinite_loop = false;
+                            }
+                        }
+
+                        if is_infinite_loop {
+                            let loop_only_ends = control_actions
+                                .iter()
+                                .filter(|action| {
+                                    *action != &ControlAction::End
+                                        && *action != &ControlAction::Return
+                                })
+                                .count()
+                                == 0;
+
+                            if loop_only_ends {
+                                return control_actions;
+                            }
+                        }
+                    }
+                    _ => {}
                 }
 
                 control_actions.retain(|action| action != &ControlAction::BreakImmediateLoop);
@@ -313,13 +296,9 @@ pub(crate) fn get_control_actions(
                 control_actions.extend(all_case_actions);
 
                 if has_default_terminator
-                    || if let Some(analysis_data) = analysis_data {
-                        analysis_data
-                            .fully_matched_switch_offsets
-                            .contains(&stmt.0.start_offset())
-                    } else {
-                        false
-                    }
+                    || analysis_data
+                        .fully_matched_switch_offsets
+                        .contains(&stmt.0.start_offset())
                 {
                     return control_actions;
                 }
@@ -482,7 +461,7 @@ fn handle_block(
     interner: &Interner,
     resolved_names: &FxHashMap<u32, StrId>,
     block_stmts: &aast::Block<(), ()>,
-    analysis_data: Option<&FunctionAnalysisData>,
+    analysis_data: &FunctionAnalysisData,
     break_context: Vec<BreakContext>,
     return_is_exit: bool,
     control_actions: &mut FxHashSet<ControlAction>,
@@ -508,65 +487,6 @@ fn handle_block(
     control_actions.extend(block_actions);
 
     false
-}
-
-fn handle_call(
-    call_expr: &CallExpr,
-    resolved_names: &FxHashMap<u32, StrId>,
-    codebase: &CodebaseInfo,
-    interner: &Interner,
-    control_actions: &FxHashSet<ControlAction>,
-) -> Option<FxHashSet<ControlAction>> {
-    match &call_expr.func.2 {
-        aast::Expr_::Id(id) => {
-            if id.1.eq("exit") || id.1.eq("die") {
-                return Some(control_end(control_actions.clone()));
-            }
-
-            let resolved_name = resolved_names.get(&(id.0.start_offset() as u32))?;
-            if let Some(functionlike_storage) = codebase
-                .functionlike_infos
-                .get(&(*resolved_name, StrId::EMPTY))
-            {
-                if let Some(return_type) = &functionlike_storage.return_type {
-                    if return_type.is_nothing() {
-                        return Some(control_end(control_actions.clone()));
-                    }
-                }
-            }
-        }
-        aast::Expr_::ClassConst(boxed) => {
-            if let aast::ClassId_::CIexpr(lhs_expr) = &boxed.0 .2 {
-                if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                    let name_string = &id.1;
-
-                    match name_string.as_str() {
-                        "self" | "parent" | "static" => {
-                            // do nothing
-                        }
-                        _ => {
-                            let name_string = resolved_names.get(&(id.0.start_offset() as u32))?;
-
-                            let method_name = interner.get(&boxed.1 .1)?;
-
-                            if let Some(functionlike_storage) = codebase
-                                .functionlike_infos
-                                .get(&(*name_string, method_name))
-                            {
-                                if let Some(return_type) = &functionlike_storage.return_type {
-                                    if return_type.is_nothing() {
-                                        return Some(control_end(control_actions.clone()));
-                                    }
-                                }
-                            }
-                        }
-                    };
-                }
-            }
-        }
-        _ => (),
-    }
-    None
 }
 
 #[inline]

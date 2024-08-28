@@ -20,7 +20,7 @@ use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{DictKey, TAtomic, TDict},
+    t_atomic::{TAtomic, TDict},
     t_union::TUnion,
 };
 use hakana_str::StrId;

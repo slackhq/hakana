@@ -1,6 +1,6 @@
 use hakana_code_info::codebase_info::CodebaseInfo;
-use hakana_str::{Interner, StrId};
 use hakana_code_info::ttype::{combine_union_types, get_mixed_any};
+use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use oxidized::{aast, aast::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -262,7 +262,7 @@ fn update_case_exit_map(
         interner,
         resolved_names,
         case_stmts,
-        Some(analysis_data),
+        analysis_data,
         vec![BreakContext::Switch],
         true,
     );

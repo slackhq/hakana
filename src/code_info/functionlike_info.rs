@@ -161,6 +161,8 @@ pub struct FunctionLikeInfo {
 
     pub is_production_code: bool,
 
+    pub ignore_noreturn_calls: bool,
+
     pub banned_function_message: Option<StrId>,
 
     pub is_closure: bool,
@@ -207,6 +209,7 @@ impl FunctionLikeInfo {
             is_closure: false,
             overriding: false,
             banned_function_message: None,
+            ignore_noreturn_calls: false,
         }
     }
 

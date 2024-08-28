@@ -1,10 +1,10 @@
 use super::control_analyzer;
 use crate::reconciler;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::control_action::ControlAction;
 use crate::scope::loop_scope::LoopScope;
 use crate::scope::var_has_root;
 use crate::scope::{if_scope::IfScope, BlockContext};
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
@@ -116,7 +116,7 @@ pub(crate) fn analyze(
         statements_analyzer.get_interner(),
         statements_analyzer.get_file_analyzer().resolved_names,
         &stmt.1 .0,
-        Some(analysis_data),
+        analysis_data,
         Vec::new(),
         true,
     );
@@ -254,8 +254,7 @@ pub(crate) fn update_if_scope(
                     ),
                 );
 
-                if let Some(outer_context_type) = outer_context.locals.get(&redefined_var_id)
-                {
+                if let Some(outer_context_type) = outer_context.locals.get(&redefined_var_id) {
                     if scope_redefined_type == **outer_context_type {
                         scope_redefined_vars.remove(&redefined_var_id);
                     }

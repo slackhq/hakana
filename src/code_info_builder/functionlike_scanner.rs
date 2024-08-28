@@ -19,13 +19,13 @@ use hakana_code_info::method_info::MethodInfo;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::taint::string_to_sink_types;
 use hakana_code_info::taint::string_to_source_types;
+use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::type_resolution::TypeResolutionContext;
 use hakana_code_info::FileSource;
 use hakana_code_info::GenericParent;
 use hakana_code_info::VarId;
 use hakana_code_info::EFFECT_IMPURE;
 use hakana_str::{StrId, ThreadedInterner};
-use hakana_code_info::ttype::get_mixed_any;
 use oxidized::aast;
 use oxidized::aast::Stmt;
 use oxidized::ast::UserAttribute;
@@ -411,6 +411,9 @@ pub(crate) fn get_functionlike(
             }
             StrId::OVERRIDE => {
                 functionlike_info.overriding = true;
+            }
+            StrId::HAKANA_IGNORE_NORETURN_CALLS => {
+                functionlike_info.ignore_noreturn_calls = true;
             }
             _ => {}
         }

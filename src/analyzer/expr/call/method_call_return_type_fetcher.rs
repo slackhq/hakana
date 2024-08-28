@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_code_info::ttype::get_mixed;
 use hakana_code_info::{ExprId, GenericParent, VarId};
 use hakana_str::{Interner, StrId};
-use hakana_code_info::ttype::get_mixed;
 use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
 
@@ -138,7 +138,7 @@ pub(crate) fn fetch(
         &mut analysis_data.data_flow_graph,
     );
 
-    if return_type_candidate.is_nothing() && !context.function_context.is_production(codebase) {
+    if return_type_candidate.is_nothing() && context.function_context.ignore_noreturn_calls {
         return_type_candidate = get_mixed();
     }
 
@@ -503,7 +503,9 @@ fn add_dataflow(
             &FxHashMap::default(),
             data_flow_graph,
             &method_call_node,
-            PathKind::UnknownArrayFetch(hakana_code_info::data_flow::path::ArrayDataKind::ArrayValue),
+            PathKind::UnknownArrayFetch(
+                hakana_code_info::data_flow::path::ArrayDataKind::ArrayValue,
+            ),
         );
     }
 

@@ -10,8 +10,6 @@ use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::SinkType;
-use hakana_code_info::{GenericParent, EFFECT_IMPURE};
-use hakana_str::{Interner, StrId};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
@@ -20,6 +18,8 @@ use hakana_code_info::ttype::{
     get_literal_string, get_mixed, get_mixed_any, get_mixed_vec, get_nothing, get_null, get_object,
     get_string, get_vec, template, type_expander, wrap_atomic,
 };
+use hakana_code_info::{GenericParent, EFFECT_IMPURE};
+use hakana_str::{Interner, StrId};
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -137,7 +137,7 @@ pub(crate) fn fetch(
             &mut analysis_data.data_flow_graph,
         );
 
-        if function_return_type.is_nothing() && !context.function_context.is_production(codebase) {
+        if function_return_type.is_nothing() && context.function_context.ignore_noreturn_calls {
             function_return_type = get_mixed();
         }
 
