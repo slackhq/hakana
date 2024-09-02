@@ -23,18 +23,35 @@ use std::sync::Arc;
 
 use super::{inferred_type_replacer, TemplateBound, TemplateResult};
 
-pub fn replace(
+#[derive(Copy, Clone)]
+pub struct StandinOpts<'a> {
+    pub calling_class: Option<&'a StrId>,
+    pub calling_function: Option<&'a FunctionLikeIdentifier>,
+    pub replace: bool,         // true
+    pub add_lower_bound: bool, // false
+    pub depth: usize,          // 1
+}
+
+impl<'a> Default for StandinOpts<'a> {
+    fn default() -> Self {
+        Self {
+            calling_class: None,
+            calling_function: None,
+            replace: true,
+            add_lower_bound: false,
+            depth: 1,
+        }
+    }
+}
+
+pub fn replace<'a>(
     union_type: &TUnion,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
-    interner: &Option<&Interner>,
+    interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&StrId>,
-    calling_function: Option<&FunctionLikeIdentifier>,
-    replace: bool,         // true
-    add_lower_bound: bool, // false
-    depth: usize,          // 1
+    opts: StandinOpts<'a>,
 ) -> TUnion {
     let mut atomic_types = Vec::new();
 
@@ -67,17 +84,13 @@ pub fn replace(
             interner,
             &input_type.as_ref(),
             input_arg_offset,
-            calling_class,
-            calling_function,
-            replace,
-            add_lower_bound,
-            depth,
+            opts,
             original_atomic_types.len() == 1,
             &mut had_template,
         ))
     }
 
-    if replace {
+    if opts.replace {
         if atomic_types.is_empty() {
             return union_type.clone();
         }
@@ -100,18 +113,14 @@ pub fn replace(
     union_type.clone()
 }
 
-fn handle_atomic_standin(
+fn handle_atomic_standin<'a>(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
-    interner: &Option<&Interner>,
+    interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&StrId>,
-    calling_function: Option<&FunctionLikeIdentifier>,
-    replace: bool,
-    add_lower_bound: bool,
-    depth: usize,
+    opts: StandinOpts<'a>,
     was_single: bool,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
@@ -143,11 +152,7 @@ fn handle_atomic_standin(
                 interner,
                 input_type,
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                depth,
+                opts,
                 had_template,
             );
         }
@@ -165,7 +170,7 @@ fn handle_atomic_standin(
             defining_entity,
         )
         .is_some()
-            && replace
+            && opts.replace
         {
             return handle_template_param_class_standin(
                 atomic_type,
@@ -174,11 +179,7 @@ fn handle_atomic_standin(
                 interner,
                 input_type,
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                true,
-                add_lower_bound,
-                depth,
+                opts,
                 was_single,
             );
         }
@@ -196,7 +197,7 @@ fn handle_atomic_standin(
             defining_entity,
         )
         .is_some()
-            && replace
+            && opts.replace
         {
             return handle_template_param_type_standin(
                 atomic_type,
@@ -205,11 +206,7 @@ fn handle_atomic_standin(
                 interner,
                 input_type,
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                true,
-                add_lower_bound,
-                depth,
+                opts,
                 was_single,
             );
         }
@@ -238,11 +235,10 @@ fn handle_atomic_standin(
             interner,
             None,
             input_arg_offset,
-            calling_class,
-            calling_function,
-            replace,
-            add_lower_bound,
-            depth + 1,
+            StandinOpts {
+                depth: opts.depth + 1,
+                ..opts
+            },
         );
 
         return vec![atomic_type];
@@ -258,29 +254,24 @@ fn handle_atomic_standin(
             interner,
             Some(matching_input_type),
             input_arg_offset,
-            calling_class,
-            calling_function,
-            replace,
-            add_lower_bound,
-            depth + 1,
+            StandinOpts {
+                depth: opts.depth + 1,
+                ..opts
+            },
         ))
     }
 
     atomic_types
 }
 
-fn replace_atomic(
+fn replace_atomic<'a>(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
-    interner: &Option<&Interner>,
+    interner: &Interner,
     input_type: Option<TAtomic>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&StrId>,
-    calling_function: Option<&FunctionLikeIdentifier>,
-    replace: bool,
-    add_lower_bound: bool,
-    depth: usize,
+    opts: StandinOpts<'a>,
 ) -> TAtomic {
     let mut atomic_type = atomic_type.clone();
 
@@ -313,11 +304,7 @@ fn replace_atomic(
                         interner,
                         &input_type_param.as_ref(),
                         input_arg_offset,
-                        calling_class,
-                        calling_function,
-                        replace,
-                        add_lower_bound,
-                        depth,
+                        opts,
                     ));
                 }
             } else if let Some(params) = params {
@@ -342,11 +329,7 @@ fn replace_atomic(
                         None
                     },
                     input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    add_lower_bound,
-                    depth,
+                    opts,
                 ));
 
                 params.1 = Box::new(self::replace(
@@ -360,11 +343,7 @@ fn replace_atomic(
                         None
                     },
                     input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    add_lower_bound,
-                    depth,
+                    opts,
                 ));
             }
 
@@ -398,11 +377,7 @@ fn replace_atomic(
                         interner,
                         &input_type_param,
                         input_arg_offset,
-                        calling_class,
-                        calling_function,
-                        replace,
-                        add_lower_bound,
-                        depth,
+                        opts,
                     );
                 }
             } else {
@@ -423,11 +398,7 @@ fn replace_atomic(
                         None
                     },
                     input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    add_lower_bound,
-                    depth,
+                    opts,
                 ));
             }
 
@@ -450,11 +421,7 @@ fn replace_atomic(
                     None
                 },
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                depth,
+                opts,
             ));
 
             return atomic_type;
@@ -474,11 +441,7 @@ fn replace_atomic(
                     None
                 },
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                depth,
+                opts,
             ));
 
             return atomic_type;
@@ -497,7 +460,7 @@ fn replace_atomic(
                 {
                     Some(get_mapped_generic_type_params(
                         codebase,
-                        interner,
+                        &Some(interner),
                         &input_type.clone().unwrap(),
                         name,
                         remapped_params,
@@ -555,11 +518,7 @@ fn replace_atomic(
                             input_type_param.as_ref()
                         },
                         input_arg_offset,
-                        calling_class,
-                        calling_function,
-                        replace,
-                        add_lower_bound,
-                        depth,
+                        opts,
                     );
                 }
             }
@@ -599,11 +558,7 @@ fn replace_atomic(
                             None
                         },
                         input_arg_offset,
-                        calling_class,
-                        calling_function,
-                        replace,
-                        add_lower_bound,
-                        depth,
+                        opts,
                     );
                 }
             }
@@ -642,11 +597,10 @@ fn replace_atomic(
                             None
                         },
                         input_arg_offset,
-                        calling_class,
-                        calling_function,
-                        replace,
-                        !add_lower_bound,
-                        depth,
+                        StandinOpts {
+                            add_lower_bound: !opts.add_lower_bound,
+                            ..opts
+                        },
                     ));
                 }
             }
@@ -667,11 +621,10 @@ fn replace_atomic(
                         None
                     },
                     input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    add_lower_bound,
-                    depth - 1,
+                    StandinOpts {
+                        depth: opts.depth - 1,
+                        ..opts
+                    },
                 ));
             }
 
@@ -692,11 +645,7 @@ fn replace_atomic(
                     None
                 },
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                depth,
+                opts,
             ));
 
             return atomic_type;
@@ -716,11 +665,7 @@ fn replace_atomic(
                     None
                 },
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                depth,
+                opts,
             ));
 
             return atomic_type;
@@ -731,20 +676,16 @@ fn replace_atomic(
     atomic_type.clone()
 }
 
-fn handle_template_param_standin(
+fn handle_template_param_standin<'a>(
     atomic_type: &TAtomic,
     normalized_key: &String,
     template_type: &TUnion,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
-    interner: &Option<&Interner>,
+    interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&StrId>,
-    calling_function: Option<&FunctionLikeIdentifier>,
-    replace: bool,
-    add_lower_bound: bool,
-    depth: usize,
+    opts: StandinOpts<'a>,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
     let (param_name, defining_entity, extra_types, as_type) = if let TAtomic::TGenericParam {
@@ -760,7 +701,7 @@ fn handle_template_param_standin(
         panic!()
     };
 
-    if let Some(calling_class) = calling_class {
+    if let Some(calling_class) = opts.calling_class {
         if defining_entity == &GenericParent::ClassLike(*calling_class) {
             return vec![atomic_type.clone()];
         }
@@ -785,11 +726,10 @@ fn handle_template_param_standin(
                 interner,
                 input_type,
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                depth + 1,
+                StandinOpts {
+                    depth: opts.depth + 1,
+                    ..opts
+                },
             );
 
             if extra_type_union.is_single() {
@@ -802,7 +742,7 @@ fn handle_template_param_standin(
         }
     }
 
-    if replace {
+    if opts.replace {
         let mut atomic_types = Vec::new();
 
         if replacement_type.is_mixed() && !as_type.is_mixed() {
@@ -816,11 +756,11 @@ fn handle_template_param_standin(
         } else {
             type_expander::expand_union(
                 codebase,
-                interner,
+                &Some(interner),
                 &mut replacement_type,
                 &TypeExpansionOptions {
-                    self_class: calling_class,
-                    static_class_type: if let Some(c) = calling_class {
+                    self_class: opts.calling_class,
+                    static_class_type: if let Some(c) = opts.calling_class {
                         StaticClassType::Name(c)
                     } else {
                         StaticClassType::None
@@ -833,7 +773,7 @@ fn handle_template_param_standin(
                 &mut DataFlowGraph::new(GraphKind::FunctionBody),
             );
 
-            if depth < 10 && replacement_type.has_template_types() {
+            if opts.depth < 10 && replacement_type.has_template_types() {
                 replacement_type = self::replace(
                     &replacement_type,
                     template_result,
@@ -841,11 +781,10 @@ fn handle_template_param_standin(
                     interner,
                     input_type,
                     input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    true,
-                    add_lower_bound,
-                    depth + 1,
+                    StandinOpts {
+                        depth: opts.depth + 1,
+                        ..opts
+                    },
                 );
             }
 
@@ -858,20 +797,20 @@ fn handle_template_param_standin(
                     ..
                 } = replacement_atomic_type
                 {
-                    if (calling_class.is_none()
+                    if (opts.calling_class.is_none()
                         || replacement_defining_entity
-                            != &GenericParent::ClassLike(*calling_class.unwrap()))
-                        && (calling_function.is_none()
-                            || match calling_function.unwrap() {
-                                FunctionLikeIdentifier::Function(calling_function) => {
-                                    replacement_defining_entity
-                                        != &GenericParent::FunctionLike(*calling_function)
-                                }
-                                FunctionLikeIdentifier::Method(_, _) => true,
-                                _ => {
-                                    panic!()
-                                }
-                            })
+                            != &GenericParent::ClassLike(*opts.calling_class.unwrap()))
+                        && match opts.calling_function {
+                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                                replacement_defining_entity
+                                    != &GenericParent::FunctionLike(*calling_function)
+                            }
+                            Some(FunctionLikeIdentifier::Method(_, _)) => true,
+                            Some(_) => {
+                                panic!()
+                            }
+                            None => true,
+                        }
                     {
                         for nested_type_atomic in &replacement_as_type.types {
                             replacements_found = true;
@@ -894,11 +833,11 @@ fn handle_template_param_standin(
 
         type_expander::expand_union(
             codebase,
-            interner,
+            &Some(interner),
             &mut as_type,
             &TypeExpansionOptions {
-                self_class: calling_class,
-                static_class_type: if let Some(c) = calling_class {
+                self_class: opts.calling_class,
+                static_class_type: if let Some(c) = opts.calling_class {
                     StaticClassType::Name(c)
                 } else {
                     StaticClassType::None
@@ -918,11 +857,10 @@ fn handle_template_param_standin(
             interner,
             input_type,
             input_arg_offset,
-            calling_class,
-            calling_function,
-            true,
-            add_lower_bound,
-            depth + 1,
+            StandinOpts {
+                depth: opts.depth + 1,
+                ..opts
+            },
         );
 
         if let Some(input_type) = input_type {
@@ -947,7 +885,7 @@ fn handle_template_param_standin(
                     }
                 }
 
-                if add_lower_bound {
+                if opts.add_lower_bound {
                     return generic_param.types.clone();
                 }
 
@@ -958,7 +896,7 @@ fn handle_template_param_standin(
                     .entry(*defining_entity)
                     .or_insert(vec![TemplateBound {
                         bound_type: generic_param.clone(),
-                        appearance_depth: depth,
+                        appearance_depth: opts.depth,
                         arg_offset: input_arg_offset,
                         equality_bound_classlike: None,
                         pos: None,
@@ -991,7 +929,7 @@ fn handle_template_param_standin(
         return new_atomic_types;
     }
 
-    if add_lower_bound && !template_result.readonly {
+    if opts.add_lower_bound && !template_result.readonly {
         if let Some(input_type) = input_type {
             let mut matching_input_keys = Vec::new();
 
@@ -1079,18 +1017,14 @@ fn handle_template_param_standin(
     vec![atomic_type.clone()]
 }
 
-fn handle_template_param_class_standin(
+fn handle_template_param_class_standin<'a>(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
-    interner: &Option<&Interner>,
+    interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&StrId>,
-    calling_function: Option<&FunctionLikeIdentifier>,
-    replace: bool,
-    add_lower_bound: bool,
-    depth: usize,
+    opts: StandinOpts<'a>,
     was_single: bool,
 ) -> Vec<TAtomic> {
     if let TAtomic::TGenericClassname {
@@ -1101,7 +1035,7 @@ fn handle_template_param_class_standin(
     } = atomic_type
     {
         let mut atomic_type_as = *as_type.clone();
-        if let Some(calling_class) = calling_class {
+        if let Some(calling_class) = opts.calling_class {
             if defining_entity == &GenericParent::ClassLike(*calling_class) {
                 return vec![atomic_type.clone()];
             }
@@ -1168,11 +1102,7 @@ fn handle_template_param_class_standin(
                 interner,
                 &generic_param.as_ref(),
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                depth,
+                opts,
             );
 
             atomic_type_as = if as_type_union.is_single() {
@@ -1195,7 +1125,7 @@ fn handle_template_param_class_standin(
                             codebase,
                             false,
                         ),
-                        depth,
+                        opts.depth,
                         input_arg_offset,
                         None,
                     )]
@@ -1208,7 +1138,7 @@ fn handle_template_param_class_standin(
                             *defining_entity,
                             vec![TemplateBound::new(
                                 generic_param,
-                                depth,
+                                opts.depth,
                                 input_arg_offset,
                                 None,
                             )],
@@ -1260,18 +1190,14 @@ fn handle_template_param_class_standin(
     }
 }
 
-fn handle_template_param_type_standin(
+fn handle_template_param_type_standin<'a>(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
-    interner: &Option<&Interner>,
+    interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&StrId>,
-    calling_function: Option<&FunctionLikeIdentifier>,
-    replace: bool,
-    add_lower_bound: bool,
-    depth: usize,
+    opts: StandinOpts<'a>,
     was_single: bool,
 ) -> Vec<TAtomic> {
     if let TAtomic::TGenericTypename {
@@ -1282,7 +1208,7 @@ fn handle_template_param_type_standin(
     } = atomic_type
     {
         let mut atomic_type_as = *as_type.clone();
-        if let Some(calling_class) = calling_class {
+        if let Some(calling_class) = opts.calling_class {
             if defining_entity == &GenericParent::ClassLike(*calling_class) {
                 return vec![atomic_type.clone()];
             }
@@ -1340,11 +1266,7 @@ fn handle_template_param_type_standin(
                 interner,
                 &generic_param.as_ref(),
                 input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                depth,
+                opts,
             );
 
             atomic_type_as = if as_type_union.is_single() {
@@ -1367,7 +1289,7 @@ fn handle_template_param_type_standin(
                             codebase,
                             false,
                         ),
-                        depth,
+                        opts.depth,
                         input_arg_offset,
                         None,
                     )]
@@ -1380,7 +1302,7 @@ fn handle_template_param_type_standin(
                             *defining_entity,
                             vec![TemplateBound::new(
                                 generic_param,
-                                depth,
+                                opts.depth,
                                 input_arg_offset,
                                 None,
                             )],

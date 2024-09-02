@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use hakana_code_info::assertion::Assertion;
 use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::ttype::template::standin_type_replacer::StandinOpts;
 use hakana_code_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
 
 use hakana_code_info::data_flow::node::DataFlowNode;
@@ -548,30 +549,33 @@ fn adjust_param_type(
                 &*param_type,
                 template_result,
                 statements_analyzer.get_codebase(),
-                &Some(statements_analyzer.get_interner()),
+                statements_analyzer.get_interner(),
                 &Some(&arg_value_type),
                 Some(argument_offset),
-                if let Some(calling_class) = &context.function_context.calling_class {
-                    if !context.function_context.is_static {
-                        if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id {
-                            if *method_name == StrId::CONSTRUCT {
-                                None
+                StandinOpts {
+                    calling_class: if let Some(calling_class) =
+                        &context.function_context.calling_class
+                    {
+                        if !context.function_context.is_static {
+                            if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id
+                            {
+                                if *method_name == StrId::CONSTRUCT {
+                                    None
+                                } else {
+                                    Some(calling_class)
+                                }
                             } else {
                                 Some(calling_class)
                             }
                         } else {
-                            Some(calling_class)
+                            None
                         }
                     } else {
                         None
-                    }
-                } else {
-                    None
+                    },
+                    calling_function: context.function_context.calling_functionlike_id.as_ref(),
+                    ..Default::default()
                 },
-                context.function_context.calling_functionlike_id.as_ref(),
-                true,
-                false,
-                1,
             );
         }
 
@@ -714,14 +718,14 @@ fn handle_closure_arg(
         param_type,
         &mut replace_template_result,
         codebase,
-        &Some(statements_analyzer.get_interner()),
+        statements_analyzer.get_interner(),
         &None,
         None,
-        None,
-        context.function_context.calling_functionlike_id.as_ref(),
-        true,
-        false,
-        1,
+        StandinOpts {
+            calling_class: None,
+            calling_function: context.function_context.calling_functionlike_id.as_ref(),
+            ..Default::default()
+        },
     );
 
     replaced_type =
@@ -852,14 +856,14 @@ fn map_class_generic_params(
         &*param_type,
         &mut readonly_template_result,
         codebase,
-        &Some(interner),
+        interner,
         &Some(arg_value_type),
         Some(argument_offset),
-        context.function_context.calling_class.as_ref(),
-        context.function_context.calling_functionlike_id.as_ref(),
-        true,
-        false,
-        1,
+        StandinOpts {
+            calling_class: context.function_context.calling_class.as_ref(),
+            calling_function: context.function_context.calling_functionlike_id.as_ref(),
+            ..Default::default()
+        },
     );
 
     if arg_has_template_types {
@@ -867,14 +871,14 @@ fn map_class_generic_params(
             &*arg_value_type,
             template_result,
             codebase,
-            &Some(interner),
+            interner,
             &Some(arg_value_type),
             Some(argument_offset),
-            context.function_context.calling_class.as_ref(),
-            context.function_context.calling_functionlike_id.as_ref(),
-            true,
-            false,
-            1,
+            StandinOpts {
+                calling_class: context.function_context.calling_class.as_ref(),
+                calling_function: context.function_context.calling_functionlike_id.as_ref(),
+                ..Default::default()
+            },
         );
     }
 }
@@ -968,22 +972,23 @@ fn handle_possibly_matching_inout_param(
             &inout_type,
             template_result,
             codebase,
-            &Some(statements_analyzer.get_interner()),
+            statements_analyzer.get_interner(),
             &if let Some(arg_type) = &arg_type {
                 Some(arg_type)
             } else {
                 None
             },
             Some(argument_offset),
-            context.function_context.calling_class.as_ref(),
-            if let Some(m) = &context.function_context.calling_functionlike_id {
-                Some(m)
-            } else {
-                None
+            StandinOpts {
+                calling_class: context.function_context.calling_class.as_ref(),
+                calling_function: if let Some(m) = &context.function_context.calling_functionlike_id
+                {
+                    Some(m)
+                } else {
+                    None
+                },
+                ..Default::default()
             },
-            true,
-            false,
-            1,
         );
 
         if !template_result.lower_bounds.is_empty() {

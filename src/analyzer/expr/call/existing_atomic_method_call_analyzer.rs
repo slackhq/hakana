@@ -5,7 +5,7 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::ttype::get_null;
-use hakana_code_info::ttype::template::standin_type_replacer;
+use hakana_code_info::ttype::template::standin_type_replacer::{self, StandinOpts};
 use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
 };
@@ -189,14 +189,14 @@ pub(crate) fn analyze(
                     where_type,
                     &mut template_result,
                     statements_analyzer.get_codebase(),
-                    &Some(statements_analyzer.get_interner()),
+                    statements_analyzer.get_interner(),
                     &Some(template_type),
                     None,
-                    None,
-                    context.function_context.calling_functionlike_id.as_ref(),
-                    true,
-                    false,
-                    1,
+                    StandinOpts {
+                        calling_class: None,
+                        calling_function: context.function_context.calling_functionlike_id.as_ref(),
+                        ..Default::default()
+                    },
                 );
             }
         }
