@@ -28,7 +28,6 @@ use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::{populate_union_type, TUnion};
-use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_code_info::ttype::template::{
     self, inferred_type_replacer, standin_type_replacer, TemplateBound, TemplateResult,
 };
@@ -36,6 +35,7 @@ use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansio
 use hakana_code_info::ttype::{
     add_optional_union_type, combine_optional_union_types, get_arraykey, get_mixed_any, wrap_atomic,
 };
+use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
 use oxidized::ast_defs::ParamKind;
 use oxidized::pos::Pos;
@@ -316,12 +316,7 @@ pub(crate) fn check_arguments_match(
 
         last_param_type = Some(param_type.clone());
 
-        expression_analyzer::analyze(
-            statements_analyzer,
-            unpacked_arg,
-            analysis_data,
-            context,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, unpacked_arg, analysis_data, context)?;
     }
 
     let function_params = &functionlike_info.params;
@@ -576,7 +571,6 @@ fn adjust_param_type(
                 context.function_context.calling_functionlike_id.as_ref(),
                 true,
                 false,
-                None,
                 1,
             );
         }
@@ -727,7 +721,6 @@ fn handle_closure_arg(
         context.function_context.calling_functionlike_id.as_ref(),
         true,
         false,
-        None,
         1,
     );
 
@@ -866,7 +859,6 @@ fn map_class_generic_params(
         context.function_context.calling_functionlike_id.as_ref(),
         true,
         false,
-        None,
         1,
     );
 
@@ -882,7 +874,6 @@ fn map_class_generic_params(
             context.function_context.calling_functionlike_id.as_ref(),
             true,
             false,
-            None,
             1,
         );
     }
@@ -898,12 +889,7 @@ pub(crate) fn evaluate_arbitrary_param(
     let was_inside_call = context.inside_general_use;
     context.inside_general_use = true;
 
-    expression_analyzer::analyze(
-        statements_analyzer,
-        expr,
-        analysis_data,
-        context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;
 
     if !was_inside_call {
         context.inside_general_use = false;
@@ -997,7 +983,6 @@ fn handle_possibly_matching_inout_param(
             },
             true,
             false,
-            None,
             1,
         );
 

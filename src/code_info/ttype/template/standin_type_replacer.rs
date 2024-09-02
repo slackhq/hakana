@@ -1,6 +1,3 @@
-use crate::{t_atomic::TDict, ttype::{
-    add_union_type, comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator}, get_arrayish_params, get_arraykey, get_mixed, get_mixed_any, get_mixed_maybe_from_loop, get_value_param, intersect_union_types, type_combiner, type_expander::{self, StaticClassType, TypeExpansionOptions}, wrap_atomic
-}};
 use crate::{
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
@@ -8,6 +5,17 @@ use crate::{
     t_union::TUnion,
 };
 use crate::{function_context::FunctionLikeIdentifier, GenericParent};
+use crate::{
+    t_atomic::TDict,
+    ttype::{
+        add_union_type,
+        comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+        get_arrayish_params, get_arraykey, get_mixed, get_mixed_any, get_mixed_maybe_from_loop,
+        get_value_param, intersect_union_types, type_combiner,
+        type_expander::{self, StaticClassType, TypeExpansionOptions},
+        wrap_atomic,
+    },
+};
 use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -24,10 +32,9 @@ pub fn replace(
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
-    replace: bool,                           // true
-    add_lower_bound: bool,                   // false
-    bound_equality_classlike: Option<StrId>, // None
-    depth: usize,                            // 1
+    replace: bool,         // true
+    add_lower_bound: bool, // false
+    depth: usize,          // 1
 ) -> TUnion {
     let mut atomic_types = Vec::new();
 
@@ -64,7 +71,6 @@ pub fn replace(
             calling_function,
             replace,
             add_lower_bound,
-            bound_equality_classlike,
             depth,
             original_atomic_types.len() == 1,
             &mut had_template,
@@ -105,7 +111,6 @@ fn handle_atomic_standin(
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
-    bound_equality_classlike: Option<StrId>,
     depth: usize,
     was_single: bool,
     had_template: &mut bool,
@@ -142,7 +147,6 @@ fn handle_atomic_standin(
                 calling_function,
                 replace,
                 add_lower_bound,
-                bound_equality_classlike,
                 depth,
                 had_template,
             );
@@ -174,7 +178,6 @@ fn handle_atomic_standin(
                 calling_function,
                 true,
                 add_lower_bound,
-                bound_equality_classlike,
                 depth,
                 was_single,
             );
@@ -206,7 +209,6 @@ fn handle_atomic_standin(
                 calling_function,
                 true,
                 add_lower_bound,
-                bound_equality_classlike,
                 depth,
                 was_single,
             );
@@ -315,7 +317,6 @@ fn replace_atomic(
                         calling_function,
                         replace,
                         add_lower_bound,
-                        None,
                         depth,
                     ));
                 }
@@ -345,7 +346,6 @@ fn replace_atomic(
                     calling_function,
                     replace,
                     add_lower_bound,
-                    None,
                     depth,
                 ));
 
@@ -364,7 +364,6 @@ fn replace_atomic(
                     calling_function,
                     replace,
                     add_lower_bound,
-                    None,
                     depth,
                 ));
             }
@@ -403,7 +402,6 @@ fn replace_atomic(
                         calling_function,
                         replace,
                         add_lower_bound,
-                        None,
                         depth,
                     );
                 }
@@ -429,7 +427,6 @@ fn replace_atomic(
                     calling_function,
                     replace,
                     add_lower_bound,
-                    None,
                     depth,
                 ));
             }
@@ -457,7 +454,6 @@ fn replace_atomic(
                 calling_function,
                 replace,
                 add_lower_bound,
-                None,
                 depth,
             ));
 
@@ -482,7 +478,6 @@ fn replace_atomic(
                 calling_function,
                 replace,
                 add_lower_bound,
-                None,
                 depth,
             ));
 
@@ -564,7 +559,6 @@ fn replace_atomic(
                         calling_function,
                         replace,
                         add_lower_bound,
-                        None,
                         depth,
                     );
                 }
@@ -609,7 +603,6 @@ fn replace_atomic(
                         calling_function,
                         replace,
                         add_lower_bound,
-                        None,
                         depth,
                     );
                 }
@@ -653,7 +646,6 @@ fn replace_atomic(
                         calling_function,
                         replace,
                         !add_lower_bound,
-                        None,
                         depth,
                     ));
                 }
@@ -679,7 +671,6 @@ fn replace_atomic(
                     calling_function,
                     replace,
                     add_lower_bound,
-                    None,
                     depth - 1,
                 ));
             }
@@ -753,7 +744,6 @@ fn handle_template_param_standin(
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
-    bound_equality_classlike: Option<StrId>,
     depth: usize,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
@@ -799,7 +789,6 @@ fn handle_template_param_standin(
                 calling_function,
                 replace,
                 add_lower_bound,
-                bound_equality_classlike,
                 depth + 1,
             );
 
@@ -856,7 +845,6 @@ fn handle_template_param_standin(
                     calling_function,
                     true,
                     add_lower_bound,
-                    bound_equality_classlike,
                     depth + 1,
                 );
             }
@@ -934,7 +922,6 @@ fn handle_template_param_standin(
             calling_function,
             true,
             add_lower_bound,
-            bound_equality_classlike,
             depth + 1,
         );
 
@@ -964,63 +951,18 @@ fn handle_template_param_standin(
                     return generic_param.types.clone();
                 }
 
-                if let Some(existing_lower_bounds) =
-                    if let Some(mapped_bounds) = template_result.lower_bounds.get(&param_name_key) {
-                        mapped_bounds.get(defining_entity)
-                    } else {
-                        None
-                    }
-                {
-                    let mut has_matching_lower_bound = false;
-
-                    for existing_lower_bound in existing_lower_bounds {
-                        let existing_depth = &existing_lower_bound.appearance_depth;
-                        let existing_arg_offset = if existing_lower_bound.arg_offset.is_none() {
-                            &input_arg_offset
-                        } else {
-                            &existing_lower_bound.arg_offset
-                        };
-
-                        if existing_depth == &depth
-                            && &input_arg_offset == existing_arg_offset
-                            && existing_lower_bound.bound_type == generic_param
-                            && existing_lower_bound.equality_bound_classlike
-                                == bound_equality_classlike
-                        {
-                            has_matching_lower_bound = true;
-                            break;
-                        }
-                    }
-
-                    if !has_matching_lower_bound {
-                        template_result
-                            .lower_bounds
-                            .entry(param_name_key)
-                            .or_insert_with(FxHashMap::default)
-                            .entry(*defining_entity)
-                            .or_insert_with(Vec::new)
-                            .push(TemplateBound {
-                                bound_type: generic_param.clone(),
-                                appearance_depth: depth,
-                                arg_offset: input_arg_offset,
-                                equality_bound_classlike: bound_equality_classlike,
-                                pos: None,
-                            });
-                    }
-                } else {
-                    template_result
-                        .lower_bounds
-                        .entry(param_name_key)
-                        .or_insert_with(FxHashMap::default)
-                        .entry(*defining_entity)
-                        .or_insert(vec![TemplateBound {
-                            bound_type: generic_param.clone(),
-                            appearance_depth: depth,
-                            arg_offset: input_arg_offset,
-                            equality_bound_classlike: bound_equality_classlike,
-                            pos: None,
-                        }]);
-                }
+                template_result
+                    .lower_bounds
+                    .entry(param_name_key)
+                    .or_insert_with(FxHashMap::default)
+                    .entry(*defining_entity)
+                    .or_insert(vec![TemplateBound {
+                        bound_type: generic_param.clone(),
+                        appearance_depth: depth,
+                        arg_offset: input_arg_offset,
+                        equality_bound_classlike: None,
+                        pos: None,
+                    }]);
             }
         }
 
@@ -1148,7 +1090,6 @@ fn handle_template_param_class_standin(
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
-    bound_equality_classlike: Option<StrId>,
     depth: usize,
     was_single: bool,
 ) -> Vec<TAtomic> {
@@ -1231,7 +1172,6 @@ fn handle_template_param_class_standin(
                 calling_function,
                 replace,
                 add_lower_bound,
-                bound_equality_classlike,
                 depth,
             );
 
@@ -1331,7 +1271,6 @@ fn handle_template_param_type_standin(
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
-    bound_equality_classlike: Option<StrId>,
     depth: usize,
     was_single: bool,
 ) -> Vec<TAtomic> {
@@ -1405,7 +1344,6 @@ fn handle_template_param_type_standin(
                 calling_function,
                 replace,
                 add_lower_bound,
-                bound_equality_classlike,
                 depth,
             );
 

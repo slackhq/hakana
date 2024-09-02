@@ -196,7 +196,6 @@ pub(crate) fn analyze(
                     context.function_context.calling_functionlike_id.as_ref(),
                     true,
                     false,
-                    None,
                     1,
                 );
             }
