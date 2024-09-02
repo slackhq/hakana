@@ -27,7 +27,6 @@ use super::{inferred_type_replacer, TemplateBound, TemplateResult};
 pub struct StandinOpts<'a> {
     pub calling_class: Option<&'a StrId>,
     pub calling_function: Option<&'a FunctionLikeIdentifier>,
-    pub replace: bool,         // true
     pub add_lower_bound: bool, // false
     pub depth: usize,          // 1
 }
@@ -37,7 +36,6 @@ impl<'a> Default for StandinOpts<'a> {
         Self {
             calling_class: None,
             calling_function: None,
-            replace: true,
             add_lower_bound: false,
             depth: 1,
         }
@@ -90,27 +88,23 @@ pub fn replace<'a>(
         ))
     }
 
-    if opts.replace {
-        if atomic_types.is_empty() {
-            return union_type.clone();
-        }
-
-        let mut new_union_type = TUnion::new(if atomic_types.len() > 1 {
-            type_combiner::combine(atomic_types, codebase, false)
-        } else {
-            atomic_types
-        });
-
-        new_union_type.ignore_falsable_issues = union_type.ignore_falsable_issues;
-
-        if had_template {
-            new_union_type.had_template = true;
-        }
-
-        return new_union_type;
+    if atomic_types.is_empty() {
+        return union_type.clone();
     }
 
-    union_type.clone()
+    let mut new_union_type = TUnion::new(if atomic_types.len() > 1 {
+        type_combiner::combine(atomic_types, codebase, false)
+    } else {
+        atomic_types
+    });
+
+    new_union_type.ignore_falsable_issues = union_type.ignore_falsable_issues;
+
+    if had_template {
+        new_union_type.had_template = true;
+    }
+
+    return new_union_type;
 }
 
 fn handle_atomic_standin<'a>(
@@ -170,7 +164,6 @@ fn handle_atomic_standin<'a>(
             defining_entity,
         )
         .is_some()
-            && opts.replace
         {
             return handle_template_param_class_standin(
                 atomic_type,
@@ -197,7 +190,6 @@ fn handle_atomic_standin<'a>(
             defining_entity,
         )
         .is_some()
-            && opts.replace
         {
             return handle_template_param_type_standin(
                 atomic_type,
@@ -742,99 +734,21 @@ fn handle_template_param_standin<'a>(
         }
     }
 
-    if opts.replace {
-        let mut atomic_types = Vec::new();
+    let mut atomic_types = Vec::new();
 
-        if replacement_type.is_mixed() && !as_type.is_mixed() {
-            for as_atomic_type in &as_type.types {
-                if let TAtomic::TArraykey { from_any: false } = as_atomic_type {
-                    atomic_types.push(TAtomic::TArraykey { from_any: true });
-                } else {
-                    atomic_types.push(as_atomic_type.clone());
-                }
-            }
-        } else {
-            type_expander::expand_union(
-                codebase,
-                &Some(interner),
-                &mut replacement_type,
-                &TypeExpansionOptions {
-                    self_class: opts.calling_class,
-                    static_class_type: if let Some(c) = opts.calling_class {
-                        StaticClassType::Name(c)
-                    } else {
-                        StaticClassType::None
-                    },
-
-                    expand_templates: false,
-
-                    ..Default::default()
-                },
-                &mut DataFlowGraph::new(GraphKind::FunctionBody),
-            );
-
-            if opts.depth < 10 && replacement_type.has_template_types() {
-                replacement_type = self::replace(
-                    &replacement_type,
-                    template_result,
-                    codebase,
-                    interner,
-                    input_type,
-                    input_arg_offset,
-                    StandinOpts {
-                        depth: opts.depth + 1,
-                        ..opts
-                    },
-                );
-            }
-
-            for replacement_atomic_type in &replacement_type.types {
-                let mut replacements_found = false;
-
-                if let TAtomic::TGenericParam {
-                    defining_entity: replacement_defining_entity,
-                    as_type: replacement_as_type,
-                    ..
-                } = replacement_atomic_type
-                {
-                    if (opts.calling_class.is_none()
-                        || replacement_defining_entity
-                            != &GenericParent::ClassLike(*opts.calling_class.unwrap()))
-                        && match opts.calling_function {
-                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                replacement_defining_entity
-                                    != &GenericParent::FunctionLike(*calling_function)
-                            }
-                            Some(FunctionLikeIdentifier::Method(_, _)) => true,
-                            Some(_) => {
-                                panic!()
-                            }
-                            None => true,
-                        }
-                    {
-                        for nested_type_atomic in &replacement_as_type.types {
-                            replacements_found = true;
-                            atomic_types.push(nested_type_atomic.clone());
-                        }
-                    }
-                }
-
-                if !replacements_found {
-                    atomic_types.push(replacement_atomic_type.clone());
-                }
-
-                *had_template = true;
+    if replacement_type.is_mixed() && !as_type.is_mixed() {
+        for as_atomic_type in &as_type.types {
+            if let TAtomic::TArraykey { from_any: false } = as_atomic_type {
+                atomic_types.push(TAtomic::TArraykey { from_any: true });
+            } else {
+                atomic_types.push(as_atomic_type.clone());
             }
         }
-
-        let mut matching_input_keys = Vec::new();
-
-        let mut as_type = as_type.clone();
-
+    } else {
         type_expander::expand_union(
             codebase,
             &Some(interner),
-            &mut as_type,
+            &mut replacement_type,
             &TypeExpansionOptions {
                 self_class: opts.calling_class,
                 static_class_type: if let Some(c) = opts.calling_class {
@@ -850,171 +764,160 @@ fn handle_template_param_standin<'a>(
             &mut DataFlowGraph::new(GraphKind::FunctionBody),
         );
 
-        let as_type = self::replace(
-            &as_type,
-            template_result,
-            codebase,
-            interner,
-            input_type,
-            input_arg_offset,
-            StandinOpts {
-                depth: opts.depth + 1,
-                ..opts
-            },
-        );
-
-        if let Some(input_type) = input_type {
-            if !template_result.readonly
-                && (as_type.is_mixed()
-                    || union_type_comparator::can_be_contained_by(
-                        codebase,
-                        input_type,
-                        &as_type,
-                        false,
-                        false,
-                        &mut matching_input_keys,
-                    ))
-            {
-                let mut generic_param = (*input_type).clone();
-
-                if !matching_input_keys.is_empty() {
-                    for atomic in &generic_param.clone().types {
-                        if !matching_input_keys.contains(&atomic.get_key()) {
-                            generic_param.remove_type(atomic);
-                        }
-                    }
-                }
-
-                if opts.add_lower_bound {
-                    return generic_param.types.clone();
-                }
-
-                template_result
-                    .lower_bounds
-                    .entry(param_name_key)
-                    .or_insert_with(FxHashMap::default)
-                    .entry(*defining_entity)
-                    .or_insert(vec![TemplateBound {
-                        bound_type: generic_param.clone(),
-                        appearance_depth: opts.depth,
-                        arg_offset: input_arg_offset,
-                        equality_bound_classlike: None,
-                        pos: None,
-                    }]);
-            }
-        }
-
-        let mut new_atomic_types = Vec::new();
-
-        for mut atomic_type in atomic_types {
-            if let TAtomic::TNamedObject {
-                extra_types: ref mut atomic_extra_types,
-                ..
-            }
-            | TAtomic::TGenericParam {
-                extra_types: ref mut atomic_extra_types,
-                ..
-            } = atomic_type
-            {
-                *atomic_extra_types = if new_extra_types.is_empty() {
-                    None
-                } else {
-                    Some(new_extra_types.clone())
-                };
-            }
-
-            new_atomic_types.push(atomic_type);
-        }
-
-        return new_atomic_types;
-    }
-
-    if opts.add_lower_bound && !template_result.readonly {
-        if let Some(input_type) = input_type {
-            let mut matching_input_keys = Vec::new();
-
-            if union_type_comparator::can_be_contained_by(
-                codebase,
-                input_type,
+        if opts.depth < 10 && replacement_type.has_template_types() {
+            replacement_type = self::replace(
                 &replacement_type,
-                false,
-                false,
-                &mut matching_input_keys,
-            ) {
-                let mut generic_param = (*input_type).clone();
+                template_result,
+                codebase,
+                interner,
+                input_type,
+                input_arg_offset,
+                StandinOpts {
+                    depth: opts.depth + 1,
+                    ..opts
+                },
+            );
+        }
 
-                if !matching_input_keys.is_empty() {
-                    for atomic in &generic_param.clone().types {
-                        if !matching_input_keys.contains(&atomic.get_key()) {
-                            generic_param.remove_type(atomic);
+        for replacement_atomic_type in &replacement_type.types {
+            let mut replacements_found = false;
+
+            if let TAtomic::TGenericParam {
+                defining_entity: replacement_defining_entity,
+                as_type: replacement_as_type,
+                ..
+            } = replacement_atomic_type
+            {
+                if (opts.calling_class.is_none()
+                    || replacement_defining_entity
+                        != &GenericParent::ClassLike(*opts.calling_class.unwrap()))
+                    && match opts.calling_function {
+                        Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                            replacement_defining_entity
+                                != &GenericParent::FunctionLike(*calling_function)
                         }
+                        Some(FunctionLikeIdentifier::Method(_, _)) => true,
+                        Some(_) => {
+                            panic!()
+                        }
+                        None => true,
+                    }
+                {
+                    for nested_type_atomic in &replacement_as_type.types {
+                        replacements_found = true;
+                        atomic_types.push(nested_type_atomic.clone());
                     }
                 }
-
-                let new_upper_bound = if let Some(upper_bound) =
-                    if let Some(mapped_bounds) = template_result.upper_bounds.get(&param_name_key) {
-                        mapped_bounds.get(defining_entity)
-                    } else {
-                        None
-                    } {
-                    let intersection_type = if !union_type_comparator::is_contained_by(
-                        codebase,
-                        &upper_bound.bound_type,
-                        &generic_param,
-                        false,
-                        false,
-                        false,
-                        &mut TypeComparisonResult::new(),
-                    ) || !union_type_comparator::is_contained_by(
-                        codebase,
-                        &generic_param,
-                        &upper_bound.bound_type,
-                        false,
-                        false,
-                        false,
-                        &mut TypeComparisonResult::new(),
-                    ) {
-                        intersect_union_types(&upper_bound.bound_type, &generic_param, codebase)
-                    } else {
-                        Some(generic_param.clone())
-                    };
-
-                    let mut new_bound = upper_bound.clone();
-
-                    if let Some(intersection_type) = intersection_type {
-                        new_bound.bound_type = intersection_type;
-                    } else {
-                        template_result
-                            .upper_bounds_unintersectable_types
-                            .push(new_bound.bound_type.clone());
-                        template_result
-                            .upper_bounds_unintersectable_types
-                            .push(generic_param.clone());
-
-                        new_bound.bound_type = get_mixed_any();
-                    }
-
-                    new_bound
-                } else {
-                    TemplateBound {
-                        bound_type: get_mixed_any(),
-                        appearance_depth: 0,
-                        arg_offset: None,
-                        equality_bound_classlike: None,
-                        pos: None,
-                    }
-                };
-
-                template_result
-                    .upper_bounds
-                    .entry(param_name_key)
-                    .or_insert_with(FxHashMap::default)
-                    .insert(*defining_entity, new_upper_bound);
             }
+
+            if !replacements_found {
+                atomic_types.push(replacement_atomic_type.clone());
+            }
+
+            *had_template = true;
         }
     }
 
-    vec![atomic_type.clone()]
+    let mut matching_input_keys = Vec::new();
+
+    let mut as_type = as_type.clone();
+
+    type_expander::expand_union(
+        codebase,
+        &Some(interner),
+        &mut as_type,
+        &TypeExpansionOptions {
+            self_class: opts.calling_class,
+            static_class_type: if let Some(c) = opts.calling_class {
+                StaticClassType::Name(c)
+            } else {
+                StaticClassType::None
+            },
+
+            expand_templates: false,
+
+            ..Default::default()
+        },
+        &mut DataFlowGraph::new(GraphKind::FunctionBody),
+    );
+
+    let as_type = self::replace(
+        &as_type,
+        template_result,
+        codebase,
+        interner,
+        input_type,
+        input_arg_offset,
+        StandinOpts {
+            depth: opts.depth + 1,
+            ..opts
+        },
+    );
+
+    if let Some(input_type) = input_type {
+        if !template_result.readonly
+            && (as_type.is_mixed()
+                || union_type_comparator::can_be_contained_by(
+                    codebase,
+                    input_type,
+                    &as_type,
+                    false,
+                    false,
+                    &mut matching_input_keys,
+                ))
+        {
+            let mut generic_param = (*input_type).clone();
+
+            if !matching_input_keys.is_empty() {
+                for atomic in &generic_param.clone().types {
+                    if !matching_input_keys.contains(&atomic.get_key()) {
+                        generic_param.remove_type(atomic);
+                    }
+                }
+            }
+
+            if opts.add_lower_bound {
+                return generic_param.types.clone();
+            }
+
+            template_result
+                .lower_bounds
+                .entry(param_name_key)
+                .or_insert_with(FxHashMap::default)
+                .entry(*defining_entity)
+                .or_insert(vec![TemplateBound {
+                    bound_type: generic_param.clone(),
+                    appearance_depth: opts.depth,
+                    arg_offset: input_arg_offset,
+                    equality_bound_classlike: None,
+                    pos: None,
+                }]);
+        }
+    }
+
+    let mut new_atomic_types = Vec::new();
+
+    for mut atomic_type in atomic_types {
+        if let TAtomic::TNamedObject {
+            extra_types: ref mut atomic_extra_types,
+            ..
+        }
+        | TAtomic::TGenericParam {
+            extra_types: ref mut atomic_extra_types,
+            ..
+        } = atomic_type
+        {
+            *atomic_extra_types = if new_extra_types.is_empty() {
+                None
+            } else {
+                Some(new_extra_types.clone())
+            };
+        }
+
+        new_atomic_types.push(atomic_type);
+    }
+
+    new_atomic_types
 }
 
 fn handle_template_param_class_standin<'a>(
