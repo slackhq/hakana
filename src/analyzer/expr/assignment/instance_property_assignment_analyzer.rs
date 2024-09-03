@@ -526,14 +526,14 @@ pub(crate) fn analyze_atomic_assignment(
             };
 
         if let TAtomic::TNamedObject {
-            type_params: Some(_),
+            type_params: Some(lhs_type_params),
             ..
         } = lhs_type_part
         {
             class_property_type = localize_property_type(
                 codebase,
                 class_property_type,
-                lhs_type_part,
+                lhs_type_params,
                 codebase.classlike_infos.get(&fq_class_name).unwrap(),
                 declaring_classlike_storage,
                 analysis_data,

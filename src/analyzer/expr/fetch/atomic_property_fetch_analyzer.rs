@@ -211,7 +211,7 @@ fn get_class_property_type(
     classlike_name: &StrId,
     property_name: &StrId,
     declaring_property_class: &StrId,
-    mut lhs_type_part: TAtomic,
+    lhs_type_part: TAtomic,
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
@@ -244,48 +244,22 @@ fn get_class_property_type(
         );
 
         if !declaring_class_storage.template_types.is_empty() {
-            if let TAtomic::TNamedObject {
-                name,
-                type_params: None,
-                ..
-            } = &lhs_type_part
-            {
-                let mut type_params = vec![];
-
-                for (_, type_map) in &declaring_class_storage.template_types {
-                    type_params.push((*type_map.iter().next().unwrap().1).clone());
-                }
-
-                lhs_type_part = TAtomic::TNamedObject {
-                    name: *name,
-                    type_params: Some(type_params),
-                    is_this: false,
-                    extra_types: None,
-                    remapped_params: false,
-                };
+            if let TAtomic::TNamedObject { type_params, .. } = &lhs_type_part {
+                class_property_type = localize_property_type(
+                    codebase,
+                    class_property_type,
+                    type_params.as_ref().unwrap_or(
+                        &declaring_class_storage
+                            .template_types
+                            .iter()
+                            .map(|(_, type_map)| (*type_map[0].1).clone())
+                            .collect::<Vec<_>>(),
+                    ),
+                    class_storage,
+                    declaring_class_storage,
+                    analysis_data,
+                );
             }
-
-            class_property_type = localize_property_type(
-                codebase,
-                class_property_type,
-                &lhs_type_part,
-                class_storage,
-                declaring_class_storage,
-                analysis_data,
-            );
-        } else if let TAtomic::TNamedObject {
-            type_params: Some(_),
-            ..
-        } = &lhs_type_part
-        {
-            class_property_type = localize_property_type(
-                codebase,
-                class_property_type,
-                &lhs_type_part,
-                class_storage,
-                declaring_class_storage,
-                analysis_data,
-            );
         }
 
         return class_property_type;
@@ -298,48 +272,40 @@ fn get_class_property_type(
 
 pub(crate) fn localize_property_type(
     codebase: &CodebaseInfo,
-    mut class_property_type: TUnion,
-    lhs_type_part: &TAtomic,
+    class_property_type: TUnion,
+    lhs_type_params: &[TUnion],
     property_class_storage: &ClassLikeInfo,
     property_declaring_class_storage: &ClassLikeInfo,
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
-    if let TAtomic::TNamedObject {
-        type_params: Some(lhs_type_params),
-        ..
-    } = lhs_type_part
-    {
-        let mut template_types = get_template_types_for_class_member(
-            codebase,
-            analysis_data,
-            Some(property_declaring_class_storage),
-            Some(&property_declaring_class_storage.name),
-            Some(property_class_storage),
-            &property_class_storage.template_types,
-            &IndexMap::new(),
-        );
+    let mut template_types = get_template_types_for_class_member(
+        codebase,
+        analysis_data,
+        Some(property_declaring_class_storage),
+        Some(&property_declaring_class_storage.name),
+        Some(property_class_storage),
+        &property_class_storage.template_types,
+        &IndexMap::new(),
+    );
 
-        update_template_types(
-            &mut template_types,
-            property_class_storage,
-            lhs_type_params,
-            property_declaring_class_storage,
-        );
+    update_template_types(
+        &mut template_types,
+        property_class_storage,
+        lhs_type_params,
+        property_declaring_class_storage,
+    );
 
-        class_property_type = inferred_type_replacer::replace(
-            &class_property_type,
-            &TemplateResult::new(IndexMap::new(), template_types),
-            codebase,
-        );
-    }
-
-    class_property_type
+    inferred_type_replacer::replace(
+        &class_property_type,
+        &TemplateResult::new(IndexMap::new(), template_types),
+        codebase,
+    )
 }
 
 fn update_template_types(
     template_types: &mut IndexMap<StrId, FxHashMap<GenericParent, TUnion>>,
     property_class_storage: &ClassLikeInfo,
-    lhs_type_params: &Vec<TUnion>,
+    lhs_type_params: &[TUnion],
     property_declaring_class_storage: &ClassLikeInfo,
 ) {
     if !template_types.is_empty() && !property_class_storage.template_types.is_empty() {
