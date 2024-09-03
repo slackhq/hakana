@@ -1149,7 +1149,7 @@ fn refine_template_result_for_functionlike(
     functionlike_storage: &FunctionLikeInfo,
     class_template_params: &IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
 ) {
-    let template_types = get_template_types_for_call(
+    let template_types = get_template_types_for_class_member(
         codebase,
         analysis_data,
         classlike_storage,
@@ -1175,7 +1175,7 @@ fn refine_template_result_for_functionlike(
     }
 }
 
-pub(crate) fn get_template_types_for_call(
+pub(crate) fn get_template_types_for_class_member(
     codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
     declaring_classlike_storage: Option<&ClassLikeInfo>,

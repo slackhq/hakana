@@ -1,11 +1,17 @@
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
-    expr::call::arguments_analyzer::get_template_types_for_call,
+    expr::call::arguments_analyzer::get_template_types_for_class_member,
     function_analysis_data::FunctionAnalysisData,
 };
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
+use hakana_code_info::ttype::{
+    add_optional_union_type, get_mixed_any,
+    template::{inferred_type_replacer, TemplateResult},
+    type_expander::{self, StaticClassType},
+};
 use hakana_code_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
@@ -15,12 +21,6 @@ use hakana_code_info::{
 };
 use hakana_code_info::{GenericParent, VarId};
 use hakana_str::StrId;
-use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
-use hakana_code_info::ttype::{
-    add_optional_union_type, get_mixed_any,
-    template::{inferred_type_replacer, TemplateResult},
-    type_expander::{self, StaticClassType},
-};
 use indexmap::IndexMap;
 use oxidized::{aast::Expr, ast_defs::Pos};
 use rustc_hash::FxHashMap;
@@ -309,7 +309,7 @@ pub(crate) fn localize_property_type(
         ..
     } = lhs_type_part
     {
-        let mut template_types = get_template_types_for_call(
+        let mut template_types = get_template_types_for_class_member(
             codebase,
             analysis_data,
             Some(property_declaring_class_storage),
@@ -319,64 +319,12 @@ pub(crate) fn localize_property_type(
             &IndexMap::new(),
         );
 
-        let extended_types = &property_class_storage.template_extended_params;
-
-        if !template_types.is_empty() && !property_class_storage.template_types.is_empty() {
-            for (param_offset, lhs_param_type) in lhs_type_params.iter().enumerate() {
-                let mut i = -1;
-
-                for (calling_param_name, _) in &property_class_storage.template_types {
-                    i += 1;
-
-                    if i == (param_offset as i32) {
-                        template_types
-                            .entry(*calling_param_name)
-                            .or_insert_with(FxHashMap::default)
-                            .insert(
-                                GenericParent::ClassLike(property_class_storage.name),
-                                lhs_param_type.clone(),
-                            );
-                        break;
-                    }
-                }
-            }
-        }
-
-        let template_type_keys = template_types.iter().map(|(k, _)| *k).collect::<Vec<_>>();
-
-        for type_name in template_type_keys {
-            if let Some(mapped_type) = extended_types
-                .get(&property_declaring_class_storage.name)
-                .unwrap_or(&IndexMap::new())
-                .get(&type_name)
-            {
-                for mapped_type_atomic in &mapped_type.types {
-                    if let TAtomic::TGenericParam { param_name, .. } = &mapped_type_atomic {
-                        let position = property_class_storage
-                            .template_types
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, (k, _))| k == param_name)
-                            .map(|(i, _)| i)
-                            .next();
-
-                        if let Some(position) = position {
-                            if let Some(mapped_param) = lhs_type_params.get(position) {
-                                template_types
-                                    .entry(type_name)
-                                    .or_insert_with(FxHashMap::default)
-                                    .insert(
-                                        GenericParent::ClassLike(
-                                            property_declaring_class_storage.name,
-                                        ),
-                                        mapped_param.clone(),
-                                    );
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        update_template_types(
+            &mut template_types,
+            property_class_storage,
+            lhs_type_params,
+            property_declaring_class_storage,
+        );
 
         class_property_type = inferred_type_replacer::replace(
             &class_property_type,
@@ -386,6 +334,64 @@ pub(crate) fn localize_property_type(
     }
 
     class_property_type
+}
+
+fn update_template_types(
+    template_types: &mut IndexMap<StrId, FxHashMap<GenericParent, TUnion>>,
+    property_class_storage: &ClassLikeInfo,
+    lhs_type_params: &Vec<TUnion>,
+    property_declaring_class_storage: &ClassLikeInfo,
+) {
+    if !template_types.is_empty() && !property_class_storage.template_types.is_empty() {
+        for (param_offset, lhs_param_type) in lhs_type_params.iter().enumerate() {
+            let mut i = -1;
+
+            for (calling_param_name, _) in &property_class_storage.template_types {
+                i += 1;
+
+                if i == (param_offset as i32) {
+                    template_types
+                        .entry(*calling_param_name)
+                        .or_insert_with(FxHashMap::default)
+                        .insert(
+                            GenericParent::ClassLike(property_class_storage.name),
+                            lhs_param_type.clone(),
+                        );
+                    break;
+                }
+            }
+        }
+    }
+
+    for (type_name, v) in template_types.iter_mut() {
+        if let Some(mapped_type) = property_class_storage
+            .template_extended_params
+            .get(&property_declaring_class_storage.name)
+            .unwrap_or(&IndexMap::new())
+            .get(type_name)
+        {
+            for mapped_type_atomic in &mapped_type.types {
+                if let TAtomic::TGenericParam { param_name, .. } = &mapped_type_atomic {
+                    let position = property_class_storage
+                        .template_types
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, (k, _))| k == param_name)
+                        .map(|(i, _)| i)
+                        .next();
+
+                    if let Some(position) = position {
+                        if let Some(mapped_param) = lhs_type_params.get(position) {
+                            v.insert(
+                                GenericParent::ClassLike(property_declaring_class_storage.name),
+                                mapped_param.clone(),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn add_property_dataflow(
