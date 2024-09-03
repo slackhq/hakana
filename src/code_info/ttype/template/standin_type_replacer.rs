@@ -880,18 +880,62 @@ fn handle_template_param_standin<'a>(
                 return generic_param.types.clone();
             }
 
-            template_result
-                .lower_bounds
-                .entry(param_name_key)
-                .or_insert_with(FxHashMap::default)
-                .entry(*defining_entity)
-                .or_insert(vec![TemplateBound {
-                    bound_type: generic_param.clone(),
-                    appearance_depth: opts.depth,
-                    arg_offset: input_arg_offset,
-                    equality_bound_classlike: None,
-                    pos: None,
-                }]);
+            if let Some(existing_lower_bounds) =
+                if let Some(mapped_bounds) = template_result.lower_bounds.get(&param_name_key) {
+                    mapped_bounds.get(defining_entity)
+                } else {
+                    None
+                }
+            {
+                let mut has_matching_lower_bound = false;
+
+                for existing_lower_bound in existing_lower_bounds {
+                    let existing_depth = &existing_lower_bound.appearance_depth;
+                    let existing_arg_offset = if existing_lower_bound.arg_offset.is_none() {
+                        &input_arg_offset
+                    } else {
+                        &existing_lower_bound.arg_offset
+                    };
+
+                    if existing_depth == &opts.depth
+                        && &input_arg_offset == existing_arg_offset
+                        && existing_lower_bound.bound_type == generic_param
+                        && existing_lower_bound.equality_bound_classlike.is_none()
+                    {
+                        has_matching_lower_bound = true;
+                        break;
+                    }
+                }
+
+                if !has_matching_lower_bound {
+                    template_result
+                        .lower_bounds
+                        .entry(param_name_key)
+                        .or_insert_with(FxHashMap::default)
+                        .entry(*defining_entity)
+                        .or_insert_with(Vec::new)
+                        .push(TemplateBound {
+                            bound_type: generic_param.clone(),
+                            appearance_depth: opts.depth,
+                            arg_offset: input_arg_offset,
+                            equality_bound_classlike: None,
+                            pos: None,
+                        });
+                }
+            } else {
+                template_result
+                    .lower_bounds
+                    .entry(param_name_key)
+                    .or_insert_with(FxHashMap::default)
+                    .entry(*defining_entity)
+                    .or_insert(vec![TemplateBound {
+                        bound_type: generic_param.clone(),
+                        appearance_depth: opts.depth,
+                        arg_offset: input_arg_offset,
+                        equality_bound_classlike: None,
+                        pos: None,
+                    }]);
+            }
         }
     }
 
