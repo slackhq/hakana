@@ -5,6 +5,16 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, intersect_simple, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
+use hakana_code_info::ttype::{
+    comparison::{
+        atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
+    },
+    get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
+    get_mixed_dict, get_mixed_keyset, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing,
+    get_null, get_num, get_object, get_scalar, get_string, get_true, intersect_union_types,
+    template::TemplateBound,
+    wrap_atomic,
+};
 use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
@@ -13,16 +23,6 @@ use hakana_code_info::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_code_info::ttype::{
-    get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
-    get_mixed_dict, get_mixed_keyset, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing,
-    get_null, get_num, get_object, get_scalar, get_string, get_true, intersect_union_types,
-    template::TemplateBound,
-    comparison::{
-        atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
-    },
-    wrap_atomic,
-};
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 
@@ -494,17 +494,20 @@ pub(crate) fn intersect_null(
                 did_remove_type = true;
             }
             TAtomic::TTypeVariable { name } => {
-                if let Some(pos) = pos {
-                    if let Some((lower_bounds, _)) =
-                        analysis_data.type_variable_bounds.get_mut(name)
-                    {
-                        let mut bound = TemplateBound::new(get_null(), 0, None, None);
-                        bound.pos = Some(statements_analyzer.get_hpos(pos));
-                        lower_bounds.push(bound);
+                if !existing_var_type.is_nullable() {
+                    if let Some(pos) = pos {
+                        if let Some((lower_bounds, _)) =
+                            analysis_data.type_variable_bounds.get_mut(name)
+                        {
+                            let mut bound = TemplateBound::new(get_null(), 0, None, None);
+                            bound.pos = Some(statements_analyzer.get_hpos(pos));
+                            lower_bounds.push(bound);
+                        }
                     }
+
+                    acceptable_types.push(atomic.clone());
                 }
 
-                acceptable_types.push(atomic.clone());
                 did_remove_type = true;
             }
             TAtomic::TNamedObject {
