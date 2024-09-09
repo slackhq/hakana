@@ -83,7 +83,8 @@ impl AnalysisResult {
         }
         self.functions_to_migrate.extend(other.functions_to_migrate);
         self.codegen.extend(other.codegen);
-        self.changed_during_analysis_files.extend(other.changed_during_analysis_files);
+        self.changed_during_analysis_files
+            .extend(other.changed_during_analysis_files);
         self.has_invalid_hack_files = self.has_invalid_hack_files || other.has_invalid_hack_files;
     }
 
@@ -164,9 +165,15 @@ impl FullEntry {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CheckPointEntryLevel {
+    Failure,
+}
+
+#[derive(Serialize)]
 pub struct CheckPointEntry {
     pub case: String,
-    pub level: String,
+    pub level: CheckPointEntryLevel,
     pub filename: String,
     pub line: u32,
     pub output: String,
@@ -176,7 +183,7 @@ impl CheckPointEntry {
     pub fn from_issue(issue: &Issue, path: &str) -> Self {
         Self {
             output: issue.description.clone(),
-            level: "failure".to_string(),
+            level: CheckPointEntryLevel::Failure,
             filename: path.to_string(),
             line: issue.pos.start_line,
             case: issue.kind.to_string(),

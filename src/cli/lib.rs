@@ -2,7 +2,7 @@ use clap::{arg, Command};
 use hakana_analyzer::config::{self};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::{
-    AnalysisResult, CheckPointEntry, FullEntry, HhClientEntry, Replacement,
+    AnalysisResult, CheckPointEntry, CheckPointEntryLevel, FullEntry, HhClientEntry, Replacement,
 };
 use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::issue::IssueKind;
@@ -210,6 +210,11 @@ pub fn init(
                         arg!(--"debug")
                             .required(false)
                             .help("Add output for debugging"),
+                    )
+                    .arg(
+                        arg!(--"output" <PATH>)
+                            .required(false)
+                            .help("File to save output to"),
                     ),
             )
             .subcommand(
@@ -1094,6 +1099,8 @@ fn do_codegen(
     let check_codegen = sub_matches.is_present("check");
     let overwrite_codegen = sub_matches.is_present("overwrite");
 
+    let output_file = sub_matches.value_of("output").map(|f| f.to_string());
+
     let mut config = config::Config::new(root_dir.to_string(), all_custom_issues);
     config.hooks = analysis_hooks;
     config.in_codegen = true;
@@ -1149,20 +1156,20 @@ fn do_codegen(
         let mut updated_count = 0;
         let mut verified_count = 0;
 
-        for (name, info) in &result.0.codegen {
+        for (name, info) in result.0.codegen {
             let path = Path::new(&name);
             if !path.exists() {
                 if check_codegen {
-                    errors.push(format!("File {} doesn’t exist", name));
+                    errors.push((name.clone(), "Doesn’t exist".to_string()));
                     continue;
                 }
             } else {
-                match info {
+                match &info {
                     Ok(info) => {
                         let existing_contents = fs::read_to_string(path).unwrap();
                         if existing_contents.trim() != info.trim() {
                             if check_codegen || !overwrite_codegen {
-                                errors.push(format!("File {} differs from codegen", name));
+                                errors.push((name, "differs from codegen".to_string()));
                                 continue;
                             }
                         } else {
@@ -1171,7 +1178,7 @@ fn do_codegen(
                         }
                     }
                     Err(err) => {
-                        errors.push(format!("File {} has codegen error {}", name, err));
+                        errors.push((name, err.clone()));
                         continue;
                     }
                 }
@@ -1189,16 +1196,20 @@ fn do_codegen(
                     updated_count += 1;
                 }
                 Err(err) => {
-                    errors.push(format!("File {} has codegen error {}", name, err));
+                    errors.push((name, err));
                     continue;
                 }
             }
         }
 
+        if let Some(output_file) = output_file {
+            write_codegen_output_files(output_file, cwd, &errors);
+        }
+
         if !errors.is_empty() {
             println!(
-                "\n\nCodegen verification failed.\n\nUse hakana codegen --overwrite to regenerate\n\nErrors:\n{}",
-                errors.join("\n")
+                "\nCodegen verification failed.\n\nUse hakana codegen --overwrite to regenerate\n\n{}\n\n",
+                errors.into_iter().map(|(k, v)| format!("Error: {}\n - {}", k, v)).collect::<Vec<_>>().join("\n")
             );
             exit(1);
         }
@@ -1348,7 +1359,7 @@ fn do_security_check(
         }
 
         if let Some(output_file) = output_file {
-            write_output_files(
+            write_analysis_output_files(
                 output_file,
                 None,
                 cwd,
@@ -1471,7 +1482,7 @@ fn do_analysis(
         }
 
         if let Some(output_file) = output_file {
-            write_output_files(
+            write_analysis_output_files(
                 output_file,
                 output_format,
                 cwd,
@@ -1516,7 +1527,7 @@ fn do_analysis(
     }
 }
 
-fn write_output_files(
+fn write_analysis_output_files(
     output_file: String,
     output_format: Option<String>,
     cwd: &String,
@@ -1565,6 +1576,30 @@ fn write_output_files(
             serde_json::to_string_pretty(&checkpoint_entries).unwrap()
         }
     };
+    write!(output_path, "{}", json).unwrap();
+}
+
+fn write_codegen_output_files(output_file: String, cwd: &String, errors: &Vec<(String, String)>) {
+    let output_path = if output_file.starts_with('/') {
+        output_file
+    } else {
+        format!("{}/{}", cwd, output_file)
+    };
+    let mut output_path = fs::File::create(Path::new(&output_path)).unwrap();
+
+    let mut checkpoint_entries = vec![];
+
+    for (file_path, issue) in errors {
+        checkpoint_entries.push(CheckPointEntry {
+            case: "Codegen error".to_string(),
+            level: CheckPointEntryLevel::Failure,
+            filename: file_path.clone(),
+            line: 1,
+            output: issue.to_string(),
+        });
+    }
+
+    let json = serde_json::to_string_pretty(&checkpoint_entries).unwrap();
     write!(output_path, "{}", json).unwrap();
 }
 
