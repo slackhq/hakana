@@ -393,12 +393,14 @@ fn expand_atomic(
                 let mut new_template_types = IndexMap::new();
 
                 for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
-                    let mut h = FxHashMap::default();
-                    for (kk, _) in v {
-                        h.insert(*kk, type_params.get(i).unwrap().clone());
-                    }
+                    if i < type_params.len() {
+                        let mut h = FxHashMap::default();
+                        for (kk, _) in v {
+                            h.insert(*kk, type_params[i].clone());
+                        }
 
-                    new_template_types.insert(*k, h);
+                        new_template_types.insert(*k, h);
+                    }
                 }
 
                 template::inferred_type_replacer::replace(
