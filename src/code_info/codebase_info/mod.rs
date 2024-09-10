@@ -148,7 +148,7 @@ impl CodebaseInfo {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage.all_parent_classes.contains(parent_class)
                 || classlike_storage
-                    .all_class_interfaces
+                    .all_parent_interfaces
                     .contains(parent_class);
         }
         false
@@ -201,7 +201,7 @@ impl CodebaseInfo {
     pub fn class_or_trait_implements(&self, child_class: &StrId, parent_class: &StrId) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage
-                .all_class_interfaces
+                .all_parent_interfaces
                 .contains(parent_class);
         }
         false

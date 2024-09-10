@@ -226,8 +226,8 @@ pub(crate) fn scan(
                         signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
-                    storage.direct_class_interfaces.push(interface_name);
-                    storage.all_class_interfaces.push(interface_name);
+                    storage.direct_parent_interfaces.push(interface_name);
+                    storage.all_parent_interfaces.push(interface_name);
 
                     if class_name == &StrId::SIMPLE_XML_ELEMENT
                         && interface_name == StrId::TRAVERSABLE
@@ -409,8 +409,8 @@ pub(crate) fn scan(
                         signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
-                    storage.direct_class_interfaces.push(interface_name);
-                    storage.all_class_interfaces.push(interface_name);
+                    storage.direct_parent_interfaces.push(interface_name);
+                    storage.all_parent_interfaces.push(interface_name);
 
                     storage.template_extended_offsets.insert(
                         interface_name,
@@ -767,8 +767,8 @@ fn handle_reqs(
                     storage.required_classlikes.push(require_name);
                 }
                 aast::RequireKind::RequireImplements => {
-                    storage.direct_class_interfaces.push(require_name);
-                    storage.all_class_interfaces.push(require_name);
+                    storage.direct_parent_interfaces.push(require_name);
+                    storage.all_parent_interfaces.push(require_name);
                     storage.required_classlikes.push(require_name);
                 }
                 aast::RequireKind::RequireClass => todo!(),

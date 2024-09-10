@@ -42,17 +42,7 @@ pub struct ClassLikeInfo {
     pub name: StrId,
 
     /**
-     * Interfaces this class implements directly
-     */
-    pub direct_class_interfaces: Vec<StrId>,
-
-    /**
-     * Interfaces this class implements explicitly and implicitly
-     */
-    pub all_class_interfaces: Vec<StrId>,
-
-    /**
-     * Parent interfaces listed explicitly
+     * All direct parent or implemented interfaces declared on the class/interface
      */
     pub direct_parent_interfaces: Vec<StrId>,
 
@@ -234,17 +224,15 @@ impl ClassLikeInfo {
             enforce_template_inheritance: false,
             enum_class_extends: vec![],
 
-            direct_class_interfaces: vec![],
+            direct_parent_interfaces: vec![],
             all_parent_classes: vec![],
             appearing_method_ids: FxHashMap::default(),
             attributes: Vec::new(),
-            all_class_interfaces: vec![],
             all_parent_interfaces: vec![],
             declaring_method_ids: FxHashMap::default(),
             appearing_property_ids: FxHashMap::default(),
             declaring_property_ids: FxHashMap::default(),
             direct_parent_class: None,
-            direct_parent_interfaces: vec![],
             required_classlikes: vec![],
             inheritable_method_ids: FxHashMap::default(),
             enum_type: None,

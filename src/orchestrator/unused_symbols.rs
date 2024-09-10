@@ -663,7 +663,7 @@ fn is_method_referenced_somewhere_else(
         if let Some(descendant_classlike_storage) =
             codebase.classlike_infos.get(&descendant_classlike)
         {
-            for parent_interface in &descendant_classlike_storage.all_class_interfaces {
+            for parent_interface in &descendant_classlike_storage.all_parent_interfaces {
                 if referenced_symbols_and_members.contains(&(*parent_interface, *method_name_ptr)) {
                     return true;
                 }

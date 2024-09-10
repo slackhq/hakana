@@ -225,20 +225,6 @@ pub fn populate_codebase(
                 .insert(*classlike_name);
         }
 
-        for class_interface in &classlike_storage.all_class_interfaces {
-            all_classlike_descendants
-                .entry(*class_interface)
-                .or_insert_with(FxHashSet::default)
-                .insert(*classlike_name);
-        }
-
-        for class_interface in &classlike_storage.direct_class_interfaces {
-            direct_classlike_descendants
-                .entry(*class_interface)
-                .or_insert_with(FxHashSet::default)
-                .insert(*classlike_name);
-        }
-
         for parent_class in &classlike_storage.all_parent_classes {
             all_classlike_descendants
                 .entry(*parent_class)
@@ -469,16 +455,6 @@ fn populate_classlike_storage(
         );
     }
 
-    for direct_class_interface in &storage.direct_class_interfaces.clone() {
-        populate_data_from_implemented_interface(
-            &mut storage,
-            codebase,
-            direct_class_interface,
-            symbol_references,
-            safe_symbols,
-        );
-    }
-
     // todo add file references for cache invalidation
 
     if storage.immutable {
@@ -503,10 +479,8 @@ fn populate_classlike_storage(
         }
     }
 
-    storage.all_class_interfaces.shrink_to_fit();
-    storage.all_parent_classes.shrink_to_fit();
     storage.all_parent_interfaces.shrink_to_fit();
-    storage.direct_class_interfaces.shrink_to_fit();
+    storage.all_parent_classes.shrink_to_fit();
     storage.direct_parent_interfaces.shrink_to_fit();
     storage.appearing_method_ids.shrink_to_fit();
     storage.declaring_method_ids.shrink_to_fit();
@@ -608,7 +582,7 @@ fn populate_data_from_implemented_interface(
     inherit_methods_from_parent(storage, implemented_interface_storage, codebase);
 
     storage
-        .all_class_interfaces
+        .all_parent_interfaces
         .extend(implemented_interface_storage.all_parent_interfaces.clone());
 }
 
@@ -647,8 +621,8 @@ fn populate_data_from_parent_classlike(
     inherit_properties_from_parent(storage, parent_storage);
 
     storage
-        .all_class_interfaces
-        .extend(parent_storage.all_class_interfaces.clone());
+        .all_parent_interfaces
+        .extend(parent_storage.all_parent_interfaces.clone());
     storage
         .invalid_dependencies
         .extend(parent_storage.invalid_dependencies.clone());
@@ -713,8 +687,8 @@ fn populate_data_from_trait(
     );
 
     storage
-        .all_class_interfaces
-        .extend(trait_storage.direct_class_interfaces.clone());
+        .all_parent_interfaces
+        .extend(trait_storage.direct_parent_interfaces.clone());
 
     for (name, type_info) in &trait_storage.type_constants {
         if let Some(ClassConstantType::Concrete(_)) = storage.type_constants.get(name) {
