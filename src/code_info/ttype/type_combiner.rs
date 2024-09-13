@@ -8,12 +8,13 @@ use crate::{
 };
 use hakana_str::StrId;
 use itertools::Itertools;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
 use crate::ttype::{
-    combine_union_types, get_int,
-    type_combination::{self, TypeCombination},
+    combine_union_types,
     comparison::{object_type_comparator, type_comparison_result::TypeComparisonResult},
+    get_int,
+    type_combination::{self, TypeCombination},
     wrap_atomic,
 };
 
@@ -140,14 +141,16 @@ pub fn combine(
     new_types.extend(
         combination
             .literal_strings
-            .into_values()
-            .collect::<Vec<TAtomic>>(),
+            .into_iter()
+            .map(|s| TAtomic::TLiteralString { value: s })
+            .collect::<Vec<_>>(),
     );
     new_types.extend(
         combination
             .literal_ints
-            .into_values()
-            .collect::<Vec<TAtomic>>(),
+            .into_iter()
+            .map(|i| TAtomic::TLiteralInt { value: i })
+            .collect::<Vec<_>>(),
     );
 
     if combination.value_types.contains_key("string")
@@ -985,8 +988,8 @@ fn scrape_type_properties(
     }
 
     if let TAtomic::TScalar { .. } = atomic {
-        combination.literal_strings = FxHashMap::default();
-        combination.literal_ints = FxHashMap::default();
+        combination.literal_strings = FxHashSet::default();
+        combination.literal_ints = FxHashSet::default();
         combination.value_types.retain(|k, _| {
             k != "string"
                 && k != "int"
@@ -1007,8 +1010,8 @@ fn scrape_type_properties(
             return;
         }
 
-        combination.literal_strings = FxHashMap::default();
-        combination.literal_ints = FxHashMap::default();
+        combination.literal_strings = FxHashSet::default();
+        combination.literal_ints = FxHashSet::default();
         combination
             .value_types
             .retain(|k, _| k != "string" && k != "int");
@@ -1022,7 +1025,7 @@ fn scrape_type_properties(
             return;
         }
 
-        combination.literal_ints = FxHashMap::default();
+        combination.literal_ints = FxHashSet::default();
         combination
             .value_types
             .retain(|k, _| k != "float" && k != "int");
@@ -1053,7 +1056,7 @@ fn scrape_type_properties(
     }
 
     if let TAtomic::TString { .. } = atomic {
-        combination.literal_strings = FxHashMap::default();
+        combination.literal_strings = FxHashSet::default();
         combination.value_types.insert(atomic.get_key(), atomic);
         return;
     }
@@ -1089,15 +1092,13 @@ fn scrape_type_properties(
         }
 
         if is_truthy || is_nonempty {
-            for literal_string_type in combination.literal_strings.values() {
-                if let TAtomic::TLiteralString { value, .. } = literal_string_type {
-                    if value.is_empty() {
-                        is_nonempty = false;
-                        is_truthy = false;
-                        break;
-                    } else if value == "0" {
-                        is_truthy = false;
-                    }
+            for value in &combination.literal_strings {
+                if value.is_empty() {
+                    is_nonempty = false;
+                    is_truthy = false;
+                    break;
+                } else if value == "0" {
+                    is_truthy = false;
                 }
             }
         }
@@ -1111,7 +1112,7 @@ fn scrape_type_properties(
             },
         );
 
-        combination.literal_strings = FxHashMap::default();
+        combination.literal_strings = FxHashSet::default();
 
         return;
     }
@@ -1121,7 +1122,7 @@ fn scrape_type_properties(
             match existing_string_type {
                 TAtomic::TString => return,
                 TAtomic::TStringWithFlags(is_truthy, is_nonempty, is_nonspecific_literal) => {
-                    if value.is_empty() {
+                    if value == "" {
                         *is_truthy = false;
                         *is_nonempty = false;
                     } else if value == "0" {
@@ -1138,20 +1139,27 @@ fn scrape_type_properties(
                 _ => (),
             }
         } else if combination.literal_strings.len() > 20 {
-            combination.literal_strings = FxHashMap::default();
             combination.value_types.insert(
                 "string".to_string(),
-                TAtomic::TStringWithFlags(true, false, true),
+                TAtomic::TStringWithFlags(
+                    combination
+                        .literal_strings
+                        .iter()
+                        .all(|s| s != "" && s != "0"),
+                    combination.literal_strings.iter().all(|s| s != ""),
+                    true,
+                ),
             );
+            combination.literal_strings = FxHashSet::default();
         } else {
-            combination.literal_strings.insert(value.clone(), atomic);
+            combination.literal_strings.insert(value.clone());
         }
 
         return;
     }
 
     if let TAtomic::TInt = atomic {
-        combination.literal_ints = FxHashMap::default();
+        combination.literal_ints = FxHashSet::default();
         combination.value_types.insert(atomic.get_key(), atomic);
         return;
     }
@@ -1162,12 +1170,12 @@ fn scrape_type_properties(
                 return;
             }
         } else if combination.literal_ints.len() > 20 {
-            combination.literal_ints = FxHashMap::default();
+            combination.literal_ints = FxHashSet::default();
             combination
                 .value_types
                 .insert("int".to_string(), TAtomic::TInt);
         } else {
-            combination.literal_ints.insert(value, atomic);
+            combination.literal_ints.insert(value);
         }
 
         return;

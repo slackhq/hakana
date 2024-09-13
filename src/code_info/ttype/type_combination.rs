@@ -48,8 +48,8 @@ pub(crate) struct TypeCombination {
 
     pub mixed_from_loop_isset: Option<bool>,
 
-    pub literal_strings: FxHashMap<String, TAtomic>,
-    pub literal_ints: FxHashMap<i64, TAtomic>,
+    pub literal_strings: FxHashSet<String>,
+    pub literal_ints: FxHashSet<i64>,
 
     pub class_string_types: FxHashMap<String, TAtomic>,
 }
@@ -81,8 +81,8 @@ impl TypeCombination {
             has_mixed: false,
             any_mixed: false,
             mixed_from_loop_isset: None,
-            literal_strings: FxHashMap::default(),
-            literal_ints: FxHashMap::default(),
+            literal_strings: FxHashSet::default(),
+            literal_ints: FxHashSet::default(),
             class_string_types: FxHashMap::default(),
             enum_types: FxHashMap::default(),
             enum_value_types: FxHashMap::default(),
