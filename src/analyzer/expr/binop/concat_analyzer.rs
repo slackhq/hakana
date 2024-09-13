@@ -2,13 +2,14 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
+use bstr::ByteSlice;
 use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::{get_literal_string, get_string, wrap_atomic};
 use hakana_code_info::{
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     taint::SinkType,
 };
-use hakana_code_info::ttype::{get_literal_string, get_string, wrap_atomic};
 use oxidized::aast;
 
 pub(crate) fn analyze<'expr>(
@@ -48,17 +49,22 @@ pub(crate) fn analyze_concat_nodes(
 
     let mut has_slash = false;
     let mut has_query = false;
+    let mut nonempty_string = false;
 
-    let mut string_content = Some("".to_string());
+    let mut existing_literal_string_values: Option<Vec<String>> = Some(vec!["".to_string()]);
 
     for (i, concat_node) in concat_nodes.iter().enumerate() {
+        let mut new_literal_string_values = vec![];
+
         if let aast::Expr_::String(simple_string) = &concat_node.2 {
-            if simple_string == "" {
-                continue;
+            if let Some(existing_literal_string_values) = &existing_literal_string_values {
+                for val in existing_literal_string_values {
+                    new_literal_string_values.push(val.clone() + simple_string.to_str().unwrap());
+                }
             }
 
-            if let Some(ref mut string_content) = string_content {
-                *string_content += &simple_string.to_string();
+            if simple_string != "" {
+                nonempty_string = true;
             }
 
             if simple_string.contains(&b'/') {
@@ -74,21 +80,51 @@ pub(crate) fn analyze_concat_nodes(
             ));
 
             if let Some(expr_type) = expr_type {
-                all_literals = all_literals && expr_type.all_literals();
+                let mut local_nonempty_string = true;
+                for t in &expr_type.types {
+                    match t {
+                        TAtomic::TLiteralString { value, .. } => {
+                            if value.contains('/') {
+                                has_slash = true;
+                            }
+                            if value.contains('?') {
+                                has_query = true;
+                            }
 
-                if let Some(str) = expr_type.get_single_literal_string_value() {
-                    if str.contains('/') {
-                        has_slash = true;
-                    }
-                    if str.contains('?') {
-                        has_query = true;
-                    }
+                            if value == "" {
+                                local_nonempty_string = false;
+                            }
 
-                    if let Some(ref mut string_content) = string_content {
-                        *string_content += &str;
+                            if let Some(existing_literal_string_values) =
+                                &existing_literal_string_values
+                            {
+                                for val in existing_literal_string_values {
+                                    new_literal_string_values.push(val.clone() + value);
+                                }
+                            }
+                        }
+                        TAtomic::TStringWithFlags(is_truthy, _, true) => {
+                            if !is_truthy {
+                                local_nonempty_string = false;
+                            }
+                        }
+                        TAtomic::TLiteralInt { .. }
+                        | TAtomic::TEnumLiteralCase { .. }
+                        | TAtomic::TEnum { .. } => {
+                            existing_literal_string_values = None;
+                            local_nonempty_string = false;
+                        }
+                        _ => {
+                            local_nonempty_string = false;
+                            all_literals = false;
+                            existing_literal_string_values = None;
+                            break;
+                        }
                     }
-                } else {
-                    string_content = None;
+                }
+
+                if local_nonempty_string {
+                    nonempty_string = true;
                 }
 
                 for old_parent_node in &expr_type.parent_nodes {
@@ -109,17 +145,33 @@ pub(crate) fn analyze_concat_nodes(
                     );
                 }
             } else {
+                nonempty_string = false;
                 all_literals = false;
-                string_content = None;
+                existing_literal_string_values = None;
             }
+        }
+
+        if existing_literal_string_values.is_some() && !new_literal_string_values.is_empty() {
+            existing_literal_string_values = Some(new_literal_string_values);
+        } else {
+            existing_literal_string_values = None;
         }
     }
 
     let mut result_type = if all_literals {
-        if let Some(string_content) = string_content {
-            get_literal_string(string_content)
+        if let Some(existing_literal_string_values) = existing_literal_string_values {
+            TUnion::new(
+                existing_literal_string_values
+                    .into_iter()
+                    .map(|s| TAtomic::TLiteralString { value: s })
+                    .collect(),
+            )
         } else {
-            wrap_atomic(TAtomic::TStringWithFlags(true, false, true))
+            wrap_atomic(TAtomic::TStringWithFlags(
+                nonempty_string,
+                nonempty_string,
+                true,
+            ))
         }
     } else {
         get_string()
