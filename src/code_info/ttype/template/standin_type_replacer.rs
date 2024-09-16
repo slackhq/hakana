@@ -53,9 +53,30 @@ pub fn replace<'a>(
 ) -> TUnion {
     let mut atomic_types = Vec::new();
 
-    let original_atomic_types = union_type.types.clone();
+    let mut original_atomic_types = union_type.types.clone();
 
     let mut input_type = input_type.cloned();
+
+    if let Some(ref mut input_type) = input_type {
+        if original_atomic_types.len() > 1
+            && original_atomic_types
+                .iter()
+                .any(|t| matches!(t, TAtomic::TNull))
+            && input_type.is_mixed()
+        {
+            original_atomic_types.retain(|t| !matches!(t, TAtomic::TNull));
+
+            input_type.types = vec![match input_type.types[0] {
+                TAtomic::TMixedWithFlags(any_mixed, truthy_mixed, falsy_mixed, _) => {
+                    TAtomic::TMixedWithFlags(any_mixed, truthy_mixed, falsy_mixed, true)
+                }
+                TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => {
+                    TAtomic::TMixedWithFlags(false, false, false, true)
+                }
+                _ => TAtomic::TMixedWithFlags(true, false, false, true),
+            }];
+        }
+    }
 
     if let Some(ref mut input_type_inner) = input_type {
         if !input_type_inner.is_single() {

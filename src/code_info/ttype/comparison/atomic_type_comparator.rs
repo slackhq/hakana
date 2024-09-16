@@ -85,32 +85,6 @@ pub fn is_contained_by(
         return false;
     }
 
-    if let TAtomic::TNull = input_type_part {
-        if let TAtomic::TGenericParam { as_type, .. } = container_type_part {
-            if as_type.is_nullable() || as_type.is_mixed() {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    if input_type_part.is_some_scalar() {
-        if let TAtomic::TScalar = container_type_part {
-            return true;
-        }
-
-        if container_type_part.is_some_scalar() {
-            return scalar_type_comparator::is_contained_by(
-                codebase,
-                input_type_part,
-                container_type_part,
-                inside_assertion,
-                atomic_comparison_result,
-            );
-        }
-    }
-
     if let TAtomic::TNamedObject {
         name: StrId::XHP_CHILD,
         ..
@@ -142,6 +116,32 @@ pub fn is_contained_by(
                     atomic_comparison_result,
                 );
             }
+        }
+    }
+
+    if let TAtomic::TNull = input_type_part {
+        if let TAtomic::TGenericParam { as_type, .. } = container_type_part {
+            if as_type.is_nullable() || as_type.is_mixed() {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    if input_type_part.is_some_scalar() {
+        if let TAtomic::TScalar = container_type_part {
+            return true;
+        }
+
+        if container_type_part.is_some_scalar() {
+            return scalar_type_comparator::is_contained_by(
+                codebase,
+                input_type_part,
+                container_type_part,
+                inside_assertion,
+                atomic_comparison_result,
+            );
         }
     }
 
