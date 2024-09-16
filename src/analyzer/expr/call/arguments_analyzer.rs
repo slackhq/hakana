@@ -88,6 +88,30 @@ pub(crate) fn check_arguments_match(
                 false,
             );
 
+            type_expander::expand_union(
+                statements_analyzer.get_codebase(),
+                &Some(statements_analyzer.get_interner()),
+                &mut param_type,
+                &TypeExpansionOptions {
+                    parent_class: None,
+                    function_is_final: if let Some(calling_class_storage) =
+                        calling_classlike_storage
+                    {
+                        calling_class_storage.is_final
+                    } else {
+                        false
+                    },
+                    file_path: Some(
+                        &statements_analyzer
+                            .get_file_analyzer()
+                            .get_file_source()
+                            .file_path,
+                    ),
+                    ..Default::default()
+                },
+                &mut analysis_data.data_flow_graph,
+            );
+
             if let Some((template_name, map)) = template_result.template_types.get_index(i) {
                 template_result.lower_bounds.insert(
                     *template_name,

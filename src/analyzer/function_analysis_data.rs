@@ -1,6 +1,7 @@
 use crate::{config::Config, scope::CaseScope};
 use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::code_location::StmtStart;
+use hakana_code_info::ttype::template::TemplateBound;
 use hakana_code_info::FileSource;
 use hakana_code_info::{
     assertion::Assertion,
@@ -10,7 +11,6 @@ use hakana_code_info::{
     symbol_references::SymbolReferences,
     t_union::TUnion,
 };
-use hakana_code_info::ttype::template::TemplateBound;
 use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
@@ -337,7 +337,8 @@ impl FunctionAnalysisData {
                     },
                     // missing shape field or shape field unknown
                     4057 | 4138 => match &issue_kind {
-                        IssueKind::LessSpecificArgument
+                        IssueKind::InvalidArgument
+                        | IssueKind::LessSpecificArgument
                         | IssueKind::LessSpecificReturnStatement
                         | IssueKind::InvalidReturnStatement => return true,
                         _ => {}
