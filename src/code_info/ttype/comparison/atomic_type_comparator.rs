@@ -94,7 +94,7 @@ pub fn is_contained_by(
             || input_type_part.is_int()
             || matches!(
                 input_type_part,
-                TAtomic::TFloat | TAtomic::TNum | TAtomic::TArraykey { .. }
+                TAtomic::TFloat | TAtomic::TNum | TAtomic::TArraykey { .. } | TAtomic::TNull
             )
         {
             return true;
