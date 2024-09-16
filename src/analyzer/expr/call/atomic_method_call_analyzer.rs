@@ -1,19 +1,19 @@
 use hakana_str::StrId;
 
+use hakana_code_info::ttype::{get_mixed_any, get_nothing};
 use hakana_code_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_code_info::ttype::get_mixed_any;
 use oxidized::{
     aast,
     ast_defs::{self, ParamKind, Pos},
 };
 
 use crate::{
-    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    scope::BlockContext, statements_analyzer::StatementsAnalyzer,
+    function_analysis_data::FunctionAnalysisData, scope::BlockContext,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
 
@@ -97,7 +97,10 @@ pub(crate) fn analyze(
         _ => {
             let mut mixed_with_any = false;
 
-            if !lhs_type_part.is_mixed_with_any(&mut mixed_with_any) {
+            if matches!(lhs_type_part, TAtomic::TNothing) {
+                result.return_type = Some(get_nothing());
+                return Ok(());
+            } else if !lhs_type_part.is_mixed_with_any(&mut mixed_with_any) {
                 analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::InvalidMethodCall,
