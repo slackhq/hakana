@@ -728,6 +728,24 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         fn_return_value
                     });
                 }
+
+                if let Some(inferred_yield_type) = &analysis_data.inferred_yield_type {
+                    inferred_return_type = Some(wrap_atomic(TAtomic::TNamedObject {
+                        name: if functionlike_storage.is_async {
+                            StrId::ASYNC_GENERATOR
+                        } else {
+                            StrId::GENERATOR
+                        },
+                        type_params: Some(vec![
+                            wrap_atomic(TAtomic::TArraykey { from_any: true }),
+                            inferred_yield_type.clone(),
+                            get_nothing(),
+                        ]),
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    }))
+                }
             }
         } else {
             let return_result_handled = config.hooks.iter().any(|hook| {

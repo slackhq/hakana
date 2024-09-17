@@ -1,11 +1,13 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::ttype::add_optional_union_type;
 use oxidized::aast;
 use oxidized::pos::Pos;
 
@@ -20,24 +22,22 @@ pub(crate) fn analyze(
     context.inside_general_use = true;
 
     if let aast::Afield::AFkvalue(key_expr, _) = &field {
-        expression_analyzer::analyze(
-            statements_analyzer,
-            key_expr,
-            analysis_data,
-            context,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, key_expr, analysis_data, context)?;
     };
 
     let value_expr = match &field {
         aast::Afield::AFvalue(value_expr) | aast::Afield::AFkvalue(_, value_expr) => value_expr,
     };
 
-    expression_analyzer::analyze(
-        statements_analyzer,
-        value_expr,
-        analysis_data,
-        context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, value_expr, analysis_data, context)?;
+
+    if let Some(expr_type) = analysis_data.get_expr_type(value_expr.pos()) {
+        analysis_data.inferred_yield_type = Some(add_optional_union_type(
+            expr_type.clone(),
+            analysis_data.inferred_yield_type.as_ref(),
+            statements_analyzer.get_codebase(),
+        ));
+    }
 
     context.inside_general_use = was_inside_use;
 
