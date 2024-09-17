@@ -12,7 +12,9 @@ use hakana_str::{Interner, StrId};
 use rustc_hash::FxHashMap;
 
 use crate::expr::binop::assignment_analyzer;
-use crate::expr::call_analyzer::get_generic_param_for_offset;
+use crate::expr::call_analyzer::{
+    get_generic_param_for_offset, reconcile_lower_bounds_with_upper_bounds,
+};
 use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -291,6 +293,7 @@ pub(crate) fn check_arguments_match(
             codebase,
             arg_value_type,
             argument_offset,
+            arg_expr.pos(),
             context,
             template_result,
             statements_analyzer,
@@ -333,6 +336,7 @@ pub(crate) fn check_arguments_match(
             codebase,
             arg_value_type,
             reordered_args.len(),
+            unpacked_arg.pos(),
             context,
             template_result,
             statements_analyzer,
@@ -533,6 +537,12 @@ pub(crate) fn check_arguments_match(
         }
     }
 
+    // for (_, map) in &template_result.lower_bounds {
+    //     for (_, bounds) in map {
+    //         println!("{:#?}", bounds);
+    //     }
+    // }
+
     Ok(())
 }
 
@@ -542,6 +552,7 @@ fn adjust_param_type(
     codebase: &CodebaseInfo,
     mut arg_value_type: TUnion,
     argument_offset: usize,
+    arg_pos: &Pos,
     context: &mut BlockContext,
     template_result: &mut TemplateResult,
     statements_analyzer: &StatementsAnalyzer,
@@ -576,6 +587,7 @@ fn adjust_param_type(
                 statements_analyzer.get_interner(),
                 &Some(&arg_value_type),
                 Some(argument_offset),
+                Some(statements_analyzer.get_hpos(arg_pos)),
                 StandinOpts {
                     calling_class: if let Some(calling_class) =
                         &context.function_context.calling_class
@@ -745,6 +757,7 @@ fn handle_closure_arg(
         statements_analyzer.get_interner(),
         &None,
         None,
+        None,
         StandinOpts {
             calling_class: None,
             calling_function: context.function_context.calling_functionlike_id.as_ref(),
@@ -879,6 +892,7 @@ fn map_class_generic_params(
         interner,
         &Some(arg_value_type),
         Some(argument_offset),
+        None,
         StandinOpts {
             calling_class: context.function_context.calling_class.as_ref(),
             calling_function: context.function_context.calling_functionlike_id.as_ref(),
@@ -894,6 +908,7 @@ fn map_class_generic_params(
             interner,
             &Some(arg_value_type),
             Some(argument_offset),
+            None,
             StandinOpts {
                 calling_class: context.function_context.calling_class.as_ref(),
                 calling_function: context.function_context.calling_functionlike_id.as_ref(),
@@ -999,6 +1014,7 @@ fn handle_possibly_matching_inout_param(
                 None
             },
             Some(argument_offset),
+            None,
             StandinOpts {
                 calling_class: context.function_context.calling_class.as_ref(),
                 calling_function: if let Some(m) = &context.function_context.calling_functionlike_id

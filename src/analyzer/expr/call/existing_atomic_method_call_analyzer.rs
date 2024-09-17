@@ -192,6 +192,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_interner(),
                     &Some(template_type),
                     None,
+                    None,
                     StandinOpts {
                         calling_class: None,
                         calling_function: context.function_context.calling_functionlike_id.as_ref(),

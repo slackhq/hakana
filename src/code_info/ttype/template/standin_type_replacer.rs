@@ -1,4 +1,5 @@
 use crate::{
+    code_location::HPos,
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
@@ -50,6 +51,7 @@ pub fn replace<'a>(
     interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
+    input_arg_pos: Option<HPos>,
     opts: StandinOpts<'a>,
 ) -> TUnion {
     let mut atomic_types = Vec::new();
@@ -104,6 +106,7 @@ pub fn replace<'a>(
             interner,
             &input_type.as_ref(),
             input_arg_offset,
+            input_arg_pos,
             opts,
             original_atomic_types.len() == 1,
             &mut had_template,
@@ -136,6 +139,7 @@ fn handle_atomic_standin<'a>(
     interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
+    input_arg_pos: Option<HPos>,
     opts: StandinOpts<'a>,
     was_single: bool,
     had_template: &mut bool,
@@ -168,6 +172,7 @@ fn handle_atomic_standin<'a>(
                 interner,
                 input_type,
                 input_arg_offset,
+                input_arg_pos,
                 opts,
                 had_template,
             );
@@ -194,6 +199,7 @@ fn handle_atomic_standin<'a>(
                 interner,
                 input_type,
                 input_arg_offset,
+                input_arg_pos,
                 opts,
                 was_single,
             );
@@ -220,6 +226,7 @@ fn handle_atomic_standin<'a>(
                 interner,
                 input_type,
                 input_arg_offset,
+                input_arg_pos,
                 opts,
                 was_single,
             );
@@ -252,6 +259,7 @@ fn handle_atomic_standin<'a>(
             interner,
             None,
             input_arg_offset,
+            input_arg_pos,
             StandinOpts {
                 depth: opts.depth + 1,
                 ..opts
@@ -271,6 +279,7 @@ fn handle_atomic_standin<'a>(
             interner,
             Some(matching_input_type),
             input_arg_offset,
+            input_arg_pos,
             StandinOpts {
                 depth: new_depth,
                 ..opts
@@ -288,6 +297,7 @@ fn replace_atomic<'a>(
     interner: &Interner,
     input_type: Option<TAtomic>,
     input_arg_offset: Option<usize>,
+    input_arg_pos: Option<HPos>,
     opts: StandinOpts<'a>,
 ) -> TAtomic {
     let mut atomic_type = atomic_type.clone();
@@ -321,6 +331,7 @@ fn replace_atomic<'a>(
                         interner,
                         &input_type_param.as_ref(),
                         input_arg_offset,
+                        input_arg_pos,
                         opts,
                     ));
                 }
@@ -346,6 +357,7 @@ fn replace_atomic<'a>(
                         None
                     },
                     input_arg_offset,
+                    input_arg_pos,
                     opts,
                 ));
 
@@ -360,6 +372,7 @@ fn replace_atomic<'a>(
                         None
                     },
                     input_arg_offset,
+                    input_arg_pos,
                     opts,
                 ));
             }
@@ -394,6 +407,7 @@ fn replace_atomic<'a>(
                         interner,
                         &input_type_param,
                         input_arg_offset,
+                        input_arg_pos,
                         opts,
                     );
                 }
@@ -415,6 +429,7 @@ fn replace_atomic<'a>(
                         None
                     },
                     input_arg_offset,
+                    input_arg_pos,
                     opts,
                 ));
             }
@@ -438,6 +453,7 @@ fn replace_atomic<'a>(
                     None
                 },
                 input_arg_offset,
+                input_arg_pos,
                 opts,
             ));
 
@@ -458,6 +474,7 @@ fn replace_atomic<'a>(
                     None
                 },
                 input_arg_offset,
+                input_arg_pos,
                 opts,
             ));
 
@@ -535,6 +552,7 @@ fn replace_atomic<'a>(
                             input_type_param.as_ref()
                         },
                         input_arg_offset,
+                        input_arg_pos,
                         opts,
                     );
                 }
@@ -575,6 +593,7 @@ fn replace_atomic<'a>(
                             None
                         },
                         input_arg_offset,
+                        input_arg_pos,
                         opts,
                     );
                 }
@@ -606,6 +625,7 @@ fn replace_atomic<'a>(
                             None
                         },
                         input_arg_offset,
+                        input_arg_pos,
                         StandinOpts {
                             add_lower_bound: !opts.add_lower_bound,
                             ..opts
@@ -626,6 +646,7 @@ fn replace_atomic<'a>(
                         None
                     },
                     input_arg_offset,
+                    input_arg_pos,
                     opts,
                 );
             }
@@ -647,6 +668,7 @@ fn replace_atomic<'a>(
                     None
                 },
                 input_arg_offset,
+                input_arg_pos,
                 opts,
             ));
 
@@ -667,6 +689,7 @@ fn replace_atomic<'a>(
                     None
                 },
                 input_arg_offset,
+                input_arg_pos,
                 opts,
             ));
 
@@ -687,6 +710,7 @@ fn handle_template_param_standin<'a>(
     interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
+    input_arg_pos: Option<HPos>,
     opts: StandinOpts<'a>,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
@@ -728,6 +752,7 @@ fn handle_template_param_standin<'a>(
                 interner,
                 input_type,
                 input_arg_offset,
+                input_arg_pos,
                 opts,
             );
 
@@ -779,6 +804,7 @@ fn handle_template_param_standin<'a>(
                 interner,
                 input_type,
                 input_arg_offset,
+                input_arg_pos,
                 StandinOpts {
                     depth: opts.depth + 1,
                     ..opts
@@ -855,6 +881,7 @@ fn handle_template_param_standin<'a>(
         interner,
         input_type,
         input_arg_offset,
+        input_arg_pos,
         opts,
     );
 
@@ -919,6 +946,7 @@ fn handle_template_param_standin<'a>(
                         input_type,
                         opts,
                         input_arg_offset,
+                        input_arg_pos,
                     );
                 }
             } else {
@@ -929,6 +957,7 @@ fn handle_template_param_standin<'a>(
                     input_type.clone(),
                     opts,
                     input_arg_offset,
+                    input_arg_pos,
                 );
             }
         }
@@ -966,6 +995,7 @@ fn insert_bound_type(
     input_type: TUnion,
     opts: StandinOpts,
     input_arg_offset: Option<usize>,
+    pos: Option<HPos>,
 ) {
     // println!(
     //     "inserting {} at depth {}",
@@ -983,7 +1013,7 @@ fn insert_bound_type(
             appearance_depth: opts.depth,
             arg_offset: input_arg_offset,
             equality_bound_classlike: None,
-            pos: None,
+            pos,
         });
 }
 
@@ -994,6 +1024,7 @@ fn handle_template_param_class_standin<'a>(
     interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
+    input_arg_pos: Option<HPos>,
     opts: StandinOpts<'a>,
     was_single: bool,
 ) -> Vec<TAtomic> {
@@ -1072,6 +1103,7 @@ fn handle_template_param_class_standin<'a>(
                 interner,
                 &generic_param.as_ref(),
                 input_arg_offset,
+                input_arg_pos,
                 opts,
             );
 
@@ -1088,17 +1120,18 @@ fn handle_template_param_class_standin<'a>(
                     .unwrap_or(&mut FxHashMap::default())
                     .get_mut(defining_entity)
                 {
-                    *template_bounds = vec![TemplateBound::new(
-                        add_union_type(
+                    *template_bounds = vec![TemplateBound {
+                        bound_type: add_union_type(
                             generic_param,
                             &get_most_specific_type_from_bounds(template_bounds, codebase),
                             codebase,
                             false,
                         ),
-                        opts.depth,
-                        input_arg_offset,
-                        None,
-                    )]
+                        appearance_depth: opts.depth,
+                        arg_offset: input_arg_offset,
+                        pos: input_arg_pos,
+                        equality_bound_classlike: None,
+                    }]
                 } else {
                     template_result
                         .lower_bounds
@@ -1106,12 +1139,13 @@ fn handle_template_param_class_standin<'a>(
                         .or_insert_with(FxHashMap::default)
                         .insert(
                             *defining_entity,
-                            vec![TemplateBound::new(
-                                generic_param,
-                                opts.depth,
-                                input_arg_offset,
-                                None,
-                            )],
+                            vec![TemplateBound {
+                                bound_type: generic_param,
+                                appearance_depth: opts.depth,
+                                arg_offset: input_arg_offset,
+                                pos: input_arg_pos,
+                                equality_bound_classlike: None,
+                            }],
                         );
                 }
             }
@@ -1167,6 +1201,7 @@ fn handle_template_param_type_standin<'a>(
     interner: &Interner,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
+    input_arg_pos: Option<HPos>,
     opts: StandinOpts<'a>,
     was_single: bool,
 ) -> Vec<TAtomic> {
@@ -1236,6 +1271,7 @@ fn handle_template_param_type_standin<'a>(
                 interner,
                 &generic_param.as_ref(),
                 input_arg_offset,
+                input_arg_pos,
                 opts,
             );
 
@@ -1252,17 +1288,18 @@ fn handle_template_param_type_standin<'a>(
                     .unwrap_or(&mut FxHashMap::default())
                     .get_mut(defining_entity)
                 {
-                    *template_bounds = vec![TemplateBound::new(
-                        add_union_type(
+                    *template_bounds = vec![TemplateBound {
+                        bound_type: add_union_type(
                             generic_param,
                             &get_most_specific_type_from_bounds(template_bounds, codebase),
                             codebase,
                             false,
                         ),
-                        opts.depth,
-                        input_arg_offset,
-                        None,
-                    )]
+                        appearance_depth: opts.depth,
+                        arg_offset: input_arg_offset,
+                        equality_bound_classlike: None,
+                        pos: input_arg_pos,
+                    }]
                 } else {
                     template_result
                         .lower_bounds
@@ -1270,12 +1307,13 @@ fn handle_template_param_type_standin<'a>(
                         .or_insert_with(FxHashMap::default)
                         .insert(
                             *defining_entity,
-                            vec![TemplateBound::new(
-                                generic_param,
-                                opts.depth,
-                                input_arg_offset,
-                                None,
-                            )],
+                            vec![TemplateBound {
+                                bound_type: generic_param,
+                                appearance_depth: opts.depth,
+                                arg_offset: input_arg_offset,
+                                equality_bound_classlike: None,
+                                pos: input_arg_pos,
+                            }],
                         );
                 }
             }
