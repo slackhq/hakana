@@ -875,18 +875,18 @@ fn handle_template_param_standin<'a>(
                     &mut matching_input_keys,
                 ))
         {
-            let mut generic_param = (*input_type).clone();
+            let mut input_type = (*input_type).clone();
 
             if !matching_input_keys.is_empty() {
-                for atomic in &generic_param.clone().types {
+                for atomic in &input_type.clone().types {
                     if !matching_input_keys.contains(&atomic.get_key()) {
-                        generic_param.remove_type(atomic);
+                        input_type.remove_type(atomic);
                     }
                 }
             }
 
             if opts.add_lower_bound {
-                return generic_param.types.clone();
+                return input_type.types.clone();
             }
 
             if let Some(existing_lower_bounds) =
@@ -908,7 +908,7 @@ fn handle_template_param_standin<'a>(
 
                     if existing_depth == &opts.depth
                         && &input_arg_offset == existing_arg_offset
-                        && existing_lower_bound.bound_type == generic_param
+                        && existing_lower_bound.bound_type == input_type
                         && existing_lower_bound.equality_bound_classlike.is_none()
                     {
                         has_matching_lower_bound = true;
@@ -917,33 +917,24 @@ fn handle_template_param_standin<'a>(
                 }
 
                 if !has_matching_lower_bound {
-                    template_result
-                        .lower_bounds
-                        .entry(param_name_key)
-                        .or_insert_with(FxHashMap::default)
-                        .entry(*defining_entity)
-                        .or_insert_with(Vec::new)
-                        .push(TemplateBound {
-                            bound_type: generic_param.clone(),
-                            appearance_depth: opts.depth,
-                            arg_offset: input_arg_offset,
-                            equality_bound_classlike: None,
-                            pos: None,
-                        });
+                    insert_bound_type(
+                        template_result,
+                        param_name_key,
+                        defining_entity,
+                        input_type,
+                        opts,
+                        input_arg_offset,
+                    );
                 }
             } else {
-                template_result
-                    .lower_bounds
-                    .entry(param_name_key)
-                    .or_insert_with(FxHashMap::default)
-                    .entry(*defining_entity)
-                    .or_insert(vec![TemplateBound {
-                        bound_type: generic_param.clone(),
-                        appearance_depth: opts.depth,
-                        arg_offset: input_arg_offset,
-                        equality_bound_classlike: None,
-                        pos: None,
-                    }]);
+                insert_bound_type(
+                    template_result,
+                    param_name_key,
+                    defining_entity,
+                    input_type.clone(),
+                    opts,
+                    input_arg_offset,
+                );
             }
         }
     }
@@ -971,6 +962,29 @@ fn handle_template_param_standin<'a>(
     }
 
     new_atomic_types
+}
+
+fn insert_bound_type(
+    template_result: &mut TemplateResult,
+    param_name_key: StrId,
+    defining_entity: &GenericParent,
+    input_type: TUnion,
+    opts: StandinOpts,
+    input_arg_offset: Option<usize>,
+) {
+    template_result
+        .lower_bounds
+        .entry(param_name_key)
+        .or_insert_with(FxHashMap::default)
+        .entry(*defining_entity)
+        .or_insert_with(Vec::new)
+        .push(TemplateBound {
+            bound_type: input_type.generalize_literals(),
+            appearance_depth: opts.depth,
+            arg_offset: input_arg_offset,
+            equality_bound_classlike: None,
+            pos: None,
+        });
 }
 
 fn handle_template_param_class_standin<'a>(

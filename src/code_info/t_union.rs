@@ -661,6 +661,44 @@ impl TUnion {
             .iter()
             .all(|t| t.is_json_compatible(banned_type_aliases))
     }
+
+    pub fn generalize_literals(mut self) -> TUnion {
+        let old_types = self.types.drain(..);
+
+        let mut generalized_literals = vec![];
+
+        let mut types = vec![];
+
+        for t in old_types {
+            match t {
+                TAtomic::TLiteralString { .. } => {
+                    if !generalized_literals
+                        .iter()
+                        .any(|t| matches!(t, TAtomic::TString))
+                    {
+                        generalized_literals.push(TAtomic::TString);
+                    }
+                }
+                TAtomic::TLiteralInt { .. } => {
+                    if !generalized_literals
+                        .iter()
+                        .any(|t| matches!(t, TAtomic::TInt))
+                    {
+                        generalized_literals.push(TAtomic::TInt);
+                    }
+                }
+                _ => {
+                    types.push(t);
+                }
+            }
+        }
+
+        types.extend(generalized_literals);
+
+        self.types = types;
+
+        self
+    }
 }
 
 impl PartialEq for TUnion {
