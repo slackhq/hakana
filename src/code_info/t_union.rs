@@ -674,9 +674,9 @@ impl TUnion {
                 TAtomic::TLiteralString { .. } => {
                     if !generalized_literals
                         .iter()
-                        .any(|t| matches!(t, TAtomic::TString))
+                        .any(|t| matches!(t, TAtomic::TStringWithFlags(false, false, true)))
                     {
-                        generalized_literals.push(TAtomic::TString);
+                        generalized_literals.push(TAtomic::TStringWithFlags(false, false, true));
                     }
                 }
                 TAtomic::TLiteralInt { .. } => {
