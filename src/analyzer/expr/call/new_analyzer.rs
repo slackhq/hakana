@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use hakana_code_info::classlike_info::Variance;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::{GenericParent, EFFECT_WRITE_GLOBALS};
 
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
-use hakana_str::StrId;
 use hakana_code_info::ttype::template::standin_type_replacer::get_most_specific_type_from_bounds;
+use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 
 use crate::expr::call_analyzer::{check_method_args, get_generic_param_for_offset};
@@ -22,12 +23,12 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::{populate_union_type, TUnion};
-use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_code_info::ttype::template::{self, TemplateBound, TemplateResult};
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any, get_named_object, get_nothing, get_placeholder,
-    wrap_atomic,
+    type_expander, wrap_atomic,
 };
+use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
@@ -466,6 +467,23 @@ fn analyze_named_constructor(
                         false,
                     );
 
+                    type_expander::expand_union(
+                        statements_analyzer.get_codebase(),
+                        &Some(statements_analyzer.get_interner()),
+                        &mut param_type,
+                        &TypeExpansionOptions {
+                            parent_class: None,
+                            file_path: Some(
+                                &statements_analyzer
+                                    .get_file_analyzer()
+                                    .get_file_source()
+                                    .file_path,
+                            ),
+                            ..Default::default()
+                        },
+                        &mut analysis_data.data_flow_graph,
+                    );
+
                     if let Some((template_name, map)) = template_result.template_types.get_index(i)
                     {
                         template_result.lower_bounds.insert(
@@ -565,6 +583,23 @@ fn analyze_named_constructor(
                                 .get_reference_source(&statements_analyzer.get_file_path().0),
                             &mut analysis_data.symbol_references,
                             false,
+                        );
+
+                        type_expander::expand_union(
+                            statements_analyzer.get_codebase(),
+                            &Some(statements_analyzer.get_interner()),
+                            &mut param_type,
+                            &TypeExpansionOptions {
+                                parent_class: None,
+                                file_path: Some(
+                                    &statements_analyzer
+                                        .get_file_analyzer()
+                                        .get_file_source()
+                                        .file_path,
+                                ),
+                                ..Default::default()
+                            },
+                            &mut analysis_data.data_flow_graph,
                         );
 
                         generic_params.push(param_type);

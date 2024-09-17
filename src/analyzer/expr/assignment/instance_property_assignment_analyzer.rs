@@ -531,7 +531,7 @@ pub(crate) fn analyze_atomic_assignment(
         } = lhs_type_part
         {
             class_property_type = localize_property_type(
-                codebase,
+                statements_analyzer,
                 class_property_type,
                 lhs_type_params,
                 codebase.classlike_infos.get(&fq_class_name).unwrap(),

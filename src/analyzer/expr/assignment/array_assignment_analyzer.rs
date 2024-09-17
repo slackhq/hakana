@@ -1,5 +1,9 @@
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
+use hakana_code_info::ttype::{
+    combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
+    template::TemplateBound, type_combiner, wrap_atomic,
+};
 use hakana_code_info::{
     codebase_info::CodebaseInfo,
     data_flow::{
@@ -12,10 +16,6 @@ use hakana_code_info::{
     VarId,
 };
 use hakana_str::StrId;
-use hakana_code_info::ttype::{
-    combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
-    template::TemplateBound, type_combiner, wrap_atomic,
-};
 use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
@@ -214,8 +214,18 @@ fn update_atomic_given_key(
     current_type: &TUnion,
     codebase: &CodebaseInfo,
 ) -> TAtomic {
-    if let TAtomic::TGenericParam { .. } = atomic_type {
-        // TODO
+    if let TAtomic::TGenericParam { as_type, .. } = &atomic_type {
+        if as_type.types.len() == 1 {
+            // destructure generic after update
+            return update_atomic_given_key(
+                as_type.types[0].clone(),
+                key_values,
+                key_type,
+                has_matching_item,
+                current_type,
+                codebase,
+            );
+        }
     }
     if !key_values.is_empty() {
         for key_value in key_values {
@@ -507,22 +517,24 @@ fn update_array_assignment_child_type(
                     known_count: None,
                     non_empty: true,
                 }),
-                TAtomic::TDict(TDict { known_items, .. }) => collection_types.push(TAtomic::TDict(TDict {
-                    params: Some((Box::new((*key_type).clone()), Box::new(value_type.clone()))),
-                    known_items: if let Some(known_items) = known_items {
-                        let known_item = Arc::new(value_type.clone());
-                        Some(
-                            known_items
-                                .iter()
-                                .map(|(k, v)| (k.clone(), (v.0, known_item.clone())))
-                                .collect::<BTreeMap<_, _>>(),
-                        )
-                    } else {
-                        None
-                    },
-                    non_empty: true,
-                    shape_name: None,
-                })),
+                TAtomic::TDict(TDict { known_items, .. }) => {
+                    collection_types.push(TAtomic::TDict(TDict {
+                        params: Some((Box::new((*key_type).clone()), Box::new(value_type.clone()))),
+                        known_items: if let Some(known_items) = known_items {
+                            let known_item = Arc::new(value_type.clone());
+                            Some(
+                                known_items
+                                    .iter()
+                                    .map(|(k, v)| (k.clone(), (v.0, known_item.clone())))
+                                    .collect::<BTreeMap<_, _>>(),
+                            )
+                        } else {
+                            None
+                        },
+                        non_empty: true,
+                        shape_name: None,
+                    }))
+                }
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
                     type_param: Box::new(value_type.clone()),
                 }),

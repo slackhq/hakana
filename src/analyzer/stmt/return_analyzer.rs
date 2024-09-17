@@ -195,7 +195,7 @@ pub(crate) fn analyze(
         );
 
         if !expected_return_type.is_mixed() {
-            if expected_return_type.is_generator(interner) && functionlike_storage.has_yield {
+            if expected_return_type.is_generator() && functionlike_storage.has_yield {
                 return Ok(());
             }
 

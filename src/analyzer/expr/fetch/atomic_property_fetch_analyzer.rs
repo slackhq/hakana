@@ -246,7 +246,7 @@ fn get_class_property_type(
         if !declaring_class_storage.template_types.is_empty() {
             if let TAtomic::TNamedObject { type_params, .. } = &lhs_type_part {
                 class_property_type = localize_property_type(
-                    codebase,
+                    statements_analyzer,
                     class_property_type,
                     type_params.as_ref().unwrap_or(
                         &declaring_class_storage
@@ -271,7 +271,7 @@ fn get_class_property_type(
 }
 
 pub(crate) fn localize_property_type(
-    codebase: &CodebaseInfo,
+    statements_analyzer: &StatementsAnalyzer,
     class_property_type: TUnion,
     lhs_type_params: &[TUnion],
     property_class_storage: &ClassLikeInfo,
@@ -279,7 +279,7 @@ pub(crate) fn localize_property_type(
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     let mut template_types = get_template_types_for_class_member(
-        codebase,
+        statements_analyzer.get_codebase(),
         analysis_data,
         Some(property_declaring_class_storage),
         Some(&property_declaring_class_storage.name),
@@ -289,24 +289,28 @@ pub(crate) fn localize_property_type(
     );
 
     update_template_types(
+        statements_analyzer,
         &mut template_types,
         property_class_storage,
         lhs_type_params,
         property_declaring_class_storage,
+        analysis_data,
     );
 
     inferred_type_replacer::replace(
         &class_property_type,
         &TemplateResult::new(IndexMap::new(), template_types),
-        codebase,
+        statements_analyzer.get_codebase(),
     )
 }
 
 fn update_template_types(
+    statements_analyzer: &StatementsAnalyzer,
     template_types: &mut IndexMap<StrId, FxHashMap<GenericParent, TUnion>>,
     property_class_storage: &ClassLikeInfo,
     lhs_type_params: &[TUnion],
     property_declaring_class_storage: &ClassLikeInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) {
     if !template_types.is_empty() && !property_class_storage.template_types.is_empty() {
         for (param_offset, lhs_param_type) in lhs_type_params.iter().enumerate() {
@@ -319,10 +323,28 @@ fn update_template_types(
                     template_types
                         .entry(*calling_param_name)
                         .or_insert_with(FxHashMap::default)
-                        .insert(
-                            GenericParent::ClassLike(property_class_storage.name),
-                            lhs_param_type.clone(),
-                        );
+                        .insert(GenericParent::ClassLike(property_class_storage.name), {
+                            let mut lhs_param_type = lhs_param_type.clone();
+
+                            type_expander::expand_union(
+                                statements_analyzer.get_codebase(),
+                                &Some(statements_analyzer.get_interner()),
+                                &mut lhs_param_type,
+                                &TypeExpansionOptions {
+                                    parent_class: None,
+                                    file_path: Some(
+                                        &statements_analyzer
+                                            .get_file_analyzer()
+                                            .get_file_source()
+                                            .file_path,
+                                    ),
+                                    ..Default::default()
+                                },
+                                &mut analysis_data.data_flow_graph,
+                            );
+
+                            lhs_param_type
+                        });
                     break;
                 }
             }

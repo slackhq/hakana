@@ -353,10 +353,10 @@ impl TUnion {
         true
     }
 
-    pub fn is_generator(&self, interner: &Interner) -> bool {
+    pub fn is_generator(&self) -> bool {
         for atomic in &self.types {
             if let &TAtomic::TNamedObject { name, .. } = &atomic {
-                if name == &interner.get("Generator").unwrap() {
+                if *name == StrId::GENERATOR {
                     continue;
                 }
             }
