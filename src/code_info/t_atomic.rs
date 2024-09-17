@@ -48,6 +48,15 @@ pub struct TDict {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+pub struct TClosure {
+    pub params: Vec<FnParameter>,
+    pub return_type: Option<TUnion>,
+    pub effects: Option<u8>,
+    pub closure_id: (FilePath, u32),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
+#[derivative(Hash)]
 pub enum TAtomic {
     /// Corresponds to the arraykey type in Hack
     TArraykey {
@@ -70,12 +79,7 @@ pub enum TAtomic {
     },
     TFalse,
     TFloat,
-    TClosure {
-        params: Vec<FnParameter>,
-        return_type: Option<Box<TUnion>>,
-        effects: Option<u8>,
-        closure_id: (FilePath, u32),
-    },
+    TClosure(Box<TClosure>),
     TClosureAlias {
         id: FunctionLikeIdentifier,
     },
@@ -320,15 +324,12 @@ impl TAtomic {
             }
             TAtomic::TFalse { .. } => "false".to_string(),
             TAtomic::TFloat { .. } => "float".to_string(),
-            TAtomic::TClosure {
-                params,
-                return_type,
-                ..
-            } => {
+            TAtomic::TClosure(closure) => {
                 let mut str = String::new();
                 str += "(function(";
 
-                str += params
+                str += closure
+                    .params
                     .iter()
                     .map(|param| {
                         format!(
@@ -345,7 +346,7 @@ impl TAtomic {
                     .as_str();
 
                 str += "): ";
-                if let Some(return_type) = return_type {
+                if let Some(return_type) = &closure.return_type {
                     str += return_type
                         .get_id_with_refs(interner, refs, indent)
                         .as_str();
@@ -720,7 +721,7 @@ impl TAtomic {
             TAtomic::TAwaitable { .. } => "Awaitable".to_string(),
             TAtomic::TFalse { .. }
             | TAtomic::TFloat { .. }
-            | TAtomic::TClosure { .. }
+            | TAtomic::TClosure(_)
             | TAtomic::TClosureAlias { .. }
             | TAtomic::TInt { .. }
             | TAtomic::TNothing
@@ -872,7 +873,7 @@ impl TAtomic {
     pub fn is_object_type(&self) -> bool {
         match self {
             TAtomic::TObject { .. } => true,
-            TAtomic::TClosure { .. } => true,
+            TAtomic::TClosure(_) => true,
             TAtomic::TAwaitable { .. } => true,
             TAtomic::TNamedObject { .. } => true,
             TAtomic::TGenericParam {
@@ -1109,7 +1110,7 @@ impl TAtomic {
             | &TAtomic::TMixedWithFlags(_, true, _, _)
             | &TAtomic::TStringWithFlags(true, _, _)
             | &TAtomic::TObject { .. }
-            | &TAtomic::TClosure { .. }
+            | &TAtomic::TClosure(_)
             | &TAtomic::TLiteralClassname { .. }
             | &TAtomic::TClassname { .. }
             | &TAtomic::TTypename { .. }
@@ -1258,7 +1259,7 @@ impl TAtomic {
                 | TAtomic::TClassname { .. }
                 | TAtomic::TTypename { .. }
                 | TAtomic::TDict { .. }
-                | TAtomic::TClosure { .. }
+                | TAtomic::TClosure(_)
                 | TAtomic::TKeyset { .. }
                 | TAtomic::TNamedObject { .. }
                 | TAtomic::TAwaitable { .. }
@@ -1559,17 +1560,13 @@ impl HasTypeNodes for TAtomic {
 
                 vec
             }
-            TAtomic::TClosure {
-                params,
-                return_type,
-                ..
-            } => {
+            TAtomic::TClosure(closure) => {
                 let mut vec = vec![];
-                if let Some(return_type) = return_type {
+                if let Some(return_type) = &closure.return_type {
                     vec.push(TypeNode::Union(return_type));
                 }
 
-                for param in params {
+                for param in &closure.params {
                     if let Some(param_type) = &param.signature_type {
                         vec.push(TypeNode::Union(param_type));
                     }
@@ -1703,12 +1700,8 @@ pub fn populate_atomic_type(
                 }
             }
         }
-        TAtomic::TClosure {
-            ref mut params,
-            ref mut return_type,
-            ..
-        } => {
-            if let Some(return_type) = return_type {
+        TAtomic::TClosure(ref mut closure) => {
+            if let Some(ref mut return_type) = closure.return_type {
                 populate_union_type(
                     return_type,
                     codebase_symbols,
@@ -1718,7 +1711,7 @@ pub fn populate_atomic_type(
                 );
             }
 
-            for param in params {
+            for param in closure.params.iter_mut() {
                 if let Some(ref mut param_type) = param.signature_type {
                     populate_union_type(
                         param_type,

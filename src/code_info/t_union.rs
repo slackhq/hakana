@@ -342,7 +342,7 @@ impl TUnion {
             if let &TAtomic::TObject { .. }
             | TAtomic::TNamedObject { .. }
             | TAtomic::TAwaitable { .. }
-            | TAtomic::TClosure { .. } = atomic
+            | TAtomic::TClosure(_) = atomic
             {
                 continue;
             }

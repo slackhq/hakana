@@ -4,7 +4,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use bstr::ByteSlice;
 use hakana_code_info::t_union::TUnion;
-use hakana_code_info::ttype::{get_literal_string, get_string, wrap_atomic};
+use hakana_code_info::ttype::{get_string, wrap_atomic};
 use hakana_code_info::{
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,

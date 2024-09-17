@@ -8,34 +8,22 @@ pub(crate) fn is_contained_by(
     container_type_part: &TAtomic,
     atomic_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
-    if let TAtomic::TClosure {
-        params: input_params,
-        return_type: input_return_type,
-        effects: input_effects,
-        ..
-    } = input_type_part
-    {
-        if let TAtomic::TClosure {
-            params: container_params,
-            return_type: container_return_type,
-            effects: container_effects,
-            ..
-        } = container_type_part
-        {
-            if let Some(container_effects) = container_effects {
-                if container_effects == &0 && input_effects.unwrap_or(0) > 0 {
+    if let TAtomic::TClosure(input_closure) = input_type_part {
+        if let TAtomic::TClosure(container_closure) = container_type_part {
+            if let Some(container_effects) = container_closure.effects {
+                if container_effects == 0 && input_closure.effects.unwrap_or(0) > 0 {
                     atomic_comparison_result.type_coerced = Some(true);
 
                     return false;
                 }
             }
 
-            for (i, input_param) in input_params.iter().enumerate() {
+            for (i, input_param) in input_closure.params.iter().enumerate() {
                 let mut container_param = None;
 
-                if let Some(inner) = container_params.get(i) {
+                if let Some(inner) = container_closure.params.get(i) {
                     container_param = Some(inner);
-                } else if let Some(last_param) = container_params.last() {
+                } else if let Some(last_param) = container_closure.params.last() {
                     if last_param.is_variadic {
                         container_param = Some(last_param);
                     }
@@ -79,8 +67,8 @@ pub(crate) fn is_contained_by(
                 }
             }
 
-            if let Some(container_return_type) = container_return_type {
-                if let Some(input_return_type) = input_return_type {
+            if let Some(container_return_type) = &container_closure.return_type {
+                if let Some(input_return_type) = &input_closure.return_type {
                     if input_return_type.is_void() && container_return_type.is_nullable() {
                         return true;
                     }

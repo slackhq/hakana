@@ -11,7 +11,7 @@ use crate::{
     },
     functionlike_info::FunctionLikeInfo,
     functionlike_parameter::FnParameter,
-    t_atomic::{DictKey, TAtomic, TDict},
+    t_atomic::{DictKey, TAtomic, TClosure, TDict},
     t_union::TUnion,
 };
 use crate::{functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier};
@@ -222,17 +222,12 @@ fn expand_atomic(
         }
 
         return;
-    } else if let TAtomic::TClosure {
-        params,
-        return_type,
-        ..
-    } = return_type_part
-    {
-        if let Some(return_type) = return_type {
+    } else if let TAtomic::TClosure(ref mut closure) = return_type_part {
+        if let Some(ref mut return_type) = closure.return_type {
             expand_union(codebase, interner, return_type, options, data_flow_graph);
         }
 
-        for param in params {
+        for param in closure.params.iter_mut() {
             if let Some(ref mut param_type) = param.signature_type {
                 expand_union(codebase, interner, param_type, options, data_flow_graph);
             }
@@ -687,7 +682,7 @@ fn get_expanded_closure(
     data_flow_graph: &mut DataFlowGraph,
     options: &TypeExpansionOptions,
 ) -> TAtomic {
-    TAtomic::TClosure {
+    TAtomic::TClosure(Box::new(TClosure {
         params: functionlike_info
             .params
             .iter()
@@ -713,7 +708,7 @@ fn get_expanded_closure(
                 options,
                 data_flow_graph,
             );
-            Some(Box::new(return_type))
+            Some(return_type)
         } else {
             None
         },
@@ -722,5 +717,5 @@ fn get_expanded_closure(
             functionlike_info.def_location.file_path,
             functionlike_info.def_location.start_offset,
         ),
-    }
+    }))
 }

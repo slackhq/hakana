@@ -196,8 +196,8 @@ pub fn is_contained_by(
         );
     }
 
-    if let TAtomic::TClosure { .. } = container_type_part {
-        if let TAtomic::TClosure { .. } = input_type_part {
+    if let TAtomic::TClosure(_) = container_type_part {
+        if let TAtomic::TClosure(_) = input_type_part {
             return closure_type_comparator::is_contained_by(
                 codebase,
                 input_type_part,

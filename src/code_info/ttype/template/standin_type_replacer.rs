@@ -9,9 +9,9 @@ use crate::{
     t_atomic::TDict,
     ttype::{
         add_union_type,
-        comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+        comparison::union_type_comparator,
         get_arrayish_params, get_arraykey, get_mixed, get_mixed_any, get_mixed_maybe_from_loop,
-        get_value_param, intersect_union_types, type_combiner,
+        get_value_param, type_combiner,
         type_expander::{self, StaticClassType, TypeExpansionOptions},
         wrap_atomic,
     },
@@ -578,18 +578,10 @@ fn replace_atomic<'a>(
 
             return atomic_type;
         }
-        TAtomic::TClosure {
-            ref mut params,
-            ref mut return_type,
-            ..
-        } => {
-            for (offset, param) in params.iter_mut().enumerate() {
-                let input_type_param = if let Some(TAtomic::TClosure {
-                    params: input_params,
-                    ..
-                }) = &input_type
-                {
-                    if let Some(param) = input_params.get(offset) {
+        TAtomic::TClosure(ref mut closure) => {
+            for (offset, param) in closure.params.iter_mut().enumerate() {
+                let input_type_param = if let Some(TAtomic::TClosure(input_closure)) = &input_type {
+                    if let Some(param) = input_closure.params.get(offset) {
                         &param.signature_type
                     } else {
                         &None
@@ -618,18 +610,14 @@ fn replace_atomic<'a>(
                 }
             }
 
-            if let Some(ref mut return_type) = return_type {
-                *return_type = Box::new(self::replace(
+            if let Some(ref mut return_type) = closure.return_type {
+                *return_type = self::replace(
                     return_type,
                     template_result,
                     codebase,
                     interner,
-                    &if let Some(TAtomic::TClosure {
-                        return_type: Some(input_return_type),
-                        ..
-                    }) = &input_type
-                    {
-                        Some(input_return_type)
+                    &if let Some(TAtomic::TClosure(input_closure)) = &input_type {
+                        input_closure.return_type.as_ref()
                     } else {
                         None
                     },
@@ -638,7 +626,7 @@ fn replace_atomic<'a>(
                         depth: opts.depth - 1,
                         ..opts
                     },
-                ));
+                );
             }
 
             return atomic_type;
@@ -1410,8 +1398,8 @@ fn find_matching_atomic_types_for_template(
         }
 
         match atomic_input_type {
-            TAtomic::TClosure { .. } => {
-                if matches!(base_type, TAtomic::TClosure { .. }) {
+            TAtomic::TClosure(_) => {
+                if matches!(base_type, TAtomic::TClosure(_)) {
                     matching_atomic_types.push(atomic_input_type.clone());
                     continue;
                 }

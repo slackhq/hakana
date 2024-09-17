@@ -14,7 +14,6 @@ use hakana_code_info::ttype::{
 };
 use hakana_code_info::{
     classlike_info::ClassLikeInfo,
-    codebase_info::CodebaseInfo,
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     t_union::TUnion,

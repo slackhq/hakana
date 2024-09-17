@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use hakana_code_info::code_location::HPos;
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
+use hakana_code_info::ttype::comparison::union_type_comparator;
+use hakana_code_info::ttype::template::standin_type_replacer::get_relevant_bounds;
 use hakana_code_info::{
     GenericParent, EFFECT_CAN_THROW, EFFECT_IMPURE, EFFECT_PURE, EFFECT_WRITE_PROPS,
 };
 use hakana_str::StrId;
-use hakana_code_info::ttype::template::standin_type_replacer::get_relevant_bounds;
-use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
-use hakana_code_info::ttype::comparison::union_type_comparator;
 use itertools::Itertools;
 use oxidized::ast::CallExpr;
 use rustc_hash::FxHashMap;
@@ -461,11 +461,11 @@ pub(crate) fn apply_effects(
                     arg_expr.pos().end_offset() as u32,
                 )) {
                     for arg_atomic_type in &arg_type.types {
-                        if let TAtomic::TClosure { effects, .. } = arg_atomic_type {
-                            if let Some(evaluated_effects) = effects {
+                        if let TAtomic::TClosure(closure) = arg_atomic_type {
+                            if let Some(evaluated_effects) = closure.effects {
                                 analysis_data.expr_effects.insert(
                                     (pos.start_offset() as u32, pos.end_offset() as u32),
-                                    *evaluated_effects,
+                                    evaluated_effects,
                                 );
                             } else {
                                 analysis_data.expr_effects.insert(

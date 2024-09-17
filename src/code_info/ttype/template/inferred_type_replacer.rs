@@ -1,6 +1,11 @@
 use std::sync::Arc;
 
-use crate::{codebase_info::CodebaseInfo, t_atomic::{TAtomic, TDict}, t_union::TUnion, GenericParent};
+use crate::{
+    codebase_info::CodebaseInfo,
+    t_atomic::{TAtomic, TDict},
+    t_union::TUnion,
+    GenericParent,
+};
 use hakana_str::StrId;
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -304,19 +309,15 @@ fn replace_atomic(
         TAtomic::TAwaitable { ref mut value, .. } => {
             *value = Box::new(replace(value, template_result, codebase));
         }
-        TAtomic::TClosure {
-            ref mut params,
-            ref mut return_type,
-            ..
-        } => {
-            for param in params {
+        TAtomic::TClosure(ref mut closure) => {
+            for param in closure.params.iter_mut() {
                 if let Some(ref mut t) = param.signature_type {
                     *t = Box::new(replace(t, template_result, codebase));
                 }
             }
 
-            if let Some(ref mut return_type) = return_type {
-                *return_type = Box::new(replace(return_type, template_result, codebase));
+            if let Some(ref mut return_type) = closure.return_type {
+                *return_type = replace(return_type, template_result, codebase);
             }
         }
         TAtomic::TTypeAlias {

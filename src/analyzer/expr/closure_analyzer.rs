@@ -12,7 +12,7 @@ use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_parameter::FnParameter;
 use hakana_code_info::symbol_references::SymbolReferences;
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TClosure};
 use hakana_code_info::ttype::type_expander;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::wrap_atomic;
@@ -74,7 +74,7 @@ pub(crate) fn analyze(
         analysis_data.replacements.extend(replacements);
     }
 
-    let mut closure_type = wrap_atomic(TAtomic::TClosure {
+    let mut closure_type = wrap_atomic(TAtomic::TClosure(Box::new(TClosure {
         params: lambda_storage
             .params
             .into_iter()
@@ -85,13 +85,13 @@ pub(crate) fn analyze(
                 is_optional: param.is_optional,
             })
             .collect(),
-        return_type: lambda_storage.return_type.map(Box::new),
+        return_type: lambda_storage.return_type,
         effects: lambda_storage.effects.to_u8(),
         closure_id: (
             *statements_analyzer.get_file_path(),
             fun.span.start_offset() as u32,
         ),
-    });
+    })));
 
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let application_node = DataFlowNode::get_for_method_reference(

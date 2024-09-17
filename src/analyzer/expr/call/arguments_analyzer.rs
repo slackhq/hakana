@@ -771,13 +771,9 @@ fn handle_closure_arg(
         if param_storage.signature_type.is_none() {
             let mut newly_inferred_type = None;
             for replaced_type_part in &replaced_type.types {
-                if let TAtomic::TClosure {
-                    params: replaced_params,
-                    ..
-                } = replaced_type_part
-                {
+                if let TAtomic::TClosure(replaced_closure) = replaced_type_part {
                     let replaced_param_type =
-                        if let Some(signature_type) = replaced_params.get(param_offset) {
+                        if let Some(signature_type) = replaced_closure.params.get(param_offset) {
                             &signature_type.signature_type
                         } else {
                             &None

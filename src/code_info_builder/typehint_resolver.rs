@@ -2,17 +2,18 @@ use hakana_code_info::code_location::FilePath;
 use hakana_code_info::functionlike_parameter::FnParameter;
 use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::TClosure;
 use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::get_arraykey;
+use hakana_code_info::ttype::get_mixed_any;
+use hakana_code_info::ttype::get_nothing;
+use hakana_code_info::ttype::wrap_atomic;
 use hakana_code_info::type_resolution::TypeResolutionContext;
 use hakana_code_info::GenericParent;
 use hakana_code_info::EFFECT_IMPURE;
 use hakana_code_info::EFFECT_PURE;
 use hakana_str::StrId;
-use hakana_code_info::ttype::get_arraykey;
-use hakana_code_info::ttype::get_mixed_any;
-use hakana_code_info::ttype::get_nothing;
-use hakana_code_info::ttype::wrap_atomic;
 use oxidized::aast::Hint;
 use oxidized::aast::Hint_;
 use oxidized::aast_defs::NastShapeInfo;
@@ -345,7 +346,7 @@ fn get_function_type_from_hints(
         params.push(param);
     }
 
-    TAtomic::TClosure {
+    TAtomic::TClosure(Box::new(TClosure {
         params,
         return_type: get_type_from_hint(
             &function_info.return_ty.1,
@@ -354,8 +355,7 @@ fn get_function_type_from_hints(
             resolved_names,
             file_path,
             function_info.return_ty.0.start_offset() as u32,
-        )
-        .map(Box::new),
+        ),
         effects: if let Some(contexts) = &function_info.ctxs {
             Some(if contexts.1.is_empty() {
                 EFFECT_PURE
@@ -366,7 +366,7 @@ fn get_function_type_from_hints(
             Some(EFFECT_IMPURE)
         },
         closure_id: (file_path, offset),
-    }
+    }))
 }
 
 fn get_reference_type(

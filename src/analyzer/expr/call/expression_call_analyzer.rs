@@ -45,13 +45,7 @@ pub(crate) fn analyze(
     let codebase = statements_analyzer.get_codebase();
 
     for lhs_type_part in &lhs_type.types {
-        if let TAtomic::TClosure {
-            params: closure_params,
-            return_type: closure_return_type,
-            mut effects,
-            closure_id,
-        } = &lhs_type_part
-        {
+        if let TAtomic::TClosure(closure) = &lhs_type_part {
             let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
 
             let mut lambda_storage = FunctionLikeInfo::new(
@@ -64,7 +58,9 @@ pub(crate) fn analyze(
             );
             let existing_storage = codebase
                 .functionlike_infos
-                .get(&(closure_id.0 .0, StrId(closure_id.1)));
+                .get(&(closure.closure_id.0 .0, StrId(closure.closure_id.1)));
+
+            let mut effects = closure.effects;
 
             if let Some(existing_storage) = existing_storage {
                 if existing_storage.has_throw {
@@ -76,7 +72,8 @@ pub(crate) fn analyze(
 
             lambda_storage.effects = FnEffect::from_u8(&effects);
 
-            lambda_storage.params = closure_params
+            lambda_storage.params = closure
+                .params
                 .iter()
                 .map(|fn_param| {
                     let mut param = FunctionLikeParameter::new(
@@ -90,11 +87,12 @@ pub(crate) fn analyze(
                     param
                 })
                 .collect();
-            lambda_storage.return_type = closure_return_type.clone().map(|t| (*t).clone());
+            lambda_storage.return_type = closure.return_type.clone();
 
             lambda_storage.user_defined = true;
 
-            let functionlike_id = FunctionLikeIdentifier::Closure(closure_id.0, closure_id.1);
+            let functionlike_id =
+                FunctionLikeIdentifier::Closure(closure.closure_id.0, closure.closure_id.1);
 
             arguments_analyzer::check_arguments_match(
                 statements_analyzer,
@@ -121,7 +119,7 @@ pub(crate) fn analyze(
 
             stmt_type = Some(hakana_code_info::ttype::combine_optional_union_types(
                 stmt_type.as_ref(),
-                match closure_return_type {
+                match &closure.return_type {
                     Some(t) => Some(t),
                     None => None,
                 },
