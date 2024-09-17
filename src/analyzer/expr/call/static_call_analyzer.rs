@@ -78,9 +78,27 @@ pub(crate) fn analyze(
 
                         classlike_name = Some(parent_name);
 
+                        let type_params = if let Some(type_params) = classlike_storage
+                            .template_extended_offsets
+                            .get(&parent_name)
+                        {
+                            Some(
+                                type_params
+                                    .iter()
+                                    .map(|t| {
+                                        let t = (**t).clone();
+
+                                        t
+                                    })
+                                    .collect::<Vec<_>>(),
+                            )
+                        } else {
+                            None
+                        };
+
                         wrap_atomic(TAtomic::TNamedObject {
                             name: *self_name,
-                            type_params: None,
+                            type_params: type_params,
                             is_this: !classlike_storage.is_final,
                             extra_types: None,
                             remapped_params: false,
