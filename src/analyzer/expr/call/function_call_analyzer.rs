@@ -267,7 +267,9 @@ pub(crate) fn analyze(
                 )),
             );
 
-            if name == StrId::LIB_C_CONTAINS || name == StrId::LIB_DICT_CONTAINS {
+            if (name == StrId::LIB_C_CONTAINS || name == StrId::LIB_DICT_CONTAINS)
+                && expr.2.len() == 2
+            {
                 let container_type = analysis_data.get_expr_type(expr.2[0].1.pos()).cloned();
                 let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos()).cloned();
                 check_array_key_or_value_type(
@@ -281,7 +283,7 @@ pub(crate) fn analyze(
                     name,
                     &context.function_context.calling_functionlike_id,
                 );
-            } else {
+            } else if expr.2.len() >= 2 {
                 let container_type = analysis_data.get_expr_type(expr.2[0].1.pos()).cloned();
 
                 if let Some(expr_var_id) = expr_var_id {
