@@ -209,6 +209,7 @@ pub(crate) fn analyze(
         &method_id,
         functionlike_storage,
         call_expr,
+        Some(lhs_type_part),
         &mut template_result,
         context,
         pos,

@@ -199,6 +199,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 e.recurse(nc, self)
             }
             aast::Expr_::EnumClassLabel(boxed) => {
+                self.interner.intern(boxed.1.clone());
+
                 if boxed.0.is_some() {
                     nc.in_class_id = true;
                 }

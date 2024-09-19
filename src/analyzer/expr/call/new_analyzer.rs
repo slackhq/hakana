@@ -372,6 +372,7 @@ fn analyze_named_constructor(
                     .collect::<Vec<_>>(),
                 expr.3,
             ),
+            None,
             &mut template_result,
             context,
             pos,

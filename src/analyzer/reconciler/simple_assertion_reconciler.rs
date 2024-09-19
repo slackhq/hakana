@@ -1372,10 +1372,14 @@ fn intersect_int(
                     false,
                     &mut TypeComparisonResult::new(),
                 ) {
-                    acceptable_types.push(atomic.clone());
-
-                    if let TAtomic::TEnum { .. } = atomic {
+                    if let TAtomic::TEnum { name, .. } = atomic {
+                        acceptable_types.push(TAtomic::TEnum {
+                            name: *name,
+                            base_type: Some(Box::new(TAtomic::TInt)),
+                        });
                         did_remove_type = true;
+                    } else {
+                        acceptable_types.push(atomic.clone());
                     }
                 } else {
                     did_remove_type = true;

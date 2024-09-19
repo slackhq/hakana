@@ -290,7 +290,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     None
                 },
-                is_this: true,
+                is_this: !classlike_storage.is_final,
                 extra_types: None,
                 remapped_params: false,
             });

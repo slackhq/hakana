@@ -1,4 +1,5 @@
 use crate::{
+    classlike_info::Variance,
     code_location::HPos,
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
@@ -20,7 +21,6 @@ use crate::{
 use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::de;
 use std::sync::Arc;
 
 use super::{inferred_type_replacer, TemplateBound, TemplateResult};
@@ -29,8 +29,9 @@ use super::{inferred_type_replacer, TemplateBound, TemplateResult};
 pub struct StandinOpts<'a> {
     pub calling_class: Option<&'a StrId>,
     pub calling_function: Option<&'a FunctionLikeIdentifier>,
-    pub add_lower_bound: bool, // false
-    pub depth: usize,          // 1
+    pub add_lower_bound: bool,  // false
+    pub iteration_depth: usize, // 1
+    pub appearance_depth: usize,
 }
 
 impl<'a> Default for StandinOpts<'a> {
@@ -38,8 +39,9 @@ impl<'a> Default for StandinOpts<'a> {
         Self {
             calling_class: None,
             calling_function: None,
-            add_lower_bound: false,
-            depth: 1,
+            add_lower_bound: true,
+            iteration_depth: 1,
+            appearance_depth: 1,
         }
     }
 }
@@ -235,7 +237,7 @@ fn handle_atomic_standin<'a>(
 
     let mut matching_input_types = Vec::new();
 
-    let mut new_depth = opts.depth;
+    let mut new_depth = opts.appearance_depth;
 
     if let Some(input_type) = input_type {
         if !input_type.is_mixed() {
@@ -261,7 +263,7 @@ fn handle_atomic_standin<'a>(
             input_arg_offset,
             input_arg_pos,
             StandinOpts {
-                depth: opts.depth + 1,
+                iteration_depth: opts.iteration_depth + 1,
                 ..opts
             },
         );
@@ -281,7 +283,7 @@ fn handle_atomic_standin<'a>(
             input_arg_offset,
             input_arg_pos,
             StandinOpts {
-                depth: new_depth,
+                appearance_depth: new_depth,
                 ..opts
             },
         ))
@@ -332,7 +334,10 @@ fn replace_atomic<'a>(
                         &input_type_param.as_ref(),
                         input_arg_offset,
                         input_arg_pos,
-                        opts,
+                        StandinOpts {
+                            iteration_depth: opts.iteration_depth + 1,
+                            ..opts
+                        },
                     ));
                 }
             } else if let Some(params) = params {
@@ -358,7 +363,10 @@ fn replace_atomic<'a>(
                     },
                     input_arg_offset,
                     input_arg_pos,
-                    opts,
+                    StandinOpts {
+                        iteration_depth: opts.iteration_depth + 1,
+                        ..opts
+                    },
                 ));
 
                 params.1 = Box::new(self::replace(
@@ -373,7 +381,10 @@ fn replace_atomic<'a>(
                     },
                     input_arg_offset,
                     input_arg_pos,
-                    opts,
+                    StandinOpts {
+                        iteration_depth: opts.iteration_depth + 1,
+                        ..opts
+                    },
                 ));
             }
 
@@ -408,7 +419,10 @@ fn replace_atomic<'a>(
                         &input_type_param,
                         input_arg_offset,
                         input_arg_pos,
-                        opts,
+                        StandinOpts {
+                            iteration_depth: opts.iteration_depth + 1,
+                            ..opts
+                        },
                     );
                 }
             } else {
@@ -430,7 +444,10 @@ fn replace_atomic<'a>(
                     },
                     input_arg_offset,
                     input_arg_pos,
-                    opts,
+                    StandinOpts {
+                        iteration_depth: opts.iteration_depth + 1,
+                        ..opts
+                    },
                 ));
             }
 
@@ -454,7 +471,10 @@ fn replace_atomic<'a>(
                 },
                 input_arg_offset,
                 input_arg_pos,
-                opts,
+                StandinOpts {
+                    iteration_depth: opts.iteration_depth + 1,
+                    ..opts
+                },
             ));
 
             return atomic_type;
@@ -475,7 +495,10 @@ fn replace_atomic<'a>(
                 },
                 input_arg_offset,
                 input_arg_pos,
-                opts,
+                StandinOpts {
+                    iteration_depth: opts.iteration_depth + 1,
+                    ..opts
+                },
             ));
 
             return atomic_type;
@@ -502,6 +525,8 @@ fn replace_atomic<'a>(
                 } else {
                     None
                 };
+
+                let classlike_info = codebase.classlike_infos.get(name).unwrap();
 
                 for (offset, type_param) in type_params.iter_mut().enumerate() {
                     let input_type_param = match &input_type {
@@ -537,6 +562,11 @@ fn replace_atomic<'a>(
                         _ => None,
                     };
 
+                    let is_covariant = matches!(
+                        classlike_info.generic_variance.get(&offset),
+                        Some(Variance::Covariant)
+                    );
+
                     *type_param = self::replace(
                         type_param,
                         template_result,
@@ -553,7 +583,12 @@ fn replace_atomic<'a>(
                         },
                         input_arg_offset,
                         input_arg_pos,
-                        opts,
+                        StandinOpts {
+                            appearance_depth: opts.appearance_depth
+                                + if is_covariant { 0 } else { 1 },
+                            iteration_depth: opts.iteration_depth + 1,
+                            ..opts
+                        },
                     );
                 }
             }
@@ -594,7 +629,10 @@ fn replace_atomic<'a>(
                         },
                         input_arg_offset,
                         input_arg_pos,
-                        opts,
+                        StandinOpts {
+                            iteration_depth: opts.iteration_depth + 1,
+                            ..opts
+                        },
                     );
                 }
             }
@@ -647,7 +685,10 @@ fn replace_atomic<'a>(
                     },
                     input_arg_offset,
                     input_arg_pos,
-                    opts,
+                    StandinOpts {
+                        iteration_depth: opts.iteration_depth + 1,
+                        ..opts
+                    },
                 );
             }
 
@@ -753,7 +794,10 @@ fn handle_template_param_standin<'a>(
                 input_type,
                 input_arg_offset,
                 input_arg_pos,
-                opts,
+                StandinOpts {
+                    iteration_depth: opts.iteration_depth + 1,
+                    ..opts
+                },
             );
 
             if extra_type_union.is_single() {
@@ -796,7 +840,7 @@ fn handle_template_param_standin<'a>(
             &mut DataFlowGraph::new(GraphKind::FunctionBody),
         );
 
-        if opts.depth < 10 && replacement_type.has_template_types() {
+        if opts.iteration_depth < 15 && replacement_type.has_template_types() {
             replacement_type = self::replace(
                 &replacement_type,
                 template_result,
@@ -806,7 +850,7 @@ fn handle_template_param_standin<'a>(
                 input_arg_offset,
                 input_arg_pos,
                 StandinOpts {
-                    depth: opts.depth + 1,
+                    iteration_depth: opts.iteration_depth + 1,
                     ..opts
                 },
             );
@@ -882,7 +926,10 @@ fn handle_template_param_standin<'a>(
         input_type,
         input_arg_offset,
         input_arg_pos,
-        opts,
+        StandinOpts {
+            iteration_depth: opts.iteration_depth + 1,
+            ..opts
+        },
     );
 
     if let Some(input_type) = input_type {
@@ -907,7 +954,7 @@ fn handle_template_param_standin<'a>(
                 }
             }
 
-            if opts.add_lower_bound {
+            if !opts.add_lower_bound {
                 return input_type.types.clone();
             }
 
@@ -928,7 +975,7 @@ fn handle_template_param_standin<'a>(
                         &existing_lower_bound.arg_offset
                     };
 
-                    if existing_depth == &opts.depth
+                    if existing_depth == &opts.appearance_depth
                         && &input_arg_offset == existing_arg_offset
                         && existing_lower_bound.bound_type == input_type
                         && existing_lower_bound.equality_bound_classlike.is_none()
@@ -1010,7 +1057,7 @@ fn insert_bound_type(
         .or_insert_with(Vec::new)
         .push(TemplateBound {
             bound_type: input_type.generalize_literals(),
-            appearance_depth: opts.depth,
+            appearance_depth: opts.appearance_depth,
             arg_offset: input_arg_offset,
             equality_bound_classlike: None,
             pos,
@@ -1104,7 +1151,10 @@ fn handle_template_param_class_standin<'a>(
                 &generic_param.as_ref(),
                 input_arg_offset,
                 input_arg_pos,
-                opts,
+                StandinOpts {
+                    iteration_depth: opts.iteration_depth + 1,
+                    ..opts
+                },
             );
 
             atomic_type_as = if as_type_union.is_single() {
@@ -1127,7 +1177,7 @@ fn handle_template_param_class_standin<'a>(
                             codebase,
                             false,
                         ),
-                        appearance_depth: opts.depth,
+                        appearance_depth: opts.appearance_depth,
                         arg_offset: input_arg_offset,
                         pos: input_arg_pos,
                         equality_bound_classlike: None,
@@ -1141,7 +1191,7 @@ fn handle_template_param_class_standin<'a>(
                             *defining_entity,
                             vec![TemplateBound {
                                 bound_type: generic_param,
-                                appearance_depth: opts.depth,
+                                appearance_depth: opts.appearance_depth,
                                 arg_offset: input_arg_offset,
                                 pos: input_arg_pos,
                                 equality_bound_classlike: None,
@@ -1272,7 +1322,10 @@ fn handle_template_param_type_standin<'a>(
                 &generic_param.as_ref(),
                 input_arg_offset,
                 input_arg_pos,
-                opts,
+                StandinOpts {
+                    iteration_depth: opts.iteration_depth + 1,
+                    ..opts
+                },
             );
 
             atomic_type_as = if as_type_union.is_single() {
@@ -1295,7 +1348,7 @@ fn handle_template_param_type_standin<'a>(
                             codebase,
                             false,
                         ),
-                        appearance_depth: opts.depth,
+                        appearance_depth: opts.appearance_depth,
                         arg_offset: input_arg_offset,
                         equality_bound_classlike: None,
                         pos: input_arg_pos,
@@ -1309,7 +1362,7 @@ fn handle_template_param_type_standin<'a>(
                             *defining_entity,
                             vec![TemplateBound {
                                 bound_type: generic_param,
-                                appearance_depth: opts.depth,
+                                appearance_depth: opts.appearance_depth,
                                 arg_offset: input_arg_offset,
                                 equality_bound_classlike: None,
                                 pos: input_arg_pos,
@@ -1471,6 +1524,8 @@ fn find_matching_atomic_types_for_template(
                         if let Some(extended_params) =
                             classlike_info.template_extended_params.get(base_as_value)
                         {
+                            *depth += 1;
+
                             matching_atomic_types.push(TAtomic::TClassname {
                                 as_type: Box::new(TAtomic::TNamedObject {
                                     name: *base_as_value,
@@ -1502,8 +1557,8 @@ fn find_matching_atomic_types_for_template(
                 },
             ) => {
                 if input_name == base_name {
-                    *depth += 1;
                     matching_atomic_types.push(atomic_input_type.clone());
+                    continue;
                 }
 
                 let classlike_info = if let Some(c) = codebase.classlike_infos.get(input_name) {
@@ -1540,6 +1595,32 @@ fn find_matching_atomic_types_for_template(
                     });
                     continue;
                 }
+            }
+            (
+                TAtomic::TGenericParam {
+                    param_name: input_name,
+                    defining_entity: input_defining_entity,
+                    as_type: input_as_type,
+                    ..
+                },
+                TAtomic::TGenericParam {
+                    param_name: base_name,
+                    defining_entity: base_defining_entity,
+                    ..
+                },
+            ) => {
+                if input_name == base_name && input_defining_entity == base_defining_entity {
+                    matching_atomic_types.push(atomic_input_type.clone());
+                    continue;
+                }
+
+                matching_atomic_types.extend(find_matching_atomic_types_for_template(
+                    base_type,
+                    normalized_key,
+                    codebase,
+                    input_as_type,
+                    depth,
+                ));
             }
             (TAtomic::TGenericParam { as_type, .. }, _) => {
                 matching_atomic_types.extend(find_matching_atomic_types_for_template(

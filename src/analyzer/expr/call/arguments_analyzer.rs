@@ -12,9 +12,7 @@ use hakana_str::{Interner, StrId};
 use rustc_hash::FxHashMap;
 
 use crate::expr::binop::assignment_analyzer;
-use crate::expr::call_analyzer::{
-    get_generic_param_for_offset, reconcile_lower_bounds_with_upper_bounds,
-};
+use crate::expr::call_analyzer::get_generic_param_for_offset;
 use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -54,7 +52,7 @@ pub(crate) fn check_arguments_match(
     unpacked_arg: &Option<aast::Expr<(), ()>>,
     functionlike_id: &FunctionLikeIdentifier,
     functionlike_info: &FunctionLikeInfo,
-    calling_classlike_storage: Option<&ClassLikeInfo>,
+    calling_classlike: Option<(StrId, Option<&TAtomic>)>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     template_result: &mut TemplateResult,
@@ -63,6 +61,15 @@ pub(crate) fn check_arguments_match(
 ) -> Result<(), AnalysisError> {
     let functionlike_params = &functionlike_info.params;
     // todo handle map and filter
+
+    let calling_classlike_storage = calling_classlike
+        .map(|calling_classlike| {
+            statements_analyzer
+                .get_codebase()
+                .classlike_infos
+                .get(&calling_classlike.0)
+        })
+        .flatten();
 
     if !type_args.is_empty() {
         for (i, type_arg) in type_args.iter().enumerate() {
@@ -96,10 +103,10 @@ pub(crate) fn check_arguments_match(
                 &mut param_type,
                 &TypeExpansionOptions {
                     parent_class: None,
-                    function_is_final: if let Some(calling_class_storage) =
+                    function_is_final: if let Some(calling_classlike_storage) =
                         calling_classlike_storage
                     {
-                        calling_class_storage.is_final
+                        calling_classlike_storage.is_final
                     } else {
                         false
                     },
@@ -126,6 +133,36 @@ pub(crate) fn check_arguments_match(
                         })
                         .collect::<FxHashMap<_, _>>(),
                 );
+
+                if let Some(method_id) = functionlike_id.as_method_identifier() {
+                    let declaring_method_id = statements_analyzer
+                        .get_codebase()
+                        .get_declaring_method_id(&method_id);
+
+                    if method_id != declaring_method_id {
+                        let classlike_storage = statements_analyzer
+                            .get_codebase()
+                            .classlike_infos
+                            .get(&method_id.0)
+                            .unwrap();
+
+                        if let Some(extended_params) = classlike_storage
+                            .template_extended_params
+                            .get(&declaring_method_id.0)
+                        {
+                            for (foreign_template_id, type_) in extended_params {
+                                template_result
+                                    .lower_bounds
+                                    .entry(*foreign_template_id)
+                                    .or_insert_with(FxHashMap::default)
+                                    .insert(
+                                        GenericParent::ClassLike(declaring_method_id.0),
+                                        vec![TemplateBound::new((**type_).clone(), 0, None, None)],
+                                    );
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -250,6 +287,11 @@ pub(crate) fn check_arguments_match(
             codebase,
             class_storage,
             calling_classlike_storage,
+            if let Some(calling_classlike) = calling_classlike {
+                calling_classlike.1
+            } else {
+                None
+            },
             statements_analyzer,
             analysis_data,
         );
@@ -313,6 +355,11 @@ pub(crate) fn check_arguments_match(
             codebase,
             class_storage,
             calling_classlike_storage,
+            if let Some(calling_classlike) = calling_classlike {
+                calling_classlike.1
+            } else {
+                None
+            },
             statements_analyzer,
             analysis_data,
         );
@@ -539,7 +586,9 @@ pub(crate) fn check_arguments_match(
 
     // for (_, map) in &template_result.lower_bounds {
     //     for (_, bounds) in map {
-    //         println!("{:#?}", bounds);
+    //         if bounds.len() > 1 {
+    //             //println!("{:#?}", bounds);
+    //         }
     //     }
     // }
 
@@ -661,6 +710,7 @@ fn get_param_type(
     codebase: &CodebaseInfo,
     class_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
+    calling_static_type: Option<&TAtomic>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
@@ -681,7 +731,11 @@ fn get_param_type(
                     static_class_type: if let Some(calling_class_storage) =
                         calling_classlike_storage
                     {
-                        StaticClassType::Name(&calling_class_storage.name)
+                        if let Some(calling_static_type) = calling_static_type {
+                            StaticClassType::Object(calling_static_type)
+                        } else {
+                            StaticClassType::Name(&calling_class_storage.name)
+                        }
                     } else {
                         StaticClassType::None
                     },

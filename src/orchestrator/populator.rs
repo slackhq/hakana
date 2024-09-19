@@ -549,43 +549,6 @@ fn populate_interface_data_from_parent_interface(
         .extend(parent_interface_storage.all_parent_interfaces.clone());
 }
 
-fn populate_data_from_implemented_interface(
-    storage: &mut ClassLikeInfo,
-    codebase: &mut CodebaseInfo,
-    parent_storage_interface: &StrId,
-    symbol_references: &mut SymbolReferences,
-    safe_symbols: &FxHashSet<StrId>,
-) {
-    populate_classlike_storage(
-        parent_storage_interface,
-        codebase,
-        symbol_references,
-        safe_symbols,
-    );
-
-    symbol_references.add_symbol_reference_to_symbol(storage.name, *parent_storage_interface, true);
-
-    let implemented_interface_storage = if let Some(implemented_interface_storage) =
-        codebase.classlike_infos.get(parent_storage_interface)
-    {
-        implemented_interface_storage
-    } else {
-        storage.invalid_dependencies.push(*parent_storage_interface);
-        return;
-    };
-
-    populate_interface_data_from_parent_or_implemented_interface(
-        storage,
-        implemented_interface_storage,
-    );
-
-    inherit_methods_from_parent(storage, implemented_interface_storage, codebase);
-
-    storage
-        .all_parent_interfaces
-        .extend(implemented_interface_storage.all_parent_interfaces.clone());
-}
-
 fn populate_data_from_parent_classlike(
     storage: &mut ClassLikeInfo,
     codebase: &mut CodebaseInfo,

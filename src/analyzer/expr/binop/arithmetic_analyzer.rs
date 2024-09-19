@@ -10,13 +10,13 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, expression_analyzer};
+use hakana_code_info::ttype::{get_mixed_any, get_num, type_combiner};
 use hakana_code_info::{
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     t_union::TUnion,
     taint::SinkType,
 };
-use hakana_code_info::ttype::{get_mixed_any, get_num, type_combiner};
 use oxidized::{aast, ast, ast_defs::Pos};
 
 pub(crate) fn analyze<'expr: 'tast, 'tast>(
@@ -108,6 +108,14 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             e1_type_atomic = (**constraint).clone();
         }
 
+        if let TAtomic::TEnum {
+            base_type: Some(base_type),
+            ..
+        } = &e1_type_atomic
+        {
+            e1_type_atomic = (**base_type).clone();
+        }
+
         if let TAtomic::TFalse = e1_type_atomic {
             if e1_type.ignore_falsable_issues {
                 continue;
@@ -146,6 +154,14 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             } = &e2_type_atomic
             {
                 e2_type_atomic = (**constraint).clone();
+            }
+
+            if let TAtomic::TEnum {
+                base_type: Some(base_type),
+                ..
+            } = &e2_type_atomic
+            {
+                e2_type_atomic = (**base_type).clone();
             }
 
             if let TAtomic::TFalse = e2_type_atomic {

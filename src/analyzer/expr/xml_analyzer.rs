@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::codebase_info::CodebaseInfo;
@@ -16,10 +16,10 @@ use hakana_code_info::property_info::PropertyKind;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::SinkType;
+use hakana_code_info::ttype::get_named_object;
 use hakana_code_info::EFFECT_IMPURE;
 use hakana_code_info::EFFECT_PURE;
 use hakana_str::StrId;
-use hakana_code_info::ttype::get_named_object;
 use itertools::Itertools;
 use oxidized::aast;
 use oxidized::ast_defs;
@@ -166,12 +166,7 @@ pub(crate) fn analyze(
     );
 
     for inner_expr in &boxed.2 {
-        expression_analyzer::analyze(
-            statements_analyzer,
-            inner_expr,
-            analysis_data,
-            context,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, inner_expr, analysis_data, context)?;
 
         analysis_data.combine_effects(inner_expr.pos(), pos, pos);
 
@@ -249,12 +244,7 @@ fn handle_attribute_spread(
     context: &mut BlockContext,
     codebase: &CodebaseInfo,
 ) -> Result<FxHashSet<StrId>, AnalysisError> {
-    expression_analyzer::analyze(
-        statements_analyzer,
-        xhp_expr,
-        analysis_data,
-        context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, xhp_expr, analysis_data, context)?;
 
     let mut used_attributes = FxHashSet::default();
 
@@ -269,7 +259,6 @@ fn handle_attribute_spread(
         for expr_type_atomic in &expr_type.types {
             if let TAtomic::TNamedObject {
                 name: spread_xhp_class,
-                is_this: true,
                 ..
             } = expr_type_atomic
             {

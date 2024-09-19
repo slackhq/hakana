@@ -370,14 +370,13 @@ pub(crate) fn check_method_args(
         &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
         &Option<aast::Expr<(), ()>>,
     ),
+    lhs_type_part: Option<&TAtomic>,
     template_result: &mut TemplateResult,
     context: &mut BlockContext,
     pos: &Pos,
     method_name_pos: Option<&Pos>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
-
-    let calling_class_storage = codebase.classlike_infos.get(&method_id.0).unwrap();
 
     let functionlike_id = FunctionLikeIdentifier::Method(method_id.0, method_id.1);
 
@@ -388,7 +387,7 @@ pub(crate) fn check_method_args(
         call_expr.2,
         &functionlike_id,
         functionlike_storage,
-        Some(calling_class_storage),
+        Some((method_id.0, lhs_type_part)),
         analysis_data,
         context,
         template_result,
