@@ -6,6 +6,6 @@ final class Utils {
 
 final class A {
     public function foo() : void {
-        echo(Utils::shorten((string) $_GET["user_id"]));
+        echo(Utils::shorten((string) HH\global_get('_GET')["user_id"]));
     }
 }

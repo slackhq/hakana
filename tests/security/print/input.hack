@@ -1,1 +1,1 @@
-print($_GET["name"]);
+print(HH\global_get('_GET')["name"]);

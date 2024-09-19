@@ -4,4 +4,4 @@ function foo(string $data) {
     return <script>{$data}</script>;
 }
 
-foo($_GET['url']);
+foo(HH\global_get('_GET')['url']);

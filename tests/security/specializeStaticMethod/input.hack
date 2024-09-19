@@ -1,4 +1,4 @@
-StringUtility::foo($_GET["c"]);
+StringUtility::foo(HH\global_get('_GET')["c"]);
 
 final class StringUtility {
     <<\Hakana\SecurityAnalysis\SpecializeCall()>>

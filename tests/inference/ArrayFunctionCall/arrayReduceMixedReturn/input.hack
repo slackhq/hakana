@@ -4,7 +4,7 @@ $direct_closure_result = array_reduce(
     $arr,
     (int $carry, int $item) ==> {
         /* HAKANA_FIXME[PossiblyUndefinedStringArrayOffset] */
-        return $_GET["boo"];
+        return (HH\global_get('_GET') as dict<_, _>)["boo"];
     },
     1
 );

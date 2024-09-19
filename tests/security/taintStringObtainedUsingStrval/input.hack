@@ -1,2 +1,2 @@
-$unsafe = strval($_GET['unsafe']);
+$unsafe = strval(HH\global_get('_GET')['unsafe']);
 echo $unsafe;

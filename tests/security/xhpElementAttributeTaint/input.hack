@@ -9,4 +9,4 @@ function do_trim(string $str): string {
 	return Str\trim($str);
 }
 
-foo($_GET['background']);
+foo(HH\global_get('_GET')['background']);

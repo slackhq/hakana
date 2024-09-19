@@ -1,5 +1,5 @@
 function foo(): void {
-    $text = $_GET['bad'];
+    $text = HH\global_get('_GET')['bad'];
     $matches = dict[];
     if (
         \preg_match_all_with_matches(

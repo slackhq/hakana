@@ -36,7 +36,7 @@ function bar(): void {
 function get_a_result(): Result<string, string> {
     if (rand(0, 1)) {
         /* HAKANA_IGNORE[PossiblyUndefinedStringArrayOffset] */
-        return new ResultError((string)$_GET['bad']);
+        return new ResultError((string)(HH\global_get('_GET') as dict<_, _>)['bad']);
     }
     return new ResultSuccess("good");
 }

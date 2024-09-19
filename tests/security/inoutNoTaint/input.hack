@@ -3,7 +3,7 @@ function foo(inout string $s) {
 }
 
 function bar(): void {
-    $a = $_GET["a"];
+    $a = HH\global_get('_GET')["a"];
     foo(inout $a);
 
     $b = "hello";

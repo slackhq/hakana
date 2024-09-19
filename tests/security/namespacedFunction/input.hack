@@ -4,4 +4,4 @@ function identity(string $s) : string {
     return $s;
 }
 
-echo identity($_GET['userinput']);
+echo identity(\HH\global_get('_GET')['userinput']);

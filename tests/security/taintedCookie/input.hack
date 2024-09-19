@@ -1,1 +1,1 @@
-                setcookie($_GET['taint'], 'value');
+                setcookie(HH\global_get('_GET')['taint'], 'value');

@@ -35,7 +35,7 @@ function bar(): void {
 
 function get_a_result(): Result<string, string> {
     if (rand(0, 1)) {
-        return new ResultError($_GET['bad']);
+        return new ResultError(HH\global_get('_GET')['bad']);
     }
     return new ResultSuccess("good");
 }

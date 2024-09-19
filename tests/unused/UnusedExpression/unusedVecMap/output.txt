@@ -1,2 +1,2 @@
 ERROR: UnusedStatement - input.hack:2:5 - This statement has no effect and can be removed
-ERROR: UnusedBuiltinReturnValue - input.hack:6:5 - The value vec<int(1)|int(2)|int(3)> returned from HH\Lib\Vec\map should be consumed
+ERROR: UnusedBuiltinReturnValue - input.hack:6:5 - The value vec<int> returned from HH\Lib\Vec\map should be consumed

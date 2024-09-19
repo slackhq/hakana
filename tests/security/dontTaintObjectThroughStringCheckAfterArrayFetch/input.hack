@@ -11,7 +11,7 @@ function pass_if_string(mixed $m): ?string {
 }
 
 function pass_once(): void {
-    $a = new A($_GET["bad"]);
+    $a = new A(HH\global_get('_GET')["bad"]);
     pass_twice(dict["foo" => $a]);
 }
 

@@ -8,6 +8,6 @@ function foo(): void {
         return;
     }
 
-    $a = $_GET['a'];
+    $a = HH\global_get('_GET')['a'];
     echo $a;
 }

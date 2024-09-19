@@ -1,1 +1,1 @@
-$ch = curl_init($_GET['url']);
+$ch = curl_init(HH\global_get('_GET')['url']);

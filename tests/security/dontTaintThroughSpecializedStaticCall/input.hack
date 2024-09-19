@@ -1,4 +1,4 @@
-$a = $_GET["bad"];
+$a = HH\global_get('_GET')["bad"];
 
 $b = A::reflect($a);
 

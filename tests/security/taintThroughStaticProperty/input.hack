@@ -11,4 +11,4 @@ final class A {
 }
 
 echo A::getFoo();
-A::setFoo($_GET["a"]);
+A::setFoo(HH\global_get('_GET')["a"]);

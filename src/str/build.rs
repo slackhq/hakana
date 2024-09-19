@@ -11,6 +11,10 @@ fn main() -> Result<()> {
     let strings = vec![
         "",
         "$$",
+        "$_GET",
+        "$_REQUEST",
+        "$_POST",
+        "$_COOKIE",
         "<anonymous function>",
         "<aria attribute>",
         "<data attribute>",
@@ -563,6 +567,10 @@ fn format_identifier(input: &str) -> String {
 
     if input == "HH\\idx" {
         return "IDX_FN".to_string();
+    }
+
+    if input.starts_with("$_") {
+        return "MAGIC_".to_string() + &input[2..input.len()];
     }
 
     if input.starts_with("__") && input.ends_with("__") {

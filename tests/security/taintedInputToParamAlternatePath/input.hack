@@ -3,7 +3,7 @@ final class A {
         $this->deleteUser(
             $conn,
             self::doFoo(),
-            $this->getAppendedUserId((string) $_GET["user_id"])
+            $this->getAppendedUserId((string) HH\global_get('_GET')["user_id"])
         );
     }
 

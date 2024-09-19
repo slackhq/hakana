@@ -18,6 +18,6 @@ function foo(B $b) {
     echo $b->getTaint();
 }
 
-$c = new C($_GET["bar"]);
+$c = new C(HH\global_get('_GET')["bar"]);
 
 foo($c);

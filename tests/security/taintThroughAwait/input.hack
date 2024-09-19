@@ -1,5 +1,5 @@
 async function foo(): Awaitable<string> {
-    return $_GET["evil"];
+    return HH\global_get('_GET')["evil"];
 }
 
 function bar(): void {

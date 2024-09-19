@@ -10,6 +10,6 @@ final class A {
 
 function foo(): void {
     $a = new A();
-    $a->getPrevious($_GET["a"]);
+    $a->getPrevious(HH\global_get('_GET')["a"]);
     echo $a->getPrevious("foo");
 }

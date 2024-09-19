@@ -8,4 +8,4 @@ final class B extends A {
     }
 }
 
-new A($_GET["foo"]);
+new A(HH\global_get('_GET')["foo"]);

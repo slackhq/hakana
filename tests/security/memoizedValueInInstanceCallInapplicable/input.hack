@@ -10,7 +10,7 @@ final class A {
 
 function foo(): void {
     $a1 = new A();
-    $a1->getPrevious($_GET["a"]);
+    $a1->getPrevious(HH\global_get('_GET')["a"]);
     $a1 = new A();
     echo $a1->getPrevious("foo");
 }

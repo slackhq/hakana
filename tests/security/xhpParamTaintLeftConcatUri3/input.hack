@@ -4,4 +4,4 @@ function foo(string $url) {
     return <a href={\HH\Lib\Str\format('%s/foo/', $url)}>I'm a normal link</a>;
 }
 
-foo($_GET['url']);
+foo(HH\global_get('_GET')['url']);

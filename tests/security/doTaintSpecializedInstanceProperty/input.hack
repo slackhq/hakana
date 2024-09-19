@@ -6,6 +6,6 @@ final class StringHolder {
     }
 }
 
-$b = new StringHolder($_GET["x"]);
+$b = new StringHolder(HH\global_get('_GET')["x"]);
 
 echo $b->x;

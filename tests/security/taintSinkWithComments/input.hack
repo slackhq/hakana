@@ -4,4 +4,4 @@
  */
 function sinkNotWorking(<<\Hakana\SecurityAnalysis\Sink('HtmlTag')>> $sink) : string {}
 
-echo sinkNotWorking($_GET["taint"]);
+echo sinkNotWorking(HH\global_get('_GET')["taint"]);

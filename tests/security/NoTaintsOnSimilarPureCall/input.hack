@@ -20,13 +20,13 @@ final class O2 {
     public string $t;
 
     public function __construct() {
-        $this->t = (string) $_GET["FOO"];
+        $this->t = (string) HH\global_get('_GET')["FOO"];
     }
 }
 
 final class V1 {
     public function foo() : void {
-        $o = new O1((string) $_GET["FOO"]);
+        $o = new O1((string) HH\global_get('_GET')["FOO"]);
         echo U::escape(U::shorten($o->s));
     }
 }

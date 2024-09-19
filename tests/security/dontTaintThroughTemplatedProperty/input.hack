@@ -18,7 +18,7 @@ final class ResultSuccess<+T> extends Result<T> {
 }
 
 function handleUnsafe(): void {
-    $res = new ResultSuccess($_GET['a']);
+    $res = new ResultSuccess(HH\global_get('_GET')['a']);
     $res->getOrNull();
 }
 

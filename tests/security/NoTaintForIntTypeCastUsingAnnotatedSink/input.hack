@@ -7,5 +7,5 @@ function query(
     <<\Hakana\SecurityAnalysis\Sink('Sql')>> string $sql
 ): string {}
 
-$value = $_GET["value"];
+$value = HH\global_get('_GET')["value"];
 $result = fetch($value);

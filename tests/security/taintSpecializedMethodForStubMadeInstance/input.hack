@@ -1,7 +1,7 @@
 <<\Hakana\SecurityAnalysis\Specialize()>>
 final class Unsafe {
     public function isUnsafe() {
-        return $_GET["unsafe"];
+        return HH\global_get('_GET')["unsafe"];
     }
 }
 

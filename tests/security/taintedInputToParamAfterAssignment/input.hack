@@ -2,7 +2,7 @@ final class A {
     public function getUserId(AsyncMysqlConnection $conn) : void {
         $this->deleteUser(
             $conn,
-            $this->getAppendedUserId((string) $_GET["user_id"])
+            $this->getAppendedUserId((string) HH\global_get('_GET')["user_id"])
         );
     }
 

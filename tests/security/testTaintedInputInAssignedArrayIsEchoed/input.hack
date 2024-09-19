@@ -1,5 +1,5 @@
 function get_data(): dict<string, string> {
-    $name = $_GET["name"] ?? "unknown";
+    $name = HH\global_get('_GET')["name"] ?? "unknown";
 
     $data = dict[];
     $data["name"] = $name;

@@ -9,5 +9,5 @@ function two((string, string) $a): void {
 }
 
 function foo(): void {
-    one($_GET["b"]);
+    one(HH\global_get('_GET')["b"]);
 }

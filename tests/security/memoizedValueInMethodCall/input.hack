@@ -8,5 +8,5 @@ final class A {
     }
 }
 
-A::getPrevious($_GET["a"]);
+A::getPrevious(HH\global_get('_GET')["a"]);
 echo A::getPrevious("foo");

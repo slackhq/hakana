@@ -1,1 +1,1 @@
-ERROR: TaintedData - input.hack:1:10 - Data from a URL query string found its way to an HTML tag using path $_GET --array-fetch--> $_GET['name'] (input.hack:1:10) ----> var_dump#1 (input.hack:1:10)
+ERROR: TaintedData - input.hack:1:10 - Data from a URL query string found its way to an HTML tag using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:1:10) ----> var_dump#1 (input.hack:1:10)

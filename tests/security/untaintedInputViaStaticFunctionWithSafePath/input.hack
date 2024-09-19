@@ -6,7 +6,7 @@ final class Utils {
 
 final class A {
     public function foo() : void {
-        echo(htmlentities(Utils::shorten((string) $_GET["user_id"]), \ENT_QUOTES));
+        echo(htmlentities(Utils::shorten((string) HH\global_get('_GET')["user_id"]), \ENT_QUOTES));
     }
 
     public function bar() : void {

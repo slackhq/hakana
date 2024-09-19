@@ -5,7 +5,7 @@ function foo() {
     );
 
     $foo['b'][] = shape(
-        'c' => $_GET['bad'],
+        'c' => HH\global_get('_GET')['bad'],
     );
 
     bar($foo['a']);

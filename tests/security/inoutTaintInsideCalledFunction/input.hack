@@ -1,5 +1,5 @@
 function foo(inout string $s) {
-    $s = $_GET["a"];
+    $s = HH\global_get('_GET')["a"];
 }
 
 function bar(): void {

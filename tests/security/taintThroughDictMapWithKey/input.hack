@@ -8,7 +8,7 @@ function foo(dict<string, string> $dict): dict<string, string> {
 }
 
 function bar(): void {
-    $bad = dict['a' => $_GET['bad']];
+    $bad = dict['a' => HH\global_get('_GET')['bad']];
 
     $bad = foo($bad);
 

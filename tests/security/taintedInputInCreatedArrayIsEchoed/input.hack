@@ -1,5 +1,5 @@
 function get_name(): string {
-    return $_GET["name"] ?? "unknown";
+    return HH\global_get('_GET')["name"] ?? "unknown";
 }
 
 function get_dict(): dict<string, string> {

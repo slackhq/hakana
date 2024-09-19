@@ -1,5 +1,5 @@
-$name = $_GET["name"] ?? "unknown";
-$id = (int) $_GET["id"];
+$name = HH\global_get('_GET')["name"] ?? "unknown";
+$id = (int) HH\global_get('_GET')["id"];
 
 $data = dict["name" => $name, "id" => $id];
 

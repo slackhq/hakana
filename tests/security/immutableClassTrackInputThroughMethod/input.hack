@@ -10,5 +10,5 @@ final class A {
     }
 }
 
-$a = new A($_GET["bar"]);
+$a = new A(HH\global_get('_GET')["bar"]);
 echo $a->getTaint();

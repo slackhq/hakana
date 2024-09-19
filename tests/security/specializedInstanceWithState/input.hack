@@ -16,5 +16,5 @@ final class A {
 }
 
 $a = new A("a");
-A::setStub($_GET["foo"]);
+A::setStub(HH\global_get('_GET')["foo"]);
 echo $a->getTaint();

@@ -11,7 +11,7 @@ final class O1 {
     public string $s;
 
     public function __construct() {
-        $this->s = (string) $_GET["FOO"];
+        $this->s = (string) HH\global_get('_GET')["FOO"];
     }
 }
 

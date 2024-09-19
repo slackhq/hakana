@@ -6,7 +6,7 @@ function is_cool(
 }
 
 function foo(): void {
-    $a = $_GET['a'];
+    $a = HH\global_get('_GET')['a'];
 
     if (is_cool($a)) {
         echo $a;

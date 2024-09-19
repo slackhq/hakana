@@ -1,4 +1,4 @@
 function foo() : void {
-    $a = strtoupper(strtolower((string) $_GET["bad"]));
+    $a = strtoupper(strtolower((string) HH\global_get('_GET')["bad"]));
     echo $a;
 }

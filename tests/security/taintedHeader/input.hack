@@ -5,4 +5,4 @@ function redirect(
     exit();
 }
 
-redirect($_GET['taint']);
+redirect(HH\global_get('_GET')['taint']);

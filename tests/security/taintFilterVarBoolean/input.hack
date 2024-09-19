@@ -1,1 +1,1 @@
-echo filter_var($_GET["bad"], FILTER_VALIDATE_BOOLEAN);
+echo filter_var(HH\global_get('_GET')["bad"], FILTER_VALIDATE_BOOLEAN);

@@ -1,5 +1,5 @@
 function getName() : string {
-    $a = $_GET["name"] ?? "unknown";
+    $a = HH\global_get('_GET')["name"] ?? "unknown";
     return $a;
 }
 

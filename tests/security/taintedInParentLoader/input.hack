@@ -24,4 +24,4 @@ final class C {
     }
 }
 
-(new C())->foo((string) $_GET["user_id"]);
+(new C())->foo((string) HH\global_get('_GET')["user_id"]);

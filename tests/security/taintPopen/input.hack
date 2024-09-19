@@ -1,1 +1,1 @@
-$cb = popen($_POST['x'], 'r');
+$cb = popen(HH\global_get('_POST')['x'], 'r');

@@ -1,6 +1,6 @@
 final class A {
     public function getUserId() : int {
-        return (int) $_GET["user_id"];
+        return (int) HH\global_get('_GET')["user_id"];
     }
 
     public function getAppendedUserId() : string {

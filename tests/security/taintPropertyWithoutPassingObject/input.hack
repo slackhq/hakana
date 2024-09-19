@@ -16,4 +16,4 @@ function echoId(User $u2) : void {
 
 $u = new User("5");
 echoId($u);
-$u->setId($_GET["user_id"]);
+$u->setId(HH\global_get('_GET')["user_id"]);

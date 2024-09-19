@@ -1,1 +1,1 @@
-ERROR: TaintedData - input.hack:4:12 - Data from a URL query string found its way to an HTML tag using path $_GET --array-fetch--> $_GET['url'] (input.hack:7:5) ----> foo#1 (input.hack:3:21) ----> $data (input.hack:3:21) ----> Facebook\XHP\HTML\script (input.hack:4:12)
+ERROR: TaintedData - input.hack:4:12 - Data from a URL query string found its way to an HTML tag using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:7:5) ----> foo#1 (input.hack:3:21) ----> $data (input.hack:3:21) ----> Facebook\XHP\HTML\script (input.hack:4:12)

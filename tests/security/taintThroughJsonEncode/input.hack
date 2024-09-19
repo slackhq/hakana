@@ -1,4 +1,4 @@
-$a = dict['foo' => $_GET['foo']];
+$a = dict['foo' => HH\global_get('_GET')['foo']];
 $b = dict['a' => $a];
 $c = dict['b' => $b];
 

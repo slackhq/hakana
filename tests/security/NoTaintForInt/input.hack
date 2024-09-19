@@ -3,10 +3,10 @@ function foo(int $value): void {
     echo $value;
 }
 
-foo($_GET["foo"]);
+foo(HH\global_get('_GET')["foo"]);
 
 function bar(): int {
-    return $_GET["foo"];
+    return HH\global_get('_GET')["foo"];
 }
 
 echo bar();

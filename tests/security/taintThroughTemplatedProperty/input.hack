@@ -14,7 +14,7 @@ final class ResultSuccess<+T> extends Result<T, nothing> {
 }
 
 function returnGetResult(): Result<string> {
-    return new ResultSuccess($_GET['a']);
+    return new ResultSuccess(HH\global_get('_GET')['a']);
 }
 
 function doTheDangerousThing(): void {

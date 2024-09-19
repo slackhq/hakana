@@ -1,5 +1,5 @@
 function foo(): void {
-    $a = $_GET["a"];
+    $a = HH\global_get('_GET')["a"];
 
     $b = dict["x" => $a, "y" => "hello"];
 

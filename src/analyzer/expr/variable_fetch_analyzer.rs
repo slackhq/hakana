@@ -15,7 +15,7 @@ use hakana_code_info::{
     taint::SourceType,
     VarId, EFFECT_READ_GLOBALS,
 };
-use hakana_code_info::ttype::{get_int, get_mixed_any, get_mixed_dict};
+use hakana_code_info::ttype::{get_int, get_mixed_any, get_mixed_dict, get_mixed};
 use oxidized::{ast_defs::Pos, tast::Lid};
 use std::rc::Rc;
 
@@ -152,9 +152,9 @@ pub(crate) fn get_type_for_superglobal(
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     match name.as_str() {
-        "_FILES" | "_SERVER" | "_ENV" => get_mixed_dict(),
+        "_FILES" | "_SERVER" | "_ENV" => get_mixed(),
         "_GET" | "_REQUEST" | "_POST" | "_COOKIE" => {
-            let mut var_type = get_mixed_dict();
+            let mut var_type = get_mixed();
 
             let taint_pos = statements_analyzer.get_hpos(pos);
             let taint_source = DataFlowNode {

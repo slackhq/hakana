@@ -1,7 +1,7 @@
 final class C {
     public static function foo() : array {
         $a = vec[];
-        $a[] = (string) $_GET["bad"];
+        $a[] = (string) HH\global_get('_GET')["bad"];
         return $a;
     }
 

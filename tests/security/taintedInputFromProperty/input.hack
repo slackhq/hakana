@@ -2,7 +2,7 @@ final class A {
     public string $userId;
 
     public function __construct(string $key) {
-        $this->userId = (string) $_GET[$key];
+        $this->userId = (string) HH\global_get('_GET')[$key];
     }
 
     public function getAppendedUserId() : string {

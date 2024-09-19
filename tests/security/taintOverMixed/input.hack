@@ -1,4 +1,4 @@
 function foo() : void {
-    $a = $_GET["bad"];
+    $a = HH\global_get('_GET')["bad"];
     echo $a;
 }

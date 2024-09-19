@@ -1,6 +1,6 @@
 function foo(inout dict<string, string> $d): void {
     if (rand(0, 1)) {
-        $d["a"] = $_GET["a"];
+        $d["a"] = HH\global_get('_GET')["a"];
     }
 }
 

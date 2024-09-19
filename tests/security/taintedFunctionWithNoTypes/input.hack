@@ -1,5 +1,5 @@
 function rawinput() {
-    return $_GET['rawinput'];
+    return HH\global_get('_GET')['rawinput'];
 }
 
 echo rawinput();

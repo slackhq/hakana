@@ -6,7 +6,7 @@ function is_dev(): bool {
 function foo(): void {
     if (is_dev()) {
         /* HAKANA_FIXME[PossiblyUndefinedStringArrayOffset] */
-        $a = $_GET['a'] as string;
+        $a = (HH\global_get('_GET') as dict<_, _>)['a'] as string;
         echo $a;
     }
 }

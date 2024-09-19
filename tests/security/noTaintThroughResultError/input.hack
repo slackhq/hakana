@@ -37,5 +37,5 @@ function get_a_result(): Result<string, string> {
     if (rand(0, 1)) {
         return new ResultError("bad");
     }
-    return new ResultSuccess($_GET['arr']);
+    return new ResultSuccess(HH\global_get('_GET')['arr']);
 }

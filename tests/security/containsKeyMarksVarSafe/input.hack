@@ -1,5 +1,5 @@
 function foo(): void {
-    $url = $_GET['url'];
+    $url = HH\global_get('_GET')['url'];
 
     $acceptable_urls = dict["https://google.com" => 1, "https://vimeo.com" => 2];
 

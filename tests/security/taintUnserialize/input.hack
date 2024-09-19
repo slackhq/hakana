@@ -1,1 +1,1 @@
-$cb = unserialize($_POST['x']);
+$cb = unserialize(HH\global_get('_POST')['x']);

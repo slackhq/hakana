@@ -1,1 +1,1 @@
-file_get_contents($_GET['taint']);
+file_get_contents(HH\global_get('_GET')['taint']);

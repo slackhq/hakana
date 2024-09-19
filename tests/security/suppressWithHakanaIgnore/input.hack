@@ -3,7 +3,7 @@ function foo(string $s) {
 }
 
 function bar(): void {
-    $a = $_GET['a'];
+    $a = HH\global_get('_GET')['a'];
 
     foo(
         /* HAKANA_SECURITY_IGNORE[HtmlTag] */
@@ -13,7 +13,7 @@ function bar(): void {
 
 function baz(): void {
     /* HAKANA_SECURITY_IGNORE[HtmlTag] */
-    $a = $_GET['a'];
+    $a = HH\global_get('_GET')['a'];
 
     foo($a);
 }

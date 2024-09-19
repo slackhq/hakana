@@ -11,14 +11,14 @@ final class InputFilter {
 
         switch ($method) {
             case "post":
-                if (isset($_POST[$this->name])) {
-                    $arg = $_POST[$this->name];
+                if (isset(HH\global_get('_POST')[$this->name])) {
+                    $arg = HH\global_get('_POST')[$this->name];
                 }
                 break;
 
             case "get":
-                if (isset($_GET[$this->name])) {
-                    $arg = $_GET[$this->name];
+                if (isset(HH\global_get('_GET')[$this->name])) {
+                    $arg = HH\global_get('_GET')[$this->name];
                 }
                 break;
         }

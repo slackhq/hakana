@@ -6,6 +6,6 @@ function processParams(dict<arraykey, mixed> $params) : dict<arraykey, mixed> {
     return dict[];
 }
 
-$params = processParams($_GET);
+$params = processParams(HH\global_get('_GET'));
 
 echo $params["foo"];

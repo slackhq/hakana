@@ -11,6 +11,6 @@ function pass_if_string(mixed $m): ?string {
 }
 
 function do_echo(): void {
-    $a = new A($_GET["bad"]);
+    $a = new A(HH\global_get('_GET')["bad"]);
     echo pass_if_string($a);
 }

@@ -22,7 +22,7 @@ final class ResultError extends Result<nothing, string> {
 }
 
 function bar(): void {
-    foo($_GET['arr']);
+    foo(HH\global_get('_GET')['arr']);
 }
 
 function foo(shape('a' => string) $args): void {

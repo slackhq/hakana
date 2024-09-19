@@ -18,5 +18,5 @@ final class UserUpdater {
     }
 }
 
-$userObj = new User((string) $_GET["user_id"]);
+$userObj = new User((string) HH\global_get('_GET')["user_id"]);
 UserUpdater::doDelete(new AsyncMysqlConnection(), $userObj);

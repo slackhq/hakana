@@ -3,7 +3,7 @@ final class User {
 }
 
 function bar(): User {
-    return new User($_GET["user_id"]);
+    return new User(HH\global_get('_GET')["user_id"]);
 }
 
 function calls_bar() {

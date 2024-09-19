@@ -1,2 +1,2 @@
 $arr = dict[];
-$cb = proc_open($_POST['x'], dict[], $arr);
+$cb = proc_open(HH\global_get('_POST')['x'], dict[], $arr);

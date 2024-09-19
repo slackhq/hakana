@@ -14,5 +14,5 @@ final class B extends A {
     public function __construct($taint) {}
 }
 
-$b = new B($_GET["bar"]);
+$b = new B(HH\global_get('_GET')["bar"]);
 echo $b->getTaint();

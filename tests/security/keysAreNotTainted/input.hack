@@ -4,4 +4,4 @@ function takesArray(dict<arraykey, mixed> $arr): void {
     }
 }
 
-takesArray(dict["good" => $_GET["bad"]]);
+takesArray(dict["good" => HH\global_get('_GET')["bad"]]);

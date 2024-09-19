@@ -1,1 +1,1 @@
-var_dump($_GET["name"]);
+var_dump(HH\global_get('_GET')["name"]);
