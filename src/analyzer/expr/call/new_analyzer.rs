@@ -356,7 +356,12 @@ fn analyze_named_constructor(
             IndexMap::new(),
         );
 
-        let method_storage = codebase.get_method(&declaring_method_id).unwrap();
+        let Some(method_storage) = codebase.get_method(&declaring_method_id) else {
+            return Err(AnalysisError::InternalError(
+                "Could not load method storage".to_string(),
+                statements_analyzer.get_hpos(pos),
+            ));
+        };
 
         check_method_args(
             statements_analyzer,

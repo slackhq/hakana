@@ -4,18 +4,13 @@ use crate::{
     stmt_analyzer::AnalysisError,
 };
 use hakana_code_info::{
-    code_location::HPos,
-    data_flow::{
+    code_location::HPos, data_flow::{
         graph::{DataFlowGraph, GraphKind},
         node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
         path::PathKind,
-    },
-    issue::{Issue, IssueKind},
-    t_union::TUnion,
-    taint::SourceType,
-    VarId, EFFECT_READ_GLOBALS,
+    }, issue::{Issue, IssueKind}, t_union::TUnion, taint::SourceType, ttype::get_mixed, VarId, EFFECT_READ_GLOBALS
 };
-use hakana_code_info::ttype::{get_int, get_mixed_any, get_mixed_dict, get_mixed};
+use hakana_code_info::ttype::{get_int, get_mixed_any};
 use oxidized::{ast_defs::Pos, tast::Lid};
 use std::rc::Rc;
 

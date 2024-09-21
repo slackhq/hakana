@@ -37,9 +37,9 @@ pub(crate) fn analyze(
     let mut known_items = BTreeMap::new();
     for (name, value_expr) in shape_fields {
         let start_pos = match name {
-            ShapeFieldName::SFlitInt(name) => &name.0,
             ShapeFieldName::SFlitStr(name) => &name.0,
             ShapeFieldName::SFclassConst(lhs, _) => &lhs.0,
+            ShapeFieldName::SFregexGroup(_) => todo!(),
         };
 
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
@@ -54,7 +54,6 @@ pub(crate) fn analyze(
         }
 
         let name = match name {
-            ShapeFieldName::SFlitInt(name) => Some(DictKey::Int(name.1.parse::<u64>().unwrap())),
             ShapeFieldName::SFlitStr(name) => Some(DictKey::String(name.1.to_string())),
             ShapeFieldName::SFclassConst(lhs, name) => {
                 let lhs_name = if let Some(name) = statements_analyzer
@@ -108,6 +107,7 @@ pub(crate) fn analyze(
                     ));
                 }
             }
+            ShapeFieldName::SFregexGroup(_) => todo!(),
         };
 
         // Now check types of the values
