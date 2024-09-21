@@ -17,6 +17,7 @@ use crate::{
     stmt_analyzer::AnalysisError,
 };
 
+use super::atomic_static_call_analyzer::add_missing_method_refs;
 use super::{arguments_analyzer::evaluate_arbitrary_param, existing_atomic_method_call_analyzer};
 
 #[derive(Debug)]
@@ -324,6 +325,34 @@ fn handle_nonexistent_method(
         statements_analyzer.get_config(),
         statements_analyzer.get_file_path_actual(),
     );
+
+    if let Some(method_name) = statements_analyzer.get_interner().get(&id.1) {
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(
+                &context.function_context,
+                (*classlike_name, method_name),
+                false,
+            );
+
+        let Some(classlike_info) = statements_analyzer
+            .get_codebase()
+            .classlike_infos
+            .get(&classlike_name)
+        else {
+            return Err(AnalysisError::InternalError(
+                "Cannot load classlike storage".to_string(),
+                statements_analyzer.get_hpos(pos),
+            ));
+        };
+
+        add_missing_method_refs(
+            classlike_info,
+            analysis_data,
+            &context.function_context,
+            method_name,
+        );
+    }
 
     for (param_kind, arg_expr) in expr_args {
         evaluate_arbitrary_param(

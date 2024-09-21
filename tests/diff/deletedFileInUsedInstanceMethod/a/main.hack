@@ -1,5 +1,5 @@
 <<__EntryPoint>>
 function main(): void {
-    A::foo();
-    A::toBeChanged();
+    $a = new A();
+    $a->toBeChanged();
 }

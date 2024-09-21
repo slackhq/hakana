@@ -1,4 +1,6 @@
 use hakana_code_info::{
+    classlike_info::ClassLikeInfo,
+    function_context::FunctionContext,
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     EFFECT_IMPURE,
@@ -130,6 +132,40 @@ pub(crate) fn analyze(
     let method_name = statements_analyzer.get_interner().get(&expr.1 .1);
 
     if method_name.is_none() || !codebase.method_exists(&classlike_name, &method_name.unwrap()) {
+        let Some(classlike_info) = codebase.classlike_infos.get(&classlike_name) else {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NonExistentClass,
+                    format!(
+                        "Class {} does not exist",
+                        statements_analyzer.get_interner().lookup(&classlike_name),
+                    ),
+                    statements_analyzer.get_hpos(pos),
+                    &context.function_context.calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+
+            if let Some(method_name) = method_name {
+                analysis_data
+                    .symbol_references
+                    .add_reference_to_class_member(
+                        &context.function_context,
+                        (classlike_name, method_name),
+                        false,
+                    );
+            } else {
+                analysis_data.symbol_references.add_reference_to_symbol(
+                    &context.function_context,
+                    classlike_name,
+                    false,
+                );
+            }
+
+            return Ok(());
+        };
+
         analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentMethod,
@@ -158,6 +194,13 @@ pub(crate) fn analyze(
                     (classlike_name, method_name),
                     false,
                 );
+
+            add_missing_method_refs(
+                classlike_info,
+                analysis_data,
+                &context.function_context,
+                method_name,
+            );
         }
 
         return Ok(());
@@ -179,4 +222,35 @@ pub(crate) fn analyze(
     )?);
 
     Ok(())
+}
+
+pub(crate) fn add_missing_method_refs(
+    classlike_info: &ClassLikeInfo,
+    analysis_data: &mut FunctionAnalysisData,
+    function_context: &FunctionContext,
+    method_name: StrId,
+) {
+    for parent_name in &classlike_info.all_parent_classes {
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(function_context, (*parent_name, method_name), false);
+    }
+
+    if classlike_info.is_abstract {
+        for parent_name in &classlike_info.all_parent_interfaces {
+            analysis_data
+                .symbol_references
+                .add_reference_to_class_member(
+                    function_context,
+                    (*parent_name, method_name),
+                    false,
+                );
+        }
+    }
+
+    for trait_name in &classlike_info.used_traits {
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(function_context, (*trait_name, method_name), false);
+    }
 }
