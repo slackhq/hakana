@@ -22,7 +22,15 @@ pub fn get_aast_for_path_and_contents(
     file_path: FilePath,
     file_path_str: &str,
     file_contents: String,
-) -> Result<(aast::Program<(), ()>, ScouredComments, String), ParserError> {
+) -> Result<
+    (
+        aast::Program<(), ()>,
+        ScouredComments,
+        String,
+        Vec<ParserError>,
+    ),
+    ParserError,
+> {
     let relative_path = Arc::new(RelativePath::make(
         Prefix::Root,
         PathBuf::from(&file_path_str),
@@ -54,27 +62,33 @@ pub fn get_aast_for_path_and_contents(
         }
     };
 
+    let mut syntax_errors = vec![];
+
     if !parser_result.syntax_errors.is_empty() {
-        let first_error = &parser_result.syntax_errors[0];
+        syntax_errors = parser_result
+            .syntax_errors
+            .iter()
+            .map(|e| {
+                let lines = file_contents[0..e.start_offset]
+                    .split('\n')
+                    .collect::<Vec<_>>();
+                let column = lines.last().unwrap().len();
+                let line_count = lines.len();
 
-        let lines = file_contents[0..first_error.start_offset]
-            .split('\n')
-            .collect::<Vec<_>>();
-        let column = lines.last().unwrap().len();
-        let line_count = lines.len();
-
-        return Err(ParserError::SyntaxError {
-            message: first_error.message.to_string(),
-            pos: HPos {
-                file_path,
-                start_offset: first_error.start_offset as u32,
-                end_offset: first_error.end_offset as u32,
-                start_line: line_count as u32,
-                end_line: line_count as u32,
-                start_column: (column as u16) + 1,
-                end_column: (column as u16) + 1,
-            },
-        });
+                ParserError::SyntaxError {
+                    message: e.message.to_string(),
+                    pos: HPos {
+                        file_path,
+                        start_offset: e.start_offset as u32,
+                        end_offset: e.end_offset as u32,
+                        start_line: line_count as u32,
+                        end_line: line_count as u32,
+                        start_column: (column as u16) + 1,
+                        end_column: (column as u16) + 1,
+                    },
+                }
+            })
+            .collect();
     }
 
     let aast = parser_result.aast;
@@ -110,7 +124,12 @@ pub fn get_aast_for_path_and_contents(
         .comments
         .sort_by(|(a, _), (b, _)| a.start_offset().cmp(&b.start_offset()));
 
-    Ok((aast, parser_result.scoured_comments, file_contents))
+    Ok((
+        aast,
+        parser_result.scoured_comments,
+        file_contents,
+        syntax_errors,
+    ))
 }
 
 pub struct Uses {

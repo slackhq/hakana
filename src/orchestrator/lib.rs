@@ -6,7 +6,6 @@ use file::{FileStatus, VirtualFileSystem};
 use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
-use hakana_logger::Logger;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::{FilePath, HPos};
 use hakana_code_info::codebase_info::CodebaseInfo;
@@ -14,6 +13,7 @@ use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::file_info::ParserError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
+use hakana_logger::Logger;
 use hakana_str::{Interner, StrId};
 use indicatif::ProgressBar;
 use oxidized::aast;
@@ -446,7 +446,15 @@ fn get_references_path(cache_dir: Option<&String>) -> Option<String> {
 pub fn get_aast_for_path(
     file_path: FilePath,
     file_path_str: &str,
-) -> Result<(aast::Program<(), ()>, ScouredComments, String), ParserError> {
+) -> Result<
+    (
+        aast::Program<(), ()>,
+        ScouredComments,
+        String,
+        Vec<ParserError>,
+    ),
+    ParserError,
+> {
     let file_contents = if file_path_str.starts_with("hsl_embedded_") {
         std::str::from_utf8(
             &HslAsset::get(file_path_str)
@@ -481,7 +489,7 @@ fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
 
 fn add_invalid_files(scan_data: &SuccessfulScanData, analysis_result: &mut AnalysisResult) {
     for (file_path, file_info) in &scan_data.codebase.files {
-        if let Some(parser_error) = &file_info.parser_error {
+        for parser_error in &file_info.parser_errors {
             analysis_result.emitted_issues.insert(
                 *file_path,
                 vec![match parser_error {

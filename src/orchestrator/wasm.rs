@@ -3,7 +3,6 @@ use hakana_aast_helper::name_context::NameContext;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::find_tainted_data;
 use hakana_analyzer::file_analyzer;
-use hakana_logger::Logger;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::{FilePath, HPos};
 use hakana_code_info::codebase_info::CodebaseInfo;
@@ -12,6 +11,7 @@ use hakana_code_info::file_info::ParserError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_code_info::FileSource;
+use hakana_logger::Logger;
 use hakana_str::{Interner, StrId, ThreadedInterner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Mutex};
@@ -219,6 +219,7 @@ pub fn scan_single_file(
         },
         true,
         uses,
+        aast.3,
     );
 
     Ok(resolved_names)

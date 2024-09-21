@@ -13,5 +13,5 @@ pub enum ParserError {
 pub struct FileInfo {
     pub ast_nodes: Vec<DefSignatureNode>,
     pub closure_refs: Vec<u32>,
-    pub parser_error: Option<ParserError>,
+    pub parser_errors: Vec<ParserError>,
 }

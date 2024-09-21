@@ -15,7 +15,7 @@ use hakana_code_info::{
     taint::SourceType,
     VarId, EFFECT_READ_GLOBALS,
 };
-use hakana_code_info::ttype::{get_int, get_mixed_any, get_mixed_dict, get_mixed};
+use hakana_code_info::ttype::{get_int, get_mixed_any, get_mixed};
 use oxidized::{ast_defs::Pos, tast::Lid};
 use std::rc::Rc;
 

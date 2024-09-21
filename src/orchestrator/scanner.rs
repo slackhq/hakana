@@ -21,7 +21,6 @@ use crate::SuccessfulScanData;
 use ast_differ::get_diff;
 use hakana_aast_helper::name_context::NameContext;
 use hakana_analyzer::config::Config;
-use hakana_logger::Logger;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::codebase_info::symbols::SymbolKind;
 use hakana_code_info::codebase_info::CodebaseInfo;
@@ -29,6 +28,7 @@ use hakana_code_info::diff::CodebaseDiff;
 use hakana_code_info::file_info::FileInfo;
 use hakana_code_info::file_info::ParserError;
 use hakana_code_info::FileSource;
+use hakana_logger::Logger;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use hakana_str::ThreadedInterner;
@@ -344,7 +344,7 @@ pub fn scan_files(
                             new_codebase.files.insert(
                                 *file_path,
                                 FileInfo {
-                                    parser_error: Some(parser_error),
+                                    parser_errors: vec![parser_error],
                                     ..FileInfo::default()
                                 },
                             );
@@ -541,6 +541,7 @@ pub(crate) fn scan_file(
         },
         user_defined,
         uses,
+        aast.3,
     );
 
     Ok(resolved_names)

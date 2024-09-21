@@ -4,10 +4,11 @@ use std::sync::Arc;
 use crate::typehint_resolver::get_type_from_hint;
 use hakana_aast_helper::Uses;
 use hakana_code_info::attribute_info::AttributeInfo;
-use hakana_code_info::file_info::FileInfo;
+use hakana_code_info::file_info::{FileInfo, ParserError};
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::{get_bool, get_int, get_mixed_any, get_string};
 use hakana_code_info::{
     ast_signature::DefSignatureNode, class_constant_info::ConstantInfo, classlike_info::Variance,
     code_location::HPos, codebase_info::CodebaseInfo, t_atomic::TAtomic,
@@ -16,7 +17,6 @@ use hakana_code_info::{
 };
 use hakana_code_info::{FileSource, GenericParent};
 use hakana_str::{StrId, ThreadedInterner};
-use hakana_code_info::ttype::{get_bool, get_int, get_mixed_any, get_string};
 use no_pos_hash::{position_insensitive_hash, Hasher};
 use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;
@@ -875,6 +875,7 @@ pub fn collect_info_for_aast(
     file_source: FileSource,
     user_defined: bool,
     uses: Uses,
+    parser_errors: Vec<ParserError>,
 ) {
     let file_path_id = file_source.file_path;
 
@@ -910,7 +911,7 @@ pub fn collect_info_for_aast(
             FileInfo {
                 closure_refs: checker.closure_refs,
                 ast_nodes: checker.ast_nodes,
-                parser_error: None,
+                parser_errors,
             },
         );
     }
