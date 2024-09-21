@@ -150,6 +150,16 @@ pub(crate) fn analyze(
             EFFECT_IMPURE,
         );
 
+        if let Some(method_name) = method_name {
+            analysis_data
+                .symbol_references
+                .add_reference_to_class_member(
+                    &context.function_context,
+                    (classlike_name, method_name),
+                    false,
+                );
+        }
+
         return Ok(());
     }
 
