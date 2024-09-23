@@ -46,7 +46,7 @@ pub enum SinkType {
     Custom(String),
 }
 
-const PAIRS: [(SourceType, SinkType); 31] = [
+const PAIRS: [(SourceType, SinkType); 32] = [
     // All the places we don't want GET data to go
     (SourceType::UriRequestHeader, SinkType::Sql),
     (SourceType::UriRequestHeader, SinkType::Shell),
@@ -70,6 +70,7 @@ const PAIRS: [(SourceType, SinkType); 31] = [
     (SourceType::RawUserData, SinkType::HtmlAttributeUri),
     (SourceType::RawUserData, SinkType::HtmlTag),
     (SourceType::RawUserData, SinkType::RedirectUri),
+    (SourceType::RawUserData, SinkType::Logging),
     // All the places we don't want POST data to go
     // For example we don't care about XSS in POST data
     (SourceType::NonUriRequestHeader, SinkType::Sql),
