@@ -7,6 +7,8 @@ pub enum SourceType {
     UriRequestHeader,
     NonUriRequestHeader,
     RawUserData,
+    UserData,
+    UserEmail,
     UserPII,
     UserPassword,
     SystemSecret,
@@ -18,8 +20,10 @@ impl SourceType {
             SourceType::UriRequestHeader => "a URL query string",
             SourceType::NonUriRequestHeader => "a server request",
             SourceType::RawUserData => "raw user-controllable data",
-            SourceType::UserPassword => "a user secret",
+            SourceType::UserData => "user-generated content",
+            SourceType::UserEmail => "a user email string",
             SourceType::UserPII => "PII user data",
+            SourceType::UserPassword => "a user secret",
             SourceType::SystemSecret => "a system secret",
         }
     }
@@ -46,7 +50,7 @@ pub enum SinkType {
     Custom(String),
 }
 
-const PAIRS: [(SourceType, SinkType); 32] = [
+const PAIRS: [(SourceType, SinkType); 33] = [
     // All the places we don't want GET data to go
     (SourceType::UriRequestHeader, SinkType::Sql),
     (SourceType::UriRequestHeader, SinkType::Shell),
@@ -70,7 +74,6 @@ const PAIRS: [(SourceType, SinkType); 32] = [
     (SourceType::RawUserData, SinkType::HtmlAttributeUri),
     (SourceType::RawUserData, SinkType::HtmlTag),
     (SourceType::RawUserData, SinkType::RedirectUri),
-    (SourceType::RawUserData, SinkType::Logging),
     // All the places we don't want POST data to go
     // For example we don't care about XSS in POST data
     (SourceType::NonUriRequestHeader, SinkType::Sql),
@@ -79,8 +82,10 @@ const PAIRS: [(SourceType, SinkType); 32] = [
     (SourceType::NonUriRequestHeader, SinkType::Unserialize),
     (SourceType::NonUriRequestHeader, SinkType::CurlHeader),
     (SourceType::NonUriRequestHeader, SinkType::CurlUri),
-    // We don't want user PII to appear in logs, but it's
-    // ok for it to appear everywhere else.
+    // We don't want user data, PII, or emails to appear in logs,
+    // but it's ok for it to appear everywhere else.
+    (SourceType::UserData, SinkType::Logging),
+    (SourceType::UserEmail, SinkType::Logging),
     (SourceType::UserPII, SinkType::Logging),
     // User passwords shouldn't appear in any user output or logs
     (SourceType::UserPassword, SinkType::Logging),
