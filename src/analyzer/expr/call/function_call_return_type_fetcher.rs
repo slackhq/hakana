@@ -3,13 +3,14 @@ use hakana_code_info::classlike_info::ClassConstantType;
 use hakana_code_info::code_location::HPos;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
+use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_code_info::data_flow::path::{ArrayDataKind, PathKind};
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict};
 use hakana_code_info::t_union::TUnion;
-use hakana_code_info::taint::SinkType;
+use hakana_code_info::taint::{SinkType, SourceType};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
@@ -18,7 +19,7 @@ use hakana_code_info::ttype::{
     get_literal_string, get_mixed, get_mixed_any, get_mixed_vec, get_nothing, get_null, get_object,
     get_string, get_vec, template, type_expander, wrap_atomic,
 };
-use hakana_code_info::{GenericParent, EFFECT_IMPURE};
+use hakana_code_info::{GenericParent, VarId, EFFECT_IMPURE};
 use hakana_str::{Interner, StrId};
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
@@ -196,12 +197,7 @@ fn handle_special_functions(
             if let Some((_, arg_expr)) = args.first() {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     expr_type.get_single_literal_string_value().map(|value| {
-                        variable_fetch_analyzer::get_type_for_superglobal(
-                            statements_analyzer,
-                            value,
-                            pos,
-                            analysis_data,
-                        )
+                        get_type_for_superglobal(statements_analyzer, value, pos, analysis_data)
                     })
                 } else {
                     None
@@ -636,6 +632,52 @@ fn handle_special_functions(
             }
         }
         _ => None,
+    }
+}
+
+fn get_type_for_superglobal(
+    statements_analyzer: &StatementsAnalyzer,
+    name: String,
+    pos: &Pos,
+    analysis_data: &mut FunctionAnalysisData,
+) -> TUnion {
+    match name.as_str() {
+        "_FILES" | "_SERVER" | "_ENV" => get_mixed(),
+        "_GET" | "_REQUEST" | "_POST" | "_COOKIE" => {
+            let mut var_type = get_mixed();
+
+            let taint_pos = statements_analyzer.get_hpos(pos);
+            let taint_source = DataFlowNode {
+                id: DataFlowNodeId::Var(
+                    VarId(
+                        statements_analyzer
+                            .get_interner()
+                            .get(&format!("${}", name))
+                            .unwrap(),
+                    ),
+                    taint_pos.file_path,
+                    taint_pos.start_offset,
+                    taint_pos.end_offset,
+                ),
+                kind: DataFlowNodeKind::TaintSource {
+                    pos: None,
+                    types: if name == "_GET" || name == "_REQUEST" {
+                        vec![SourceType::UriRequestHeader]
+                    } else {
+                        vec![SourceType::NonUriRequestHeader]
+                    },
+                },
+            };
+
+            analysis_data.data_flow_graph.add_node(taint_source.clone());
+
+            var_type.parent_nodes.push(taint_source);
+
+            var_type
+        }
+        "argv" => get_mixed_any(),
+        "argc" => get_int(),
+        _ => get_mixed_any(),
     }
 }
 

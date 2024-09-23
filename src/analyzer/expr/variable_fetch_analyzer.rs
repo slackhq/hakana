@@ -1,8 +1,9 @@
 use crate::{
-    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    scope::BlockContext, statements_analyzer::StatementsAnalyzer,
+    function_analysis_data::FunctionAnalysisData, scope::BlockContext,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
+use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::{
     code_location::HPos,
     data_flow::{
@@ -12,10 +13,8 @@ use hakana_code_info::{
     },
     issue::{Issue, IssueKind},
     t_union::TUnion,
-    taint::SourceType,
     VarId, EFFECT_READ_GLOBALS,
 };
-use hakana_code_info::ttype::{get_int, get_mixed_any, get_mixed};
 use oxidized::{ast_defs::Pos, tast::Lid};
 use std::rc::Rc;
 
@@ -27,38 +26,18 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     if !context.has_variable(&lid.1 .1) {
-        let superglobal_type = match lid.1 .1.as_str() {
-            "$_FILES" | "$_POST" | "$_GET" | "$_ENV" | "$_SERVER" | "$_REQUEST" | "$_COOKIE" => {
-                let superglobal_type = Rc::new(get_type_for_superglobal(
-                    statements_analyzer,
-                    lid.1 .1[1..].to_string(),
-                    pos,
-                    analysis_data,
-                ));
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::UndefinedVariable,
+                format!("Cannot find referenced variable {}", &lid.1 .1),
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
 
-                context
-                    .locals
-                    .insert(lid.1 .1.clone(), superglobal_type.clone());
-
-                superglobal_type
-            }
-            _ => {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::UndefinedVariable,
-                        format!("Cannot find referenced variable {}", &lid.1 .1),
-                        statements_analyzer.get_hpos(pos),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-
-                Rc::new(get_mixed_any())
-            }
-        };
-
-        analysis_data.set_rc_expr_type(pos, superglobal_type);
+        analysis_data.set_rc_expr_type(pos, Rc::new(get_mixed_any()));
 
         analysis_data.expr_effects.insert(
             (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -143,52 +122,6 @@ pub(crate) fn analyze(
     }
 
     Ok(())
-}
-
-pub(crate) fn get_type_for_superglobal(
-    statements_analyzer: &StatementsAnalyzer,
-    name: String,
-    pos: &Pos,
-    analysis_data: &mut FunctionAnalysisData,
-) -> TUnion {
-    match name.as_str() {
-        "_FILES" | "_SERVER" | "_ENV" => get_mixed(),
-        "_GET" | "_REQUEST" | "_POST" | "_COOKIE" => {
-            let mut var_type = get_mixed();
-
-            let taint_pos = statements_analyzer.get_hpos(pos);
-            let taint_source = DataFlowNode {
-                id: DataFlowNodeId::Var(
-                    VarId(
-                        statements_analyzer
-                            .get_interner()
-                            .get(&format!("${}", name))
-                            .unwrap(),
-                    ),
-                    taint_pos.file_path,
-                    taint_pos.start_offset,
-                    taint_pos.end_offset,
-                ),
-                kind: DataFlowNodeKind::TaintSource {
-                    pos: None,
-                    types: if name == "_GET" || name == "_REQUEST" {
-                        vec![SourceType::UriRequestHeader]
-                    } else {
-                        vec![SourceType::NonUriRequestHeader]
-                    },
-                },
-            };
-
-            analysis_data.data_flow_graph.add_node(taint_source.clone());
-
-            var_type.parent_nodes.push(taint_source);
-
-            var_type
-        }
-        "argv" => get_mixed_any(),
-        "argc" => get_int(),
-        _ => get_mixed_any(),
-    }
 }
 
 fn add_dataflow_to_variable(

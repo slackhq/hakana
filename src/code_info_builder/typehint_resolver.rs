@@ -251,12 +251,6 @@ fn get_shape_type_from_hints(
         .unwrap();
 
         match &field.name {
-            ast_defs::ShapeFieldName::SFlitInt(int) => {
-                known_items.insert(
-                    DictKey::Int(int.1.parse::<u64>().unwrap()),
-                    (field.optional, Arc::new(field_type)),
-                );
-            }
             ast_defs::ShapeFieldName::SFlitStr(name) => {
                 known_items.insert(
                     DictKey::String(name.1.to_string()),
@@ -271,6 +265,7 @@ fn get_shape_type_from_hints(
                     (field.optional, Arc::new(field_type)),
                 );
             }
+            ast_defs::ShapeFieldName::SFregexGroup(_) => todo!(),
         }
     }
 

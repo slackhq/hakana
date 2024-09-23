@@ -1,3 +1,16 @@
+diff --git a/hphp/hack/src/arena_collections/lib.rs b/hphp/hack/src/arena_collections/lib.rs
+index b61498ef2a2..536390f62a9 100644
+--- a/hphp/hack/src/arena_collections/lib.rs
++++ b/hphp/hack/src/arena_collections/lib.rs
+@@ -3,6 +3,8 @@
+ // This source code is licensed under the MIT license found in the
+ // LICENSE file in the "hack" directory of this source tree.
+ 
++#![allow(clippy::all)]
++
+ mod alist;
+ mod multiset;
+ 
 diff --git a/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml b/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
 index 1436cf15b33..3913cf0079b 100644
 --- a/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
@@ -131,7 +144,7 @@ index ab6789911ec..4ce9b155a3e 100644
      fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
          Ok(rusqlite::types::ToSqlOutput::from(*self as i64))
 diff --git a/hphp/hack/src/naming/names_rust/Cargo.toml b/hphp/hack/src/naming/names_rust/Cargo.toml
-index 677c4e42c7d..6b108243e1d 100644
+index 1a2406a1657..31edec2d6a9 100644
 --- a/hphp/hack/src/naming/names_rust/Cargo.toml
 +++ b/hphp/hack/src/naming/names_rust/Cargo.toml
 @@ -18,6 +18,8 @@ oxidized = { version = "0.0.0", path = "../../oxidized" }
@@ -187,8 +200,21 @@ index 8768bd5b52a..b595a7444d0 100644
  use rusqlite::OptionalExtension;
  
  pub struct Names {
+diff --git a/hphp/hack/src/naming/naming_special_names.rs b/hphp/hack/src/naming/naming_special_names.rs
+index fa2afee6ee5..c95e6a9b908 100644
+--- a/hphp/hack/src/naming/naming_special_names.rs
++++ b/hphp/hack/src/naming/naming_special_names.rs
+@@ -7,6 +7,8 @@
+  *
+  */
+ 
++#![allow(clippy::all)]
++
+ /** Module consisting of the special names known to the typechecker */
+ 
+ pub mod classes {
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-index 794182a83a7..63ea00a482d 100644
+index 313a141fc90..45fbc66797a 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
 @@ -2256,7 +2256,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
@@ -200,7 +226,7 @@ index 794182a83a7..63ea00a482d 100644
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-index 73894cce5cf..f85dddbdad6 100644
+index db707bc543b..c0394e27abb 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
 @@ -2256,7 +2256,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
@@ -212,17 +238,31 @@ index 73894cce5cf..f85dddbdad6 100644
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/gen/warnings_saved_state.rs b/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
-index c85ad8856ef..90fc55f44d8 100644
+index a9d1e095f6e..701014ce7e6 100644
 --- a/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
 +++ b/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
-@@ -13,5 +13,5 @@ pub use error_hash_set::*;
+@@ -13,7 +13,7 @@ pub use error_hash_set::*;
  #[allow(unused_imports)]
  use crate::*;
  
 -#[rust_to_ocaml(attr = "deriving (ord, show)")]
 -pub type ErrorHash = ocamlrep::OCamlInt;
-+// #[rust_to_ocaml(attr = "deriving (ord, show)")]
++//#[rust_to_ocaml(attr = "deriving (ord, show)")]
 +pub type ErrorHash = u64;
+ 
+ pub type Path = String;
+diff --git a/hphp/hack/src/oxidized/lib.rs b/hphp/hack/src/oxidized/lib.rs
+index c958cb16391..8ea056dbcef 100644
+--- a/hphp/hack/src/oxidized/lib.rs
++++ b/hphp/hack/src/oxidized/lib.rs
+@@ -4,6 +4,7 @@
+ // LICENSE file in the "hack" directory of this source tree.
+ #![feature(box_patterns)]
+ #![feature(extract_if)]
++#![allow(clippy::all)]
+ 
+ #[macro_use]
+ extern crate rust_to_ocaml_attr;
 diff --git a/hphp/hack/src/oxidized/manual/user_error_impl.rs b/hphp/hack/src/oxidized/manual/user_error_impl.rs
 index a1e42b308cc..d55ac408def 100644
 --- a/hphp/hack/src/oxidized/manual/user_error_impl.rs
@@ -246,7 +286,7 @@ index a1e42b308cc..d55ac408def 100644
  }
  
 diff --git a/hphp/hack/src/oxidized_by_ref/Cargo.toml b/hphp/hack/src/oxidized_by_ref/Cargo.toml
-index 2252858a312..e640c206d4e 100644
+index dc295e995fc..8f2b9eb5d4e 100644
 --- a/hphp/hack/src/oxidized_by_ref/Cargo.toml
 +++ b/hphp/hack/src/oxidized_by_ref/Cargo.toml
 @@ -22,12 +22,14 @@ hh24_types = { version = "0.0.0", path = "../utils/hh24_types" }
@@ -434,7 +474,7 @@ index 0f58d4d92df..7a324fa3189 100644
      }
  }
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index d4b70f24b25..147850ebe2e 100644
+index 8f4e0931d4c..2b34c664b73 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
 @@ -5,7 +5,7 @@
@@ -526,26 +566,55 @@ index d4b70f24b25..147850ebe2e 100644
 -            Ok(scourer.scour_comments(script))
 +            Ok(scourer.scour_comments(script, indexed_source_text.source_text().file_path()))
          } else {
-             Ok(default_scoured_comments())
+             Ok(Default::default())
          }
 diff --git a/hphp/hack/src/parser/core/lexer.rs b/hphp/hack/src/parser/core/lexer.rs
-index ab9bf36c7c6..05b6f906190 100644
+index ccde4795e8b..750afe81b8c 100644
 --- a/hphp/hack/src/parser/core/lexer.rs
 +++ b/hphp/hack/src/parser/core/lexer.rs
-@@ -1979,7 +1979,7 @@ where
+@@ -256,7 +256,11 @@ where
+ 
+     fn remaining(&self) -> usize {
+         let r = (self.source.length() as isize) - (self.offset as isize);
+-        if r < 0 { 0 } else { r as usize }
++        if r < 0 {
++            0
++        } else {
++            r as usize
++        }
+     }
+ 
+     fn peek(&self, i: usize) -> char {
+@@ -1981,7 +1985,10 @@ where
                          acc.push(t);
                          return acc;
                      }
--                    TriviaKind::FixMe | TriviaKind::IgnoreError => {
-+                    TriviaKind::FixMe | TriviaKind::IgnoreError | TriviaKind::DelimitedComment => {
+-                    TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError => {
++                    TriviaKind::FixMe
++                    | TriviaKind::Ignore
++                    | TriviaKind::IgnoreError
++                    | TriviaKind::DelimitedComment => {
                          return acc;
                      }
                      _ => {
+diff --git a/hphp/hack/src/parser/core/lib.rs b/hphp/hack/src/parser/core/lib.rs
+index 28f6dd565f6..1cceff6e7c0 100644
+--- a/hphp/hack/src/parser/core/lib.rs
++++ b/hphp/hack/src/parser/core/lib.rs
+@@ -4,6 +4,8 @@
+ // This source code is licensed under the MIT license found in the
+ // LICENSE file in the "hack" directory of this source tree.
+ 
++#![allow(clippy::all)]
++
+ pub mod lexer;
+ pub use operator;
+ pub use operator::*;
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index 85b6907f49b..8c21aa99489 100644
+index 504295b0c8c..a4bba1a942f 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3421,12 +3421,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3432,12 +3432,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);
@@ -560,7 +629,7 @@ index 85b6907f49b..8c21aa99489 100644
                  && !(markup_suffix.is_missing())
              {
 diff --git a/hphp/hack/src/parser/lowerer/scour_comment.rs b/hphp/hack/src/parser/lowerer/scour_comment.rs
-index 88c2e445a47..7aab53c3f1c 100644
+index f7a02a29015..23fdf50b22b 100644
 --- a/hphp/hack/src/parser/lowerer/scour_comment.rs
 +++ b/hphp/hack/src/parser/lowerer/scour_comment.rs
 @@ -17,6 +17,7 @@ use parser_core_types::syntax_by_ref::syntax_variant_generated::SyntaxVariant::*
@@ -584,7 +653,7 @@ index 88c2e445a47..7aab53c3f1c 100644
      where
          'r: 'arena,
      {
-@@ -62,7 +67,7 @@ where
+@@ -63,7 +68,7 @@ where
                          let leading = t.scan_leading(self.source_text());
                          let trailing = t.scan_trailing(self.source_text());
                          for tr in leading.iter().chain(trailing.iter()) {
@@ -593,7 +662,7 @@ index 88c2e445a47..7aab53c3f1c 100644
                          }
                      }
                      continue;
-@@ -83,6 +88,7 @@ where
+@@ -84,6 +89,7 @@ where
          node: &Syntax<'arena, T, V>,
          t: &PositionedTrivium,
          acc: &mut ScouredComments,
@@ -601,22 +670,35 @@ index 88c2e445a47..7aab53c3f1c 100644
      ) {
          use relative_path::Prefix;
          use TriviaKind::*;
-@@ -127,7 +133,7 @@ where
+@@ -129,7 +135,7 @@ where
                      Some(code) => {
                          let code = std::str::from_utf8(code).unwrap();
                          let code: isize = std::str::FromStr::from_str(code).unwrap();
 -                        let in_hhi = pos.filename().prefix() == Prefix::Hhi;
 +                        let in_hhi = file_path.prefix() == Prefix::Hhi;
-                         if !(in_block || in_hhi || self.allowed_decl_fixme_codes.contains(&code)) {
-                             acc.add_to_misuses(line, code, p);
-                         } else if self.disable_hh_ignore_error == 1 && t.kind() == IgnoreError {
+                         match t.kind() {
+                             Ignore => {
+                                 acc.add_to_ignores(line, code, p);
+diff --git a/hphp/hack/src/parser/smart_constructors.rs b/hphp/hack/src/parser/smart_constructors.rs
+index 4c773badd23..f3ec193beac 100644
+--- a/hphp/hack/src/parser/smart_constructors.rs
++++ b/hphp/hack/src/parser/smart_constructors.rs
+@@ -4,6 +4,8 @@
+ // This source code is licensed under the MIT license found in the
+ // LICENSE file in the "hack" directory of this source tree.
+ 
++#![allow(clippy::all)]
++
+ pub mod smart_constructors_generated;
+ pub mod smart_constructors_wrappers;
+ 
 diff --git a/hphp/hack/src/utils/arena_deserializer/Cargo.toml b/hphp/hack/src/utils/arena_deserializer/Cargo.toml
-index d0f6c7271be..81d0fa34ebf 100644
+index 925d3409b16..901fd55a35f 100644
 --- a/hphp/hack/src/utils/arena_deserializer/Cargo.toml
 +++ b/hphp/hack/src/utils/arena_deserializer/Cargo.toml
 @@ -13,5 +13,7 @@ path = "lib.rs"
  [dependencies]
- bstr = { version = "1.4.0", features = ["serde", "std", "unicode"] }
+ bstr = { version = "1.10.0", features = ["serde", "std", "unicode"] }
  bumpalo = { version = "3.14.0", features = ["allocator_api", "collections"] }
 -ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
  serde = { version = "1.0.185", features = ["derive", "rc"] }
@@ -647,10 +729,10 @@ index 671fb6c2b3e..2fe88b076d4 100644
  impl<'arena> DeserializeInArena<'arena> for &'arena str {
      fn deserialize_in_arena<D>(arena: &'arena Bump, deserializer: D) -> Result<Self, D::Error>
 diff --git a/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml b/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
-index 0e7204eb561..6e7bf3cbbbf 100644
+index 2a1254be680..decd609be95 100644
 --- a/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
 +++ b/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
-@@ -16,4 +16,6 @@ bstr = { version = "1.4.0", features = ["serde", "std", "unicode"] }
+@@ -16,4 +16,6 @@ bstr = { version = "1.10.0", features = ["serde", "std", "unicode"] }
  eq_modulo_pos_derive = { version = "0.0.0", path = "../eq_modulo_pos_derive" }
  hcons = { version = "0.0.0", path = "../../hcons" }
  indexmap = { version = "2.2.6", features = ["arbitrary", "rayon", "serde"] }
@@ -697,11 +779,11 @@ index 0febd35fe7d..4fd8c642cac 100644
              fn column_result(
                  value: rusqlite::types::ValueRef<'_>,
 diff --git a/hphp/hack/src/utils/no_pos_hash/Cargo.toml b/hphp/hack/src/utils/no_pos_hash/Cargo.toml
-index b29b2b60765..12834563fcd 100644
+index c069907195d..56e551793d8 100644
 --- a/hphp/hack/src/utils/no_pos_hash/Cargo.toml
 +++ b/hphp/hack/src/utils/no_pos_hash/Cargo.toml
 @@ -15,4 +15,6 @@ arena_collections = { version = "0.0.0", path = "../../arena_collections" }
- bstr = { version = "1.4.0", features = ["serde", "std", "unicode"] }
+ bstr = { version = "1.10.0", features = ["serde", "std", "unicode"] }
  fnv = "1.0"
  no_pos_hash_derive = { version = "0.0.0", path = "derive" }
 +
