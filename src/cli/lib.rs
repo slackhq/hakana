@@ -365,7 +365,7 @@ pub fn init(
                     .arg(
                         arg!(--"max-depth" <PATH>)
                             .required(false)
-                            .help("Length of the longest allowable path"),
+                            .help("Length of the longest allowable path — defaults to 20, and overrides config file value"),
                     )
                     .arg(
                         arg!(--"debug")
@@ -397,7 +397,7 @@ pub fn init(
                     .arg(
                         arg!(--"max-depth" <PATH>)
                             .required(false)
-                            .help("Length of the longest allowable path"),
+                            .help("Length of the longest allowable path — defaults to 20, and overrides config file value"),
                     )
                     .arg(
                         arg!(--"debug")
@@ -1251,7 +1251,7 @@ fn do_find_paths(
         if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
             val.parse::<u8>().unwrap()
         } else {
-            20
+            config.security_config.max_depth
         };
 
     config.hooks = analysis_hooks;
@@ -1321,7 +1321,7 @@ fn do_security_check(
         if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
             val.parse::<u8>().unwrap()
         } else {
-            20
+            config.security_config.max_depth
         };
 
     config.hooks = analysis_hooks;

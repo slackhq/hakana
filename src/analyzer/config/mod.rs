@@ -55,7 +55,7 @@ impl SecurityConfig {
         Self {
             ignore_patterns: Vec::new(),
             ignore_sink_files: FxHashMap::default(),
-            max_depth: 40,
+            max_depth: 20,
         }
     }
 }
@@ -167,6 +167,7 @@ impl Config {
                 )
             })
             .collect();
+        self.security_config.max_depth = json_config.security_analysis.max_depth;
 
         Ok(())
     }

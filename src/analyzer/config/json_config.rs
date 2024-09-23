@@ -24,6 +24,7 @@ pub struct JsonConfig {
 pub struct JsonSecurityConfig {
     pub ignore_files: Vec<String>,
     pub ignore_sink_files: FxHashMap<String, Vec<String>>,
+    pub max_depth: u8,
 }
 
 pub(crate) fn read_from_file(path: &Path) -> Result<JsonConfig, Box<dyn Error>> {
