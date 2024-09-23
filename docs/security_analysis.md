@@ -26,6 +26,8 @@ Hakana recognises a number of taint sources, defined in the [SourceType enum](ht
 - `UriRequestHeader` - any data that comes from a given request‘s URI
 - `NonUriRequestHeader` - any data that comes from the non-URI component of a request (like POST data)
 - `RawUserData` - any data that comes from persistently-stored data (i.e. longer-lived than a single request) that can be controlled by a user. This must be explicitly annotated in your application with Hakana attributes
+- `UserData` - any data that belongs to a specific user
+- `UserEmail` - any user's email
 - `UserPII` — any data that contains Personally-Identifiable Information. This must be explicitly annotated in your application with Hakana attributes.
 - `UserPassword` — any data that contains user secrets (e.g. hashed password fields). This must be explicitly annotated in your application with Hakana attributes.
 - `SystemSecret` — any data that contains system secrets (e.g. API keys). This must be explicitly annotated in your application with Hakana attributes.
