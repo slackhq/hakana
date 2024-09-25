@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -9,9 +10,9 @@ use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::code_location::HPos;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
+use hakana_code_info::ttype::{get_arraykey, get_mixed_any, get_nothing};
 use hakana_code_info::VarId;
 use hakana_str::StrId;
-use hakana_code_info::ttype::{get_arraykey, get_mixed_any, get_nothing};
 use oxidized::ast_defs::Pos;
 use oxidized::{aast, ast_defs};
 
@@ -61,6 +62,9 @@ pub(crate) fn analyze(
 
         context.inside_general_use = false;
     }
+
+    context.has_returned = true;
+    context.control_actions.insert(ControlAction::End);
 
     analysis_data.set_expr_type(call_pos, get_nothing());
 

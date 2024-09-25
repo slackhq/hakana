@@ -70,53 +70,6 @@ pub(crate) fn analyze(
         switch_var_id
     };
 
-    let original_context = context.clone();
-
-    let mut last_case_exit_type = ControlAction::Break;
-
-    let mut case_exit_types = FxHashMap::default();
-
-    let has_default = stmt.2.is_some();
-
-    let mut case_action_map = FxHashMap::default();
-
-    let mut cases = stmt.1.iter().enumerate().collect::<IndexMap<_, _>>();
-    cases.reverse();
-
-    if let Some(default_case) = stmt.2 {
-        update_case_exit_map(
-            codebase,
-            statements_analyzer.get_interner(),
-            &default_case.1 .0,
-            analysis_data,
-            statements_analyzer.get_file_analyzer().resolved_names,
-            &mut case_action_map,
-            cases.len(),
-            &mut last_case_exit_type,
-            &mut case_exit_types,
-        );
-    }
-
-    for (i, case) in &cases {
-        update_case_exit_map(
-            codebase,
-            statements_analyzer.get_interner(),
-            &case.1 .0,
-            analysis_data,
-            statements_analyzer.get_file_analyzer().resolved_names,
-            &mut case_action_map,
-            *i,
-            &mut last_case_exit_type,
-            &mut case_exit_types,
-        );
-    }
-
-    let mut switch_scope = SwitchScope::new();
-
-    let mut all_options_returned = true;
-
-    cases.reverse();
-
     let mut condition_is_fake = false;
 
     let fake_switch_condition = if switch_var_id.starts_with("$-tmp_switch-") {
@@ -134,17 +87,24 @@ pub(crate) fn analyze(
         None
     };
 
+    let original_context = context.clone();
+
+    let mut last_case_exit_type = ControlAction::Break;
+
+    let has_default = stmt.2.is_some();
+
+    let mut cases = stmt.1.iter().enumerate().collect::<IndexMap<_, _>>();
+    cases.reverse();
+
+    let mut switch_scope = SwitchScope::new();
+
+    let mut all_options_returned = true;
+
+    cases.reverse();
+
     let mut previous_empty_cases = vec![];
 
     for (i, case) in &cases {
-        let case_exit_type = case_exit_types.get(i).unwrap();
-
-        if case_exit_type != &ControlAction::Return {
-            all_options_returned = false;
-        }
-
-        let case_actions = &case_action_map[i];
-
         if !case
             .1
             .iter()
@@ -167,8 +127,6 @@ pub(crate) fn analyze(
             analysis_data,
             context,
             &original_context,
-            case_exit_type,
-            case_actions,
             *i == (cases.len() - 1) && stmt.2.is_none(),
             &mut switch_scope,
             loop_scope,
@@ -178,17 +136,7 @@ pub(crate) fn analyze(
     }
 
     if let Some(default_case) = stmt.2 {
-        let i = cases.len();
-
-        let case_exit_type = case_exit_types.get(&i).unwrap();
-
-        if case_exit_type != &ControlAction::Return {
-            all_options_returned = false;
-        }
-
-        let case_actions = case_action_map.get(&i).unwrap();
-
-        analyze_case(
+        let case_exit_type = analyze_case(
             statements_analyzer,
             stmt,
             fake_switch_condition.as_ref().unwrap_or(stmt.0),
@@ -201,12 +149,14 @@ pub(crate) fn analyze(
             analysis_data,
             context,
             &original_context,
-            case_exit_type,
-            case_actions,
             true,
             &mut switch_scope,
             loop_scope,
         )?;
+
+        if case_exit_type != ControlAction::Return {
+            all_options_returned = false;
+        }
     }
 
     let mut possibly_redefined_vars = switch_scope.possibly_redefined_vars.unwrap_or_default();
@@ -244,32 +194,6 @@ pub(crate) fn analyze(
     context.has_returned = all_options_returned && has_default;
 
     Ok(())
-}
-
-fn update_case_exit_map(
-    codebase: &CodebaseInfo,
-    interner: &Interner,
-    case_stmts: &Vec<aast::Stmt<(), ()>>,
-    analysis_data: &mut FunctionAnalysisData,
-    resolved_names: &FxHashMap<u32, StrId>,
-    case_action_map: &mut FxHashMap<usize, FxHashSet<ControlAction>>,
-    i: usize,
-    last_case_exit_type: &mut ControlAction,
-    case_exit_types: &mut FxHashMap<usize, ControlAction>,
-) {
-    let case_actions = control_analyzer::get_control_actions(
-        codebase,
-        interner,
-        resolved_names,
-        case_stmts,
-        analysis_data,
-        vec![BreakContext::Switch],
-        true,
-    );
-
-    case_action_map.insert(i, case_actions.clone());
-    *last_case_exit_type = get_last_action(case_actions).unwrap_or(last_case_exit_type.clone());
-    case_exit_types.insert(i, last_case_exit_type.clone());
 }
 
 fn get_last_action(case_actions: FxHashSet<ControlAction>) -> Option<ControlAction> {

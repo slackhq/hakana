@@ -72,17 +72,10 @@ pub(crate) fn analyze_case(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     original_context: &BlockContext,
-    case_exit_type: &ControlAction,
-    case_actions: &FxHashSet<ControlAction>,
     is_last: bool,
     switch_scope: &mut SwitchScope,
     loop_scope: &mut Option<LoopScope>,
-) -> Result<(), AnalysisError> {
-    let has_ending_statements =
-        case_actions.len() == 1 && case_actions.contains(&ControlAction::End);
-    let has_leaving_statements = has_ending_statements
-        || (!case_actions.is_empty() && !case_actions.contains(&ControlAction::None));
-
+) -> Result<ControlAction, AnalysisError> {
     let mut case_context = original_context.clone();
 
     let mut old_node_data = analysis_data.expr_types.clone();
@@ -192,7 +185,9 @@ pub(crate) fn analyze_case(
 
     let case_stmts = leftover_statements;
 
-    if !has_leaving_statements && !is_last {
+    if (case_stmts.is_empty() || &case_stmts.last().unwrap().1 == &aast::Stmt_::Fallthrough)
+        && !is_last
+    {
         // this is safe for non-defaults, and defaults are always last
         let case_equality_expression = case_equality_expr.unwrap();
         let case_cond = case_cond.unwrap();
@@ -235,7 +230,7 @@ pub(crate) fn analyze_case(
 
         analysis_data.case_scopes.pop();
 
-        return Ok(());
+        return Ok(ControlAction::None);
     }
 
     if let Some(leftover_case_equality_expr) = &switch_scope.leftover_case_equality_expr {
@@ -416,7 +411,7 @@ pub(crate) fn analyze_case(
     statements_analyzer.analyze(&case_stmts, analysis_data, &mut case_context, loop_scope)?;
 
     if analysis_data.case_scopes.is_empty() {
-        return Ok(());
+        return Ok(ControlAction::None);
     }
 
     let case_scope = analysis_data.case_scopes.pop().unwrap();
@@ -425,7 +420,12 @@ pub(crate) fn analyze_case(
     old_node_data.extend(new_node_data);
     analysis_data.expr_types = old_node_data;
 
-    if !matches!(case_exit_type, ControlAction::Return) {
+    if case_context.control_actions.is_empty()
+        || !case_context
+            .control_actions
+            .iter()
+            .all(|a| a == &ControlAction::Return || a == &ControlAction::End)
+    {
         handle_non_returning_case(
             statements_analyzer,
             switch_var_id,
@@ -435,7 +435,6 @@ pub(crate) fn analyze_case(
             context,
             &case_context,
             original_context,
-            case_exit_type,
             switch_scope,
         )?;
     }
@@ -505,7 +504,7 @@ pub(crate) fn analyze_case(
         }
     }
 
-    Ok(())
+    Ok(ControlAction::None)
 }
 
 pub(crate) fn handle_non_returning_case(
@@ -517,7 +516,6 @@ pub(crate) fn handle_non_returning_case(
     context: &mut BlockContext,
     case_context: &BlockContext,
     original_context: &BlockContext,
-    case_exit_type: &ControlAction,
     switch_scope: &mut SwitchScope,
 ) -> Result<(), AnalysisError> {
     if is_default_case {
@@ -542,86 +540,81 @@ pub(crate) fn handle_non_returning_case(
 
     let codebase = statements_analyzer.get_codebase();
 
-    if !matches!(case_exit_type, ControlAction::Continue) {
-        let mut removed_var_ids = FxHashSet::default();
-        let case_redefined_vars = case_context.get_redefined_locals(
-            &original_context.locals,
-            false,
-            &mut removed_var_ids,
+    let mut removed_var_ids = FxHashSet::default();
+    let case_redefined_vars =
+        case_context.get_redefined_locals(&original_context.locals, false, &mut removed_var_ids);
+
+    if let Some(ref mut possibly_redefined_var_ids) = switch_scope.possibly_redefined_vars {
+        for (var_id, var_type) in &case_redefined_vars {
+            possibly_redefined_var_ids.insert(
+                var_id.clone(),
+                combine_optional_union_types(
+                    Some(var_type),
+                    possibly_redefined_var_ids.get(var_id),
+                    codebase,
+                ),
+            );
+        }
+    } else {
+        switch_scope.possibly_redefined_vars = Some(
+            case_redefined_vars
+                .clone()
+                .into_iter()
+                .filter(|(var_id, _)| context.locals.contains_key(var_id))
+                .collect(),
         );
+    }
 
-        if let Some(ref mut possibly_redefined_var_ids) = switch_scope.possibly_redefined_vars {
-            for (var_id, var_type) in &case_redefined_vars {
-                possibly_redefined_var_ids.insert(
+    if let Some(ref mut redefined_vars) = switch_scope.redefined_vars {
+        for (var_id, var_type) in redefined_vars.clone() {
+            if let Some(break_var_type) = case_redefined_vars.get(&var_id) {
+                redefined_vars.insert(
                     var_id.clone(),
-                    combine_optional_union_types(
-                        Some(var_type),
-                        possibly_redefined_var_ids.get(var_id),
+                    Rc::new(combine_union_types(
+                        break_var_type,
+                        &var_type,
                         codebase,
-                    ),
+                        false,
+                    )),
                 );
+            } else {
+                redefined_vars.remove(&var_id);
             }
-        } else {
-            switch_scope.possibly_redefined_vars = Some(
-                case_redefined_vars
-                    .clone()
-                    .into_iter()
-                    .filter(|(var_id, _)| context.locals.contains_key(var_id))
-                    .collect(),
-            );
         }
+    } else {
+        switch_scope.redefined_vars = Some(
+            case_redefined_vars
+                .into_iter()
+                .map(|(k, v)| (k, Rc::new(v)))
+                .collect(),
+        );
+    }
 
-        if let Some(ref mut redefined_vars) = switch_scope.redefined_vars {
-            for (var_id, var_type) in redefined_vars.clone() {
-                if let Some(break_var_type) = case_redefined_vars.get(&var_id) {
-                    redefined_vars.insert(
-                        var_id.clone(),
-                        Rc::new(combine_union_types(
-                            break_var_type,
-                            &var_type,
-                            codebase,
-                            false,
-                        )),
-                    );
-                } else {
-                    redefined_vars.remove(&var_id);
-                }
+    if let Some(ref mut new_locals) = switch_scope.new_locals {
+        for (var_id, var_type) in new_locals.clone() {
+            if case_context.locals.contains_key(&var_id) {
+                new_locals.insert(
+                    var_id.clone(),
+                    Rc::new(combine_union_types(
+                        case_context.locals.get(&var_id).unwrap(),
+                        &var_type,
+                        codebase,
+                        false,
+                    )),
+                );
+            } else {
+                new_locals.remove(&var_id);
             }
-        } else {
-            switch_scope.redefined_vars = Some(
-                case_redefined_vars
-                    .into_iter()
-                    .map(|(k, v)| (k, Rc::new(v)))
-                    .collect(),
-            );
         }
-
-        if let Some(ref mut new_locals) = switch_scope.new_locals {
-            for (var_id, var_type) in new_locals.clone() {
-                if case_context.locals.contains_key(&var_id) {
-                    new_locals.insert(
-                        var_id.clone(),
-                        Rc::new(combine_union_types(
-                            case_context.locals.get(&var_id).unwrap(),
-                            &var_type,
-                            codebase,
-                            false,
-                        )),
-                    );
-                } else {
-                    new_locals.remove(&var_id);
-                }
-            }
-        } else {
-            switch_scope.new_locals = Some(
-                case_context
-                    .locals
-                    .clone()
-                    .into_iter()
-                    .filter(|(k, _)| !context.locals.contains_key(k))
-                    .collect(),
-            );
-        }
+    } else {
+        switch_scope.new_locals = Some(
+            case_context
+                .locals
+                .clone()
+                .into_iter()
+                .filter(|(k, _)| !context.locals.contains_key(k))
+                .collect(),
+        );
     }
 
     Ok(())
