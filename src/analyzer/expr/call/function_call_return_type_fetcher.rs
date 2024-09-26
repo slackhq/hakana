@@ -28,7 +28,6 @@ use std::sync::Arc;
 
 use crate::expr::binop::concat_analyzer::{analyze_concat_nodes, get_concat_nodes};
 use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;
-use crate::expr::variable_fetch_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -172,6 +171,13 @@ fn handle_special_functions(
     context: &mut BlockContext,
 ) -> Option<TUnion> {
     match name {
+        &StrId::INVARIANT => {
+            if let Some((_, aast::Expr(_, _, aast::Expr_::False))) = args.first() {
+                Some(get_nothing())
+            } else {
+                None
+            }
+        }
         &StrId::TYPE_STRUCTURE_FN => {
             if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
                 (args.first(), args.get(1))

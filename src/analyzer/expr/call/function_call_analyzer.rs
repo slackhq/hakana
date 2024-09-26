@@ -245,6 +245,7 @@ pub(crate) fn analyze(
     if stmt_type.is_nothing() && !context.inside_loop {
         context.has_returned = true;
         context.control_actions.insert(ControlAction::End);
+        return Ok(());
     }
 
     match name {
@@ -527,11 +528,6 @@ fn process_invariant(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
 ) {
-    if first_arg.2 == aast::Expr_::False {
-        context.has_returned = true;
-        context.control_actions.insert(ControlAction::End);
-        return;
-    }
     let assertion_context = statements_analyzer.get_assertion_context(
         context.function_context.calling_class.as_ref(),
         context.function_context.calling_functionlike_id.as_ref(),

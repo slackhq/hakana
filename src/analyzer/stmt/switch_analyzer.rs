@@ -1,9 +1,7 @@
-use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::ttype::{combine_union_types, get_mixed_any};
-use hakana_str::{Interner, StrId};
+
 use indexmap::IndexMap;
 use oxidized::{aast, aast::Pos};
-use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use crate::{
@@ -19,11 +17,7 @@ use crate::{
     stmt_analyzer::AnalysisError,
 };
 
-use super::{
-    control_analyzer::{self, BreakContext},
-    if_conditional_analyzer::add_branch_dataflow,
-    switch_case_analyzer::analyze_case,
-};
+use super::{if_conditional_analyzer::add_branch_dataflow, switch_case_analyzer::analyze_case};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -88,8 +82,6 @@ pub(crate) fn analyze(
     };
 
     let original_context = context.clone();
-
-    let mut last_case_exit_type = ControlAction::Break;
 
     let has_default = stmt.2.is_some();
 
@@ -194,20 +186,4 @@ pub(crate) fn analyze(
     context.has_returned = all_options_returned && has_default;
 
     Ok(())
-}
-
-fn get_last_action(case_actions: FxHashSet<ControlAction>) -> Option<ControlAction> {
-    if !case_actions.contains(&ControlAction::None) {
-        if case_actions.len() == 1 && case_actions.contains(&ControlAction::End) {
-            return Some(ControlAction::Return);
-        } else if case_actions.len() == 1 && case_actions.contains(&ControlAction::Continue) {
-            return Some(ControlAction::Continue);
-        } else if case_actions.contains(&ControlAction::LeaveSwitch) {
-            return Some(ControlAction::Break);
-        }
-    } else if case_actions.len() != 1 {
-        return Some(ControlAction::Break);
-    }
-
-    None
 }
