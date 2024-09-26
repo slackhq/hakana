@@ -4,7 +4,6 @@ use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct JsonConfig {
     #[serde(default)]
     pub ignore_files: Vec<String>,
@@ -24,7 +23,7 @@ pub struct JsonConfig {
 pub struct JsonSecurityConfig {
     pub ignore_files: Vec<String>,
     pub ignore_sink_files: FxHashMap<String, Vec<String>>,
-    pub max_depth: u8,
+    pub max_depth: Option<u8>,
 }
 
 pub(crate) fn read_from_file(path: &Path) -> Result<JsonConfig, Box<dyn Error>> {

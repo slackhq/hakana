@@ -167,7 +167,7 @@ impl Config {
                 )
             })
             .collect();
-        self.security_config.max_depth = json_config.security_analysis.max_depth;
+        self.security_config.max_depth = json_config.security_analysis.max_depth.unwrap_or(40);
 
         Ok(())
     }
