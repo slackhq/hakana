@@ -30,6 +30,14 @@ pub(crate) fn analyze(
 
     let mut loop_scope = LoopScope::new(context.locals.clone());
 
+    let always_enters_loop = if while_true {
+        true
+    } else if let Some(stmt_cond_type) = analysis_data.get_expr_type(stmt.0.pos()) {
+        stmt_cond_type.is_always_truthy()
+    } else {
+        false
+    };
+
     let inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
         &stmt.1 .0,
@@ -40,16 +48,8 @@ pub(crate) fn analyze(
         context,
         analysis_data,
         false,
-        false,
+        always_enters_loop,
     )?;
-
-    let always_enters_loop = if while_true {
-        true
-    } else if let Some(stmt_cond_type) = analysis_data.get_expr_type(stmt.0.pos()) {
-        stmt_cond_type.is_always_truthy()
-    } else {
-        false
-    };
 
     let can_leave_loop = !while_true || loop_scope.final_actions.contains(&ControlAction::Break);
 

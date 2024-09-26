@@ -4,7 +4,7 @@ switch (rand(0, 4)) {
             $a = 0;
             break;
         }
-
+        // FALLTHROUGH
     default:
         $a = 1;
 }

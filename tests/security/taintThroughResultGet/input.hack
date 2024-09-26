@@ -32,6 +32,6 @@ function foo(shape('a' => string) $args): void {
     }
 }
 
-function get_a_result(shape('a' => string) $args): Result<string> {
+function get_a_result(shape('a' => string) $args): Result<string, nothing> {
     return new ResultSuccess($args['a']);
 }
