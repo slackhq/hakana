@@ -526,8 +526,6 @@ fn replace_atomic<'a>(
                     None
                 };
 
-                let classlike_info = codebase.classlike_infos.get(name).unwrap();
-
                 for (offset, type_param) in type_params.iter_mut().enumerate() {
                     let input_type_param = match &input_type {
                         Some(input_inner) => match input_inner {
@@ -562,10 +560,15 @@ fn replace_atomic<'a>(
                         _ => None,
                     };
 
-                    let is_covariant = matches!(
-                        classlike_info.generic_variance.get(&offset),
-                        Some(Variance::Covariant)
-                    );
+                    let is_covariant =
+                        if let Some(classlike_info) = codebase.classlike_infos.get(name) {
+                            matches!(
+                                classlike_info.generic_variance.get(&offset),
+                                Some(Variance::Covariant)
+                            )
+                        } else {
+                            false
+                        };
 
                     *type_param = self::replace(
                         type_param,
