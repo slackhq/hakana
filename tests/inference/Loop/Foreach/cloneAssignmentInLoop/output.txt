@@ -1,0 +1,1 @@
+ERROR: CloneInsideLoop - input.hack:7:6 - Overwriting an object $a outside the loop with a clone likely not intended

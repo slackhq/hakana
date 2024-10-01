@@ -182,6 +182,41 @@ pub(crate) fn analyze(
     if let (Some(var_id), Some(existing_var_type), Bop::Eq(None)) =
         (&var_id, &existing_var_type, binop)
     {
+        if context.inside_loop && !context.inside_assignment_op {
+            if let Some(assign_value) = assign_value {
+                if let aast::Expr_::Clone(cloned_expr) = &assign_value.2 {
+                    if let aast::Expr_::Lvar(cloned_var) = &cloned_expr.2 {
+                        if cloned_var.name() == var_id {
+                            let mut origin_node_ids = vec![];
+
+                            for parent_node in &existing_var_type.parent_nodes {
+                                origin_node_ids.extend(
+                                    analysis_data.data_flow_graph.get_origin_node_ids(
+                                        &parent_node.id,
+                                        &[],
+                                        false,
+                                    ),
+                                );
+                            }
+
+                            if origin_node_ids.len() > 1 {
+                                analysis_data.maybe_add_issue(
+                                    Issue::new(
+                                        IssueKind::CloneInsideLoop,
+                                        format!("Overwriting an object {} outside the loop with a clone likely not intended", var_id),
+                                        statements_analyzer.get_hpos(pos),
+                                        &context.function_context.calling_functionlike_id,
+                                    ),
+                                    statements_analyzer.get_config(),
+                                    statements_analyzer.get_file_path_actual(),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         if context.inside_loop
             && !context.inside_assignment_op
             && context.for_loop_init_bounds.0 > 0
@@ -195,6 +230,14 @@ pub(crate) fn analyze(
                     &[],
                     false,
                 ));
+            }
+
+            if let Some(assign_value) = assign_value {
+                if let aast::Expr_::Clone(cloned_expr) = &assign_value.2 {
+                    if let aast::Expr_::Lvar(cloned_var) = &cloned_expr.2 {
+                        if cloned_var.name() == var_id {}
+                    }
+                }
             }
 
             origin_node_ids.retain(|id| {
