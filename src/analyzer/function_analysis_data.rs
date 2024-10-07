@@ -308,6 +308,12 @@ impl FunctionAnalysisData {
                         }
                         _ => {}
                     },
+                    4324 => match &issue_kind {
+                        IssueKind::InvalidArgument | IssueKind::PossiblyInvalidArgument => {
+                            return true;
+                        }
+                        _ => {}
+                    },
                     4063 => match &issue_kind {
                         IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess => {
                             return true;
