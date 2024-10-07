@@ -417,28 +417,43 @@ impl TUnion {
     pub fn is_literal_of(&self, other: &TUnion) -> bool {
         let other_atomic_type = other.types.first().unwrap();
 
-        if let TAtomic::TString = other_atomic_type {
-            for self_atomic_type in &self.types {
-                if self_atomic_type.is_string_subtype() {
-                    continue;
+        match other_atomic_type {
+            TAtomic::TString => {
+                for self_atomic_type in &self.types {
+                    if self_atomic_type.is_string_subtype() {
+                        continue;
+                    }
+
+                    return false;
                 }
 
-                return false;
+                true
             }
+            TAtomic::TInt => {
+                for self_atomic_type in &self.types {
+                    if let TAtomic::TLiteralInt { .. } = self_atomic_type {
+                        continue;
+                    }
 
-            true
-        } else if let TAtomic::TInt = other_atomic_type {
-            for self_atomic_type in &self.types {
-                if let TAtomic::TLiteralInt { .. } = self_atomic_type {
-                    continue;
+                    return false;
                 }
 
-                return false;
+                true
             }
+            TAtomic::TEnum { name, .. } => {
+                for self_atomic_type in &self.types {
+                    if let TAtomic::TEnumLiteralCase { enum_name, .. } = self_atomic_type {
+                        if enum_name == name {
+                            continue;
+                        }
+                    }
 
-            true
-        } else {
-            false
+                    return false;
+                }
+
+                true
+            }
+            _ => false,
         }
     }
 

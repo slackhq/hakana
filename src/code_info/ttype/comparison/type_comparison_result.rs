@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crate::data_flow::node::DataFlowNode;
 use crate::{t_atomic::TAtomic, t_union::TUnion};
 use crate::ttype::template::TemplateBound;
 
@@ -34,6 +37,8 @@ pub struct TypeComparisonResult {
 
     pub type_variable_lower_bounds: Vec<(String, TemplateBound)>,
     pub type_variable_upper_bounds: Vec<(String, TemplateBound)>,
+
+    pub type_mismatch_parents: Option<(Vec<DataFlowNode>, Arc<TUnion>)>,
 }
 
 impl Default for TypeComparisonResult {
@@ -55,6 +60,7 @@ impl TypeComparisonResult {
             type_variable_lower_bounds: vec![],
             type_variable_upper_bounds: vec![],
             upcasted_awaitable: false,
+            type_mismatch_parents: None,
         }
     }
 }

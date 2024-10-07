@@ -1,0 +1,1 @@
+newtype foo_t as other_t = other_t;

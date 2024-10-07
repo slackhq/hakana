@@ -179,6 +179,10 @@ pub fn is_contained_by(
                 union_comparison_result
                     .type_variable_upper_bounds
                     .extend(atomic_comparison_result.type_variable_upper_bounds);
+            } else {
+                if union_comparison_result.type_mismatch_parents.is_none() {
+                    union_comparison_result.type_mismatch_parents = atomic_comparison_result.type_mismatch_parents;
+                }
             }
 
             if atomic_comparison_result.type_coerced.unwrap_or(false) {

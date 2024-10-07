@@ -186,8 +186,8 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             results.push(if has_loop_variable {
                 match (&e1_type_atomic, &e2_type_atomic) {
                     (
-                        TAtomic::TInt | TAtomic::TLiteralInt { .. },
-                        TAtomic::TInt | TAtomic::TLiteralInt { .. },
+                        TAtomic::TInt | TAtomic::TLiteralInt { .. } | TAtomic::TNothing,
+                        TAtomic::TInt | TAtomic::TLiteralInt { .. } | TAtomic::TNothing,
                     ) => match operator {
                         oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
                         _ => TAtomic::TInt,

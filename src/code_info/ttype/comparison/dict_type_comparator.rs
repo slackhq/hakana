@@ -33,6 +33,12 @@ pub(crate) fn is_contained_by(
                     for (key, (c_u, container_property_type)) in container_known_items {
                         if let Some((i_u, input_property_type)) = input_known_items.get(key) {
                             if *i_u && !c_u {
+                                if atomic_comparison_result.type_mismatch_parents.is_none() {
+                                    atomic_comparison_result.type_mismatch_parents = Some((
+                                        input_property_type.parent_nodes.clone(),
+                                        container_property_type.clone(),
+                                    ));
+                                }
                                 all_types_contain = false;
                             }
 
@@ -45,6 +51,12 @@ pub(crate) fn is_contained_by(
                                 inside_assertion,
                                 atomic_comparison_result,
                             ) {
+                                if atomic_comparison_result.type_mismatch_parents.is_none() {
+                                    atomic_comparison_result.type_mismatch_parents = Some((
+                                        input_property_type.parent_nodes.clone(),
+                                        container_property_type.clone(),
+                                    ));
+                                }
                                 all_types_contain = false;
                             }
                         } else if !c_u {

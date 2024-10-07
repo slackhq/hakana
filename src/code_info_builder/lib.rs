@@ -771,14 +771,14 @@ fn fix_function_return_type(function_name: StrId, functionlike_storage: &mut Fun
         | StrId::STRTOLOWER
         | StrId::STRTOUPPER
         | StrId::MB_STRTOLOWER
-        | StrId::MB_STRTOUPPER => functionlike_storage.return_type = Some(get_string()),
+        | StrId::MB_STRTOUPPER
+        | StrId::DATE => functionlike_storage.return_type = Some(get_string()),
 
         // falsable strings
         StrId::JSON_ENCODE
         | StrId::FILE_GET_CONTENTS
         | StrId::HEX2BIN
         | StrId::REALPATH
-        | StrId::DATE
         | StrId::BASE64_DECODE
         | StrId::DATE_FORMAT
         | StrId::HASH_HMAC => {

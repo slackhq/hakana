@@ -1006,18 +1006,24 @@ impl TAtomic {
         )
     }
 
-    #[inline]
     pub fn is_string_subtype(&self) -> bool {
-        matches!(
-            self,
+        match self {
             TAtomic::TLiteralClassname { .. }
-                | TAtomic::TLiteralString { .. }
-                | TAtomic::TClassname { .. }
-                | TAtomic::TTypename { .. }
-                | TAtomic::TGenericClassname { .. }
-                | TAtomic::TGenericTypename { .. }
-                | TAtomic::TStringWithFlags { .. }
-        )
+            | TAtomic::TLiteralString { .. }
+            | TAtomic::TClassname { .. }
+            | TAtomic::TTypename { .. }
+            | TAtomic::TGenericClassname { .. }
+            | TAtomic::TGenericTypename { .. }
+            | TAtomic::TStringWithFlags { .. } => true,
+            TAtomic::TTypeAlias {
+                as_type: Some(as_type),
+                ..
+            } => {
+                as_type.is_single()
+                    && (as_type.types[0].is_string() || as_type.types[0].is_string_subtype())
+            }
+            _ => false,
+        }
     }
 
     #[inline]

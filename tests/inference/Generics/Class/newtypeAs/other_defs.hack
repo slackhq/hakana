@@ -1,0 +1,1 @@
+newtype other_t as string = string;

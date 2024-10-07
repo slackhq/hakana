@@ -340,6 +340,7 @@ impl FunctionAnalysisData {
                     // missing shape field or shape field unknown
                     4057 | 4138 => match &issue_kind {
                         IssueKind::InvalidArgument
+                        | IssueKind::PossiblyInvalidArgument
                         | IssueKind::LessSpecificArgument
                         | IssueKind::LessSpecificReturnStatement
                         | IssueKind::InvalidReturnStatement => return true,

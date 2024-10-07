@@ -824,14 +824,13 @@ impl DataFlowNode {
     #[inline]
     pub fn get_pos(&self) -> Option<HPos> {
         match &self.kind {
-            DataFlowNodeKind::Vertex { pos, .. } | DataFlowNodeKind::TaintSource { pos, .. } => *pos,
-            DataFlowNodeKind::TaintSink { pos, .. } => Some(*pos),
-            DataFlowNodeKind::VariableUseSource { .. }
-            | DataFlowNodeKind::ForLoopInit { .. }
-            | DataFlowNodeKind::VariableUseSink { .. }
-            | DataFlowNodeKind::DataSource { .. } => {
-                panic!()
+            DataFlowNodeKind::Vertex { pos, .. } | DataFlowNodeKind::TaintSource { pos, .. } => {
+                *pos
             }
+            DataFlowNodeKind::TaintSink { pos, .. }
+            | DataFlowNodeKind::VariableUseSource { pos, .. }
+            | DataFlowNodeKind::DataSource { pos, .. } => Some(*pos),
+            DataFlowNodeKind::ForLoopInit { .. } | DataFlowNodeKind::VariableUseSink { .. } => None,
         }
     }
 }

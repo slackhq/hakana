@@ -423,11 +423,33 @@ pub(crate) fn verify_type(
                     Issue::new(
                         IssueKind::PossiblyInvalidArgument,
                         format!(
-                            "Argument {} of {} expects {}, possibly different type {} provided",
+                            "Argument {} of {} expects {}, possibly different type {} provided{}",
                             (argument_offset + 1),
                             functionlike_id.to_string(statements_analyzer.get_interner()),
                             param_type.get_id(Some(statements_analyzer.get_interner())),
                             input_type.get_id(Some(statements_analyzer.get_interner())),
+                            if let Some(type_mismatch_parent_nodes) =
+                                union_comparison_result.type_mismatch_parents
+                            {
+                                if !type_mismatch_parent_nodes.0.is_empty() {
+                                    if let Some(pos) = type_mismatch_parent_nodes.0[0].get_pos() {
+                                        format!(
+                                            " in :{}:{} is a mismatch with {}",
+                                            pos.start_line,
+                                            pos.start_column,
+                                            type_mismatch_parent_nodes
+                                                .1
+                                                .get_id(Some(statements_analyzer.get_interner()))
+                                        )
+                                    } else {
+                                        "".to_string()
+                                    }
+                                } else {
+                                    "".to_string()
+                                }
+                            } else {
+                                "".to_string()
+                            }
                         ),
                         statements_analyzer.get_hpos(input_expr.pos()),
                         &context.function_context.calling_functionlike_id,
