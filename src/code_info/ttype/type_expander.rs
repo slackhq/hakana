@@ -343,7 +343,15 @@ fn expand_atomic(
                 FxHashSet::default(),
             );
 
-            if let Some(const_type) = const_type {
+            if let Some(mut const_type) = const_type {
+                expand_union(
+                    codebase,
+                    interner,
+                    &mut const_type,
+                    options,
+                    data_flow_graph,
+                );
+
                 new_return_type_parts.extend(const_type.types);
             } else {
                 new_return_type_parts.push(TAtomic::TMixed);
