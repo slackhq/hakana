@@ -5,6 +5,7 @@ use hakana_str::{StrId, ThreadedInterner};
 use no_pos_hash::{position_insensitive_hash, Hasher, NoPosHash};
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use hakana_code_info::{
     ast_signature::DefSignatureNode,
     attribute_info::AttributeInfo,
@@ -19,7 +20,6 @@ use hakana_code_info::{
     type_resolution::TypeResolutionContext,
     FileSource, GenericParent,
 };
-use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use oxidized::{
     aast::{self, ClassConstKind},
     ast_defs::{self, ClassishKind},
@@ -523,21 +523,6 @@ pub(crate) fn scan(
         }
     }
 
-    let mut def_signature_node = DefSignatureNode {
-        name: *class_name,
-        start_offset: storage.meta_start.start_offset,
-        end_offset: storage.def_location.end_offset,
-        start_line: storage.meta_start.start_line,
-        end_line: storage.def_location.end_line,
-        start_colum: storage.def_location.start_column,
-        end_column: storage.def_location.end_column,
-        children: Vec::new(),
-        signature_hash,
-        body_hash: None,
-        is_function: false,
-        is_constant: false,
-    };
-
     for trait_use in &classlike_node.uses {
         let trait_type = get_type_from_hint(
             &trait_use.1,
@@ -562,9 +547,7 @@ pub(crate) fn scan(
             let mut hasher = rustc_hash::FxHasher::default();
             name.0.hash(&mut hasher);
 
-            def_signature_node.signature_hash = def_signature_node
-                .signature_hash
-                .wrapping_add(hasher.finish());
+            signature_hash = signature_hash.wrapping_add(hasher.finish());
 
             if let Some(type_params) = type_params {
                 storage
@@ -574,6 +557,8 @@ pub(crate) fn scan(
         }
     }
 
+    let mut def_signature_nodes = vec![];
+
     for class_const_node in &classlike_node.consts {
         visit_class_const_declaration(
             class_const_node,
@@ -581,7 +566,7 @@ pub(crate) fn scan(
             &mut storage,
             file_source,
             interner,
-            &mut def_signature_node.children,
+            &mut def_signature_nodes,
             all_uses,
         );
     }
@@ -594,7 +579,7 @@ pub(crate) fn scan(
                 &mut storage,
                 file_source,
                 interner,
-                &mut def_signature_node.children,
+                &mut def_signature_nodes,
                 all_uses,
             );
         }
@@ -648,16 +633,20 @@ pub(crate) fn scan(
 
     // todo iterate over enum cases
 
-    for class_property_node in &classlike_node.vars {
+    for property_node in &classlike_node.vars {
+        let property_name = interner.intern(property_node.id.1.clone());
         visit_property_declaration(
-            class_property_node,
+            property_name,
+            property_node,
             resolved_names,
             &mut storage,
             file_source,
-            interner,
-            &mut def_signature_node.children,
+            &mut def_signature_nodes,
             all_uses,
         );
+
+        signature_hash =
+            signature_hash.wrapping_add(xxhash_rust::xxh3::xxh3_64(&property_name.0.to_le_bytes()));
     }
 
     for xhp_attribute in &classlike_node.xhp_attrs {
@@ -666,7 +655,7 @@ pub(crate) fn scan(
             resolved_names,
             &mut storage,
             file_source,
-            &mut def_signature_node.children,
+            &mut def_signature_nodes,
             interner,
             all_uses,
         );
@@ -685,7 +674,7 @@ pub(crate) fn scan(
             user_defined,
         );
 
-        let (signature_hash, body_hash) = get_function_hashes(
+        let (method_signature_hash, body_hash) = get_function_hashes(
             &file_source.file_contents,
             &functionlike_storage.def_location,
             &m.name,
@@ -698,7 +687,7 @@ pub(crate) fn scan(
                 .get(&(*class_name, method_name))
                 .unwrap_or(&vec![]),
         );
-        def_signature_node.children.push(DefSignatureNode {
+        def_signature_nodes.push(DefSignatureNode {
             name: method_name,
             start_offset: functionlike_storage.def_location.start_offset,
             end_offset: functionlike_storage.def_location.end_offset,
@@ -706,12 +695,14 @@ pub(crate) fn scan(
             end_line: functionlike_storage.def_location.end_line,
             start_colum: functionlike_storage.def_location.start_column,
             end_column: functionlike_storage.def_location.end_column,
-            signature_hash,
+            signature_hash: method_signature_hash,
             body_hash: Some(body_hash),
             children: vec![],
             is_function: true,
             is_constant: false,
         });
+        signature_hash =
+            signature_hash.wrapping_add(xxhash_rust::xxh3::xxh3_64(&method_name.0.to_le_bytes()));
 
         if !storage.template_readonly.is_empty()
             && matches!(m.visibility, ast_defs::Visibility::Public)
@@ -737,12 +728,27 @@ pub(crate) fn scan(
             .insert((*class_name, method_name), functionlike_storage);
     }
 
+    def_signature_nodes.shrink_to_fit();
+
+    let def_signature_node = DefSignatureNode {
+        name: *class_name,
+        start_offset: storage.meta_start.start_offset,
+        end_offset: storage.def_location.end_offset,
+        start_line: storage.meta_start.start_line,
+        end_line: storage.def_location.end_line,
+        start_colum: storage.def_location.start_column,
+        end_column: storage.def_location.end_column,
+        children: def_signature_nodes,
+        signature_hash,
+        body_hash: None,
+        is_function: false,
+        is_constant: false,
+    };
+
     storage.properties.shrink_to_fit();
     storage.methods.shrink_to_fit();
 
     codebase.classlike_infos.insert(*class_name, storage);
-
-    def_signature_node.children.shrink_to_fit();
 
     ast_nodes.push(def_signature_node);
 
@@ -1064,11 +1070,11 @@ fn visit_class_typeconst_declaration(
 }
 
 fn visit_property_declaration(
+    property_ref_id: StrId,
     property_node: &aast::ClassVar<(), ()>,
     resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
-    interner: &mut ThreadedInterner,
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
     all_uses: &Uses,
 ) {
@@ -1093,8 +1099,6 @@ fn visit_property_declaration(
     }
 
     let def_pos = HPos::new(&property_node.span, file_source.file_path);
-
-    let property_ref_id = interner.intern(property_node.id.1.clone());
 
     let uses_hash = get_uses_hash(
         all_uses
