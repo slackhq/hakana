@@ -102,12 +102,12 @@ pub fn populate_codebase(
             }
         }
 
-        for (_, constant) in storage.constants.iter_mut() {
+        for (constant_name, constant) in storage.constants.iter_mut() {
             if let Some(provided_type) = constant.provided_type.as_mut() {
                 populate_union_type(
                     provided_type,
                     &codebase.symbols,
-                    &ReferenceSource::Symbol(true, *name),
+                    &ReferenceSource::ClasslikeMember(true, *name, *constant_name),
                     symbol_references,
                     userland_force_repopulation,
                 );
@@ -117,20 +117,20 @@ pub fn populate_codebase(
                 populate_atomic_type(
                     inferred_type,
                     &codebase.symbols,
-                    &ReferenceSource::Symbol(true, *name),
+                    &ReferenceSource::ClasslikeMember(true, *name, *constant_name),
                     symbol_references,
                     userland_force_repopulation,
                 );
             }
         }
 
-        for (_, type_constant_info) in storage.type_constants.iter_mut() {
+        for (constant_name, type_constant_info) in storage.type_constants.iter_mut() {
             match type_constant_info {
                 ClassConstantType::Concrete(type_) | ClassConstantType::Abstract(Some(type_)) => {
                     populate_union_type(
                         type_,
                         &codebase.symbols,
-                        &ReferenceSource::Symbol(true, *name),
+                        &ReferenceSource::ClasslikeMember(true, *name, *constant_name),
                         symbol_references,
                         userland_force_repopulation,
                     );
