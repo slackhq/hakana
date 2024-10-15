@@ -1,17 +1,18 @@
 use super::{control_analyzer::BreakContext, loop_analyzer};
 use crate::{
     function_analysis_data::FunctionAnalysisData,
-    scope_analyzer::ScopeAnalyzer,
     scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
+    scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
-use oxidized::{aast, ast_defs};
+use oxidized::{aast, ast_defs, pos::Pos};
 use std::rc::Rc;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: (&aast::Expr<(), ()>, &aast::Block<(), ()>),
+    pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
@@ -38,6 +39,9 @@ pub(crate) fn analyze(
         false
     };
 
+    let prev_loop_bounds = while_context.loop_bounds;
+    while_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
+
     let inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
         &stmt.1 .0,
@@ -50,6 +54,8 @@ pub(crate) fn analyze(
         false,
         always_enters_loop,
     )?;
+
+    while_context.loop_bounds = prev_loop_bounds;
 
     let can_leave_loop = !while_true || loop_scope.final_actions.contains(&ControlAction::Break);
 
@@ -79,9 +85,7 @@ pub(crate) fn analyze(
                         );
                     }
                 } else {
-                    context
-                        .locals
-                        .insert(var_id.clone(), var_type.clone());
+                    context.locals.insert(var_id.clone(), var_type.clone());
                 }
             }
         } else {

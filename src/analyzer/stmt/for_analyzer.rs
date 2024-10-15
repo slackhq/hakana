@@ -46,6 +46,9 @@ pub(crate) fn analyze(
     for_context.inside_loop = true;
     for_context.break_types.push(BreakContext::Loop);
 
+    let prev_loop_bounds = for_context.loop_bounds;
+    for_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
+
     loop_analyzer::analyze(
         statements_analyzer,
         &stmt.3 .0,
@@ -62,6 +65,8 @@ pub(crate) fn analyze(
         false,
         while_true,
     )?;
+
+    for_context.loop_bounds = prev_loop_bounds;
 
     // theoretically we could also port over always_enters_loop logic from Psalm here
     // but I'm not sure that would be massively useful

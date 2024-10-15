@@ -100,6 +100,7 @@ pub(crate) fn analyze(
             while_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1),
+                &stmt.0,
                 analysis_data,
                 context,
             )?;
@@ -108,6 +109,7 @@ pub(crate) fn analyze(
             do_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1),
+                &stmt.0,
                 analysis_data,
                 context,
             )?;

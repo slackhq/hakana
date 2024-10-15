@@ -142,6 +142,9 @@ pub(crate) fn analyze(
     foreach_context.for_loop_init_bounds = (0, 0);
     foreach_context.inside_loop_exprs = false;
 
+    let prev_loop_bounds = foreach_context.loop_bounds;
+    foreach_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
+
     loop_analyzer::analyze(
         statements_analyzer,
         &stmt.2 .0,
@@ -154,6 +157,8 @@ pub(crate) fn analyze(
         false,
         always_non_empty_array,
     )?;
+
+    foreach_context.loop_bounds = prev_loop_bounds;
 
     // todo do we need to remove the loop scope from analysis_data here? unsure
 

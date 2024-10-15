@@ -160,6 +160,8 @@ pub struct BlockContext {
 
     pub inside_async: bool,
 
+    pub loop_bounds: (u32, u32),
+
     pub for_loop_init_bounds: (u32, u32),
 
     /* Effects for pipe var, if applicable */
@@ -205,6 +207,7 @@ impl BlockContext {
             parent_conflicting_clause_vars: FxHashSet::default(),
             allow_taints: true,
             inside_async: false,
+            loop_bounds: (0, 0),
             for_loop_init_bounds: (0, 0),
 
             pipe_var_effects: EFFECT_PURE,

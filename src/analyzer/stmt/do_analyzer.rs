@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use hakana_algebra::Clause;
-use oxidized::aast;
+use oxidized::{aast, pos::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -21,6 +21,7 @@ use super::{
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: (&aast::Block<(), ()>, &aast::Expr<(), ()>),
+    pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
@@ -72,6 +73,10 @@ pub(crate) fn analyze(
         ));
     }
 
+    let prev_loop_bounds = do_context.loop_bounds;
+
+    do_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
+
     let mut inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
         &stmt.0 .0,
@@ -84,6 +89,8 @@ pub(crate) fn analyze(
         true,
         true,
     )?;
+
+    do_context.loop_bounds = prev_loop_bounds;
 
     let clauses_to_simplify = {
         let mut c = context
@@ -120,9 +127,7 @@ pub(crate) fn analyze(
     }
 
     for (var_id, var_type) in inner_loop_context.locals {
-        context
-            .locals
-            .insert(var_id.clone(), var_type.clone());
+        context.locals.insert(var_id.clone(), var_type.clone());
     }
 
     Ok(())
