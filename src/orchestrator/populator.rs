@@ -741,42 +741,8 @@ fn inherit_methods_from_parent(
             }
         }
 
-        if let Some(existing_declaring_class) = storage.declaring_method_ids.get(method_name) {
-            if existing_declaring_class != declaring_class {
-                let existing_declaring_class_storage = if existing_declaring_class == &storage.name
-                {
-                    &storage
-                } else if let Some(storage) = codebase.classlike_infos.get(existing_declaring_class)
-                {
-                    storage
-                } else {
-                    continue;
-                };
-
-                if !matches!(existing_declaring_class_storage.kind, SymbolKind::Interface) {
-                    if let Some(functionlike_storage) = codebase
-                        .functionlike_infos
-                        .get(&(existing_declaring_class_storage.name, *method_name))
-                    {
-                        if let Some(method_info) = &functionlike_storage.method_info {
-                            if !method_info.is_abstract {
-                                continue;
-                            }
-
-                            if let Some(functionlike_storage) = codebase
-                                .functionlike_infos
-                                .get(&(storage.name, *method_name))
-                            {
-                                if let Some(method_info) = &functionlike_storage.method_info {
-                                    if method_info.is_abstract {
-                                        continue;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        if let Some(_) = storage.declaring_method_ids.get(method_name) {
+            continue;
         }
 
         storage
