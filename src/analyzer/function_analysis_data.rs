@@ -41,6 +41,7 @@ pub struct FunctionAnalysisData {
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
     pub hakana_fixme_or_ignores: BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>>,
     pub matched_ignore_positions: FxHashSet<(u32, u32)>,
+    pub previously_used_fixme_positions: FxHashMap<(u32, u32), (u32, u32)>,
     pub type_variable_bounds: FxHashMap<String, (Vec<TemplateBound>, Vec<TemplateBound>)>,
     pub migrate_function: Option<bool>,
     pub after_expr_hook_called: FxHashSet<(u32, u32)>,
@@ -92,6 +93,7 @@ impl FunctionAnalysisData {
             after_arg_hook_called: FxHashSet::default(),
             after_expr_hook_called: FxHashSet::default(),
             inside_await: false,
+            previously_used_fixme_positions: FxHashMap::default(),
         }
     }
 
@@ -176,9 +178,17 @@ impl FunctionAnalysisData {
             return matches!(issue.kind, IssueKind::TaintedData(_));
         }
 
-        if self.covered_by_hh_fixme(&issue.kind, issue.pos.start_line)
-            || self.covered_by_hh_fixme(&issue.kind, issue.pos.start_line - 1)
-        {
+        if self.covered_by_hh_fixme(
+            &issue.kind,
+            issue.pos.start_line,
+            issue.pos.start_offset,
+            issue.pos.end_offset,
+        ) || self.covered_by_hh_fixme(
+            &issue.kind,
+            issue.pos.start_line - 1,
+            issue.pos.start_offset,
+            issue.pos.end_offset,
+        ) {
             return false;
         }
 
@@ -231,10 +241,28 @@ impl FunctionAnalysisData {
         None
     }
 
-    fn covered_by_hh_fixme(&mut self, issue_kind: &IssueKind, start_line: u32) -> bool {
-        if let Some(fixmes) = self.hh_fixmes.get(&(start_line as isize)) {
-            for hack_error in fixmes.keys() {
-                match *hack_error {
+    fn covered_by_hh_fixme(
+        &mut self,
+        issue_kind: &IssueKind,
+        issue_start_line: u32,
+        issue_start_offset: u32,
+        issue_end_offset: u32,
+    ) -> bool {
+        if let Some(fixmes) = self.hh_fixmes.get(&(issue_start_line as isize)) {
+            for (hack_error, fixme_pos) in fixmes {
+                if fixme_pos.start_offset() as u32 > issue_start_offset {
+                    continue;
+                }
+                let fixme_offsets = (
+                    fixme_pos.start_offset() as u32,
+                    fixme_pos.end_offset() as u32,
+                );
+                if let Some(offset) = self.previously_used_fixme_positions.get(&fixme_offsets) {
+                    if *offset != (issue_start_offset, issue_end_offset) {
+                        continue;
+                    }
+                }
+                if match *hack_error {
                     // Unify error
                     4110 => match &issue_kind {
                         IssueKind::FalsableReturnStatement
@@ -264,10 +292,8 @@ impl FunctionAnalysisData {
                         | IssueKind::PossiblyInvalidArgument
                         | IssueKind::InvalidPropertyAssignmentValue
                         | IssueKind::LessSpecificNestedAnyReturnStatement
-                        | IssueKind::LessSpecificNestedAnyArgumentType => {
-                            return true;
-                        }
-                        _ => {}
+                        | IssueKind::LessSpecificNestedAnyArgumentType => true,
+                        _ => false,
                     },
                     // type inference failed
                     4297 => match &issue_kind {
@@ -287,10 +313,8 @@ impl FunctionAnalysisData {
                         | IssueKind::MixedMethodCall
                         | IssueKind::MixedPropertyAssignment
                         | IssueKind::MixedPropertyTypeCoercion
-                        | IssueKind::MixedReturnStatement => {
-                            return true;
-                        }
-                        _ => {}
+                        | IssueKind::MixedReturnStatement => true,
+                        _ => false,
                     },
                     // RequiredFieldIsOptional
                     4163 => match &issue_kind {
@@ -303,45 +327,35 @@ impl FunctionAnalysisData {
                         | IssueKind::LessSpecificNestedReturnStatement
                         | IssueKind::LessSpecificReturnStatement
                         | IssueKind::PropertyTypeCoercion
-                        | IssueKind::PossiblyInvalidArgument => {
-                            return true;
-                        }
-                        _ => {}
+                        | IssueKind::PossiblyInvalidArgument => true,
+                        _ => false,
                     },
                     4324 => match &issue_kind {
-                        IssueKind::InvalidArgument | IssueKind::PossiblyInvalidArgument => {
-                            return true;
-                        }
-                        _ => {}
+                        IssueKind::InvalidArgument | IssueKind::PossiblyInvalidArgument => true,
+                        _ => false,
                     },
                     4063 => match &issue_kind {
-                        IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess => {
-                            return true;
-                        }
-                        _ => {}
+                        IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess => true,
+                        _ => false,
                     },
-                    4064 => {
-                        if let IssueKind::PossiblyNullPropertyFetch = &issue_kind {
-                            return true;
-                        }
-                    }
-                    4005 => {
-                        if let IssueKind::MixedArrayAccess = &issue_kind {
-                            return true;
-                        }
-                    }
+                    4064 => match &issue_kind {
+                        IssueKind::PossiblyNullPropertyFetch => true,
+                        _ => false,
+                    },
+                    4005 => match &issue_kind {
+                        IssueKind::MixedArrayAccess => true,
+                        _ => false,
+                    },
                     2049 => match &issue_kind {
-                        IssueKind::NonExistentMethod => return true,
-                        IssueKind::NonExistentFunction => return true,
-                        IssueKind::NonExistentClass => return true,
-                        _ => {}
+                        IssueKind::NonExistentMethod
+                        | IssueKind::NonExistentFunction
+                        | IssueKind::NonExistentClass => true,
+                        _ => false,
                     },
                     // missing member
                     4053 => match &issue_kind {
-                        IssueKind::NonExistentMethod | IssueKind::NonExistentXhpAttribute => {
-                            return true
-                        }
-                        _ => {}
+                        IssueKind::NonExistentMethod | IssueKind::NonExistentXhpAttribute => true,
+                        _ => false,
                     },
                     // missing shape field or shape field unknown
                     4057 | 4138 => match &issue_kind {
@@ -349,37 +363,39 @@ impl FunctionAnalysisData {
                         | IssueKind::PossiblyInvalidArgument
                         | IssueKind::LessSpecificArgument
                         | IssueKind::LessSpecificReturnStatement
-                        | IssueKind::InvalidReturnStatement => return true,
-                        _ => {}
+                        | IssueKind::InvalidReturnStatement => true,
+                        _ => false,
                     },
-                    4062 => {
-                        if let IssueKind::MixedMethodCall = &issue_kind {
-                            return true;
-                        }
-                    }
+                    4062 => match &issue_kind {
+                        IssueKind::MixedMethodCall => true,
+                        _ => false,
+                    },
                     4321 | 4108 => match &issue_kind {
                         IssueKind::UndefinedStringArrayOffset
                         | IssueKind::UndefinedIntArrayOffset
-                        | IssueKind::ImpossibleNonnullEntryCheck => return true,
-                        _ => {}
+                        | IssueKind::ImpossibleNonnullEntryCheck => true,
+                        _ => false,
                     },
                     4165 => match &issue_kind {
                         IssueKind::PossiblyUndefinedStringArrayOffset
-                        | IssueKind::PossiblyUndefinedIntArrayOffset => return true,
-                        _ => {}
+                        | IssueKind::PossiblyUndefinedIntArrayOffset => true,
+                        _ => false,
                     },
                     4249 | 4250 => match &issue_kind {
                         IssueKind::RedundantKeyCheck | IssueKind::ImpossibleKeyCheck => {
                             return true
                         }
-                        _ => {}
+                        _ => false,
                     },
-                    4107 => {
-                        if let IssueKind::NonExistentFunction = &issue_kind {
-                            return true;
-                        }
-                    }
-                    _ => {}
+                    4107 => match &issue_kind {
+                        IssueKind::NonExistentFunction => true,
+                        _ => false,
+                    },
+                    _ => false,
+                } {
+                    self.previously_used_fixme_positions
+                        .insert(fixme_offsets, (issue_start_offset, issue_end_offset));
+                    return true;
                 }
             }
         }
