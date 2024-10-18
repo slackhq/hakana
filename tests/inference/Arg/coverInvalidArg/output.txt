@@ -1,0 +1,2 @@
+ERROR: InvalidArgument - input.hack:4:9 - Argument 1 of foo expects int, different type string(a) provided
+ERROR: InvalidArgument - input.hack:4:40 - Argument 3 of foo expects int, different type string(c) provided
