@@ -11,7 +11,7 @@ use oxidized::{aast, ast::PropOrMethod, ast_defs};
 
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
 
-// gets a var id from a simple variable
+/** Gets the identifier for a simple variable */
 pub fn get_var_id(
     conditional: &aast::Expr<(), ()>,
     this_class_name: Option<&StrId>,
@@ -100,7 +100,7 @@ pub fn get_var_id(
     }
 }
 
-// gets a the beginning var id from a chain
+/** Gets the beginning var identifier from a chain */
 pub(crate) fn get_root_var_id(conditional: &aast::Expr<(), ()>) -> Option<String> {
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => Some(var_expr.1 .1.clone()),
@@ -110,8 +110,10 @@ pub(crate) fn get_root_var_id(conditional: &aast::Expr<(), ()>) -> Option<String
     }
 }
 
-// gets a var id from variables but also array fetches
-// and property fetches, which themselves can be nested
+/** 
+ * Gets a var identifier from variables but also array fetches
+ * and property fetches, which themselves can be nested 
+ **/
 pub(crate) fn get_dim_id(
     conditional: &aast::Expr<(), ()>,
     codebase: Option<(&CodebaseInfo, &Interner)>,
