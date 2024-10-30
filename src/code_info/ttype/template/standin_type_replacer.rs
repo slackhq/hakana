@@ -1385,7 +1385,7 @@ fn handle_template_param_type_standin<'a>(
                 .unwrap();
 
             for template_atomic_type in &template_type.types {
-                atomic_types.push(TAtomic::TClassname {
+                atomic_types.push(TAtomic::TTypename {
                     as_type: Box::new(template_atomic_type.clone()),
                 });
             }

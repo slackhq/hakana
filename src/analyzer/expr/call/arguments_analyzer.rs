@@ -116,6 +116,7 @@ pub(crate) fn check_arguments_match(
                             .get_file_source()
                             .file_path,
                     ),
+                    expand_typenames: false,
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,

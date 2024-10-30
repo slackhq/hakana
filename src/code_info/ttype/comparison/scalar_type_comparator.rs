@@ -482,6 +482,15 @@ pub fn is_contained_by(
                     base_type: None,
                 }
             } else if let Some(typedef_info) = codebase.type_definitions.get(input_name) {
+                if let TAtomic::TTypeAlias {
+                    name: alias_name, ..
+                } = &**container_name
+                {
+                    if alias_name == input_name {
+                        return true;
+                    }
+                }
+
                 typedef_info.actual_type.clone().get_single_owned()
             } else {
                 TAtomic::TNamedObject {

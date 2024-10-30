@@ -42,6 +42,7 @@ pub struct TypeExpansionOptions<'a> {
     pub expand_generic: bool,
     pub expand_templates: bool,
     pub expand_hakana_types: bool,
+    pub expand_typenames: bool,
     pub expand_all_type_aliases: bool,
 }
 
@@ -57,6 +58,7 @@ impl Default for TypeExpansionOptions<'_> {
             function_is_final: false,
             expand_generic: false,
             expand_templates: true,
+            expand_typenames: true,
             expand_hakana_types: true,
             expand_all_type_aliases: false,
         }
@@ -365,6 +367,10 @@ fn expand_atomic(
         as_type,
     } = return_type_part
     {
+        if !options.expand_typenames {
+            return;
+        }
+
         let type_definition = if let Some(t) = codebase.type_definitions.get(type_name) {
             t
         } else {
