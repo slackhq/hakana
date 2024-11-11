@@ -20,7 +20,7 @@ pub struct InternalError(pub String, pub HPos);
 
 #[derive(Clone)]
 pub struct FileAnalyzer<'a> {
-    file_source: FileSource<'a>,
+    pub file_source: FileSource<'a>,
     namespace_name: Option<String>,
     pub resolved_names: &'a FxHashMap<u32, StrId>,
     pub codebase: &'a CodebaseInfo,
@@ -113,7 +113,7 @@ impl<'a> FileAnalyzer<'a> {
             analysis_result,
             &statements_analyzer
                 .file_analyzer
-                .get_file_source()
+                .file_source
                 .file_path,
             false,
         );

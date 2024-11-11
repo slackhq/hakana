@@ -112,7 +112,7 @@ impl<'a> StatementsAnalyzer<'a> {
 
     #[inline]
     pub fn get_hpos(&self, pos: &Pos) -> HPos {
-        HPos::new(pos, self.file_analyzer.get_file_source().file_path)
+        HPos::new(pos, self.file_analyzer.file_source.file_path)
     }
 
     #[inline]
@@ -122,7 +122,7 @@ impl<'a> StatementsAnalyzer<'a> {
         calling_functionlike_id: Option<&'a FunctionLikeIdentifier>,
     ) -> AssertionContext {
         AssertionContext {
-            file_source: self.file_analyzer.get_file_source(),
+            file_source: &self.file_analyzer.file_source,
             resolved_names: self.file_analyzer.resolved_names,
             codebase: Some((self.codebase, self.interner)),
             this_class_name,
@@ -144,11 +144,11 @@ impl<'a> StatementsAnalyzer<'a> {
     }
 
     pub fn get_file_path(&self) -> &FilePath {
-        &self.file_analyzer.get_file_source().file_path
+        &self.file_analyzer.file_source.file_path
     }
 
     pub fn get_file_path_actual(&self) -> &str {
-        &self.file_analyzer.get_file_source().file_path_actual
+        &self.file_analyzer.file_source.file_path_actual
     }
 }
 

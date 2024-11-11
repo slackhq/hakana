@@ -552,7 +552,7 @@ pub(crate) fn analyze_atomic_assignment(
                     file_path: Some(
                         &statements_analyzer
                             .file_analyzer
-                            .get_file_source()
+                            .file_source
                             .file_path,
                     ),
                     ..Default::default()

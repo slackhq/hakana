@@ -234,7 +234,7 @@ fn get_class_property_type(
                 file_path: Some(
                     &statements_analyzer
                         .file_analyzer
-                        .get_file_source()
+                        .file_source
                         .file_path,
                 ),
                 ..Default::default()
@@ -334,7 +334,7 @@ fn update_template_types(
                                     file_path: Some(
                                         &statements_analyzer
                                             .file_analyzer
-                                            .get_file_source()
+                                            .file_source
                                             .file_path,
                                     ),
                                     ..Default::default()

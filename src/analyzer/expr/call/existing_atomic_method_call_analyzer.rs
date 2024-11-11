@@ -634,7 +634,7 @@ fn handle_defined_shape_idx(
             statements_analyzer.get_config(),
             &statements_analyzer
                 .file_analyzer
-                .get_file_source()
+                .file_source
                 .file_path_actual,
         );
     }

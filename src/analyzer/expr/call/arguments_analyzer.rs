@@ -113,7 +113,7 @@ pub(crate) fn check_arguments_match(
                     file_path: Some(
                         &statements_analyzer
                             .file_analyzer
-                            .get_file_source()
+                            .file_source
                             .file_path,
                     ),
                     expand_typenames: false,
@@ -751,7 +751,7 @@ fn get_param_type(
                     file_path: Some(
                         &statements_analyzer
                             .file_analyzer
-                            .get_file_source()
+                            .file_source
                             .file_path,
                     ),
                     ..Default::default()
@@ -1112,7 +1112,7 @@ fn handle_possibly_matching_inout_param(
             file_path: Some(
                 &statements_analyzer
                     .file_analyzer
-                    .get_file_source()
+                    .file_source
                     .file_path,
             ),
             ..Default::default()

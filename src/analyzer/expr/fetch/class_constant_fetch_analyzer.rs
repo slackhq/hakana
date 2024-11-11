@@ -291,7 +291,7 @@ fn analyse_known_class_constant(
                 file_path: Some(
                     &statements_analyzer
                         .file_analyzer
-                        .get_file_source()
+                        .file_source
                         .file_path,
                 ),
                 ..Default::default()

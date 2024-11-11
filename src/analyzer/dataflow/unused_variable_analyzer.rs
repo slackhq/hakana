@@ -386,7 +386,7 @@ pub(crate) fn add_unused_expression_replacements(
         unused_variable_nodes: unused_source_nodes,
         comments: statements_analyzer
             .file_analyzer
-            .get_file_source()
+            .file_source
             .comments,
         in_single_block: false,
     };

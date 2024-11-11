@@ -67,7 +67,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 "Cannot resolve function name".to_string(),
                 HPos::new(
                     stmt.name.pos(),
-                    self.file_analyzer.get_file_source().file_path,
+                    self.file_analyzer.file_source.file_path,
                 ),
             ));
         };
@@ -90,7 +90,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 "Cannot load function storage".to_string(),
                 HPos::new(
                     stmt.name.pos(),
-                    self.file_analyzer.get_file_source().file_path,
+                    self.file_analyzer.file_source.file_path,
                 ),
             ));
         };
@@ -99,7 +99,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             self.file_analyzer,
             function_storage.type_resolution_context.as_ref().unwrap(),
             self.file_analyzer
-                .get_file_source()
+                .file_source
                 .comments
                 .iter()
                 .filter(|c| {
@@ -148,7 +148,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 None => {
                     return Err(AnalysisError::InternalError(
                         "Cannot get closure storage".to_string(),
-                        HPos::new(&stmt.span, self.file_analyzer.get_file_source().file_path),
+                        HPos::new(&stmt.span, self.file_analyzer.file_source.file_path),
                     ));
                 }
                 Some(value) => value,
@@ -164,7 +164,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             self.file_analyzer,
             lambda_storage.type_resolution_context.as_ref().unwrap(),
             self.file_analyzer
-                .get_file_source()
+                .file_source
                 .comments
                 .iter()
                 .filter(|c| {
@@ -218,7 +218,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve method name".to_string(),
-                HPos::new(&stmt.name.0, self.file_analyzer.get_file_source().file_path),
+                HPos::new(&stmt.name.0, self.file_analyzer.file_source.file_path),
             ));
         };
 
@@ -240,7 +240,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve function storage".to_string(),
-                HPos::new(&stmt.name.0, self.file_analyzer.get_file_source().file_path),
+                HPos::new(&stmt.name.0, self.file_analyzer.file_source.file_path),
             ));
         };
 
@@ -251,7 +251,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .as_ref()
                 .unwrap(),
             self.file_analyzer
-                .get_file_source()
+                .file_source
                 .comments
                 .iter()
                 .filter(|c| {
@@ -409,7 +409,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             false
                         },
                         expand_generic: true,
-                        file_path: Some(&self.file_analyzer.get_file_source().file_path),
+                        file_path: Some(&self.file_analyzer.file_source.file_path),
 
                         ..Default::default()
                     },
@@ -456,7 +456,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
-            statements_analyzer.file_analyzer.get_file_source(),
+            &statements_analyzer.file_analyzer.file_source,
             &statements_analyzer.comments,
             &self.get_config().all_custom_issues,
             if let Some(parent_analysis_data) = &parent_analysis_data {
@@ -899,7 +899,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 analysis_result,
                 &statements_analyzer
                     .file_analyzer
-                    .get_file_source()
+                    .file_source
                     .file_path,
                 functionlike_storage.ignore_taint_path,
             );
@@ -1053,7 +1053,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                 let calling_id = if let Some(calling_closure_id) = context.calling_closure_id {
                     FunctionLikeIdentifier::Closure(
-                        self.file_analyzer.get_file_source().file_path,
+                        self.file_analyzer.file_source.file_path,
                         calling_closure_id,
                     )
                 } else {
@@ -1544,7 +1544,7 @@ pub(crate) fn get_closure_storage(
         .codebase
         .functionlike_infos
         .get(&(
-            file_analyzer.get_file_source().file_path.0,
+            file_analyzer.file_source.file_path.0,
             StrId(offset as u32),
         ))
         .cloned()
