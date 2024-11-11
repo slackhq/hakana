@@ -84,7 +84,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
 
         let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
-            statements_analyzer.get_file_analyzer().get_file_source(),
+            statements_analyzer.file_analyzer.get_file_source(),
             &statements_analyzer.comments,
             &statements_analyzer.get_config().all_custom_issues,
             None,

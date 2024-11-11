@@ -21,12 +21,12 @@ use oxidized::{
     ast_defs::Pos,
 };
 
+use crate::expression_analyzer;
 use crate::{
     expr::{expression_identifier, fetch::array_fetch_analyzer},
     function_analysis_data::FunctionAnalysisData,
     stmt_analyzer::AnalysisError,
 };
-use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
 use super::instance_property_assignment_analyzer;
@@ -70,11 +70,8 @@ pub(crate) fn analyze(
     let root_var_id = expression_identifier::get_var_id(
         root_array_expr,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().resolved_names,
-        Some((
-            statements_analyzer.codebase,
-            statements_analyzer.interner,
-        )),
+        statements_analyzer.file_analyzer.resolved_names,
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
     let current_dim = analyze_nested_array_assignment(
@@ -693,21 +690,15 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             var_id_additions.push(
                 if let Some(dim_id) = expression_identifier::get_dim_id(
                     dim,
-                    Some((
-                        statements_analyzer.codebase,
-                        statements_analyzer.interner,
-                    )),
-                    statements_analyzer.get_file_analyzer().resolved_names,
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
+                    statements_analyzer.file_analyzer.resolved_names,
                 ) {
                     format!("[{}]", dim_id)
                 } else if let Some(dim_id) = expression_identifier::get_var_id(
                     dim,
                     context.function_context.calling_class.as_ref(),
-                    statements_analyzer.get_file_analyzer().resolved_names,
-                    Some((
-                        statements_analyzer.codebase,
-                        statements_analyzer.interner,
-                    )),
+                    statements_analyzer.file_analyzer.resolved_names,
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 ) {
                     format!("[{}]", dim_id)
                 } else {
@@ -784,11 +775,8 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                 expression_identifier::get_var_id(
                     array_expr.0,
                     context.function_context.calling_class.as_ref(),
-                    statements_analyzer.get_file_analyzer().resolved_names,
-                    Some((
-                        statements_analyzer.codebase,
-                        statements_analyzer.interner,
-                    )),
+                    statements_analyzer.file_analyzer.resolved_names,
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 ),
                 &array_expr_offset_atomic_types,
                 context.inside_general_use
@@ -875,11 +863,8 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         let array_expr_id = if let Some(var_var_id) = expression_identifier::get_var_id(
             array_expr.0,
             context.function_context.calling_class.as_ref(),
-            statements_analyzer.get_file_analyzer().resolved_names,
-            Some((
-                statements_analyzer.codebase,
-                statements_analyzer.interner,
-            )),
+            statements_analyzer.file_analyzer.resolved_names,
+            Some((statements_analyzer.codebase, statements_analyzer.interner)),
         ) {
             parent_array_var_id = Some(var_var_id.clone());
             Some(format!(

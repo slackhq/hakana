@@ -28,7 +28,7 @@ pub(crate) fn analyze(
             hook.can_codegen_def(
                 statements_analyzer.interner,
                 statements_analyzer.codebase,
-                statements_analyzer.get_file_analyzer().resolved_names,
+                statements_analyzer.file_analyzer.resolved_names,
                 def,
             )
         })
@@ -73,7 +73,7 @@ pub(crate) fn analyze(
             let mut function_context = FunctionContext::new();
             function_context.calling_class = Some(
                 if let Some(resolved_name) = statements_analyzer
-                    .get_file_analyzer()
+                    .file_analyzer
                     .resolved_names
                     .get(&(boxed.name.pos().start_offset() as u32))
                 {

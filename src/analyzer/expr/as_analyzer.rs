@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use crate::scope::BlockContext;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
@@ -139,7 +138,7 @@ pub(crate) fn analyze<'expr>(
             &hint.1,
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_type_resolution_context(),
-            statements_analyzer.get_file_analyzer().resolved_names,
+            statements_analyzer.file_analyzer.resolved_names,
             *statements_analyzer.get_file_path(),
             hint.0.start_offset() as u32,
         )

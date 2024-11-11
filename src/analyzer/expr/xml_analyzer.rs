@@ -42,7 +42,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
 ) -> Result<(), AnalysisError> {
-    let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+    let resolved_names = statements_analyzer.file_analyzer.resolved_names;
     let xhp_class_name =
         if let Some(resolved_name) = resolved_names.get(&(boxed.0 .0.start_offset() as u32)) {
             resolved_name

@@ -165,7 +165,7 @@ pub(crate) fn analyze(
                 },
                 file_path: Some(
                     &statements_analyzer
-                        .get_file_analyzer()
+                        .file_analyzer
                         .get_file_source()
                         .file_path,
                 ),

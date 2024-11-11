@@ -112,7 +112,7 @@ impl<'a> FileAnalyzer<'a> {
             analysis_data,
             analysis_result,
             &statements_analyzer
-                .get_file_analyzer()
+                .file_analyzer
                 .get_file_source()
                 .file_path,
             false,

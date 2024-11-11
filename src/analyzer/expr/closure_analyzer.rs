@@ -25,7 +25,7 @@ pub(crate) fn analyze(
     fun: &aast::Fun_<(), ()>,
     expr: &aast::Expr<(), ()>,
 ) -> Result<(), AnalysisError> {
-    let mut function_analyzer = FunctionLikeAnalyzer::new(statements_analyzer.get_file_analyzer());
+    let mut function_analyzer = FunctionLikeAnalyzer::new(statements_analyzer.file_analyzer);
     let mut analysis_result =
         AnalysisResult::new(analysis_data.data_flow_graph.kind, SymbolReferences::new());
     let mut lambda_storage = if let Ok(lambda_storage) = function_analyzer.analyze_lambda(

@@ -305,7 +305,7 @@ fn detect_unused_statement_expressions(
             let functionlike_id = get_static_functionlike_id_from_call(
                 boxed_call,
                 statements_analyzer.interner,
-                statements_analyzer.get_file_analyzer().resolved_names,
+                statements_analyzer.file_analyzer.resolved_names,
             );
 
             if let Some(FunctionLikeIdentifier::Function(function_id)) = functionlike_id {
@@ -394,7 +394,7 @@ fn has_unused_must_use(
             let functionlike_id_from_call = get_functionlike_id_from_call(
                 boxed_call,
                 statements_analyzer.interner,
-                statements_analyzer.get_file_analyzer().resolved_names,
+                statements_analyzer.file_analyzer.resolved_names,
                 &analysis_data.expr_types,
             );
             if let Some(functionlike_id) = functionlike_id_from_call {

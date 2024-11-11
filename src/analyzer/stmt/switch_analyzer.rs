@@ -12,7 +12,6 @@ use crate::{
         control_action::ControlAction, loop_scope::LoopScope, switch_scope::SwitchScope,
         BlockContext,
     },
-    scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -44,7 +43,7 @@ pub(crate) fn analyze(
     let switch_var_id = if let Some(switch_var_id) = expression_identifier::get_var_id(
         stmt.0,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().resolved_names,
+        statements_analyzer.file_analyzer.resolved_names,
         Some((
             statements_analyzer.codebase,
             statements_analyzer.interner,

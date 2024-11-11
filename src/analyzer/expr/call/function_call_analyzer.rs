@@ -46,7 +46,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let name = expr.0 .1;
 
-    let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+    let resolved_names = statements_analyzer.file_analyzer.resolved_names;
 
     // we special-case this because exit is used in
     // `as` ternaries where the positions may be fake

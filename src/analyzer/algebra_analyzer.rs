@@ -65,7 +65,7 @@ pub(crate) fn check_for_paradox(
                 ),
                 statements_analyzer.get_config(),
                 &statements_analyzer
-                    .get_file_analyzer()
+                    .file_analyzer
                     .get_file_source()
                     .file_path_actual,
             );

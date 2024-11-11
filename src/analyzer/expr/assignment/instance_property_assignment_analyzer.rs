@@ -245,7 +245,7 @@ pub(crate) fn analyze_regular_assignment(
     let lhs_var_id = expression_identifier::get_var_id(
         stmt_var,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().resolved_names,
+        statements_analyzer.file_analyzer.resolved_names,
         Some((
             statements_analyzer.codebase,
             statements_analyzer.interner,
@@ -437,7 +437,7 @@ pub(crate) fn analyze_atomic_assignment(
         let var_id = expression_identifier::get_var_id(
             expr.0,
             None,
-            statements_analyzer.get_file_analyzer().resolved_names,
+            statements_analyzer.file_analyzer.resolved_names,
             Some((
                 statements_analyzer.codebase,
                 statements_analyzer.interner,
@@ -551,7 +551,7 @@ pub(crate) fn analyze_atomic_assignment(
                     parent_class: declaring_classlike_storage.direct_parent_class.as_ref(),
                     file_path: Some(
                         &statements_analyzer
-                            .get_file_analyzer()
+                            .file_analyzer
                             .get_file_source()
                             .file_path,
                     ),

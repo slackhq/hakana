@@ -44,7 +44,7 @@ pub(crate) fn analyze(
                     context.function_context.calling_class_final,
                     codebase,
                     &mut is_static,
-                    statements_analyzer.get_file_analyzer().resolved_names,
+                    statements_analyzer.file_analyzer.resolved_names,
                 ) {
                     id
                 } else {
@@ -239,7 +239,7 @@ pub(crate) fn analyze(
                 parent_class: parent_class.as_ref(),
                 file_path: Some(
                     &statements_analyzer
-                        .get_file_analyzer()
+                        .file_analyzer
                         .get_file_source()
                         .file_path,
                 ),

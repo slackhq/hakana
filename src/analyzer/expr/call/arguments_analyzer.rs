@@ -77,7 +77,7 @@ pub(crate) fn check_arguments_match(
                 &type_arg.1 .1,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_type_resolution_context(),
-                statements_analyzer.get_file_analyzer().resolved_names,
+                statements_analyzer.file_analyzer.resolved_names,
                 *statements_analyzer.get_file_path(),
                 type_arg.1 .0.start_offset() as u32,
             )
@@ -112,7 +112,7 @@ pub(crate) fn check_arguments_match(
                     },
                     file_path: Some(
                         &statements_analyzer
-                            .get_file_analyzer()
+                            .file_analyzer
                             .get_file_source()
                             .file_path,
                     ),
@@ -509,7 +509,7 @@ pub(crate) fn check_arguments_match(
                 if let Some(expr_var_id) = expression_identifier::get_var_id(
                     arg_expr,
                     None,
-                    statements_analyzer.get_file_analyzer().resolved_names,
+                    statements_analyzer.file_analyzer.resolved_names,
                     Some((
                         statements_analyzer.codebase,
                         statements_analyzer.interner,
@@ -750,7 +750,7 @@ fn get_param_type(
                     },
                     file_path: Some(
                         &statements_analyzer
-                            .get_file_analyzer()
+                            .file_analyzer
                             .get_file_source()
                             .file_path,
                     ),
@@ -825,7 +825,7 @@ fn handle_closure_arg(
 
     let mut closure_storage = {
         match functionlike_analyzer::get_closure_storage(
-            statements_analyzer.get_file_analyzer(),
+            statements_analyzer.file_analyzer,
             closure_expr.1.start_offset(),
         ) {
             None => {
@@ -993,7 +993,7 @@ pub(crate) fn evaluate_arbitrary_param(
         let var_id = get_var_id(
             expr,
             context.function_context.calling_class.as_ref(),
-            statements_analyzer.get_file_analyzer().resolved_names,
+            statements_analyzer.file_analyzer.resolved_names,
             Some((
                 statements_analyzer.codebase,
                 statements_analyzer.interner,
@@ -1111,7 +1111,7 @@ fn handle_possibly_matching_inout_param(
             },
             file_path: Some(
                 &statements_analyzer
-                    .get_file_analyzer()
+                    .file_analyzer
                     .get_file_source()
                     .file_path,
             ),

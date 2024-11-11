@@ -23,7 +23,6 @@ use oxidized::ast_defs::Pos;
 use crate::expr::expression_identifier::get_expr_id;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::ttype::template::{TemplateBound, TemplateResult};
@@ -129,7 +128,7 @@ pub(crate) fn fetch(
             expand_generic: true,
             file_path: Some(
                 &statements_analyzer
-                    .get_file_analyzer()
+                    .file_analyzer
                     .get_file_source()
                     .file_path,
             ),

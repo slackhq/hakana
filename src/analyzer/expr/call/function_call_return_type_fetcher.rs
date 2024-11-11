@@ -30,7 +30,6 @@ use crate::expr::binop::concat_analyzer::{analyze_concat_nodes, get_concat_nodes
 use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use hakana_code_info::ttype::template::{TemplateBound, TemplateResult};
@@ -128,7 +127,7 @@ pub(crate) fn fetch(
                 expand_generic: true,
                 file_path: Some(
                     &statements_analyzer
-                        .get_file_analyzer()
+                        .file_analyzer
                         .get_file_source()
                         .file_path,
                 ),

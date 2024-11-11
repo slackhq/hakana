@@ -19,7 +19,6 @@ use std::rc::Rc;
 
 use crate::dataflow::program_analyzer::{should_ignore_array_fetch, should_ignore_property_fetch};
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_code_info::data_flow::graph::DataFlowGraph;
 use hakana_code_info::data_flow::node::DataFlowNode;
@@ -386,7 +385,7 @@ pub(crate) fn add_unused_expression_replacements(
     let mut scanner = Scanner {
         unused_variable_nodes: unused_source_nodes,
         comments: statements_analyzer
-            .get_file_analyzer()
+            .file_analyzer
             .get_file_source()
             .comments,
         in_single_block: false,

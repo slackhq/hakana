@@ -4,7 +4,6 @@ use crate::scope::control_action::ControlAction;
 use crate::scope::loop_scope::LoopScope;
 use crate::scope::var_has_root;
 use crate::scope::{if_scope::IfScope, BlockContext};
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
@@ -114,7 +113,7 @@ pub(crate) fn analyze(
     let final_actions = control_analyzer::get_control_actions(
         codebase,
         statements_analyzer.interner,
-        statements_analyzer.get_file_analyzer().resolved_names,
+        statements_analyzer.file_analyzer.resolved_names,
         &stmt.1 .0,
         analysis_data,
         Vec::new(),

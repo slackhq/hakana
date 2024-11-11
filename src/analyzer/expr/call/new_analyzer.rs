@@ -88,7 +88,7 @@ pub(crate) fn analyze(
                         })
                     }
                     _ => {
-                        let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+                        let resolved_names = statements_analyzer.file_analyzer.resolved_names;
 
                         let name_string = if let Some(resolved_name) =
                             resolved_names.get(&(id.0.start_offset() as u32))
@@ -397,7 +397,7 @@ fn analyze_named_constructor(
                         &type_arg.1 .1,
                         context.function_context.calling_class.as_ref(),
                         statements_analyzer.get_type_resolution_context(),
-                        statements_analyzer.get_file_analyzer().resolved_names,
+                        statements_analyzer.file_analyzer.resolved_names,
                         *statements_analyzer.get_file_path(),
                         type_arg.1 .0.start_offset() as u32,
                     )
@@ -481,7 +481,7 @@ fn analyze_named_constructor(
                             parent_class: None,
                             file_path: Some(
                                 &statements_analyzer
-                                    .get_file_analyzer()
+                                    .file_analyzer
                                     .get_file_source()
                                     .file_path,
                             ),
@@ -575,7 +575,7 @@ fn analyze_named_constructor(
                             &type_arg.1 .1,
                             context.function_context.calling_class.as_ref(),
                             statements_analyzer.get_type_resolution_context(),
-                            statements_analyzer.get_file_analyzer().resolved_names,
+                            statements_analyzer.file_analyzer.resolved_names,
                             *statements_analyzer.get_file_path(),
                             type_arg.1 .0.start_offset() as u32,
                         )
@@ -599,7 +599,7 @@ fn analyze_named_constructor(
                                 parent_class: None,
                                 file_path: Some(
                                     &statements_analyzer
-                                        .get_file_analyzer()
+                                        .file_analyzer
                                         .get_file_source()
                                         .file_path,
                                 ),

@@ -29,7 +29,7 @@ pub(crate) fn analyze(
     let codebase = statements_analyzer.codebase;
 
     let name = if let Some(name) = statements_analyzer
-        .get_file_analyzer()
+        .file_analyzer
         .resolved_names
         .get(&(boxed.0.start_offset() as u32))
     {

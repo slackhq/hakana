@@ -12,7 +12,6 @@ use crate::{
     function_analysis_data::FunctionAnalysisData,
     reconciler,
     scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
-    scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -86,7 +85,7 @@ pub(crate) fn analyze<'a>(
     let final_actions = control_analyzer::get_control_actions(
         codebase,
         statements_analyzer.interner,
-        statements_analyzer.get_file_analyzer().resolved_names,
+        statements_analyzer.file_analyzer.resolved_names,
         stmts,
         analysis_data,
         vec![],

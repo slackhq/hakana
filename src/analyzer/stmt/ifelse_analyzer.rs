@@ -58,7 +58,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_file_analyzer().codebase;
+    let codebase = statements_analyzer.file_analyzer.codebase;
 
     let mut if_scope = IfScope::default();
 

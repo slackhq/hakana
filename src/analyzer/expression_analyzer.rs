@@ -148,7 +148,7 @@ pub(crate) fn analyze(
             let keyed_array_var_id = expression_identifier::get_var_id(
                 expr,
                 context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().resolved_names,
+                statements_analyzer.file_analyzer.resolved_names,
                 Some((
                     statements_analyzer.codebase,
                     statements_analyzer.interner,
@@ -439,7 +439,7 @@ pub(crate) fn analyze(
         }
         aast::Expr_::EnumClassLabel(boxed) => {
             let class_name = if let Some(id) = &boxed.0 {
-                let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+                let resolved_names = statements_analyzer.file_analyzer.resolved_names;
 
                 Some(
                     resolved_names
@@ -682,7 +682,7 @@ fn analyze_function_pointer(
     let codebase = statements_analyzer.codebase;
     let id = match &boxed.0 {
         aast::FunctionPtrId::FPId(id) => FunctionLikeIdentifier::Function({
-            let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+            let resolved_names = statements_analyzer.file_analyzer.resolved_names;
 
             if let Some(name) = resolved_names.get(&(id.0.start_offset() as u32)).cloned() {
                 name
@@ -694,7 +694,7 @@ fn analyze_function_pointer(
             }
         }),
         aast::FunctionPtrId::FPClassConst(class_id, method_name) => {
-            let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+            let resolved_names = statements_analyzer.file_analyzer.resolved_names;
             let calling_class = &context.function_context.calling_class;
 
             let class_name = match &class_id.2 {

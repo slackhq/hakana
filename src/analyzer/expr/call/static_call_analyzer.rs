@@ -2,7 +2,6 @@ use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::t_atomic::TAtomic;
@@ -32,7 +31,7 @@ pub(crate) fn analyze(
 
     let mut classlike_name = None;
 
-    let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+    let resolved_names = statements_analyzer.file_analyzer.resolved_names;
 
     let lhs_type = match &expr.0 .2 {
         aast::ClassId_::CIexpr(lhs_expr) => {

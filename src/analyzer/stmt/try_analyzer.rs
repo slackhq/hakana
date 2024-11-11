@@ -3,8 +3,7 @@ use crate::scope::{
 };
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
-    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    statements_analyzer::StatementsAnalyzer,
+    function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
@@ -52,7 +51,7 @@ pub(crate) fn analyze(
     let try_block_control_actions = control_analyzer::get_control_actions(
         codebase,
         statements_analyzer.interner,
-        statements_analyzer.get_file_analyzer().resolved_names,
+        statements_analyzer.file_analyzer.resolved_names,
         &stmt.0 .0,
         analysis_data,
         vec![],
@@ -99,7 +98,7 @@ pub(crate) fn analyze(
 
     let mut definitely_newly_assigned_var_ids = newly_assigned_var_ids.clone();
 
-    let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+    let resolved_names = statements_analyzer.file_analyzer.resolved_names;
 
     let mut all_catches_leave = true;
 
@@ -152,12 +151,7 @@ pub(crate) fn analyze(
 
         let new_parent_node = if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
             DataFlowNode::get_for_variable_source(
-                VarId(
-                    statements_analyzer
-                        .interner
-                        .get(catch_var_id)
-                        .unwrap(),
-                ),
+                VarId(statements_analyzer.interner.get(catch_var_id).unwrap()),
                 statements_analyzer.get_hpos(&catch.1 .0),
                 false,
                 true,
@@ -166,12 +160,7 @@ pub(crate) fn analyze(
             )
         } else {
             DataFlowNode::get_for_lvar(
-                VarId(
-                    statements_analyzer
-                        .interner
-                        .get(catch_var_id)
-                        .unwrap(),
-                ),
+                VarId(statements_analyzer.interner.get(catch_var_id).unwrap()),
                 statements_analyzer.get_hpos(&catch.1 .0),
             )
         };
@@ -214,7 +203,7 @@ pub(crate) fn analyze(
         let catch_actions = control_analyzer::get_control_actions(
             codebase,
             statements_analyzer.interner,
-            statements_analyzer.get_file_analyzer().resolved_names,
+            statements_analyzer.file_analyzer.resolved_names,
             &catch.2 .0,
             analysis_data,
             vec![],
@@ -328,7 +317,7 @@ pub(crate) fn analyze(
             let finally_actions = control_analyzer::get_control_actions(
                 codebase,
                 statements_analyzer.interner,
-                statements_analyzer.get_file_analyzer().resolved_names,
+                statements_analyzer.file_analyzer.resolved_names,
                 &stmt.2 .0,
                 analysis_data,
                 vec![],

@@ -62,7 +62,7 @@ pub(crate) fn analyze(
     let var_id = expression_identifier::get_var_id(
         stmt.0,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().resolved_names,
+        statements_analyzer.file_analyzer.resolved_names,
         Some((
             statements_analyzer.codebase,
             statements_analyzer.interner,

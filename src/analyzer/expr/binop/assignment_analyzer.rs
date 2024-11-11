@@ -58,7 +58,7 @@ pub(crate) fn analyze(
     let var_id = get_var_id(
         assign_var,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().resolved_names,
+        statements_analyzer.file_analyzer.resolved_names,
         Some((
             statements_analyzer.codebase,
             statements_analyzer.interner,
@@ -396,7 +396,7 @@ fn analyze_list_assignment(
         let list_var_id = expression_identifier::get_var_id(
             assign_var_item,
             context.function_context.calling_class.as_ref(),
-            statements_analyzer.get_file_analyzer().resolved_names,
+            statements_analyzer.file_analyzer.resolved_names,
             Some((
                 statements_analyzer.codebase,
                 statements_analyzer.interner,
@@ -464,7 +464,7 @@ fn analyze_list_assignment(
             let source_expr_id = expression_identifier::get_var_id(
                 source_expr,
                 context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().resolved_names,
+                statements_analyzer.file_analyzer.resolved_names,
                 Some((
                     statements_analyzer.codebase,
                     statements_analyzer.interner,

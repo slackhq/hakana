@@ -1,6 +1,5 @@
 use crate::{
-    expression_analyzer, function_analysis_data::FunctionAnalysisData, scope::BlockContext,
-    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    expression_analyzer, function_analysis_data::FunctionAnalysisData, scope::BlockContext, statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
 use hakana_code_info::{
@@ -57,7 +56,7 @@ pub(crate) fn analyze(
             ShapeFieldName::SFlitStr(name) => Some(DictKey::String(name.1.to_string())),
             ShapeFieldName::SFclassConst(lhs, name) => {
                 let lhs_name = if let Some(name) = statements_analyzer
-                    .get_file_analyzer()
+                    .file_analyzer
                     .resolved_names
                     .get(&(lhs.0.start_offset() as u32))
                 {

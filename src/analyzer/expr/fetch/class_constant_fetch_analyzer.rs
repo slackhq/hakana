@@ -39,7 +39,7 @@ pub(crate) fn analyze(
                     context.function_context.calling_class_final,
                     codebase,
                     &mut is_static,
-                    statements_analyzer.get_file_analyzer().resolved_names,
+                    statements_analyzer.file_analyzer.resolved_names,
                 ) {
                     Some(value) => value,
                     None => return Err(AnalysisError::UserError),
@@ -290,7 +290,7 @@ fn analyse_known_class_constant(
                 parent_class: None,
                 file_path: Some(
                     &statements_analyzer
-                        .get_file_analyzer()
+                        .file_analyzer
                         .get_file_source()
                         .file_path,
                 ),

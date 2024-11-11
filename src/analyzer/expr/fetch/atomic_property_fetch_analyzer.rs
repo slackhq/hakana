@@ -233,7 +233,7 @@ fn get_class_property_type(
                 parent_class: parent_class.as_ref(),
                 file_path: Some(
                     &statements_analyzer
-                        .get_file_analyzer()
+                        .file_analyzer
                         .get_file_source()
                         .file_path,
                 ),
@@ -333,7 +333,7 @@ fn update_template_types(
                                     parent_class: None,
                                     file_path: Some(
                                         &statements_analyzer
-                                            .get_file_analyzer()
+                                            .file_analyzer
                                             .get_file_source()
                                             .file_path,
                                     ),

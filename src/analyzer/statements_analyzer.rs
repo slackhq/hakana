@@ -19,7 +19,7 @@ use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
 
 pub struct StatementsAnalyzer<'a> {
-    file_analyzer: &'a FileAnalyzer<'a>,
+    pub file_analyzer: &'a FileAnalyzer<'a>,
     function_info: Option<&'a FunctionLikeInfo>,
     pub comments: Vec<&'a (Pos, Comment)>,
     type_resolution_context: &'a TypeResolutionContext,
@@ -122,8 +122,8 @@ impl<'a> StatementsAnalyzer<'a> {
         calling_functionlike_id: Option<&'a FunctionLikeIdentifier>,
     ) -> AssertionContext {
         AssertionContext {
-            file_source: self.get_file_analyzer().get_file_source(),
-            resolved_names: self.get_file_analyzer().resolved_names,
+            file_source: self.file_analyzer.get_file_source(),
+            resolved_names: self.file_analyzer.resolved_names,
             codebase: Some((self.codebase, self.interner)),
             this_class_name,
             type_resolution_context: self.type_resolution_context,
@@ -144,11 +144,11 @@ impl<'a> StatementsAnalyzer<'a> {
     }
 
     pub fn get_file_path(&self) -> &FilePath {
-        &self.get_file_analyzer().get_file_source().file_path
+        &self.file_analyzer.get_file_source().file_path
     }
 
     pub fn get_file_path_actual(&self) -> &str {
-        &self.get_file_analyzer().get_file_source().file_path_actual
+        &self.file_analyzer.get_file_source().file_path_actual
     }
 }
 

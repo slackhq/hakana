@@ -456,7 +456,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
-            statements_analyzer.get_file_analyzer().get_file_source(),
+            statements_analyzer.file_analyzer.get_file_source(),
             &statements_analyzer.comments,
             &self.get_config().all_custom_issues,
             if let Some(parent_analysis_data) = &parent_analysis_data {
@@ -898,7 +898,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 analysis_data,
                 analysis_result,
                 &statements_analyzer
-                    .get_file_analyzer()
+                    .file_analyzer
                     .get_file_source()
                     .file_path,
                 functionlike_storage.ignore_taint_path,
@@ -1053,7 +1053,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                 let calling_id = if let Some(calling_closure_id) = context.calling_closure_id {
                     FunctionLikeIdentifier::Closure(
-                        self.get_file_analyzer().get_file_source().file_path,
+                        self.file_analyzer.get_file_source().file_path,
                         calling_closure_id,
                     )
                 } else {
