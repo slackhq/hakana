@@ -316,7 +316,7 @@ pub(crate) fn handle_paradoxical_condition(
                 IssueKind::ImpossibleTruthinessCheck,
                 format!(
                     "Type {} is never truthy",
-                    expr_type.get_id(Some(statements_analyzer.get_interner()))
+                    expr_type.get_id(Some(statements_analyzer.interner))
                 ),
                 statements_analyzer.get_hpos(pos),
                 calling_functionlike_id,
@@ -330,7 +330,7 @@ pub(crate) fn handle_paradoxical_condition(
                 IssueKind::RedundantTruthinessCheck,
                 format!(
                     "Type {} is always truthy",
-                    expr_type.get_id(Some(statements_analyzer.get_interner()))
+                    expr_type.get_id(Some(statements_analyzer.interner))
                 ),
                 statements_analyzer.get_hpos(pos),
                 calling_functionlike_id,

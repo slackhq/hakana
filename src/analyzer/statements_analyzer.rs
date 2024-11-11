@@ -24,6 +24,8 @@ pub struct StatementsAnalyzer<'a> {
     pub comments: Vec<&'a (Pos, Comment)>,
     type_resolution_context: &'a TypeResolutionContext,
     pub in_migratable_function: bool,
+    pub interner: &'a Interner,
+    pub codebase: &'a CodebaseInfo,
 }
 
 impl<'a> StatementsAnalyzer<'a> {
@@ -38,6 +40,8 @@ impl<'a> StatementsAnalyzer<'a> {
             comments,
             type_resolution_context,
             in_migratable_function: false,
+            interner: file_analyzer.interner,
+            codebase: &file_analyzer.codebase,
         }
     }
 
@@ -120,7 +124,7 @@ impl<'a> StatementsAnalyzer<'a> {
         AssertionContext {
             file_source: self.get_file_analyzer().get_file_source(),
             resolved_names: self.get_file_analyzer().resolved_names,
-            codebase: Some((self.get_codebase(), self.get_interner())),
+            codebase: Some((self.codebase, self.interner)),
             this_class_name,
             type_resolution_context: self.type_resolution_context,
             reference_source: match calling_functionlike_id {
@@ -155,14 +159,6 @@ impl ScopeAnalyzer for StatementsAnalyzer<'_> {
 
     fn get_file_analyzer(&self) -> &FileAnalyzer {
         self.file_analyzer
-    }
-
-    fn get_codebase(&self) -> &CodebaseInfo {
-        self.file_analyzer.get_codebase()
-    }
-
-    fn get_interner(&self) -> &Interner {
-        self.file_analyzer.interner
     }
 
     fn get_config(&self) -> &Config {

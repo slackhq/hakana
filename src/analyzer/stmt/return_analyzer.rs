@@ -40,7 +40,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let return_expr = stmt.1.as_return().unwrap();
 
-    let interner = statements_analyzer.get_interner();
+    let interner = statements_analyzer.interner;
 
     let mut inferred_return_type = if let Some(return_expr) = return_expr {
         context.inside_return = true;
@@ -74,7 +74,7 @@ pub(crate) fn analyze(
         get_void()
     };
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     if let Some(finally_scope) = context.finally_scope.clone() {
         let mut finally_scope = (*finally_scope).borrow_mut();
@@ -107,7 +107,7 @@ pub(crate) fn analyze(
 
     type_expander::expand_union(
         codebase,
-        &Some(statements_analyzer.get_interner()),
+        &Some(statements_analyzer.interner),
         &mut inferred_return_type,
         &TypeExpansionOptions {
             self_class: context.function_context.calling_class.as_ref(),
@@ -147,7 +147,7 @@ pub(crate) fn analyze(
 
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.get_interner()),
+            &Some(statements_analyzer.interner),
             &mut expected_type,
             &TypeExpansionOptions {
                 self_class: context.function_context.calling_class.as_ref(),
@@ -559,7 +559,7 @@ fn handle_dataflow(
             return;
         }
 
-        let codebase = statements_analyzer.get_codebase();
+        let codebase = statements_analyzer.codebase;
 
         for at in &inferred_type.types {
             if let Some(shape_name) = at.get_shape_name() {

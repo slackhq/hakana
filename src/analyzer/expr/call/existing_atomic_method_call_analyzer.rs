@@ -65,7 +65,7 @@ pub(crate) fn analyze(
         false,
     );
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     if classlike_name == StrId::STATIC {
         classlike_name = context.function_context.calling_class.unwrap();
@@ -188,8 +188,8 @@ pub(crate) fn analyze(
                 standin_type_replacer::replace(
                     where_type,
                     &mut template_result,
-                    statements_analyzer.get_codebase(),
-                    statements_analyzer.get_interner(),
+                    statements_analyzer.codebase,
+                    statements_analyzer.interner,
                     &Some(template_type),
                     None,
                     None,
@@ -299,8 +299,8 @@ fn handle_shapes_static_method(
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.get_file_analyzer().resolved_names,
                     Some((
-                        statements_analyzer.get_codebase(),
-                        statements_analyzer.get_interner(),
+                        statements_analyzer.codebase,
+                        statements_analyzer.interner,
                     )),
                 );
 
@@ -342,8 +342,8 @@ fn handle_shapes_static_method(
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.get_file_analyzer().resolved_names,
                     Some((
-                        statements_analyzer.get_codebase(),
-                        statements_analyzer.get_interner(),
+                        statements_analyzer.codebase,
+                        statements_analyzer.interner,
                     )),
                 );
                 let dim_var_id = expression_identifier::get_dim_id(
@@ -376,7 +376,7 @@ fn handle_shapes_static_method(
                         let assignment_node = DataFlowNode::get_for_lvar(
                             VarId(
                                 statements_analyzer
-                                    .get_interner()
+                                    .interner
                                     .get(&expr_var_id)
                                     .unwrap(),
                             ),
@@ -612,8 +612,8 @@ fn handle_defined_shape_idx(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
-            statements_analyzer.get_codebase(),
-            statements_analyzer.get_interner(),
+            statements_analyzer.codebase,
+            statements_analyzer.interner,
         )),
     );
 

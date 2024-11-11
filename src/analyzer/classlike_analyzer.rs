@@ -41,7 +41,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
                 ));
             };
 
-        let codebase = self.file_analyzer.get_codebase();
+        let codebase = self.file_analyzer.codebase;
 
         if self.file_analyzer.analysis_config.ast_diff
             && self.file_analyzer.codebase.safe_symbols.contains(&name)
@@ -244,8 +244,8 @@ fn emit_dupe_enum_case_issue(
             IssueKind::DuplicateEnumValue,
             format!(
                 "Duplicate enum value for {}, previously defined by case {}",
-                statements_analyzer.get_interner().lookup(&enum_name),
-                statements_analyzer.get_interner().lookup(existing_name)
+                statements_analyzer.interner.lookup(&enum_name),
+                statements_analyzer.interner.lookup(existing_name)
             ),
             statements_analyzer.get_hpos(expr.pos()),
             &Some(FunctionLikeIdentifier::Function(enum_name)),

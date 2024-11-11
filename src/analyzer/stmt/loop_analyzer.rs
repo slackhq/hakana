@@ -48,7 +48,7 @@ pub(crate) fn analyze<'a>(
 
     let mut pre_condition_clauses = Vec::new();
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     if !pre_conditions.is_empty() {
         let assertion_context = statements_analyzer.get_assertion_context(
@@ -85,7 +85,7 @@ pub(crate) fn analyze<'a>(
 
     let final_actions = control_analyzer::get_control_actions(
         codebase,
-        statements_analyzer.get_interner(),
+        statements_analyzer.interner,
         statements_analyzer.get_file_analyzer().resolved_names,
         stmts,
         analysis_data,
@@ -259,7 +259,7 @@ pub(crate) fn analyze<'a>(
                             Rc::new(combine_union_types(
                                 &continue_context_type,
                                 parent_context_type,
-                                statements_analyzer.get_codebase(),
+                                statements_analyzer.codebase,
                                 false,
                             )),
                         );
@@ -806,7 +806,7 @@ fn update_loop_scope_contexts(
                     Rc::new(combine_union_types(
                         continue_context.locals.get(var_id).unwrap(),
                         var_type,
-                        statements_analyzer.get_codebase(),
+                        statements_analyzer.codebase,
                         false,
                     )),
                 );

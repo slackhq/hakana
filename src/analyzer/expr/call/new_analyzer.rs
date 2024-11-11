@@ -49,7 +49,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     //let method_id = None;
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut can_extend = false;
 
@@ -265,7 +265,7 @@ fn analyze_named_constructor(
     can_extend: bool,
     result: &mut AtomicMethodCallAnalysisResult,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let storage = if let Some(storage) = codebase.classlike_infos.get(&classlike_name) {
         storage
     } else {
@@ -280,7 +280,7 @@ fn analyze_named_constructor(
                 IssueKind::NonExistentClass,
                 format!(
                     "Cannot call new on undefined class {}",
-                    statements_analyzer.get_interner().lookup(&classlike_name)
+                    statements_analyzer.interner.lookup(&classlike_name)
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
@@ -302,7 +302,7 @@ fn analyze_named_constructor(
                 IssueKind::AbstractInstantiation,
                 format!(
                     "Cannot call new on abstract class {}",
-                    statements_analyzer.get_interner().lookup(&classlike_name)
+                    statements_analyzer.interner.lookup(&classlike_name)
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
@@ -465,7 +465,7 @@ fn analyze_named_constructor(
                 } else {
                     populate_union_type(
                         &mut param_type,
-                        &statements_analyzer.get_codebase().symbols,
+                        &statements_analyzer.codebase.symbols,
                         &context
                             .function_context
                             .get_reference_source(&statements_analyzer.get_file_path().0),
@@ -474,8 +474,8 @@ fn analyze_named_constructor(
                     );
 
                     type_expander::expand_union(
-                        statements_analyzer.get_codebase(),
-                        &Some(statements_analyzer.get_interner()),
+                        statements_analyzer.codebase,
+                        &Some(statements_analyzer.interner),
                         &mut param_type,
                         &TypeExpansionOptions {
                             parent_class: None,
@@ -583,7 +583,7 @@ fn analyze_named_constructor(
 
                         populate_union_type(
                             &mut param_type,
-                            &statements_analyzer.get_codebase().symbols,
+                            &statements_analyzer.codebase.symbols,
                             &context
                                 .function_context
                                 .get_reference_source(&statements_analyzer.get_file_path().0),
@@ -592,8 +592,8 @@ fn analyze_named_constructor(
                         );
 
                         type_expander::expand_union(
-                            statements_analyzer.get_codebase(),
-                            &Some(statements_analyzer.get_interner()),
+                            statements_analyzer.codebase,
+                            &Some(statements_analyzer.interner),
                             &mut param_type,
                             &TypeExpansionOptions {
                                 parent_class: None,
@@ -690,7 +690,7 @@ fn add_dataflow<'a>(
             return return_type_candidate;
         }
 
-        let codebase = statements_analyzer.get_codebase();
+        let codebase = statements_analyzer.codebase;
 
         let new_call_node = DataFlowNode::get_for_this_after_method(
             method_id,

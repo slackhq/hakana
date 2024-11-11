@@ -4,8 +4,7 @@ use super::{
     negated_assertion_reconciler, simple_assertion_reconciler, trigger_issue_for_impossible,
 };
 use crate::{
-    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    statements_analyzer::StatementsAnalyzer,
+    function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::ttype::{
     comparison::{
@@ -41,7 +40,7 @@ pub fn reconcile(
     negated: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let is_negation = assertion.has_negation();
 
@@ -51,7 +50,7 @@ pub fn reconcile(
         return get_missing_type(assertion, inside_loop);
     };
 
-    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
     if is_negation {
         return negated_assertion_reconciler::reconcile(
@@ -130,7 +129,7 @@ pub fn reconcile(
 
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.get_interner()),
+            &Some(statements_analyzer.interner),
             &mut refined_type,
             &TypeExpansionOptions {
                 expand_generic: true,
@@ -150,7 +149,7 @@ pub(crate) fn refine_atomic_with_union(
     new_type: &TAtomic,
     existing_var_type: &TUnion,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let intersection_type = intersect_union_with_atomic(codebase, existing_var_type, new_type);
 

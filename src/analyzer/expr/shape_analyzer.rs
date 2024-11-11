@@ -28,7 +28,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut parent_nodes = vec![];
 
@@ -72,7 +72,7 @@ pub(crate) fn analyze(
                 let constant_type = codebase.get_class_constant_type(
                     lhs_name,
                     false,
-                    &statements_analyzer.get_interner().get(&name.1).unwrap(),
+                    &statements_analyzer.interner.get(&name.1).unwrap(),
                     FxHashSet::default(),
                 );
 
@@ -92,7 +92,7 @@ pub(crate) fn analyze(
                     } else {
                         println!(
                             "surprising union type {}",
-                            constant_type.get_id(Some(statements_analyzer.get_interner()))
+                            constant_type.get_id(Some(statements_analyzer.interner))
                         );
                         panic!();
                     }
@@ -100,7 +100,7 @@ pub(crate) fn analyze(
                     return Err(AnalysisError::InternalError(
                         format!(
                             "unknown constant {}::{}",
-                            statements_analyzer.get_interner().lookup(lhs_name),
+                            statements_analyzer.interner.lookup(lhs_name),
                             &name.1
                         ),
                         statements_analyzer.get_hpos(&name.0),
@@ -136,11 +136,11 @@ pub(crate) fn analyze(
                     DictKey::String(k) => k.clone(),
                     DictKey::Enum(class_name, member_name) => {
                         statements_analyzer
-                            .get_interner()
+                            .interner
                             .lookup(class_name)
                             .to_string()
                             + "::"
-                            + statements_analyzer.get_interner().lookup(member_name)
+                            + statements_analyzer.interner.lookup(member_name)
                     }
                 },
                 value_expr,

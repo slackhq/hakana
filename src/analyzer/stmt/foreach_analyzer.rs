@@ -64,8 +64,8 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
-            statements_analyzer.get_codebase(),
-            statements_analyzer.get_interner(),
+            statements_analyzer.codebase,
+            statements_analyzer.interner,
         )),
     );
 
@@ -215,7 +215,7 @@ fn check_iterator_type(
     let mut key_type = None;
     let mut value_type = None;
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     while let Some(mut iterator_atomic_type) = iterator_atomic_types.pop() {
         if let TAtomic::TGenericParam { as_type, .. }
@@ -344,7 +344,7 @@ fn check_iterator_type(
                                     }
                                     DictKey::Enum(enum_name, member_name) => {
                                         if let Some(literal_value) = statements_analyzer
-                                            .get_codebase()
+                                            .codebase
                                             .get_classconst_literal_value(enum_name, member_name)
                                         {
                                             if let Some(value) =

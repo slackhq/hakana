@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::{simple_negated_assertion_reconciler::subtract_null, trigger_issue_for_impossible};
 use crate::{
-    function_analysis_data::FunctionAnalysisData, intersect_simple, scope_analyzer::ScopeAnalyzer,
+    function_analysis_data::FunctionAnalysisData, intersect_simple,
     statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::ttype::{
@@ -533,7 +533,7 @@ pub(crate) fn intersect_null(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+                    existing_var_type.get_id(Some(statements_analyzer.interner));
 
                 trigger_issue_for_impossible(
                     analysis_data,
@@ -612,7 +612,7 @@ fn intersect_object(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+                    existing_var_type.get_id(Some(statements_analyzer.interner));
 
                 trigger_issue_for_impossible(
                     analysis_data,
@@ -745,7 +745,7 @@ fn intersect_vec(
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
+                    &existing_var_type.get_id(Some(statements_analyzer.interner)),
                     key,
                     assertion,
                     !did_remove_type,
@@ -851,7 +851,7 @@ fn intersect_keyset(
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
+                    &existing_var_type.get_id(Some(statements_analyzer.interner)),
                     key,
                     assertion,
                     !did_remove_type,
@@ -990,7 +990,7 @@ fn intersect_dict(
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
+                    &existing_var_type.get_id(Some(statements_analyzer.interner)),
                     key,
                     assertion,
                     !did_remove_type,
@@ -1048,7 +1048,7 @@ fn intersect_arraykey(
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
+                    &existing_var_type.get_id(Some(statements_analyzer.interner)),
                     key,
                     assertion,
                     !did_remove_type,
@@ -1106,7 +1106,7 @@ fn intersect_num(
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
+                    &existing_var_type.get_id(Some(statements_analyzer.interner)),
                     key,
                     assertion,
                     !did_remove_type,
@@ -1257,7 +1257,7 @@ fn intersect_string(
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
+                    &existing_var_type.get_id(Some(statements_analyzer.interner)),
                     key,
                     assertion,
                     !did_remove_type,
@@ -1394,7 +1394,7 @@ fn intersect_int(
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
+                    &existing_var_type.get_id(Some(statements_analyzer.interner)),
                     key,
                     assertion,
                     !did_remove_type,
@@ -1564,7 +1564,7 @@ fn reconcile_isset(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+                    existing_var_type.get_id(Some(statements_analyzer.interner));
 
                 trigger_issue_for_impossible(
                     analysis_data,
@@ -1679,7 +1679,7 @@ fn reconcile_non_empty_countable(
             if let Some(pos) = pos {
                 if !recursive_check {
                     let old_var_type_string =
-                        existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+                        existing_var_type.get_id(Some(statements_analyzer.interner));
 
                     trigger_issue_for_impossible(
                         analysis_data,
@@ -1720,7 +1720,7 @@ fn reconcile_exactly_countable(
     recursive_check: bool,
     count: &usize,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
     let mut did_remove_type = false;
 
@@ -1829,10 +1829,9 @@ fn reconcile_array_access(
 
     new_var_type.types.retain(|atomic| {
         (allow_int_key
-            && atomic
-                .is_array_accessible_with_int_or_string_key(statements_analyzer.get_interner()))
+            && atomic.is_array_accessible_with_int_or_string_key(statements_analyzer.interner))
             || (!allow_int_key
-                && atomic.is_array_accessible_with_string_key(statements_analyzer.get_interner()))
+                && atomic.is_array_accessible_with_string_key(statements_analyzer.interner))
     });
 
     if new_var_type.types.is_empty() {
@@ -1840,7 +1839,7 @@ fn reconcile_array_access(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+                    existing_var_type.get_id(Some(statements_analyzer.interner));
 
                 trigger_issue_for_impossible(
                     analysis_data,
@@ -1889,7 +1888,7 @@ fn reconcile_in_array(
             trigger_issue_for_impossible(
                 analysis_data,
                 statements_analyzer,
-                &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
+                &existing_var_type.get_id(Some(statements_analyzer.interner)),
                 key,
                 assertion,
                 true,
@@ -1950,7 +1949,7 @@ fn reconcile_has_array_key(
                     did_remove_type = true;
 
                     if union_type_comparator::can_expression_types_be_identical(
-                        statements_analyzer.get_codebase(),
+                        statements_analyzer.codebase,
                         &wrap_atomic(match key_name {
                             DictKey::Int(_) => TAtomic::TInt,
                             DictKey::String(_) => TAtomic::TString,
@@ -2062,7 +2061,7 @@ fn reconcile_has_array_key(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+                    existing_var_type.get_id(Some(statements_analyzer.interner));
 
                 trigger_issue_for_impossible(
                     analysis_data,
@@ -2160,7 +2159,7 @@ fn reconcile_has_nonnull_entry_for_key(
                     did_remove_type = true;
 
                     if union_type_comparator::can_expression_types_be_identical(
-                        statements_analyzer.get_codebase(),
+                        statements_analyzer.codebase,
                         &wrap_atomic(match key_name {
                             DictKey::Int(_) => TAtomic::TInt,
                             DictKey::String(_) => TAtomic::TString,
@@ -2324,7 +2323,7 @@ fn reconcile_has_nonnull_entry_for_key(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+                    existing_var_type.get_id(Some(statements_analyzer.interner));
 
                 trigger_issue_for_impossible(
                     analysis_data,
@@ -2369,7 +2368,7 @@ pub(crate) fn get_acceptable_type(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+                    existing_var_type.get_id(Some(statements_analyzer.interner));
 
                 trigger_issue_for_impossible(
                     analysis_data,

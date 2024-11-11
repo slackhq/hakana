@@ -1,5 +1,9 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use hakana_code_info::ttype::{
+    get_arraykey, get_keyset, get_literal_int, get_mixed_any, get_nothing, type_combiner,
+    wrap_atomic,
+};
 use hakana_code_info::{
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
@@ -9,17 +13,13 @@ use hakana_code_info::{
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
-use hakana_code_info::ttype::{
-    get_arraykey, get_keyset, get_literal_int, get_mixed_any, get_nothing, type_combiner,
-    wrap_atomic,
-};
 use oxidized::{
     ast::Expr,
     ast_defs::Pos,
     tast::{KvcKind, VcKind},
 };
 
-use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
+use crate::expression_analyzer;
 use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
@@ -73,10 +73,7 @@ pub(crate) fn analyze_vals(
                 analysis_data.set_expr_type(
                     pos,
                     wrap_atomic(TAtomic::TNamedObject {
-                        name: statements_analyzer
-                            .get_interner()
-                            .get("HH\\Vector")
-                            .unwrap(),
+                        name: statements_analyzer.interner.get("HH\\Vector").unwrap(),
                         type_params: Some(vec![get_mixed_any()]),
                         is_this: false,
                         extra_types: None,
@@ -90,7 +87,7 @@ pub(crate) fn analyze_vals(
         return Ok(());
     }
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let mut array_creation_info = ArrayCreationInfo::new();
 
     // Iterate through all of the items in this collection
@@ -201,10 +198,7 @@ pub(crate) fn analyze_vals(
         }
         VcKind::Vector => {
             let mut new_vec = wrap_atomic(TAtomic::TNamedObject {
-                name: statements_analyzer
-                    .get_interner()
-                    .get("HH\\Vector")
-                    .unwrap(),
+                name: statements_analyzer.interner.get("HH\\Vector").unwrap(),
                 type_params: Some(vec![get_mixed_any()]),
                 is_this: false,
                 extra_types: None,
@@ -248,7 +242,7 @@ pub(crate) fn analyze_keyvals(
         return Ok(());
     }
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let mut array_creation_info = ArrayCreationInfo::new();
 
     // Iterate through all of the items in this collection

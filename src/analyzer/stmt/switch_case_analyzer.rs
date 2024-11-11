@@ -439,7 +439,7 @@ pub(crate) fn analyze_case(
         )?;
     }
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     if let Some(break_vars) = &case_scope.break_vars {
         if let Some(ref mut possibly_redefined_var_ids) = switch_scope.possibly_redefined_vars {
@@ -538,7 +538,7 @@ pub(crate) fn handle_non_returning_case(
         }
     }
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut removed_var_ids = FxHashSet::default();
     let case_redefined_vars =

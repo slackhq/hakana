@@ -58,7 +58,7 @@ pub(crate) fn reconcile_keyed_types(
 
     add_nested_assertions(&mut new_types, &mut active_new_types, context);
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     // we want to remove any
     let mut added_var_ids = FxHashSet::default();
@@ -85,7 +85,7 @@ pub(crate) fn reconcile_keyed_types(
                 if key == "hakana taints" {
                     match assertion {
                         Assertion::RemoveTaints(key, taints) => {
-                            let key_str = statements_analyzer.get_interner().lookup(&key.0);
+                            let key_str = statements_analyzer.interner.lookup(&key.0);
                             if let Some(existing_var_type) = context.locals.get_mut(key_str) {
                                 let new_parent_node = DataFlowNode::get_for_lvar(
                                     *key,
@@ -151,7 +151,7 @@ pub(crate) fn reconcile_keyed_types(
         } else {
             get_value_for_key(
                 codebase,
-                statements_analyzer.get_interner(),
+                statements_analyzer.interner,
                 key.clone(),
                 context,
                 &mut added_var_ids,
@@ -246,7 +246,7 @@ pub(crate) fn reconcile_keyed_types(
 
                 if has_scalar_restriction {
                     let scalar_check_node = if let Some(var_id) =
-                        statements_analyzer.get_interner().get(key)
+                        statements_analyzer.interner.get(key)
                     {
                         DataFlowNode::get_for_lvar(VarId(var_id), statements_analyzer.get_hpos(pos))
                     } else {
@@ -1075,7 +1075,7 @@ pub(crate) fn trigger_issue_for_impossible(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     _suppressed_issues: &FxHashMap<String, usize>,
 ) {
-    let mut assertion_string = assertion.to_string(Some(statements_analyzer.get_interner()));
+    let mut assertion_string = assertion.to_string(Some(statements_analyzer.interner));
     let mut not_operator = assertion_string.starts_with('!');
 
     if not_operator {
@@ -1191,7 +1191,7 @@ fn get_impossible_issue(
             format!(
                 "Type {}never has key {}",
                 old_var_type_string,
-                key.to_string(Some(statements_analyzer.get_interner()))
+                key.to_string(Some(statements_analyzer.interner))
             ),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,
@@ -1201,7 +1201,7 @@ fn get_impossible_issue(
             format!(
                 "Type {}does not have a nonnull entry for {}",
                 old_var_type_string,
-                dict_key.to_string(Some(statements_analyzer.get_interner()))
+                dict_key.to_string(Some(statements_analyzer.interner))
             ),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,
@@ -1252,7 +1252,7 @@ fn get_redundant_issue(
             format!(
                 "Type {}always has entry {}",
                 old_var_type_string,
-                key.to_string(Some(statements_analyzer.get_interner()))
+                key.to_string(Some(statements_analyzer.interner))
             ),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,
@@ -1262,7 +1262,7 @@ fn get_redundant_issue(
             format!(
                 "Type {}always has entry {}",
                 old_var_type_string,
-                key.to_string(Some(statements_analyzer.get_interner()))
+                key.to_string(Some(statements_analyzer.interner))
             ),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,

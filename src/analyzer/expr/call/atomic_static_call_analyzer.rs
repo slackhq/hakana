@@ -127,9 +127,9 @@ pub(crate) fn analyze(
         }
     };
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
-    let method_name = statements_analyzer.get_interner().get(&expr.1 .1);
+    let method_name = statements_analyzer.interner.get(&expr.1 .1);
 
     if method_name.is_none() || !codebase.method_exists(&classlike_name, &method_name.unwrap()) {
         let Some(classlike_info) = codebase.classlike_infos.get(&classlike_name) else {
@@ -138,7 +138,7 @@ pub(crate) fn analyze(
                     IssueKind::NonExistentClass,
                     format!(
                         "Class {} does not exist",
-                        statements_analyzer.get_interner().lookup(&classlike_name),
+                        statements_analyzer.interner.lookup(&classlike_name),
                     ),
                     statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
@@ -171,7 +171,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentMethod,
                 format!(
                     "Method {}::{} does not exist",
-                    statements_analyzer.get_interner().lookup(&classlike_name),
+                    statements_analyzer.interner.lookup(&classlike_name),
                     &expr.1 .1
                 ),
                 statements_analyzer.get_hpos(pos),

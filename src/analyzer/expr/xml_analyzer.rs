@@ -64,7 +64,7 @@ pub(crate) fn analyze(
 
     let mut used_attributes = FxHashSet::default();
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     for attribute in &boxed.1 {
         match attribute {
@@ -118,7 +118,7 @@ pub(crate) fn analyze(
                     IssueKind::MissingRequiredXhpAttribute,
                     format!(
                         "XHP class {} is missing {}: {}",
-                        statements_analyzer.get_interner().lookup(xhp_class_name),
+                        statements_analyzer.interner.lookup(xhp_class_name),
                         if required_attributes.len() == 1 {
                             "a required attribute"
                         } else {
@@ -126,7 +126,7 @@ pub(crate) fn analyze(
                         },
                         required_attributes
                             .iter()
-                            .map(|attr| statements_analyzer.get_interner().lookup(attr)[1..]
+                            .map(|attr| statements_analyzer.interner.lookup(attr)[1..]
                                 .to_string())
                             .join(", ")
                     ),
@@ -143,7 +143,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentClass,
                 format!(
                     "Unknown XHP class {}",
-                    statements_analyzer.get_interner().lookup(xhp_class_name)
+                    statements_analyzer.interner.lookup(xhp_class_name)
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
@@ -154,7 +154,7 @@ pub(crate) fn analyze(
         return Ok(());
     };
 
-    let element_name = statements_analyzer.get_interner().lookup(xhp_class_name);
+    let element_name = statements_analyzer.interner.lookup(xhp_class_name);
 
     analysis_data.expr_effects.insert(
         (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -278,7 +278,7 @@ fn handle_attribute_spread(
                             false,
                             expr_type_atomic.clone(),
                             statements_analyzer
-                                .get_interner()
+                                .interner
                                 .lookup(spread_attribute.0),
                             &None,
                         )?;
@@ -301,7 +301,7 @@ fn handle_attribute_spread(
                                 xhp_expr.pos(),
                                 property_fetch_type,
                                 statements_analyzer
-                                    .get_interner()
+                                    .interner
                                     .lookup(spread_attribute.0),
                             );
                         }
@@ -348,7 +348,7 @@ fn analyze_xhp_attribute_assignment(
         .cloned();
 
     let attribute_name_pos = &attribute_info.name.0;
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     if let Some(classlike_info) = codebase.classlike_infos.get(element_name) {
         if attribute_name != StrId::DATA_ATTRIBUTE
@@ -362,8 +362,8 @@ fn analyze_xhp_attribute_assignment(
                     IssueKind::NonExistentXhpAttribute,
                     format!(
                         "XHP attribute {} is not defined on {}",
-                        statements_analyzer.get_interner().lookup(&attribute_name),
-                        statements_analyzer.get_interner().lookup(element_name)
+                        statements_analyzer.interner.lookup(&attribute_name),
+                        statements_analyzer.interner.lookup(element_name)
                     ),
                     statements_analyzer.get_hpos(attribute_name_pos),
                     &context.function_context.calling_functionlike_id,
@@ -401,7 +401,7 @@ fn add_all_dataflow(
     attribute_name: &str,
 ) {
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-        let codebase = statements_analyzer.get_codebase();
+        let codebase = statements_analyzer.codebase;
 
         add_unspecialized_property_assignment_dataflow(
             statements_analyzer,
@@ -473,7 +473,7 @@ fn add_xml_attribute_dataflow(
     analysis_data: &mut FunctionAnalysisData,
 ) {
     if let Some(classlike_storage) = codebase.classlike_infos.get(element_name) {
-        let element_name = statements_analyzer.get_interner().lookup(element_name);
+        let element_name = statements_analyzer.interner.lookup(element_name);
         if element_name.starts_with("Facebook\\XHP\\HTML\\")
             || property_id.1 == StrId::DATA_ATTRIBUTE
             || property_id.1 == StrId::ARIA_ATTRIBUTE

@@ -88,7 +88,7 @@ pub(crate) fn analyze(
     }
 
     let name = if name == "\\in_array" {
-        statements_analyzer.get_interner().get("in_array").unwrap()
+        statements_analyzer.interner.get("in_array").unwrap()
     } else if let Some(fq_name) = resolved_names.get(&(expr.0 .0.start_offset() as u32)) {
         *fq_name
     } else {
@@ -98,13 +98,13 @@ pub(crate) fn analyze(
         ));
     };
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let function_storage =
         if let Some(function_storage) = codebase.functionlike_infos.get(&(name, StrId::EMPTY)) {
             function_storage
         } else {
-            let interned_name = statements_analyzer.get_interner().lookup(&name);
+            let interned_name = statements_analyzer.interner.lookup(&name);
 
             // ignore non-existent functions that are in HH\
             // as these can differ between Hakana and hh_server
@@ -199,7 +199,7 @@ pub(crate) fn analyze(
             Issue::new(
                 IssueKind::BannedFunction,
                 statements_analyzer
-                    .get_interner()
+                    .interner
                     .lookup(&banned_message)
                     .to_string(),
                 statements_analyzer.get_hpos(pos),
@@ -219,7 +219,7 @@ pub(crate) fn analyze(
                 IssueKind::TestOnlyCall,
                 format!(
                     "Cannot call test-only function {} from non-test context",
-                    statements_analyzer.get_interner().lookup(&name)
+                    statements_analyzer.interner.lookup(&name)
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
@@ -263,8 +263,8 @@ pub(crate) fn analyze(
                 context.function_context.calling_class.as_ref(),
                 resolved_names,
                 Some((
-                    statements_analyzer.get_codebase(),
-                    statements_analyzer.get_interner(),
+                    statements_analyzer.codebase,
+                    statements_analyzer.interner,
                 )),
             );
 
@@ -311,8 +311,8 @@ pub(crate) fn analyze(
                         if let Some(dim_var_id) = expression_identifier::get_dim_id(
                             &expr.2[1].1,
                             Some((
-                                statements_analyzer.get_codebase(),
-                                statements_analyzer.get_interner(),
+                                statements_analyzer.codebase,
+                                statements_analyzer.interner,
                             )),
                             resolved_names,
                         ) {
@@ -349,14 +349,14 @@ pub(crate) fn analyze(
                     context.function_context.calling_class.as_ref(),
                     resolved_names,
                     Some((
-                        statements_analyzer.get_codebase(),
-                        statements_analyzer.get_interner(),
+                        statements_analyzer.codebase,
+                        statements_analyzer.interner,
                     )),
                 );
 
                 if let Some(expr_var_id) = second_arg_var_id {
                     if let Some(expr_var_interned_id) =
-                        statements_analyzer.get_interner().get(&expr_var_id)
+                        statements_analyzer.interner.get(&expr_var_id)
                     {
                         analysis_data.if_true_assertions.insert(
                             (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -380,8 +380,8 @@ pub(crate) fn analyze(
                         context.function_context.calling_class.as_ref(),
                         resolved_names,
                         Some((
-                            statements_analyzer.get_codebase(),
-                            statements_analyzer.get_interner(),
+                            statements_analyzer.codebase,
+                            statements_analyzer.interner,
                         )),
                     );
 
@@ -395,7 +395,7 @@ pub(crate) fn analyze(
                         if let Some(str) = second_arg_type.get_single_literal_string_value() {
                             if str.len() > 1 && str != "http://" && str != "https://" {
                                 if let Some(id) =
-                                    statements_analyzer.get_interner().get(&expr_var_id)
+                                    statements_analyzer.interner.get(&expr_var_id)
                                 {
                                     analysis_data.if_true_assertions.insert(
                                         (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -426,8 +426,8 @@ pub(crate) fn analyze(
                         context.function_context.calling_class.as_ref(),
                         resolved_names,
                         Some((
-                            statements_analyzer.get_codebase(),
-                            statements_analyzer.get_interner(),
+                            statements_analyzer.codebase,
+                            statements_analyzer.interner,
                         )),
                     );
 
@@ -465,7 +465,7 @@ pub(crate) fn analyze(
 
                             if !hashes_to_remove.is_empty() {
                                 if let Some(id) =
-                                    statements_analyzer.get_interner().get(&expr_var_id)
+                                    statements_analyzer.interner.get(&expr_var_id)
                                 {
                                     analysis_data.if_true_assertions.insert(
                                         (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -623,9 +623,9 @@ fn check_array_key_or_value_type(
                     } else {
                         error_message = Some(format!(
                             "Second arg of {} expects type {}, saw {}",
-                            statements_analyzer.get_interner().lookup(&function_name),
-                            param.get_id(Some(statements_analyzer.get_interner())),
-                            arg_type.get_id(Some(statements_analyzer.get_interner()))
+                            statements_analyzer.interner.lookup(&function_name),
+                            param.get_id(Some(statements_analyzer.interner)),
+                            arg_type.get_id(Some(statements_analyzer.interner))
                         ));
                     }
                 };

@@ -50,17 +50,17 @@ pub(crate) fn fetch(
     template_result: &TemplateResult,
     call_pos: &Pos,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut return_type_candidate = if let Some(return_type) =
-        get_special_method_return(method_id, statements_analyzer.get_interner())
+        get_special_method_return(method_id, statements_analyzer.interner)
     {
         return_type
     } else {
         functionlike_storage.return_type.clone().unwrap_or(
             if method_id.1
                 == statements_analyzer
-                    .get_interner()
+                    .interner
                     .get("__toString")
                     .unwrap()
             {
@@ -90,7 +90,7 @@ pub(crate) fn fetch(
     if !template_result.lower_bounds.is_empty() {
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.get_interner()),
+            &Some(statements_analyzer.interner),
             &mut return_type_candidate,
             &TypeExpansionOptions {
                 self_class: Some(&method_id.0),
@@ -111,7 +111,7 @@ pub(crate) fn fetch(
 
     type_expander::expand_union(
         codebase,
-        &Some(statements_analyzer.get_interner()),
+        &Some(statements_analyzer.interner),
         &mut return_type_candidate,
         &TypeExpansionOptions {
             self_class: Some(&method_id.0),
@@ -253,7 +253,7 @@ fn add_dataflow(
         }
     }
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let method_call_node;
 

@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use crate::scope::BlockContext;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
@@ -202,7 +201,7 @@ fn get_left_expr(
         condition_type = Rc::new(add_union_type(
             (*condition_type).clone(),
             &get_null(),
-            statements_analyzer.get_codebase(),
+            statements_analyzer.codebase,
             false,
         ));
     }
@@ -219,7 +218,7 @@ fn get_left_expr(
             Rc::new(combine_union_types(
                 &isset_context.locals[redef_var_id],
                 &context.locals[redef_var_id],
-                statements_analyzer.get_codebase(),
+                statements_analyzer.codebase,
                 false,
             )),
         );

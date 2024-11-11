@@ -155,8 +155,8 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
     analysis_data: &mut FunctionAnalysisData,
     pos: HPos,
 ) {
-    let codebase = statements_analyzer.get_codebase();
-    let interner = statements_analyzer.get_interner();
+    let codebase = statements_analyzer.codebase;
+    let interner = statements_analyzer.interner;
 
     let relevant_lower_bounds = get_relevant_bounds(lower_bounds);
 
@@ -376,7 +376,7 @@ pub(crate) fn check_method_args(
     pos: &Pos,
     method_name_pos: Option<&Pos>,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let functionlike_id = FunctionLikeIdentifier::Method(method_id.0, method_id.1);
 
@@ -416,7 +416,7 @@ pub(crate) fn check_method_args(
                 IssueKind::TestOnlyCall,
                 format!(
                     "Cannot call test-only function {} from non-test context",
-                    method_id.to_string(statements_analyzer.get_interner()),
+                    method_id.to_string(statements_analyzer.interner),
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,

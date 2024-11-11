@@ -3,20 +3,20 @@ use super::{
     trigger_issue_for_impossible,
 };
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
+use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_code_info::t_atomic::TDict;
+use hakana_code_info::ttype::{
+    comparison::{
+        atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
+    },
+    type_combiner,
+};
+use hakana_code_info::ttype::{get_nothing, get_placeholder, wrap_atomic};
 use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_code_info::ttype::{get_nothing, get_placeholder, wrap_atomic};
-use hakana_code_info::ttype::{
-    type_combiner,
-    comparison::{
-        atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
-    },
-};
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
@@ -74,7 +74,7 @@ pub(crate) fn reconcile(
 
     let mut existing_var_type = existing_var_type.clone();
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     if let Some(assertion_type) = assertion.get_type() {
         if !is_equality {
@@ -348,7 +348,7 @@ fn handle_literal_negated_equality(
 
     let mut acceptable_types = vec![];
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     for existing_atomic_type in existing_var_types {
         match existing_atomic_type {

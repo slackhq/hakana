@@ -30,7 +30,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let stmt_class = expr.0;
     let stmt_name = expr.1;
 
@@ -81,7 +81,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentClass,
                 format!(
                     "Cannot access property on undefined class {}",
-                    statements_analyzer.get_interner().lookup(&classlike_name)
+                    statements_analyzer.interner.lookup(&classlike_name)
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
@@ -129,11 +129,11 @@ pub(crate) fn analyze(
 
     let var_id = format!(
         "{}::${}",
-        statements_analyzer.get_interner().lookup(&classlike_name),
+        statements_analyzer.interner.lookup(&classlike_name),
         prop_name
     );
 
-    let prop_name_id = statements_analyzer.get_interner().get(&prop_name);
+    let prop_name_id = statements_analyzer.interner.get(&prop_name);
 
     let property_id = if let Some(prop_name_id) = prop_name_id {
         (classlike_name, prop_name_id)
@@ -149,7 +149,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Property {}::${} is undefined",
-                    statements_analyzer.get_interner().lookup(&classlike_name),
+                    statements_analyzer.interner.lookup(&classlike_name),
                     prop_name,
                 ),
                 statements_analyzer.get_hpos(pos),
@@ -201,8 +201,8 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Property {}::{} is undefined",
-                    statements_analyzer.get_interner().lookup(&classlike_name),
-                    statements_analyzer.get_interner().lookup(&property_id.1)
+                    statements_analyzer.interner.lookup(&classlike_name),
+                    statements_analyzer.interner.lookup(&property_id.1)
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
@@ -231,7 +231,7 @@ pub(crate) fn analyze(
         let mut inserted_type = property_type.clone();
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.get_interner()),
+            &Some(statements_analyzer.interner),
             &mut inserted_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),

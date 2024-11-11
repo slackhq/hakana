@@ -65,7 +65,7 @@ pub(crate) fn check_arguments_match(
     let calling_classlike_storage = calling_classlike
         .map(|calling_classlike| {
             statements_analyzer
-                .get_codebase()
+                .codebase
                 .classlike_infos
                 .get(&calling_classlike.0)
         })
@@ -89,7 +89,7 @@ pub(crate) fn check_arguments_match(
 
             populate_union_type(
                 &mut param_type,
-                &statements_analyzer.get_codebase().symbols,
+                &statements_analyzer.codebase.symbols,
                 &context
                     .function_context
                     .get_reference_source(&statements_analyzer.get_file_path().0),
@@ -98,8 +98,8 @@ pub(crate) fn check_arguments_match(
             );
 
             type_expander::expand_union(
-                statements_analyzer.get_codebase(),
-                &Some(statements_analyzer.get_interner()),
+                statements_analyzer.codebase,
+                &Some(statements_analyzer.interner),
                 &mut param_type,
                 &TypeExpansionOptions {
                     parent_class: None,
@@ -137,12 +137,12 @@ pub(crate) fn check_arguments_match(
 
                 if let Some(method_id) = functionlike_id.as_method_identifier() {
                     let declaring_method_id = statements_analyzer
-                        .get_codebase()
+                        .codebase
                         .get_declaring_method_id(&method_id);
 
                     if method_id != declaring_method_id {
                         let classlike_storage = statements_analyzer
-                            .get_codebase()
+                            .codebase
                             .classlike_infos
                             .get(&method_id.0)
                             .unwrap();
@@ -172,7 +172,7 @@ pub(crate) fn check_arguments_match(
 
     let mut param_types = BTreeMap::new();
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut method_call_info = None;
     let mut class_storage = calling_classlike_storage;
@@ -511,8 +511,8 @@ pub(crate) fn check_arguments_match(
                     None,
                     statements_analyzer.get_file_analyzer().resolved_names,
                     Some((
-                        statements_analyzer.get_codebase(),
-                        statements_analyzer.get_interner(),
+                        statements_analyzer.codebase,
+                        statements_analyzer.interner,
                     )),
                 ) {
                     analysis_data.if_true_assertions.insert(
@@ -525,7 +525,7 @@ pub(crate) fn check_arguments_match(
                             vec![Assertion::RemoveTaints(
                                 VarId(
                                     statements_analyzer
-                                        .get_interner()
+                                        .interner
                                         .get(&expr_var_id)
                                         .unwrap(),
                                 ),
@@ -619,7 +619,7 @@ fn adjust_param_type(
             class_generic_params,
             param_type,
             codebase,
-            statements_analyzer.get_interner(),
+            statements_analyzer.interner,
             &mut arg_value_type,
             argument_offset,
             context,
@@ -633,8 +633,8 @@ fn adjust_param_type(
             *param_type = standin_type_replacer::replace(
                 &*param_type,
                 template_result,
-                statements_analyzer.get_codebase(),
-                statements_analyzer.get_interner(),
+                statements_analyzer.codebase,
+                statements_analyzer.interner,
                 &Some(&arg_value_type),
                 Some(argument_offset),
                 Some(statements_analyzer.get_hpos(arg_pos)),
@@ -721,7 +721,7 @@ fn get_param_type(
 
             type_expander::expand_union(
                 codebase,
-                &Some(statements_analyzer.get_interner()),
+                &Some(statements_analyzer.interner),
                 &mut param_type,
                 &TypeExpansionOptions {
                     self_class: if let Some(classlike_storage) = class_storage {
@@ -778,7 +778,7 @@ fn handle_closure_arg(
     closure_expr: &aast::Expr<(), ()>,
     param_type: &TUnion,
 ) {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut replace_template_result = TemplateResult::new(
         template_result
@@ -809,7 +809,7 @@ fn handle_closure_arg(
         param_type,
         &mut replace_template_result,
         codebase,
-        statements_analyzer.get_interner(),
+        statements_analyzer.interner,
         &None,
         None,
         None,
@@ -995,8 +995,8 @@ pub(crate) fn evaluate_arbitrary_param(
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().resolved_names,
             Some((
-                statements_analyzer.get_codebase(),
-                statements_analyzer.get_interner(),
+                statements_analyzer.codebase,
+                statements_analyzer.interner,
             )),
         );
 
@@ -1051,7 +1051,7 @@ fn handle_possibly_matching_inout_param(
         .clone()
         .unwrap_or(get_mixed_any());
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let arg_type = analysis_data.get_expr_type(expr.pos()).cloned();
 
@@ -1062,7 +1062,7 @@ fn handle_possibly_matching_inout_param(
             &inout_type,
             template_result,
             codebase,
-            statements_analyzer.get_interner(),
+            statements_analyzer.interner,
             &if let Some(arg_type) = &arg_type {
                 Some(arg_type)
             } else {
@@ -1090,7 +1090,7 @@ fn handle_possibly_matching_inout_param(
 
     type_expander::expand_union(
         codebase,
-        &Some(statements_analyzer.get_interner()),
+        &Some(statements_analyzer.interner),
         &mut inout_type,
         &TypeExpansionOptions {
             self_class: if let Some(classlike_storage) = classlike_storage {

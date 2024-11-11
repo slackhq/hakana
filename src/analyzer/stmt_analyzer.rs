@@ -304,18 +304,18 @@ fn detect_unused_statement_expressions(
         aast::Expr_::Call(boxed_call) => {
             let functionlike_id = get_static_functionlike_id_from_call(
                 boxed_call,
-                statements_analyzer.get_interner(),
+                statements_analyzer.interner,
                 statements_analyzer.get_file_analyzer().resolved_names,
             );
 
             if let Some(FunctionLikeIdentifier::Function(function_id)) = functionlike_id {
-                let codebase = statements_analyzer.get_codebase();
+                let codebase = statements_analyzer.codebase;
                 if let Some(functionlike_info) = codebase
                     .functionlike_infos
                     .get(&(function_id, StrId::EMPTY))
                 {
                     if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
-                        let function_name = statements_analyzer.get_interner().lookup(&function_id);
+                        let function_name = statements_analyzer.interner.lookup(&function_id);
 
                         if !functionlike_info.user_defined
                             && matches!(functionlike_info.effects, FnEffect::Arg(..))
@@ -331,7 +331,7 @@ fn detect_unused_statement_expressions(
                                             format!(
                                                 "The value {} returned from {} should be consumed",
                                                 expr_type.get_id(Some(
-                                                    statements_analyzer.get_interner()
+                                                    statements_analyzer.interner
                                                 )),
                                                 function_name
                                             ),
@@ -393,12 +393,12 @@ fn has_unused_must_use(
         aast::Expr_::Call(boxed_call) => {
             let functionlike_id_from_call = get_functionlike_id_from_call(
                 boxed_call,
-                statements_analyzer.get_interner(),
+                statements_analyzer.interner,
                 statements_analyzer.get_file_analyzer().resolved_names,
                 &analysis_data.expr_types,
             );
             if let Some(functionlike_id) = functionlike_id_from_call {
-                let codebase = statements_analyzer.get_codebase();
+                let codebase = statements_analyzer.codebase;
                 match functionlike_id {
                     FunctionLikeIdentifier::Function(function_id) => {
                         // For statements like "Asio\join(some_fn());"

@@ -31,7 +31,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let stmt_class = expr.0;
     let stmt_name = expr.1;
 
@@ -73,7 +73,7 @@ pub(crate) fn analyze(
     };
 
     let prop_name = if let Some(prop_name) = prop_name {
-        if let Some(prop_name_id) = statements_analyzer.get_interner().get(&prop_name) {
+        if let Some(prop_name_id) = statements_analyzer.interner.get(&prop_name) {
             prop_name_id
         } else {
             return Err(AnalysisError::UserError);
@@ -176,7 +176,7 @@ pub(crate) fn analyze(
             if let Some(declaring_class_storage) = declaring_class_storage {
                 type_expander::expand_union(
                     codebase,
-                    &Some(statements_analyzer.get_interner()),
+                    &Some(statements_analyzer.interner),
                     &mut class_property_type,
                     &TypeExpansionOptions {
                         self_class: Some(&declaring_class_storage.name),
@@ -221,11 +221,11 @@ pub(crate) fn analyze(
                         format!(
                             "{}::${} with declared type {}, cannot be assigned type {}",
                             statements_analyzer
-                                .get_interner()
+                                .interner
                                 .lookup(declaring_property_class),
-                            statements_analyzer.get_interner().lookup(&property_id.1),
-                            class_property_type.get_id(Some(statements_analyzer.get_interner())),
-                            assign_value_type.get_id(Some(statements_analyzer.get_interner())),
+                            statements_analyzer.interner.lookup(&property_id.1),
+                            class_property_type.get_id(Some(statements_analyzer.interner)),
+                            assign_value_type.get_id(Some(statements_analyzer.interner)),
                         ),
                         statements_analyzer.get_hpos(&stmt_class.1),
                         &context.function_context.calling_functionlike_id,
@@ -247,8 +247,8 @@ pub(crate) fn analyze(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("This property".to_string()),
                                 class_property_type
-                                    .get_id(Some(statements_analyzer.get_interner())),
-                                assign_value_type.get_id(Some(statements_analyzer.get_interner())),
+                                    .get_id(Some(statements_analyzer.interner)),
+                                assign_value_type.get_id(Some(statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_class.1),
                             &context.function_context.calling_functionlike_id,
@@ -264,8 +264,8 @@ pub(crate) fn analyze(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("This property".to_string()),
                                 class_property_type
-                                    .get_id(Some(statements_analyzer.get_interner())),
-                                assign_value_type.get_id(Some(statements_analyzer.get_interner())),
+                                    .get_id(Some(statements_analyzer.interner)),
+                                assign_value_type.get_id(Some(statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_class.1),
                             &context.function_context.calling_functionlike_id,

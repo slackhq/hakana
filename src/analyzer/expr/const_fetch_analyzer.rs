@@ -26,7 +26,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let name = if let Some(name) = statements_analyzer
         .get_file_analyzer()
@@ -61,7 +61,7 @@ pub(crate) fn analyze(
             get_mixed_any()
         }
     } else {
-        let constant_name = statements_analyzer.get_interner().lookup(name);
+        let constant_name = statements_analyzer.interner.lookup(name);
 
         analysis_data.maybe_add_issue(
             Issue::new(
@@ -79,7 +79,7 @@ pub(crate) fn analyze(
 
     type_expander::expand_union(
         codebase,
-        &Some(statements_analyzer.get_interner()),
+        &Some(statements_analyzer.interner),
         &mut stmt_type,
         &TypeExpansionOptions {
             ..Default::default()

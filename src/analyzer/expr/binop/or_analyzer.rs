@@ -3,7 +3,6 @@ use std::rc::Rc;
 
 use crate::reconciler;
 use crate::scope::BlockContext;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
@@ -21,7 +20,7 @@ pub(crate) fn analyze<'expr>(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut left_context;
     let mut left_referenced_var_ids;

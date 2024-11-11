@@ -3,10 +3,7 @@ use std::rc::Rc;
 use hakana_code_info::ttype::combine_union_types;
 use rustc_hash::FxHashSet;
 
-use crate::{
-    scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
-    scope_analyzer::ScopeAnalyzer,
-};
+use crate::scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext};
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
@@ -18,7 +15,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     if let Some(loop_scope) = loop_scope {
         loop_scope.final_actions.insert(ControlAction::Continue);
         context.control_actions.insert(ControlAction::Continue);

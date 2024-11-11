@@ -161,7 +161,7 @@ fn add_dataflow_to_used_var(
     let pos = statements_analyzer.get_hpos(pos);
 
     let assignment_node = DataFlowNode {
-        id: if let Some(var_id) = statements_analyzer.get_interner().get(&lid.1 .1) {
+        id: if let Some(var_id) = statements_analyzer.interner.get(&lid.1 .1) {
             DataFlowNodeId::Var(
                 VarId(var_id),
                 pos.file_path,

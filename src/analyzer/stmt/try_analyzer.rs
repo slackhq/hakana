@@ -29,7 +29,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let old_context = context.clone();
 
@@ -51,7 +51,7 @@ pub(crate) fn analyze(
 
     let try_block_control_actions = control_analyzer::get_control_actions(
         codebase,
-        statements_analyzer.get_interner(),
+        statements_analyzer.interner,
         statements_analyzer.get_file_analyzer().resolved_names,
         &stmt.0 .0,
         analysis_data,
@@ -154,7 +154,7 @@ pub(crate) fn analyze(
             DataFlowNode::get_for_variable_source(
                 VarId(
                     statements_analyzer
-                        .get_interner()
+                        .interner
                         .get(catch_var_id)
                         .unwrap(),
                 ),
@@ -168,7 +168,7 @@ pub(crate) fn analyze(
             DataFlowNode::get_for_lvar(
                 VarId(
                     statements_analyzer
-                        .get_interner()
+                        .interner
                         .get(catch_var_id)
                         .unwrap(),
                 ),
@@ -213,7 +213,7 @@ pub(crate) fn analyze(
         // recalculate in case there's a nothing function call
         let catch_actions = control_analyzer::get_control_actions(
             codebase,
-            statements_analyzer.get_interner(),
+            statements_analyzer.interner,
             statements_analyzer.get_file_analyzer().resolved_names,
             &catch.2 .0,
             analysis_data,
@@ -327,7 +327,7 @@ pub(crate) fn analyze(
 
             let finally_actions = control_analyzer::get_control_actions(
                 codebase,
-                statements_analyzer.get_interner(),
+                statements_analyzer.interner,
                 statements_analyzer.get_file_analyzer().resolved_names,
                 &stmt.2 .0,
                 analysis_data,

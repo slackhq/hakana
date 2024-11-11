@@ -39,7 +39,7 @@ pub(crate) fn analyze(
         analysis_data.set_expr_type(expr.0.pos(), get_mixed_any());
     }
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let classlike_name = match &lhs_type_part {
         TAtomic::TNamedObject { name, .. } => *name,
@@ -58,7 +58,7 @@ pub(crate) fn analyze(
                     IssueKind::NonExistentClass,
                     format!(
                         "Cannot access property on undefined class {}",
-                        statements_analyzer.get_interner().lookup(classlike_name)
+                        statements_analyzer.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
@@ -73,7 +73,7 @@ pub(crate) fn analyze(
         }
     };
 
-    let prop_name = if let Some(prop_name) = statements_analyzer.get_interner().get(prop_name) {
+    let prop_name = if let Some(prop_name) = statements_analyzer.interner.get(prop_name) {
         prop_name
     } else {
         analysis_data.maybe_add_issue(
@@ -81,7 +81,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Cannot access undefined property {}::${}",
-                    statements_analyzer.get_interner().lookup(&classlike_name),
+                    statements_analyzer.interner.lookup(&classlike_name),
                     prop_name,
                 ),
                 statements_analyzer.get_hpos(pos),
@@ -100,8 +100,8 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Cannot access undefined property {}::${}",
-                    statements_analyzer.get_interner().lookup(&classlike_name),
-                    statements_analyzer.get_interner().lookup(&prop_name)
+                    statements_analyzer.interner.lookup(&classlike_name),
+                    statements_analyzer.interner.lookup(&prop_name)
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
@@ -213,7 +213,7 @@ fn get_class_property_type(
     lhs_type_part: TAtomic,
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let class_property_type = codebase.get_property_type(classlike_name, property_name);
 
     let class_storage = codebase.classlike_infos.get(classlike_name).unwrap();
@@ -225,7 +225,7 @@ fn get_class_property_type(
         let parent_class = declaring_class_storage.direct_parent_class;
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.get_interner()),
+            &Some(statements_analyzer.interner),
             &mut class_property_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),
@@ -278,7 +278,7 @@ pub(crate) fn localize_property_type(
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     let mut template_types = get_template_types_for_class_member(
-        statements_analyzer.get_codebase(),
+        statements_analyzer.codebase,
         analysis_data,
         Some(property_declaring_class_storage),
         Some(&property_declaring_class_storage.name),
@@ -299,7 +299,7 @@ pub(crate) fn localize_property_type(
     inferred_type_replacer::replace(
         &class_property_type,
         &TemplateResult::new(IndexMap::new(), template_types),
-        statements_analyzer.get_codebase(),
+        statements_analyzer.codebase,
     )
 }
 
@@ -326,8 +326,8 @@ fn update_template_types(
                             let mut lhs_param_type = lhs_param_type.clone();
 
                             type_expander::expand_union(
-                                statements_analyzer.get_codebase(),
-                                &Some(statements_analyzer.get_interner()),
+                                statements_analyzer.codebase,
+                                &Some(statements_analyzer.interner),
                                 &mut lhs_param_type,
                                 &TypeExpansionOptions {
                                     parent_class: None,
@@ -438,7 +438,7 @@ fn add_property_dataflow(
     } else if let Some(lhs_var_id) = lhs_var_id {
         stmt_type = add_unspecialized_property_fetch_dataflow(
             DataFlowNode::get_for_local_property_fetch(
-                VarId(statements_analyzer.get_interner().get(lhs_var_id).unwrap()),
+                VarId(statements_analyzer.interner.get(lhs_var_id).unwrap()),
                 property_id.1,
                 statements_analyzer.get_hpos(name_pos),
             ),
@@ -471,7 +471,7 @@ pub(crate) fn get_nodes_for_property_fetch(
     name_pos: &Pos,
 ) -> (DataFlowNode, DataFlowNode) {
     let (var_node, property_node) =
-        if let Some(var_id) = statements_analyzer.get_interner().get(lhs_var_id) {
+        if let Some(var_id) = statements_analyzer.interner.get(lhs_var_id) {
             (
                 DataFlowNode::get_for_lvar(VarId(var_id), statements_analyzer.get_hpos(lhs_pos)),
                 DataFlowNode::get_for_local_property_fetch(
@@ -490,7 +490,7 @@ pub(crate) fn get_nodes_for_property_fetch(
                     format!(
                         "{}->{}",
                         lhs_var_id,
-                        statements_analyzer.get_interner().lookup(&property_id.1)
+                        statements_analyzer.interner.lookup(&property_id.1)
                     ),
                     statements_analyzer.get_hpos(name_pos),
                 ),

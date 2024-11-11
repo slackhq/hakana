@@ -97,8 +97,8 @@ pub(crate) fn analyze(
 
     let final_actions = if !stmts.is_empty() {
         control_analyzer::get_control_actions(
-            statements_analyzer.get_codebase(),
-            statements_analyzer.get_interner(),
+            statements_analyzer.codebase,
+            statements_analyzer.interner,
             statements_analyzer.get_file_analyzer().resolved_names,
             &stmts.0,
             analysis_data,
@@ -121,7 +121,7 @@ pub(crate) fn analyze(
 
     if !has_leaving_statements {
         if_analyzer::update_if_scope(
-            statements_analyzer.get_codebase(),
+            statements_analyzer.codebase,
             if_scope,
             else_context,
             &original_context,

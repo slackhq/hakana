@@ -135,14 +135,6 @@ impl ScopeAnalyzer for FileAnalyzer<'_> {
         self
     }
 
-    fn get_codebase(&self) -> &CodebaseInfo {
-        self.codebase
-    }
-
-    fn get_interner(&self) -> &Interner {
-        self.interner
-    }
-
     fn get_config(&self) -> &Config {
         self.analysis_config
     }

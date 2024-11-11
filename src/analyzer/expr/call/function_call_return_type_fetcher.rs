@@ -52,7 +52,7 @@ pub(crate) fn fetch(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let mut stmt_type = None;
 
     if let FunctionLikeIdentifier::Function(name) = functionlike_id {
@@ -103,7 +103,7 @@ pub(crate) fn fetch(
         if !template_result.lower_bounds.is_empty() && !function_storage.template_types.is_empty() {
             type_expander::expand_union(
                 codebase,
-                &Some(statements_analyzer.get_interner()),
+                &Some(statements_analyzer.interner),
                 &mut function_return_type,
                 &TypeExpansionOptions {
                     expand_templates: false,
@@ -121,7 +121,7 @@ pub(crate) fn fetch(
 
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.get_interner()),
+            &Some(statements_analyzer.interner),
             &mut function_return_type,
             &TypeExpansionOptions {
                 expand_templates: false,
@@ -657,7 +657,7 @@ fn get_type_for_superglobal(
                 id: DataFlowNodeId::Var(
                     VarId(
                         statements_analyzer
-                            .get_interner()
+                            .interner
                             .get(&format!("${}", name))
                             .unwrap(),
                     ),
@@ -763,7 +763,7 @@ fn get_type_structure_type(
     this_class: Option<StrId>,
 ) -> Option<TUnion> {
     if let Some(second_arg_string) = second_expr_type.get_single_literal_string_value() {
-        let const_name = statements_analyzer.get_interner().get(&second_arg_string)?;
+        let const_name = statements_analyzer.interner.get(&second_arg_string)?;
 
         if first_expr_type.is_single() {
             let classname = match first_expr_type.get_single() {
@@ -801,7 +801,7 @@ fn get_type_structure_type(
             };
 
             if let Some(classlike_info) = statements_analyzer
-                .get_codebase()
+                .codebase
                 .classlike_infos
                 .get(&classname)
             {
@@ -886,7 +886,7 @@ fn add_dataflow(
         };
 
     let added_removed_taints = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        get_special_added_removed_taints(functionlike_id, statements_analyzer.get_interner())
+        get_special_added_removed_taints(functionlike_id, statements_analyzer.interner)
     } else {
         FxHashMap::default()
     };

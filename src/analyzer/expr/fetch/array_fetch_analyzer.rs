@@ -39,8 +39,8 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
-            statements_analyzer.get_codebase(),
-            statements_analyzer.get_interner(),
+            statements_analyzer.codebase,
+            statements_analyzer.interner,
         )),
     );
 
@@ -273,7 +273,7 @@ pub(crate) fn get_array_access_type_given_offset(
     extended_var_id: &Option<String>,
     context: &BlockContext,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut has_valid_expected_offset = false;
 
@@ -507,8 +507,8 @@ pub(crate) fn get_array_access_type_given_offset(
                     },
                     format!(
                         "Invalid array fetch on {} using offset {}",
-                        array_type.get_id(Some(statements_analyzer.get_interner())),
-                        offset_type.get_id(Some(statements_analyzer.get_interner()))
+                        array_type.get_id(Some(statements_analyzer.interner)),
+                        offset_type.get_id(Some(statements_analyzer.interner))
                     ),
                     statements_analyzer.get_hpos(stmt.2),
                     &context.function_context.calling_functionlike_id,
@@ -522,8 +522,8 @@ pub(crate) fn get_array_access_type_given_offset(
                     IssueKind::InvalidArrayOffset,
                     format!(
                         "Invalid array fetch on {} using offset {}",
-                        array_type.get_id(Some(statements_analyzer.get_interner())),
-                        offset_type.get_id(Some(statements_analyzer.get_interner()))
+                        array_type.get_id(Some(statements_analyzer.interner)),
+                        offset_type.get_id(Some(statements_analyzer.interner))
                     ),
                     statements_analyzer.get_hpos(stmt.2),
                     &context.function_context.calling_functionlike_id,
@@ -557,7 +557,7 @@ pub(crate) fn handle_array_access_on_vec(
     in_assignment: bool,
     has_valid_expected_offset: &mut bool,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut union_comparison_result = TypeComparisonResult::new();
     let offset_type_contained_by_expected = union_type_comparator::is_contained_by(
@@ -599,7 +599,7 @@ pub(crate) fn handle_array_access_on_vec(
                             IssueKind::PossiblyUndefinedIntArrayOffset,
                             format!(
                                 "Fetch on {} using possibly-undefined key {}",
-                                vec.get_id(Some(statements_analyzer.get_interner())),
+                                vec.get_id(Some(statements_analyzer.interner)),
                                 val
                             ),
                             statements_analyzer.get_hpos(pos),
@@ -620,7 +620,7 @@ pub(crate) fn handle_array_access_on_vec(
                             IssueKind::UndefinedIntArrayOffset,
                             format!(
                                 "Invalid vec fetch on {} using offset {}",
-                                vec.get_id(Some(statements_analyzer.get_interner())),
+                                vec.get_id(Some(statements_analyzer.interner)),
                                 index
                             ),
                             statements_analyzer.get_hpos(pos),
@@ -665,7 +665,7 @@ pub(crate) fn handle_array_access_on_dict(
     has_possibly_undefined: &mut bool,
     has_matching_dict_key: &mut bool,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let key_param = if in_assignment || context.inside_isset {
         get_arraykey(false)
@@ -720,8 +720,8 @@ pub(crate) fn handle_array_access_on_dict(
                                 },
                                 format!(
                                     "Fetch on {} using possibly-undefined key {}",
-                                    dict.get_id(Some(statements_analyzer.get_interner())),
-                                    dict_key.to_string(Some(statements_analyzer.get_interner()))
+                                    dict.get_id(Some(statements_analyzer.interner)),
+                                    dict_key.to_string(Some(statements_analyzer.interner))
                                 ),
                                 statements_analyzer.get_hpos(pos),
                                 &context.function_context.calling_functionlike_id,
@@ -749,8 +749,8 @@ pub(crate) fn handle_array_access_on_dict(
                             IssueKind::UndefinedStringArrayOffset,
                             format!(
                                 "Invalid dict fetch on {} using key {}",
-                                dict.get_id(Some(statements_analyzer.get_interner())),
-                                dict_key.to_string(Some(statements_analyzer.get_interner()))
+                                dict.get_id(Some(statements_analyzer.interner)),
+                                dict_key.to_string(Some(statements_analyzer.interner))
                             ),
                             statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,
@@ -764,8 +764,8 @@ pub(crate) fn handle_array_access_on_dict(
                             IssueKind::ImpossibleNonnullEntryCheck,
                             format!(
                                 "Type {} does not have a nonnull entry for {}",
-                                dict.get_id(Some(statements_analyzer.get_interner())),
-                                dict_key.to_string(Some(statements_analyzer.get_interner()))
+                                dict.get_id(Some(statements_analyzer.interner)),
+                                dict_key.to_string(Some(statements_analyzer.interner))
                             ),
                             statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,
@@ -834,8 +834,8 @@ pub(crate) fn handle_array_access_on_dict(
                                 },
                                 format!(
                                     "Fetch on {} using possibly-undefined key {}",
-                                    dict.get_id(Some(statements_analyzer.get_interner())),
-                                    dict_key.to_string(Some(statements_analyzer.get_interner()))
+                                    dict.get_id(Some(statements_analyzer.interner)),
+                                    dict_key.to_string(Some(statements_analyzer.interner))
                                 ),
                                 statements_analyzer.get_hpos(pos),
                                 &context.function_context.calling_functionlike_id,
@@ -866,7 +866,7 @@ pub(crate) fn handle_array_access_on_string(
     expected_offset_types: &mut Vec<String>,
     has_valid_expected_offset: &mut bool,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let valid_offset_type = if let TAtomic::TLiteralString { value: val, .. } = string {
         if val.is_empty() {
             // empty strings cannt be array accessed
@@ -900,7 +900,7 @@ pub(crate) fn handle_array_access_on_string(
         &mut TypeComparisonResult::new(),
     ) {
         expected_offset_types
-            .push(valid_offset_type.get_id(Some(statements_analyzer.get_interner())));
+            .push(valid_offset_type.get_id(Some(statements_analyzer.interner)));
 
         TUnion::new(vec![TAtomic::TString, TAtomic::TNull])
     } else {
@@ -937,7 +937,7 @@ pub(crate) fn handle_array_access_on_mixed(
                     },
                     format!(
                         "Unsafe array assignment on value with type {}",
-                        mixed.get_id(Some(statements_analyzer.get_interner()))
+                        mixed.get_id(Some(statements_analyzer.interner))
                     ),
                     statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,

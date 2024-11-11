@@ -60,8 +60,8 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
-            statements_analyzer.get_codebase(),
-            statements_analyzer.get_interner(),
+            statements_analyzer.codebase,
+            statements_analyzer.interner,
         )),
     );
 
@@ -251,7 +251,7 @@ pub(crate) fn analyze(
                             },
                         ) => {
                             for_loop_var_id.0
-                                == statements_analyzer.get_interner().get(var_id).unwrap()
+                                == statements_analyzer.interner.get(var_id).unwrap()
                                 && (pos.start_offset() as u32) > *start_offset
                                 && (pos.end_offset() as u32) < *end_offset
                         }
@@ -390,7 +390,7 @@ fn analyze_list_assignment(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     for (offset, assign_var_item) in expressions.iter().enumerate() {
         let list_var_id = expression_identifier::get_var_id(
@@ -398,8 +398,8 @@ fn analyze_list_assignment(
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().resolved_names,
             Some((
-                statements_analyzer.get_codebase(),
-                statements_analyzer.get_interner(),
+                statements_analyzer.codebase,
+                statements_analyzer.interner,
             )),
         );
 
@@ -466,8 +466,8 @@ fn analyze_list_assignment(
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().resolved_names,
                 Some((
-                    statements_analyzer.get_codebase(),
-                    statements_analyzer.get_interner(),
+                    statements_analyzer.codebase,
+                    statements_analyzer.interner,
                 )),
             );
 
@@ -559,7 +559,7 @@ fn analyze_assignment_to_variable(
         && matches!(var_expr.2, aast::Expr_::Lvar(_))
     {
         DataFlowNode::get_for_variable_source(
-            VarId(statements_analyzer.get_interner().get(var_id).unwrap()),
+            VarId(statements_analyzer.interner.get(var_id).unwrap()),
             statements_analyzer.get_hpos(var_expr.pos()),
             !context.inside_awaitall
                 && if let Some(source_expr) = source_expr {
@@ -575,7 +575,7 @@ fn analyze_assignment_to_variable(
         )
     } else {
         DataFlowNode::get_for_lvar(
-            VarId(statements_analyzer.get_interner().get(var_id).unwrap()),
+            VarId(statements_analyzer.interner.get(var_id).unwrap()),
             statements_analyzer.get_hpos(var_expr.pos()),
         )
     };
@@ -610,7 +610,7 @@ fn analyze_assignment_to_variable(
             let for_node = DataFlowNode {
                 id: DataFlowNodeId::ForInit(start_offset, end_offset),
                 kind: DataFlowNodeKind::ForLoopInit {
-                    var_id: VarId(statements_analyzer.get_interner().get(var_id).unwrap()),
+                    var_id: VarId(statements_analyzer.interner.get(var_id).unwrap()),
                 },
             };
 

@@ -28,7 +28,7 @@ pub(crate) fn analyze(
     outer_context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let cond_object_id = (
         stmt.0.pos().start_offset() as u32,
@@ -113,7 +113,7 @@ pub(crate) fn analyze(
 
     let final_actions = control_analyzer::get_control_actions(
         codebase,
-        statements_analyzer.get_interner(),
+        statements_analyzer.interner,
         statements_analyzer.get_file_analyzer().resolved_names,
         &stmt.1 .0,
         analysis_data,

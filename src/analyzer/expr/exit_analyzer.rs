@@ -4,7 +4,6 @@ use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::code_location::HPos;
@@ -46,9 +45,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             &arg_type.unwrap_or(Rc::new(get_mixed_any())),
             &get_arraykey(false),
-            &FunctionLikeIdentifier::Function(
-                statements_analyzer.get_interner().get("exit").unwrap(),
-            ),
+            &FunctionLikeIdentifier::Function(statements_analyzer.interner.get("exit").unwrap()),
             i,
             arg_expr,
             context,

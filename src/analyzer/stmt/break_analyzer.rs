@@ -1,12 +1,9 @@
 use std::rc::Rc;
 
 use super::control_analyzer::BreakContext;
+use crate::scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext};
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
-};
-use crate::{
-    scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
-    scope_analyzer::ScopeAnalyzer,
 };
 use hakana_code_info::ttype::{combine_optional_union_types, combine_union_types};
 use rustc_hash::FxHashMap;
@@ -19,7 +16,7 @@ pub(crate) fn analyze(
 ) {
     let mut leaving_switch = true;
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     if let Some(loop_scope) = loop_scope {
         if if let Some(last_break_type) = context.break_types.last() {

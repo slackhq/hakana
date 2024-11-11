@@ -7,7 +7,6 @@ use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::code_location::HPos;
@@ -42,7 +41,7 @@ pub(crate) fn analyze(
 
     let mut stmt_type = None;
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     for lhs_type_part in &lhs_type.types {
         if let TAtomic::TClosure(closure) = &lhs_type_part {

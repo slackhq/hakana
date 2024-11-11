@@ -1,7 +1,6 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::data_flow::graph::GraphKind;
@@ -35,7 +34,7 @@ pub(crate) fn analyze(
         analysis_data.inferred_yield_type = Some(add_optional_union_type(
             expr_type.clone(),
             analysis_data.inferred_yield_type.as_ref(),
-            statements_analyzer.get_codebase(),
+            statements_analyzer.codebase,
         ));
     }
 

@@ -72,8 +72,8 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
-            statements_analyzer.get_codebase(),
-            statements_analyzer.get_interner(),
+            statements_analyzer.codebase,
+            statements_analyzer.interner,
         )),
     );
 
@@ -91,7 +91,7 @@ pub(crate) fn analyze(
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
         if let Some(root_var_id) = &root_var_id {
             if let aast::Expr_::Lvar(_) = &root_array_expr.2 {
-                let interner = statements_analyzer.get_interner();
+                let interner = statements_analyzer.interner;
                 analysis_data
                     .data_flow_graph
                     .add_node(DataFlowNode::get_for_variable_source(
@@ -186,7 +186,7 @@ pub(crate) fn update_type_with_key_values(
     key_type: Option<Rc<TUnion>>,
 ) -> TUnion {
     let mut has_matching_item = false;
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     new_type.types = new_type
         .types
@@ -390,7 +390,7 @@ fn add_array_assignment_dataflow(
     }
 
     let parent_node = if let Some(var_var_id) = var_var_id {
-        if let Some(var_id) = statements_analyzer.get_interner().get(&var_var_id) {
+        if let Some(var_id) = statements_analyzer.interner.get(&var_var_id) {
             DataFlowNode::get_for_lvar(VarId(var_id), statements_analyzer.get_hpos(expr_var_pos))
         } else {
             DataFlowNode::get_for_array_assignment(statements_analyzer.get_hpos(expr_var_pos))
@@ -446,7 +446,7 @@ fn add_array_assignment_dataflow(
                         ..
                     } => {
                         if let Some(literal_value) = statements_analyzer
-                            .get_codebase()
+                            .codebase
                             .get_classconst_literal_value(enum_name, member_name)
                         {
                             if let Some(value) = literal_value.get_literal_string_value() {
@@ -499,7 +499,7 @@ fn update_array_assignment_child_type(
     value_type: TUnion,
     root_type: TUnion,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let mut collection_types = Vec::new();
 
     if let Some(key_type) = &key_type {
@@ -694,8 +694,8 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                 if let Some(dim_id) = expression_identifier::get_dim_id(
                     dim,
                     Some((
-                        statements_analyzer.get_codebase(),
-                        statements_analyzer.get_interner(),
+                        statements_analyzer.codebase,
+                        statements_analyzer.interner,
                     )),
                     statements_analyzer.get_file_analyzer().resolved_names,
                 ) {
@@ -705,8 +705,8 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.get_file_analyzer().resolved_names,
                     Some((
-                        statements_analyzer.get_codebase(),
-                        statements_analyzer.get_interner(),
+                        statements_analyzer.codebase,
+                        statements_analyzer.interner,
                     )),
                 ) {
                     format!("[{}]", dim_id)
@@ -786,8 +786,8 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.get_file_analyzer().resolved_names,
                     Some((
-                        statements_analyzer.get_codebase(),
-                        statements_analyzer.get_interner(),
+                        statements_analyzer.codebase,
+                        statements_analyzer.interner,
                     )),
                 ),
                 &array_expr_offset_atomic_types,
@@ -877,8 +877,8 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().resolved_names,
             Some((
-                statements_analyzer.get_codebase(),
-                statements_analyzer.get_interner(),
+                statements_analyzer.codebase,
+                statements_analyzer.interner,
             )),
         ) {
             parent_array_var_id = Some(var_var_id.clone());

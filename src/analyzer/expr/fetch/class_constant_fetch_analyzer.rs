@@ -26,7 +26,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let const_name = expr.1 .1;
     let mut is_static = false;
@@ -95,7 +95,7 @@ pub(crate) fn analyze(
                                         format!(
                                             "Unknown classlike {}",
                                             statements_analyzer
-                                                .get_interner()
+                                                .interner
                                                 .lookup(classlike_name)
                                         ),
                                         statements_analyzer.get_hpos(pos),
@@ -165,7 +165,7 @@ fn analyse_known_class_constant(
                     IssueKind::NonExistentType,
                     format!(
                         "Unknown class {}",
-                        statements_analyzer.get_interner().lookup(classlike_name)
+                        statements_analyzer.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
@@ -175,7 +175,7 @@ fn analyse_known_class_constant(
                     IssueKind::NonExistentClasslike,
                     format!(
                         "Unknown classlike {}",
-                        statements_analyzer.get_interner().lookup(classlike_name)
+                        statements_analyzer.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
@@ -215,7 +215,7 @@ fn analyse_known_class_constant(
         return Some(wrap_atomic(inner_object));
     }
 
-    let const_name = if let Some(const_name) = statements_analyzer.get_interner().get(const_name) {
+    let const_name = if let Some(const_name) = statements_analyzer.interner.get(const_name) {
         const_name
     } else {
         analysis_data.maybe_add_issue(
@@ -223,7 +223,7 @@ fn analyse_known_class_constant(
                 IssueKind::NonExistentClassConstant,
                 format!(
                     "Unknown class constant {}::{}",
-                    statements_analyzer.get_interner().lookup(classlike_name),
+                    statements_analyzer.interner.lookup(classlike_name),
                     const_name
                 ),
                 statements_analyzer.get_hpos(pos),
@@ -252,8 +252,8 @@ fn analyse_known_class_constant(
                 IssueKind::NonExistentClassConstant,
                 format!(
                     "Unknown class constant {}::{}",
-                    statements_analyzer.get_interner().lookup(classlike_name),
-                    statements_analyzer.get_interner().lookup(&const_name),
+                    statements_analyzer.interner.lookup(classlike_name),
+                    statements_analyzer.interner.lookup(&const_name),
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
@@ -280,7 +280,7 @@ fn analyse_known_class_constant(
         };
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.get_interner()),
+            &Some(statements_analyzer.interner),
             class_constant_type,
             &TypeExpansionOptions {
                 evaluate_conditional_types: true,

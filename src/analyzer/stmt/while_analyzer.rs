@@ -2,7 +2,6 @@ use super::{control_analyzer::BreakContext, loop_analyzer};
 use crate::{
     function_analysis_data::FunctionAnalysisData,
     scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
-    scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -27,7 +26,7 @@ pub(crate) fn analyze(
     while_context.inside_loop = true;
     while_context.break_types.push(BreakContext::Loop);
 
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut loop_scope = LoopScope::new(context.locals.clone());
 

@@ -1,7 +1,11 @@
 use super::simple_assertion_reconciler::{get_acceptable_type, intersect_null};
 use crate::{
     function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
-    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    statements_analyzer::StatementsAnalyzer,
+};
+use hakana_code_info::ttype::{
+    comparison::union_type_comparator, get_mixed_any, get_nothing, get_null, intersect_union_types,
+    wrap_atomic,
 };
 use hakana_code_info::{
     assertion::Assertion,
@@ -11,10 +15,6 @@ use hakana_code_info::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
-use hakana_code_info::ttype::{
-    get_mixed_any, get_nothing, get_null, intersect_union_types,
-    comparison::union_type_comparator, wrap_atomic,
-};
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 
@@ -277,7 +277,7 @@ pub(crate) fn reconcile(
             reconcile_no_nonnull_entry_for_key(existing_var_type, key_name),
         ),
         Assertion::NotInArray(typed_value) => Some(reconcile_not_in_array(
-            statements_analyzer.get_codebase(),
+            statements_analyzer.codebase,
             assertion,
             existing_var_type,
             key,
@@ -954,7 +954,7 @@ fn subtract_num(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
     let mut did_remove_type = false;
 
@@ -1051,7 +1051,7 @@ fn subtract_arraykey(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
     let mut did_remove_type = false;
 
@@ -1150,7 +1150,7 @@ fn subtract_bool(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
     let mut did_remove_type = false;
 
@@ -1324,7 +1324,7 @@ fn subtract_false(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
     let mut did_remove_type = false;
 
@@ -1407,7 +1407,7 @@ fn subtract_true(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
     let mut did_remove_type = false;
 
@@ -1780,7 +1780,7 @@ fn reconcile_not_in_array(
             trigger_issue_for_impossible(
                 analysis_data,
                 statements_analyzer,
-                &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
+                &existing_var_type.get_id(Some(statements_analyzer.interner)),
                 key,
                 assertion,
                 true,
@@ -1830,7 +1830,7 @@ fn reconcile_no_array_key(
                         }
                     } else if let Some((key_param, _)) = params {
                         if union_type_comparator::can_expression_types_be_identical(
-                            statements_analyzer.get_codebase(),
+                            statements_analyzer.codebase,
                             &wrap_atomic(match key_name {
                                 DictKey::Int(_) => TAtomic::TInt,
                                 DictKey::String(_) => TAtomic::TString,
@@ -1848,7 +1848,7 @@ fn reconcile_no_array_key(
                     }
                 } else if let Some((key_param, _)) = params {
                     if union_type_comparator::can_expression_types_be_identical(
-                        statements_analyzer.get_codebase(),
+                        statements_analyzer.codebase,
                         &wrap_atomic(match key_name {
                             DictKey::Int(_) => TAtomic::TInt,
                             DictKey::String(_) => TAtomic::TString,

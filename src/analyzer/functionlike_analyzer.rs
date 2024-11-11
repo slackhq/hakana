@@ -16,7 +16,6 @@ use crate::{file_analyzer::FileAnalyzer, function_analysis_data::FunctionAnalysi
 use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_code_info::classlike_info::ClassLikeInfo;
 use hakana_code_info::code_location::{FilePath, HPos, StmtStart};
-use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_code_info::data_flow::node::{
     DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind,
@@ -43,11 +42,15 @@ use std::rc::Rc;
 
 pub(crate) struct FunctionLikeAnalyzer<'a> {
     file_analyzer: &'a FileAnalyzer<'a>,
+    interner: &'a Interner,
 }
 
 impl<'a> FunctionLikeAnalyzer<'a> {
     pub fn new(file_analyzer: &'a FileAnalyzer) -> Self {
-        Self { file_analyzer }
+        Self {
+            file_analyzer,
+            interner: file_analyzer.interner,
+        }
     }
 
     pub fn analyze_fun(
@@ -210,7 +213,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             return Ok(());
         }
 
-        let method_name = if let Some(method_name) = self.get_interner().get(&stmt.name.1) {
+        let method_name = if let Some(method_name) = self.interner.get(&stmt.name.1) {
             method_name
         } else {
             return Err(AnalysisError::InternalError(
@@ -335,7 +338,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         function_storage: &FunctionLikeInfo,
         context: &mut BlockContext,
     ) -> Result<(), InternalError> {
-        let interner = &self.get_interner();
+        let interner = &self.interner;
         for (property_name, declaring_class) in &classlike_storage.declaring_property_ids {
             let property_class_storage = if let Some(s) = self
                 .file_analyzer
@@ -393,8 +396,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 let calling_class = context.function_context.calling_class.as_ref().unwrap();
 
                 type_expander::expand_union(
-                    self.file_analyzer.get_codebase(),
-                    &Some(self.get_interner()),
+                    self.file_analyzer.codebase,
+                    &Some(self.interner),
                     &mut property_type,
                     &TypeExpansionOptions {
                         self_class: Some(calling_class),
@@ -497,7 +500,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 if let Some(calling_class) = &context.function_context.calling_class {
                     if let Some(classlike_storage) = self
                         .file_analyzer
-                        .get_codebase()
+                        .codebase
                         .classlike_infos
                         .get(calling_class)
                     {
@@ -540,7 +543,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 //         if last_line - first_line > 10 && last_line - first_line < 100000 {
                 //             println!(
                 //                 "{}\t{}\t{}",
-                //                 functionlike_id.to_string(statements_analyzer.get_interner()),
+                //                 functionlike_id.to_string(statements_analyzer.interner),
                 //                 last_line - first_line,
                 //                 end_t.as_micros() as u64 / (last_line - first_line)
                 //             );
@@ -553,7 +556,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         functionlike_storage,
                         &mut context,
                         &mut analysis_data,
-                        self.get_interner(),
+                        self.interner,
                     );
                 }
             }
@@ -642,15 +645,15 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         }
 
-        let codebase = statements_analyzer.get_codebase();
+        let codebase = statements_analyzer.codebase;
 
         let mut inferred_return_type = None;
 
         if let Some(expected_return_type) = &functionlike_storage.return_type {
             let mut expected_return_type = expected_return_type.clone();
             type_expander::expand_union(
-                statements_analyzer.get_codebase(),
-                &Some(statements_analyzer.get_interner()),
+                statements_analyzer.codebase,
+                &Some(statements_analyzer.interner),
                 &mut expected_return_type,
                 &TypeExpansionOptions {
                     self_class: context.function_context.calling_class.as_ref(),
@@ -928,8 +931,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     let calling_class = context.function_context.calling_class.as_ref();
 
                     type_expander::expand_union(
-                        self.file_analyzer.get_codebase(),
-                        &Some(statements_analyzer.get_interner()),
+                        self.file_analyzer.codebase,
+                        &Some(statements_analyzer.interner),
                         &mut param_type,
                         &TypeExpansionOptions {
                             self_class: calling_class,
@@ -966,7 +969,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                 IssueKind::NonExistentClasslike,
                                 format!(
                                     "Class, enum or interface {} cannot be found",
-                                    statements_analyzer.get_interner().lookup(name)
+                                    statements_analyzer.interner.lookup(name)
                                 ),
                                 if let Some(type_location) = &param.signature_type_location {
                                     *type_location
@@ -1087,8 +1090,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         config,
                         param_type: &param_type,
                         param_node,
-                        codebase: statements_analyzer.get_codebase(),
-                        interner: statements_analyzer.get_interner(),
+                        codebase: statements_analyzer.codebase,
+                        interner: statements_analyzer.interner,
                         in_migratable_function: statements_analyzer.in_migratable_function,
                     },
                 );
@@ -1096,7 +1099,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             context.locals.insert(
                 statements_analyzer
-                    .get_interner()
+                    .interner
                     .lookup(&param.name.0)
                     .to_string(),
                 Rc::new(param_type.clone()),
@@ -1211,15 +1214,13 @@ fn report_unused_expressions(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    let unused_source_nodes = check_variables_used(
-        &analysis_data.data_flow_graph,
-        statements_analyzer.get_interner(),
-    );
+    let unused_source_nodes =
+        check_variables_used(&analysis_data.data_flow_graph, statements_analyzer.interner);
     analysis_data.current_stmt_offset = None;
 
     let mut unused_variable_nodes = vec![];
 
-    let interner = statements_analyzer.get_interner();
+    let interner = statements_analyzer.interner;
 
     for node in &unused_source_nodes.0 {
         match &node.kind {
@@ -1388,7 +1389,7 @@ fn handle_unused_assignment(
 ) {
     if config.allow_issue_kind_in_file(
         &IssueKind::UnusedAssignment,
-        statements_analyzer.get_interner().lookup(&pos.file_path.0),
+        statements_analyzer.interner.lookup(&pos.file_path.0),
     ) {
         let unused_closure_variable =
             analysis_data
@@ -1407,7 +1408,7 @@ fn handle_unused_assignment(
         {
             unused_variable_nodes.push(node.clone());
         } else {
-            let interner = statements_analyzer.get_interner();
+            let interner = statements_analyzer.interner;
             analysis_data.maybe_add_issue(
                 if node.id.to_label(interner) == "$$" {
                     Issue::new(
@@ -1528,14 +1529,6 @@ impl ScopeAnalyzer for FunctionLikeAnalyzer<'_> {
 
     fn get_file_analyzer(&self) -> &FileAnalyzer {
         self.file_analyzer
-    }
-
-    fn get_codebase(&self) -> &CodebaseInfo {
-        self.file_analyzer.get_codebase()
-    }
-
-    fn get_interner(&self) -> &Interner {
-        self.file_analyzer.get_interner()
     }
 
     fn get_config(&self) -> &Config {

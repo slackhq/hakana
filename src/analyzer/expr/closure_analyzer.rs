@@ -43,8 +43,8 @@ pub(crate) fn analyze(
     for param in lambda_storage.params.iter_mut() {
         if let Some(ref mut param_type) = param.signature_type {
             type_expander::expand_union(
-                statements_analyzer.get_codebase(),
-                &Some(statements_analyzer.get_interner()),
+                statements_analyzer.codebase,
+                &Some(statements_analyzer.interner),
                 param_type,
                 &TypeExpansionOptions {
                     evaluate_conditional_types: true,

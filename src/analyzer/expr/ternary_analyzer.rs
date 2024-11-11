@@ -5,7 +5,6 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler::{self, assertion_reconciler};
 use crate::scope::if_scope::IfScope;
 use crate::scope::{var_has_root, BlockContext};
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::{self, add_branch_dataflow};
 use crate::stmt_analyzer::AnalysisError;
@@ -29,7 +28,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let mut if_scope = IfScope::default();
 

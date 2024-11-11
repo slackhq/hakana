@@ -31,7 +31,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     context.inside_conditional = true;
 
@@ -46,8 +46,8 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
-            statements_analyzer.get_codebase(),
-            statements_analyzer.get_interner(),
+            statements_analyzer.codebase,
+            statements_analyzer.interner,
         )),
     ) {
         switch_var_id

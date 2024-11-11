@@ -53,8 +53,8 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
-            statements_analyzer.get_codebase(),
-            statements_analyzer.get_interner(),
+            statements_analyzer.codebase,
+            statements_analyzer.interner,
         )),
     );
 
@@ -156,7 +156,7 @@ pub(crate) fn analyze(
                 stmt_type_inner = add_union_type(
                     stmt_type_inner,
                     &get_null(),
-                    statements_analyzer.get_codebase(),
+                    statements_analyzer.codebase,
                     false,
                 );
 

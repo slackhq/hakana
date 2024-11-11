@@ -44,7 +44,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let stmt_var = expr.0;
 
     // TODO if ($stmt instanceof PropertyProperty) {
@@ -111,8 +111,8 @@ pub(crate) fn analyze(
                         IssueKind::UpcastAwaitable,
                         format!(
                             "{} contains Awaitable but was passed into a more general type {}",
-                            assignment_type.get_id(Some(statements_analyzer.get_interner())),
-                            class_property_type.get_id(Some(statements_analyzer.get_interner())),
+                            assignment_type.get_id(Some(statements_analyzer.interner)),
+                            class_property_type.get_id(Some(statements_analyzer.interner)),
                         ),
                         statements_analyzer.get_hpos(&stmt_var.1),
                         &context.function_context.calling_functionlike_id,
@@ -134,8 +134,8 @@ pub(crate) fn analyze(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
                                 class_property_type
-                                    .get_id(Some(statements_analyzer.get_interner())),
-                                assignment_type.get_id(Some(statements_analyzer.get_interner())),
+                                    .get_id(Some(statements_analyzer.interner)),
+                                assignment_type.get_id(Some(statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
                             &context.function_context.calling_functionlike_id,
@@ -151,8 +151,8 @@ pub(crate) fn analyze(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
                                 class_property_type
-                                    .get_id(Some(statements_analyzer.get_interner())),
-                                assignment_type.get_id(Some(statements_analyzer.get_interner())),
+                                    .get_id(Some(statements_analyzer.interner)),
+                                assignment_type.get_id(Some(statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
                             &context.function_context.calling_functionlike_id,
@@ -177,7 +177,7 @@ pub(crate) fn analyze(
                 // }
                 invalid_assignment_value_types.insert(
                     &assigned_property.1 .1,
-                    class_property_type.get_id(Some(statements_analyzer.get_interner())),
+                    class_property_type.get_id(Some(statements_analyzer.interner)),
                 );
             } else {
                 // has_valid_assignment_value_type = true;
@@ -192,9 +192,9 @@ pub(crate) fn analyze(
                     IssueKind::InvalidPropertyAssignmentValue,
                     format!(
                         "Property ${} with declared type {}, cannot be assigned type {}",
-                        statements_analyzer.get_interner().lookup(property_id),
+                        statements_analyzer.interner.lookup(property_id),
                         invalid_class_property_type,
-                        assignment_type.get_id(Some(statements_analyzer.get_interner())),
+                        assignment_type.get_id(Some(statements_analyzer.interner)),
                     ),
                     statements_analyzer.get_hpos(&stmt_var.1),
                     &context.function_context.calling_functionlike_id,
@@ -222,7 +222,7 @@ pub(crate) fn analyze_regular_assignment(
 
     let mut assigned_properties = Vec::new();
     let mut context_type = None;
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
@@ -247,8 +247,8 @@ pub(crate) fn analyze_regular_assignment(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
-            statements_analyzer.get_codebase(),
-            statements_analyzer.get_interner(),
+            statements_analyzer.codebase,
+            statements_analyzer.interner,
         )),
     );
 
@@ -369,7 +369,7 @@ pub(crate) fn analyze_atomic_assignment(
     context: &mut BlockContext,
     is_lhs_reference_free: bool,
 ) -> Option<(TUnion, (StrId, StrId), TUnion)> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
     let fq_class_name = match lhs_type_part {
         TAtomic::TNamedObject { name, .. } => *name,
         TAtomic::TReference { name, .. } => {
@@ -378,7 +378,7 @@ pub(crate) fn analyze_atomic_assignment(
                     IssueKind::NonExistentClass,
                     format!(
                         "Undefined class {}",
-                        statements_analyzer.get_interner().lookup(name)
+                        statements_analyzer.interner.lookup(name)
                     ),
                     statements_analyzer.get_hpos(expr.1.pos()),
                     &context.function_context.calling_functionlike_id,
@@ -399,7 +399,7 @@ pub(crate) fn analyze_atomic_assignment(
     };
 
     let prop_name = if let aast::Expr_::Id(id) = &expr.1 .2 {
-        if let Some(prop_name) = statements_analyzer.get_interner().get(&id.1) {
+        if let Some(prop_name) = statements_analyzer.interner.get(&id.1) {
             prop_name
         } else {
             analysis_data.maybe_add_issue(
@@ -407,7 +407,7 @@ pub(crate) fn analyze_atomic_assignment(
                     IssueKind::NonExistentProperty,
                     format!(
                         "Undefined property {}::${}",
-                        statements_analyzer.get_interner().lookup(&fq_class_name),
+                        statements_analyzer.interner.lookup(&fq_class_name),
                         &id.1
                     ),
                     statements_analyzer.get_hpos(expr.1.pos()),
@@ -439,8 +439,8 @@ pub(crate) fn analyze_atomic_assignment(
             None,
             statements_analyzer.get_file_analyzer().resolved_names,
             Some((
-                statements_analyzer.get_codebase(),
-                statements_analyzer.get_interner(),
+                statements_analyzer.codebase,
+                statements_analyzer.interner,
             )),
         );
 
@@ -505,8 +505,8 @@ pub(crate) fn analyze_atomic_assignment(
                         IssueKind::ImmutablePropertyWrite,
                         format!(
                             "Property {}::${} is defined on an immutable class",
-                            statements_analyzer.get_interner().lookup(&property_id.0),
-                            statements_analyzer.get_interner().lookup(&property_id.1),
+                            statements_analyzer.interner.lookup(&property_id.0),
+                            statements_analyzer.interner.lookup(&property_id.1),
                         ),
                         statements_analyzer.get_hpos(expr.1.pos()),
                         &context.function_context.calling_functionlike_id,
@@ -543,7 +543,7 @@ pub(crate) fn analyze_atomic_assignment(
         if !class_property_type.is_mixed() {
             type_expander::expand_union(
                 codebase,
-                &Some(statements_analyzer.get_interner()),
+                &Some(statements_analyzer.interner),
                 &mut class_property_type,
                 &TypeExpansionOptions {
                     self_class: Some(&declaring_classlike_storage.name),
@@ -576,8 +576,8 @@ pub(crate) fn analyze_atomic_assignment(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Undefined property {}::${}",
-                    statements_analyzer.get_interner().lookup(&property_id.0),
-                    statements_analyzer.get_interner().lookup(&property_id.1),
+                    statements_analyzer.interner.lookup(&property_id.0),
+                    statements_analyzer.interner.lookup(&property_id.1),
                 ),
                 statements_analyzer.get_hpos(expr.1.pos()),
                 &context.function_context.calling_functionlike_id,
@@ -602,7 +602,7 @@ fn add_instance_property_dataflow(
     fq_class_name: &StrId,
     property_id: &(StrId, StrId),
 ) {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     if let Some(classlike_storage) = codebase.classlike_infos.get(fq_class_name) {
         if classlike_storage.specialize_instance {

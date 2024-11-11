@@ -101,14 +101,14 @@ pub(crate) fn analyze(
             let lhs_type = analysis_data.get_rc_expr_type(expr.1.pos());
             let rhs_type = analysis_data.get_rc_expr_type(expr.2.pos());
 
-            let interner = statements_analyzer.get_interner();
+            let interner = statements_analyzer.interner;
 
             if let (Some(lhs_type), Some(rhs_type)) = (lhs_type, rhs_type) {
                 if is_resolvable(expr.1)
                     && is_resolvable(expr.2)
                     && (!lhs_type.is_single() || !rhs_type.is_single())
                     && !union_type_comparator::can_expression_types_be_identical(
-                        statements_analyzer.get_codebase(),
+                        statements_analyzer.codebase,
                         lhs_type,
                         rhs_type,
                         true,

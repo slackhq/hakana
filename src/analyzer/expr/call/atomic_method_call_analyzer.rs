@@ -86,7 +86,7 @@ pub(crate) fn analyze(
                     IssueKind::NonExistentClasslike,
                     format!(
                         "Unknown classlike {}",
-                        statements_analyzer.get_interner().lookup(classlike_name)
+                        statements_analyzer.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
@@ -109,12 +109,12 @@ pub(crate) fn analyze(
                             format!(
                                 "Cannot call method on {} with type {}",
                                 lhs_var_id,
-                                lhs_type_part.get_id(Some(statements_analyzer.get_interner()))
+                                lhs_type_part.get_id(Some(statements_analyzer.interner))
                             )
                         } else {
                             format!(
                                 "Cannot call method on type {}",
-                                lhs_type_part.get_id(Some(statements_analyzer.get_interner()))
+                                lhs_type_part.get_id(Some(statements_analyzer.interner))
                             )
                         },
                         statements_analyzer.get_hpos(&expr.0 .1),
@@ -138,12 +138,12 @@ pub(crate) fn analyze(
                         format!(
                             "Cannot call method on {} with type {}",
                             lhs_var_id,
-                            lhs_type_part.get_id(Some(statements_analyzer.get_interner()))
+                            lhs_type_part.get_id(Some(statements_analyzer.interner))
                         )
                     } else {
                         format!(
                             "Cannot call method on type {}",
-                            lhs_type_part.get_id(Some(statements_analyzer.get_interner()))
+                            lhs_type_part.get_id(Some(statements_analyzer.interner))
                         )
                     },
                     statements_analyzer.get_hpos(&expr.0 .1),
@@ -188,7 +188,7 @@ pub(crate) fn handle_method_call_on_named_object(
     lhs_type_part: &TAtomic,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.codebase;
 
     result.has_valid_method_call_type = true;
 
@@ -222,7 +222,7 @@ pub(crate) fn handle_method_call_on_named_object(
                     IssueKind::NonExistentClass,
                     format!(
                         "Class or interface {} does not exist",
-                        statements_analyzer.get_interner().lookup(classlike_name)
+                        statements_analyzer.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
@@ -237,7 +237,7 @@ pub(crate) fn handle_method_call_on_named_object(
 
     if let aast::Expr_::Id(boxed) = &expr.1 .2 {
         let method_name =
-            if let Some(method_name) = statements_analyzer.get_interner().get(&boxed.1) {
+            if let Some(method_name) = statements_analyzer.interner.get(&boxed.1) {
                 method_name
             } else {
                 return handle_nonexistent_method(
@@ -316,7 +316,7 @@ fn handle_nonexistent_method(
             IssueKind::NonExistentMethod,
             format!(
                 "Method {}::{} does not exist",
-                statements_analyzer.get_interner().lookup(classlike_name),
+                statements_analyzer.interner.lookup(classlike_name),
                 &id.1
             ),
             statements_analyzer.get_hpos(pos),
@@ -326,7 +326,7 @@ fn handle_nonexistent_method(
         statements_analyzer.get_file_path_actual(),
     );
 
-    if let Some(method_name) = statements_analyzer.get_interner().get(&id.1) {
+    if let Some(method_name) = statements_analyzer.interner.get(&id.1) {
         analysis_data
             .symbol_references
             .add_reference_to_class_member(
@@ -336,7 +336,7 @@ fn handle_nonexistent_method(
             );
 
         let Some(classlike_info) = statements_analyzer
-            .get_codebase()
+            .codebase
             .classlike_infos
             .get(&classlike_name)
         else {

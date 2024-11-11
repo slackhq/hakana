@@ -134,7 +134,7 @@ pub(crate) fn analyze<'expr>(
         .unwrap_or(get_mixed_any());
 
     if ternary_type.is_mixed() {
-        let codebase = statements_analyzer.get_codebase();
+        let codebase = statements_analyzer.codebase;
         let mut hint_type = get_type_from_hint(
             &hint.1,
             context.function_context.calling_class.as_ref(),
@@ -159,7 +159,7 @@ pub(crate) fn analyze<'expr>(
             );
             type_expander::expand_union(
                 codebase,
-                &Some(statements_analyzer.get_interner()),
+                &Some(statements_analyzer.interner),
                 &mut hint_type,
                 &TypeExpansionOptions {
                     self_class: context.function_context.calling_class.as_ref(),
