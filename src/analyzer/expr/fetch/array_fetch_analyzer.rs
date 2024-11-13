@@ -434,18 +434,20 @@ pub(crate) fn get_array_access_type_given_offset(
             } => match *name {
                 StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => {
                     if let Some(type_params) = type_params {
-                        if let Some(existing_type) = stmt_type {
-                            stmt_type = Some(add_union_type(
-                                existing_type,
-                                type_params.get(1).unwrap(),
-                                codebase,
-                                false,
-                            ));
-                        } else {
-                            stmt_type = Some(type_params.get(1).unwrap().clone());
+                        if type_params.len() > 1 {
+                            if let Some(existing_type) = stmt_type {
+                                stmt_type = Some(add_union_type(
+                                    existing_type,
+                                    &type_params[1],
+                                    codebase,
+                                    false,
+                                ));
+                            } else {
+                                stmt_type = Some(type_params[1].clone());
+                            }
+    
+                            has_valid_expected_offset = true;
                         }
-
-                        has_valid_expected_offset = true;
                     }
                 }
                 StrId::CONTAINER => {
@@ -453,12 +455,12 @@ pub(crate) fn get_array_access_type_given_offset(
                         if let Some(existing_type) = stmt_type {
                             stmt_type = Some(add_union_type(
                                 existing_type,
-                                type_params.first().unwrap(),
+                                &type_params[0],
                                 codebase,
                                 false,
                             ));
                         } else {
-                            stmt_type = Some(type_params.first().unwrap().clone());
+                            stmt_type = Some(type_params[0].clone());
                         }
 
                         has_valid_expected_offset = true;
