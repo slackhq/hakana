@@ -6,10 +6,7 @@ use hakana_code_info::{
     EFFECT_IMPURE,
 };
 use hakana_str::StrId;
-use oxidized::{
-    aast,
-    ast_defs::{self, Pos},
-};
+use oxidized::{aast, ast_defs::Pos};
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope::BlockContext,
@@ -37,7 +34,7 @@ pub(crate) fn analyze(
         &aast::ClassId<(), ()>,
         &(Pos, String),
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,

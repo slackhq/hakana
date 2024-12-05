@@ -21,6 +21,7 @@ use hakana_code_info::ttype::{
 };
 use hakana_code_info::{GenericParent, VarId, EFFECT_IMPURE};
 use hakana_str::{Interner, StrId};
+use oxidized::aast::Argument;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -41,7 +42,7 @@ pub(crate) fn fetch(
     expr: (
         (&Pos, &ast_defs::Id_),
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
@@ -125,12 +126,7 @@ pub(crate) fn fetch(
             &TypeExpansionOptions {
                 expand_templates: false,
                 expand_generic: true,
-                file_path: Some(
-                    &statements_analyzer
-                        .file_analyzer
-                        .file_source
-                        .file_path,
-                ),
+                file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -163,7 +159,7 @@ pub(crate) fn fetch(
 fn handle_special_functions(
     statements_analyzer: &StatementsAnalyzer,
     name: &StrId,
-    args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+    args: &Vec<aast::Argument<(), ()>>,
     pos: &Pos,
     codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
@@ -171,19 +167,17 @@ fn handle_special_functions(
 ) -> Option<TUnion> {
     match name {
         &StrId::INVARIANT => {
-            if let Some((_, aast::Expr(_, _, aast::Expr_::False))) = args.first() {
+            if let Some(Argument::Anormal(aast::Expr(_, _, aast::Expr_::False))) = args.first() {
                 Some(get_nothing())
             } else {
                 None
             }
         }
         &StrId::TYPE_STRUCTURE_FN => {
-            if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
-                (args.first(), args.get(1))
-            {
+            if let (Some(first_arg), Some(second_arg)) = (args.first(), args.get(1)) {
                 if let (Some(first_expr_type), Some(second_expr_type)) = (
-                    analysis_data.get_expr_type(first_arg_expr.pos()),
-                    analysis_data.get_expr_type(second_arg_expr.pos()),
+                    analysis_data.get_expr_type(first_arg.to_expr_ref().pos()),
+                    analysis_data.get_expr_type(second_arg.to_expr_ref().pos()),
                 ) {
                     get_type_structure_type(
                         statements_analyzer,
@@ -199,7 +193,8 @@ fn handle_special_functions(
             }
         }
         &StrId::GLOBAL_GET => {
-            if let Some((_, arg_expr)) = args.first() {
+            if let Some(arg) = args.first() {
+                let arg_expr = arg.to_expr_ref();
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     expr_type.get_single_literal_string_value().map(|value| {
                         get_type_for_superglobal(statements_analyzer, value, pos, analysis_data)
@@ -212,7 +207,8 @@ fn handle_special_functions(
             }
         }
         &StrId::PREG_SPLIT => {
-            if let Some((_, arg_expr)) = args.get(3) {
+            if let Some(arg) = args.get(3) {
+                let arg_expr = arg.to_expr_ref();
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     return if let Some(value) = expr_type.get_single_literal_int_value() {
                         match value {
@@ -336,7 +332,8 @@ fn handle_special_functions(
         })),
         &StrId::STR_REPLACE => {
             // returns string if the second arg is a string
-            if let Some((_, arg_expr)) = args.get(1) {
+            if let Some(arg) = args.get(1) {
+                let arg_expr = arg.to_expr_ref();
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if union_type_comparator::is_contained_by(
                         codebase,
@@ -360,7 +357,8 @@ fn handle_special_functions(
         }
         &StrId::PREG_REPLACE => {
             // returns string if the third arg is a string
-            if let Some((_, arg_expr)) = args.get(2) {
+            if let Some(arg) = args.get(2) {
+                let arg_expr = arg.to_expr_ref();
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if union_type_comparator::is_contained_by(
                         codebase,
@@ -384,7 +382,8 @@ fn handle_special_functions(
             }
         }
         &StrId::MICROTIME => {
-            if let Some((_, arg_expr)) = args.first() {
+            if let Some(arg) = args.first() {
+                let arg_expr = arg.to_expr_ref();
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if expr_type.is_always_truthy() {
                         Some(get_float())
@@ -401,12 +400,10 @@ fn handle_special_functions(
             }
         }
         &StrId::LIB_STR_JOIN => {
-            if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
-                (args.first(), args.get(1))
-            {
+            if let (Some(first_arg), Some(second_arg)) = (args.first(), args.get(1)) {
                 if let (Some(first_expr_type), Some(second_expr_type)) = (
-                    analysis_data.get_expr_type(first_arg_expr.pos()),
-                    analysis_data.get_expr_type(second_arg_expr.pos()),
+                    analysis_data.get_expr_type(first_arg.to_expr_ref().pos()),
+                    analysis_data.get_expr_type(second_arg.to_expr_ref().pos()),
                 ) {
                     if second_expr_type.all_literals() && first_expr_type.is_single() {
                         let first_expr_type = first_expr_type.get_single();
@@ -433,7 +430,7 @@ fn handle_special_functions(
         }
         &StrId::LIB_STR_FORMAT | &StrId::SPRINTF => {
             if let Some(first_arg) = args.first() {
-                match &first_arg.1 .2 {
+                match &first_arg.to_expr_ref().2 {
                     aast::Expr_::String(simple_string) => {
                         return Some(handle_str_format(
                             simple_string,
@@ -476,7 +473,8 @@ fn handle_special_functions(
         | &StrId::LIB_STR_SLICE
         | &StrId::LIB_STR_REPLACE => {
             let mut all_literals = true;
-            for (_, arg_expr) in args {
+            for arg in args {
+                let arg_expr = arg.to_expr_ref();
                 if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if !arg_expr_type.all_literals() {
                         all_literals = false;
@@ -496,7 +494,8 @@ fn handle_special_functions(
         }
         &StrId::LIB_STR_SPLIT => {
             let mut all_literals = true;
-            for (_, arg_expr) in args {
+            for arg in args {
+                let arg_expr = arg.to_expr_ref();
                 if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if !arg_expr_type.all_literals() {
                         all_literals = false;
@@ -516,7 +515,8 @@ fn handle_special_functions(
         }
         &StrId::RANGE => {
             let mut all_ints = true;
-            for (_, arg_expr) in args {
+            for arg in args {
+                let arg_expr = arg.to_expr_ref();
                 if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if !arg_expr_type.is_int() {
                         all_ints = false;
@@ -536,8 +536,12 @@ fn handle_special_functions(
         }
         &StrId::IDX_FN => {
             if args.len() >= 2 {
-                let dict_type = analysis_data.get_rc_expr_type(args[0].1.pos()).cloned();
-                let dim_type = analysis_data.get_rc_expr_type(args[1].1.pos()).cloned();
+                let dict_type = analysis_data
+                    .get_rc_expr_type(args[0].to_expr_ref().pos())
+                    .cloned();
+                let dim_type = analysis_data
+                    .get_rc_expr_type(args[1].to_expr_ref().pos())
+                    .cloned();
 
                 let mut expr_type = None;
 
@@ -568,7 +572,7 @@ fn handle_special_functions(
                     }
 
                     if args.len() > 2 {
-                        let default_type = analysis_data.get_expr_type(args[2].1.pos());
+                        let default_type = analysis_data.get_expr_type(args[2].to_expr_ref().pos());
                         expr_type = expr_type.map(|expr_type| {
                             if let Some(default_type) = default_type {
                                 add_union_type(expr_type, default_type, codebase, false)
@@ -586,7 +590,9 @@ fn handle_special_functions(
         }
         &StrId::DIRNAME => {
             if args.len() == 1 {
-                let file_type = analysis_data.get_rc_expr_type(args[0].1.pos()).cloned();
+                let file_type = analysis_data
+                    .get_rc_expr_type(args[0].to_expr_ref().pos())
+                    .cloned();
 
                 if let Some(file_type) = file_type {
                     if let Some(literal_value) = file_type.get_single_literal_string_value() {
@@ -603,7 +609,7 @@ fn handle_special_functions(
         &StrId::ASIO_JOIN => {
             if args.len() == 1 {
                 let mut awaited_type = analysis_data
-                    .get_expr_type(args[0].1.pos())
+                    .get_expr_type(args[0].to_expr_ref().pos())
                     .cloned()
                     .unwrap_or(get_mixed_any());
 
@@ -688,8 +694,8 @@ fn get_type_for_superglobal(
 
 fn handle_str_format(
     simple_string: &BString,
-    first_arg: &(ast_defs::ParamKind, aast::Expr<(), ()>),
-    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
+    first_arg: &aast::Argument<(), ()>,
+    args: &[aast::Argument<(), ()>],
     statements_analyzer: &StatementsAnalyzer<'_>,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
@@ -710,7 +716,7 @@ fn handle_str_format(
                 in_format_string = true;
                 literals.push(aast::Expr(
                     (),
-                    first_arg.1.pos().clone(),
+                    first_arg.to_expr_ref().pos().clone(),
                     aast::Expr_::String(BString::from(cur_literal)),
                 ));
                 cur_literal = "".to_string();
@@ -737,7 +743,7 @@ fn handle_str_format(
 
     literals.push(aast::Expr(
         (),
-        first_arg.1.pos().clone(),
+        first_arg.to_expr_ref().pos().clone(),
         aast::Expr_::String(BString::from(cur_literal)),
     ));
 
@@ -746,7 +752,7 @@ fn handle_str_format(
     for (i, literal) in literals.iter().enumerate() {
         concat_args.push(literal);
         if let Some(arg) = args.get(i + 1) {
-            concat_args.push(&arg.1);
+            concat_args.push(&arg.to_expr_ref());
         } else {
             break;
         }
@@ -799,10 +805,8 @@ fn get_type_structure_type(
                 }
             };
 
-            if let Some(classlike_info) = statements_analyzer
-                .codebase
-                .classlike_infos
-                .get(&classname)
+            if let Some(classlike_info) =
+                statements_analyzer.codebase.classlike_infos.get(&classname)
             {
                 if let Some(type_constant_info) = classlike_info.type_constants.get(&const_name) {
                     return Some(wrap_atomic(TAtomic::TTypeAlias {
@@ -827,7 +831,7 @@ fn add_dataflow(
     expr: (
         (&Pos, &ast_defs::Id_),
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
@@ -894,7 +898,7 @@ fn add_dataflow(
 
     for (param_offset, path_kind) in param_offsets {
         if let Some(arg) = expr.2.get(param_offset) {
-            let arg_pos = statements_analyzer.get_hpos(arg.1.pos());
+            let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
 
             add_special_param_dataflow(
                 statements_analyzer,
@@ -914,9 +918,9 @@ fn add_dataflow(
     }
 
     if let Some(path_kind) = &variadic_path {
-        for (param_offset, (_, arg)) in expr.2.iter().enumerate() {
+        for (param_offset, arg) in expr.2.iter().enumerate() {
             if last_arg == usize::MAX || param_offset > last_arg {
-                let arg_pos = statements_analyzer.get_hpos(arg.pos());
+                let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
 
                 add_special_param_dataflow(
                     statements_analyzer,
@@ -1016,7 +1020,7 @@ fn get_special_argument_nodes(
     expr: (
         (&Pos, &ast_defs::Id_),
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
 ) -> (Vec<(usize, PathKind)>, Option<PathKind>) {
@@ -1540,7 +1544,7 @@ fn get_special_argument_nodes(
             ),
             StrId::IDX_FN => {
                 if let Some(second_arg) = expr.2.get(1) {
-                    if let aast::Expr_::String(str) = &second_arg.1 .2 {
+                    if let aast::Expr_::String(str) = &second_arg.to_expr_ref().2 {
                         return (
                             vec![
                                 (

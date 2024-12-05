@@ -328,7 +328,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
 
         let mut type_definition = TypeDefinitionInfo {
-            newtype_file: if typedef.vis.is_opaque() {
+            newtype_file: if typedef
+                .assignment
+                .as_simple_type_def()
+                .unwrap()
+                .vis
+                .is_opaque()
+            {
                 Some(self.file_source.file_path)
             } else {
                 None
@@ -349,7 +355,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 None
             },
             actual_type: get_type_from_hint(
-                &typedef.kind.1,
+                &typedef.runtime_type.1,
                 None,
                 &TypeResolutionContext {
                     template_type_map: template_type_map.clone(),
@@ -357,7 +363,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 },
                 self.resolved_names,
                 self.file_source.file_path,
-                typedef.kind.0.start_offset() as u32,
+                typedef.runtime_type.0.start_offset() as u32,
             )
             .unwrap(),
             template_types: template_type_map,

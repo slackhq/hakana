@@ -12,14 +12,14 @@ use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::ttype::{get_arraykey, get_mixed_any, get_nothing};
 use hakana_code_info::VarId;
 use hakana_str::StrId;
+use oxidized::aast;
 use oxidized::ast_defs::Pos;
-use oxidized::{aast, ast_defs};
 
 use super::call::argument_analyzer;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
+    args: &[aast::Argument<(), ()>],
     call_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -30,7 +30,8 @@ pub(crate) fn analyze(
         HPos::new(call_pos, *statements_analyzer.get_file_path()),
     );
 
-    for (i, (_, arg_expr)) in args.iter().enumerate() {
+    for (i, arg) in args.iter().enumerate() {
+        let arg_expr = arg.to_expr_ref();
         context.inside_general_use = true;
         expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context)?;
         context.inside_general_use = false;

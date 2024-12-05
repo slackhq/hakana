@@ -115,6 +115,8 @@ pub enum IssueKind {
     StrictObjectEquality,
     TaintedData(Box<SinkType>),
     TestOnlyCall,
+    TooFewArguments,
+    TooManyArguments,
     UndefinedIntArrayOffset,
     UndefinedStringArrayOffset,
     UndefinedVariable,

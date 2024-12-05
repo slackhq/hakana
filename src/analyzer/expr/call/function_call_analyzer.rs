@@ -37,7 +37,7 @@ pub(crate) fn analyze(
     expr: (
         (&Pos, &ast_defs::Id_),
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
@@ -58,7 +58,7 @@ pub(crate) fn analyze(
     // we special-case this because isset is used in
     // null coalesce ternaries where the positions may be fake
     if name == "isset" && !expr.2.is_empty() {
-        let first_arg = &expr.2.first().unwrap().1;
+        let first_arg = &expr.2[0].to_expr_ref();
         return isset_analyzer::analyze(
             statements_analyzer,
             first_arg,
@@ -69,7 +69,7 @@ pub(crate) fn analyze(
     }
 
     if (name == "unset" || name == "\\unset") && !expr.2.is_empty() {
-        let first_arg = &expr.2.first().unwrap().1;
+        let first_arg = &expr.2.first().unwrap().to_expr_ref();
         context.inside_unset = true;
         expression_analyzer::analyze(statements_analyzer, first_arg, analysis_data, context)?;
         context.inside_unset = false;
@@ -250,8 +250,13 @@ pub(crate) fn analyze(
 
     match name {
         StrId::INVARIANT => {
-            if let Some((_, first_arg)) = &expr.2.first() {
-                process_invariant(first_arg, context, statements_analyzer, analysis_data);
+            if let Some(first_arg) = &expr.2.first() {
+                process_invariant(
+                    first_arg.to_expr_ref(),
+                    context,
+                    statements_analyzer,
+                    analysis_data,
+                );
             }
         }
         StrId::LIB_C_CONTAINS
@@ -259,20 +264,21 @@ pub(crate) fn analyze(
         | StrId::LIB_DICT_CONTAINS
         | StrId::LIB_DICT_CONTAINS_KEY => {
             let expr_var_id = expression_identifier::get_var_id(
-                &expr.2[0].1,
+                &expr.2[0].to_expr_ref(),
                 context.function_context.calling_class.as_ref(),
                 resolved_names,
-                Some((
-                    statements_analyzer.codebase,
-                    statements_analyzer.interner,
-                )),
+                Some((statements_analyzer.codebase, statements_analyzer.interner)),
             );
 
             if (name == StrId::LIB_C_CONTAINS || name == StrId::LIB_DICT_CONTAINS)
                 && expr.2.len() == 2
             {
-                let container_type = analysis_data.get_expr_type(expr.2[0].1.pos()).cloned();
-                let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos()).cloned();
+                let container_type = analysis_data
+                    .get_expr_type(expr.2[0].to_expr_ref().pos())
+                    .cloned();
+                let second_arg_type = analysis_data
+                    .get_expr_type(expr.2[1].to_expr_ref().pos())
+                    .cloned();
                 check_array_key_or_value_type(
                     codebase,
                     statements_analyzer,
@@ -285,10 +291,12 @@ pub(crate) fn analyze(
                     &context.function_context.calling_functionlike_id,
                 );
             } else if expr.2.len() >= 2 {
-                let container_type = analysis_data.get_expr_type(expr.2[0].1.pos()).cloned();
+                let container_type = analysis_data
+                    .get_expr_type(expr.2[0].to_expr_ref().pos())
+                    .cloned();
 
                 if let Some(expr_var_id) = expr_var_id {
-                    if let aast::Expr_::String(boxed) = &expr.2[1].1 .2 {
+                    if let aast::Expr_::String(boxed) = &expr.2[1].to_expr_ref().2 {
                         let dim_var_id = boxed.to_string();
                         analysis_data.if_true_assertions.insert(
                             (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -297,7 +305,7 @@ pub(crate) fn analyze(
                                 vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
                             )]),
                         );
-                    } else if let aast::Expr_::Int(boxed) = &expr.2[1].1 .2 {
+                    } else if let aast::Expr_::Int(boxed) = &expr.2[1].to_expr_ref().2 {
                         analysis_data.if_true_assertions.insert(
                             (pos.start_offset() as u32, pos.end_offset() as u32),
                             FxHashMap::from_iter([(
@@ -309,11 +317,8 @@ pub(crate) fn analyze(
                         );
                     } else {
                         if let Some(dim_var_id) = expression_identifier::get_dim_id(
-                            &expr.2[1].1,
-                            Some((
-                                statements_analyzer.codebase,
-                                statements_analyzer.interner,
-                            )),
+                            &expr.2[1].to_expr_ref(),
+                            Some((statements_analyzer.codebase, statements_analyzer.interner)),
                             resolved_names,
                         ) {
                             analysis_data.if_true_assertions.insert(
@@ -325,7 +330,8 @@ pub(crate) fn analyze(
                             );
                         }
 
-                        let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos());
+                        let second_arg_type =
+                            analysis_data.get_expr_type(expr.2[1].to_expr_ref().pos());
                         if let Some(second_arg_type) = second_arg_type {
                             check_array_key_or_value_type(
                                 codebase,
@@ -345,13 +351,10 @@ pub(crate) fn analyze(
 
             if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                 let second_arg_var_id = expression_identifier::get_var_id(
-                    &expr.2[1].1,
+                    &expr.2[1].to_expr_ref(),
                     context.function_context.calling_class.as_ref(),
                     resolved_names,
-                    Some((
-                        statements_analyzer.codebase,
-                        statements_analyzer.interner,
-                    )),
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 );
 
                 if let Some(expr_var_id) = second_arg_var_id {
@@ -376,16 +379,14 @@ pub(crate) fn analyze(
             if expr.2.len() == 2 {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(
-                        &expr.2[0].1,
+                        &expr.2[0].to_expr_ref(),
                         context.function_context.calling_class.as_ref(),
                         resolved_names,
-                        Some((
-                            statements_analyzer.codebase,
-                            statements_analyzer.interner,
-                        )),
+                        Some((statements_analyzer.codebase, statements_analyzer.interner)),
                     );
 
-                    let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos());
+                    let second_arg_type =
+                        analysis_data.get_expr_type(expr.2[1].to_expr_ref().pos());
 
                     // if we have a HH\Lib\Str\starts_with($foo, "/something") check
                     // we can remove url-specific taints
@@ -394,9 +395,7 @@ pub(crate) fn analyze(
                     {
                         if let Some(str) = second_arg_type.get_single_literal_string_value() {
                             if str.len() > 1 && str != "http://" && str != "https://" {
-                                if let Some(id) =
-                                    statements_analyzer.interner.get(&expr_var_id)
-                                {
+                                if let Some(id) = statements_analyzer.interner.get(&expr_var_id) {
                                     analysis_data.if_true_assertions.insert(
                                         (pos.start_offset() as u32, pos.end_offset() as u32),
                                         FxHashMap::from_iter([(
@@ -422,16 +421,14 @@ pub(crate) fn analyze(
             if expr.2.len() == 2 {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(
-                        &expr.2[0].1,
+                        &expr.2[0].to_expr_ref(),
                         context.function_context.calling_class.as_ref(),
                         resolved_names,
-                        Some((
-                            statements_analyzer.codebase,
-                            statements_analyzer.interner,
-                        )),
+                        Some((statements_analyzer.codebase, statements_analyzer.interner)),
                     );
 
-                    let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos());
+                    let second_arg_type =
+                        analysis_data.get_expr_type(expr.2[1].to_expr_ref().pos());
 
                     // if we have a HH\Lib\Str\starts_with($foo, "/something") check
                     // we can remove url-specific taints
@@ -464,9 +461,7 @@ pub(crate) fn analyze(
                             }
 
                             if !hashes_to_remove.is_empty() {
-                                if let Some(id) =
-                                    statements_analyzer.interner.get(&expr_var_id)
-                                {
+                                if let Some(id) = statements_analyzer.interner.get(&expr_var_id) {
                                     analysis_data.if_true_assertions.insert(
                                         (pos.start_offset() as u32, pos.end_offset() as u32),
                                         FxHashMap::from_iter([(

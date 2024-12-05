@@ -30,8 +30,8 @@ use hakana_code_info::ttype::{
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
+use oxidized::aast;
 use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
 
 use super::atomic_method_call_analyzer::AtomicMethodCallAnalysisResult;
 
@@ -373,7 +373,7 @@ fn analyze_named_constructor(
                 &expr
                     .2
                     .iter()
-                    .map(|arg_expr| (ast_defs::ParamKind::Pnormal, arg_expr.clone()))
+                    .map(|arg_expr| aast::Argument::Anormal(arg_expr.clone()))
                     .collect::<Vec<_>>(),
                 expr.3,
             ),
@@ -480,10 +480,7 @@ fn analyze_named_constructor(
                         &TypeExpansionOptions {
                             parent_class: None,
                             file_path: Some(
-                                &statements_analyzer
-                                    .file_analyzer
-                                    .file_source
-                                    .file_path,
+                                &statements_analyzer.file_analyzer.file_source.file_path,
                             ),
                             ..Default::default()
                         },
@@ -598,10 +595,7 @@ fn analyze_named_constructor(
                             &TypeExpansionOptions {
                                 parent_class: None,
                                 file_path: Some(
-                                    &statements_analyzer
-                                        .file_analyzer
-                                        .file_source
-                                        .file_path,
+                                    &statements_analyzer.file_analyzer.file_source.file_path,
                                 ),
                                 ..Default::default()
                             },

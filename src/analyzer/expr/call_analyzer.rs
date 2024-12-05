@@ -367,7 +367,7 @@ pub(crate) fn check_method_args(
     functionlike_storage: &FunctionLikeInfo,
     call_expr: (
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     lhs_type_part: Option<&TAtomic>,
@@ -434,7 +434,7 @@ pub(crate) fn apply_effects(
     function_storage: &FunctionLikeInfo,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
-    expr_args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+    expr_args: &Vec<aast::Argument<(), ()>>,
 ) {
     if functionlike_id == FunctionLikeIdentifier::Function(StrId::ASIO_JOIN) {
         analysis_data.expr_effects.insert(
@@ -454,7 +454,8 @@ pub(crate) fn apply_effects(
             }
         }
         FnEffect::Arg(arg_offset) => {
-            if let Some((_, arg_expr)) = expr_args.get(arg_offset as usize) {
+            if let Some(arg) = expr_args.get(arg_offset as usize) {
+                let arg_expr = arg.to_expr_ref();
                 if let Some(arg_type) = analysis_data.expr_types.get(&(
                     arg_expr.pos().start_offset() as u32,
                     arg_expr.pos().end_offset() as u32,
@@ -493,6 +494,6 @@ pub(crate) fn apply_effects(
     }
 
     for arg in expr_args {
-        analysis_data.combine_effects(arg.1.pos(), pos, pos);
+        analysis_data.combine_effects(arg.to_expr_ref().pos(), pos, pos);
     }
 }

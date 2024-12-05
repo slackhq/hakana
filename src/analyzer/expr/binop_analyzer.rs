@@ -209,20 +209,6 @@ pub(crate) fn analyze(
 
             Ok(())
         }
-
-        oxidized::ast_defs::Bop::Eq(_) => {
-            crate::expr::binop::assignment_analyzer::analyze(
-                statements_analyzer,
-                (expr.0, expr.1, Some(expr.2)),
-                pos,
-                None,
-                analysis_data,
-                context,
-                None,
-            )?;
-
-            Ok(())
-        }
     }
 }
 

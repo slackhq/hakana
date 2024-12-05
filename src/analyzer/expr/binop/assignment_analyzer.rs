@@ -39,42 +39,42 @@ use hakana_code_info::ttype::get_literal_int;
 use hakana_code_info::ttype::get_mixed;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::get_nothing;
-use oxidized::ast::Bop;
+use oxidized::aast;
 use oxidized::ast_defs;
 use oxidized::pos::Pos;
-use oxidized::{aast, ast};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ast::Bop, &aast::Expr<(), ()>, Option<&aast::Expr<(), ()>>),
+    expr: (
+        &aast::Expr<(), ()>,
+        Option<ast_defs::Bop>,
+        Option<&aast::Expr<(), ()>>,
+    ),
     pos: &Pos,
     assign_value_type: Option<&TUnion>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     inout_node: Option<DataFlowNode>,
 ) -> Result<(), AnalysisError> {
-    let (binop, assign_var, assign_value) = (expr.0, expr.1, expr.2);
+    let (assign_var, binop, assign_value) = (expr.0, expr.1, expr.2);
 
     let var_id = get_var_id(
         assign_var,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((
-            statements_analyzer.codebase,
-            statements_analyzer.interner,
-        )),
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
     if statements_analyzer.get_config().add_fixmes {
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
-            if current_stmt_offset.line != expr.1.pos().line() as u32 {
-                current_stmt_offset.line = expr.1.pos().line() as u32;
+            if current_stmt_offset.line != expr.0.pos().line() as u32 {
+                current_stmt_offset.line = expr.0.pos().line() as u32;
             }
 
             analysis_data.expr_fixme_positions.insert(
                 (
-                    expr.1.pos().start_offset() as u32,
-                    expr.1.pos().end_offset() as u32,
+                    expr.0.pos().start_offset() as u32,
+                    expr.0.pos().end_offset() as u32,
                 ),
                 *current_stmt_offset,
             );
@@ -108,8 +108,16 @@ pub(crate) fn analyze(
         }
 
         match binop {
+            None => {
+                expression_analyzer::analyze(
+                    statements_analyzer,
+                    assign_value,
+                    analysis_data,
+                    context,
+                )?;
+            }
             // this rewrites $a += 4 and $a ??= 4 to $a = $a + 4 and $a = $a ?? 4 respectively
-            Bop::Eq(Some(assignment_type)) => {
+            Some(assignment_type) => {
                 let tast_expr_types = analysis_data.expr_types.clone();
 
                 context.inside_assignment_op = true;
@@ -120,7 +128,7 @@ pub(crate) fn analyze(
                         (),
                         pos.clone(),
                         aast::Expr_::Binop(Box::new(oxidized::aast::Binop {
-                            bop: *assignment_type.clone(),
+                            bop: assignment_type,
                             lhs: assign_var.clone(),
                             rhs: assign_value.clone(),
                         })),
@@ -128,16 +136,12 @@ pub(crate) fn analyze(
                     analysis_data,
                     context,
                 )?;
-
                 context.inside_assignment_op = false;
-
                 let new_expr_types = analysis_data.expr_types.clone();
                 let expr_type = new_expr_types
                     .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
                     .cloned();
-
                 analysis_data.expr_types = tast_expr_types;
-
                 if let Some(expr_type) = expr_type {
                     analysis_data.expr_types.insert(
                         (
@@ -147,14 +151,6 @@ pub(crate) fn analyze(
                         expr_type,
                     );
                 };
-            }
-            _ => {
-                expression_analyzer::analyze(
-                    statements_analyzer,
-                    assign_value,
-                    analysis_data,
-                    context,
-                )?;
             }
         };
 
@@ -179,9 +175,7 @@ pub(crate) fn analyze(
         get_mixed_any()
     };
 
-    if let (Some(var_id), Some(existing_var_type), Bop::Eq(None)) =
-        (&var_id, &existing_var_type, binop)
-    {
+    if let (Some(var_id), Some(existing_var_type), None) = (&var_id, &existing_var_type, binop) {
         if context.inside_loop && !context.inside_assignment_op {
             if let Some(assign_value) = assign_value {
                 if let aast::Expr_::Clone(cloned_expr) = &assign_value.2 {
@@ -250,8 +244,7 @@ pub(crate) fn analyze(
                                 ..
                             },
                         ) => {
-                            for_loop_var_id.0
-                                == statements_analyzer.interner.get(var_id).unwrap()
+                            for_loop_var_id.0 == statements_analyzer.interner.get(var_id).unwrap()
                                 && (pos.start_offset() as u32) > *start_offset
                                 && (pos.end_offset() as u32) < *end_offset
                         }
@@ -397,10 +390,7 @@ fn analyze_list_assignment(
             assign_var_item,
             context.function_context.calling_class.as_ref(),
             statements_analyzer.file_analyzer.resolved_names,
-            Some((
-                statements_analyzer.codebase,
-                statements_analyzer.interner,
-            )),
+            Some((statements_analyzer.codebase, statements_analyzer.interner)),
         );
 
         if list_var_id.unwrap_or("".to_string()) == "$_" {
@@ -465,10 +455,7 @@ fn analyze_list_assignment(
                 source_expr,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.file_analyzer.resolved_names,
-                Some((
-                    statements_analyzer.codebase,
-                    statements_analyzer.interner,
-                )),
+                Some((statements_analyzer.codebase, statements_analyzer.interner)),
             );
 
             let keyed_array_var_id = source_expr_id
@@ -490,7 +477,7 @@ fn analyze_list_assignment(
 
         analyze(
             statements_analyzer,
-            (&ast_defs::Bop::Eq(None), assign_var_item, None),
+            (&assign_var_item, None, None),
             assign_var_item.pos(),
             Some(&value_type),
             analysis_data,
@@ -720,7 +707,7 @@ pub(crate) fn analyze_inout_param(
 ) -> Result<(), AnalysisError> {
     analyze(
         statements_analyzer,
-        (&ast_defs::Bop::Eq(None), expr, None),
+        (&expr, None, None),
         expr.pos(),
         Some(inout_type),
         analysis_data,

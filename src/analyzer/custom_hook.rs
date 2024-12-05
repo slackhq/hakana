@@ -4,10 +4,7 @@ use hakana_code_info::{
     codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo, t_union::TUnion,
 };
 use hakana_str::{Interner, StrId};
-use oxidized::{
-    aast,
-    ast_defs::{self, Pos},
-};
+use oxidized::{aast, ast_defs::Pos};
 use rustc_hash::FxHashMap;
 
 use crate::config::Config;
@@ -46,7 +43,7 @@ pub struct FunctionLikeParamData<'a> {
 }
 
 pub struct AfterArgAnalysisData<'a> {
-    pub arg: (&'a ast_defs::ParamKind, &'a aast::Expr<(), ()>),
+    pub arg: &'a aast::Argument<(), ()>,
     pub arg_value_type: &'a TUnion,
     pub argument_offset: usize,
     pub context: &'a BlockContext,

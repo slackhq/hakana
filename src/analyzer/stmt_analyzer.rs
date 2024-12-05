@@ -25,7 +25,7 @@ use crate::stmt::{
 };
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
-use oxidized::{aast, ast_defs};
+use oxidized::{aast};
 
 pub enum AnalysisError {
     UserError,
@@ -406,7 +406,7 @@ fn has_unused_must_use(
                         if function_id == StrId::ASIO_JOIN {
                             for arg in boxed_call.args.iter() {
                                 let has_unused =
-                                    has_unused_must_use(&arg.1, statements_analyzer, analysis_data);
+                                    has_unused_must_use(&arg.to_expr_ref(), statements_analyzer, analysis_data);
                                 if has_unused.is_some() {
                                     return has_unused;
                                 }
@@ -483,12 +483,12 @@ fn analyze_awaitall(
         assignment_analyzer::analyze(
             statements_analyzer,
             (
-                &ast_defs::Bop::Eq(None),
                 &aast::Expr(
                     (),
                     assignment_id.0.clone(),
                     aast::Expr_::Lvar(Box::new(assignment_id.clone())),
                 ),
+                None,
                 None,
             ),
             &stmt.0,

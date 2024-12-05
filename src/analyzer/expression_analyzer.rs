@@ -513,6 +513,17 @@ pub(crate) fn analyze(
             //return Err(AnalysisError::UserError);
         }
         aast::Expr_::Package(_) => todo!(),
+        aast::Expr_::Assign(boxed) => {
+            crate::expr::binop::assignment_analyzer::analyze(
+                statements_analyzer,
+                (&boxed.0, boxed.1, Some(&boxed.2)),
+                expr.pos(),
+                None,
+                analysis_data,
+                context,
+                None,
+            )?;
+        },
     }
 
     let newly_called = analysis_data.after_expr_hook_called.insert((

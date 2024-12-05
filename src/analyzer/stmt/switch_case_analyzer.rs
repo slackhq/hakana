@@ -8,7 +8,6 @@ use hakana_code_info::ttype::combine_optional_union_types;
 use oxidized::aast;
 use oxidized::aast::CallExpr;
 use oxidized::ast::Binop;
-use oxidized::ast_defs::ParamKind;
 use oxidized::file_pos::FilePos;
 use oxidized::pos_span_raw::PosSpanRaw;
 use relative_path::RelativePath;
@@ -132,19 +131,16 @@ pub(crate) fn analyze_case(
                     ),
                     targs: vec![],
                     args: vec![
-                        (ParamKind::Pnormal, switch_condition.clone()),
-                        (
-                            ParamKind::Pnormal,
-                            aast::Expr(
-                                (),
-                                case_cond.pos().clone(),
-                                aast::Expr_::ValCollection(Box::new((
-                                    (case_cond.pos().clone(), oxidized::tast::VcKind::Vec),
-                                    None,
-                                    case_conds,
-                                ))),
-                            ),
-                        ),
+                        aast::Argument::Anormal(switch_condition.clone()),
+                        aast::Argument::Anormal(aast::Expr(
+                            (),
+                            case_cond.pos().clone(),
+                            aast::Expr_::ValCollection(Box::new((
+                                (case_cond.pos().clone(), oxidized::tast::VcKind::Vec),
+                                None,
+                                case_conds,
+                            ))),
+                        )),
                     ],
                     unpacked_arg: None,
                 })),

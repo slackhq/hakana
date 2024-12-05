@@ -4,7 +4,7 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::ttype::get_mixed;
 use hakana_code_info::{ExprId, GenericParent, VarId};
 use hakana_str::{Interner, StrId};
-use oxidized::{aast, ast_defs};
+use oxidized::aast;
 use rustc_hash::FxHashMap;
 
 use hakana_code_info::classlike_info::ClassLikeInfo;
@@ -36,7 +36,7 @@ pub(crate) fn fetch(
     lhs_expr: Option<&aast::Expr<(), ()>>,
     call_expr: (
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     method_id: &MethodIdentifier,
@@ -57,12 +57,7 @@ pub(crate) fn fetch(
         return_type
     } else {
         functionlike_storage.return_type.clone().unwrap_or(
-            if method_id.1
-                == statements_analyzer
-                    .interner
-                    .get("__toString")
-                    .unwrap()
-            {
+            if method_id.1 == statements_analyzer.interner.get("__toString").unwrap() {
                 get_string()
             } else {
                 get_mixed_any()
@@ -126,12 +121,7 @@ pub(crate) fn fetch(
             parent_class: classlike_storage.direct_parent_class.as_ref(),
             function_is_final: method_storage.is_final,
             expand_generic: true,
-            file_path: Some(
-                &statements_analyzer
-                    .file_analyzer
-                    .file_source
-                    .file_path,
-            ),
+            file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
             ..Default::default()
         },
         &mut analysis_data.data_flow_graph,
@@ -228,7 +218,7 @@ fn add_dataflow(
     lhs_expr: Option<&aast::Expr<(), ()>>,
     call_expr: (
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     method_id: &MethodIdentifier,
@@ -460,7 +450,7 @@ fn add_dataflow(
             &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
             true,
             0,
-            statements_analyzer.get_hpos(call_expr.1[0].1.pos()),
+            statements_analyzer.get_hpos(call_expr.1[0].to_expr_ref().pos()),
             call_pos,
             &FxHashMap::default(),
             data_flow_graph,
@@ -473,7 +463,7 @@ fn add_dataflow(
             &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
             true,
             0,
-            statements_analyzer.get_hpos(call_expr.1[0].1.pos()),
+            statements_analyzer.get_hpos(call_expr.1[0].to_expr_ref().pos()),
             call_pos,
             &FxHashMap::default(),
             data_flow_graph,
@@ -485,7 +475,7 @@ fn add_dataflow(
             &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
             true,
             1,
-            statements_analyzer.get_hpos(call_expr.1[1].1.pos()),
+            statements_analyzer.get_hpos(call_expr.1[1].to_expr_ref().pos()),
             call_pos,
             &FxHashMap::default(),
             data_flow_graph,
@@ -497,7 +487,7 @@ fn add_dataflow(
             &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
             true,
             2,
-            statements_analyzer.get_hpos(call_expr.1[2].1.pos()),
+            statements_analyzer.get_hpos(call_expr.1[2].to_expr_ref().pos()),
             call_pos,
             &FxHashMap::default(),
             data_flow_graph,

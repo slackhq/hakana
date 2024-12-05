@@ -10,12 +10,12 @@ use hakana_code_info::ast::get_id_name;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::EFFECT_READ_PROPS;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::{
     get_named_object,
     type_expander::{self, StaticClassType},
 };
+use hakana_code_info::EFFECT_READ_PROPS;
 use oxidized::ast;
 use oxidized::{
     aast::{self, ClassGetExpr, ClassId},
@@ -237,12 +237,7 @@ pub(crate) fn analyze(
                 self_class: Some(&declaring_class_storage.name),
                 static_class_type: StaticClassType::Name(&declaring_class_storage.name),
                 parent_class: parent_class.as_ref(),
-                file_path: Some(
-                    &statements_analyzer
-                        .file_analyzer
-                        .file_source
-                        .file_path,
-                ),
+                file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -330,6 +325,7 @@ fn analyze_variable_static_property_fetch(
         )?;
 
         let stmt_type = analysis_data.get_expr_type(pos).unwrap();
+
         analysis_data.set_expr_type(pos, stmt_type.clone());
     }
 

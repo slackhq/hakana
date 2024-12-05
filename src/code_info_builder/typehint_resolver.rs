@@ -51,7 +51,7 @@ fn get_vec_type_from_hint(
 }
 
 fn get_tuple_type_from_hints(
-    hints: &[Hint],
+    tuple_info: &oxidized::ast::TupleInfo,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<u32, StrId>,
@@ -59,23 +59,23 @@ fn get_tuple_type_from_hints(
 ) -> TAtomic {
     TAtomic::TVec {
         type_param: Box::new(get_nothing()),
-        known_count: Some(hints.len()),
+        known_count: Some(tuple_info.required.len()),
         non_empty: true,
         known_items: Some({
             let mut map = BTreeMap::new();
 
-            for (i, hint) in hints.iter().enumerate() {
+            for (i, tuple_member) in tuple_info.required.iter().enumerate() {
                 map.insert(
                     i,
                     (
                         false,
                         get_type_from_hint(
-                            &hint.1,
+                            &tuple_member.1,
                             classlike_name,
                             type_context,
                             resolved_names,
                             file_path,
-                            hint.0.start_offset() as u32,
+                            tuple_member.0.start_offset() as u32,
                         )
                         .unwrap(),
                     ),
@@ -266,6 +266,7 @@ fn get_shape_type_from_hints(
                 );
             }
             ast_defs::ShapeFieldName::SFregexGroup(_) => todo!(),
+            ast_defs::ShapeFieldName::SFclassname(_) => todo!(),
         }
     }
 
@@ -795,8 +796,8 @@ pub fn get_type_from_hint(
         Hint_::HfunContext(_) => panic!(),
         Hint_::Hvar(_) => panic!(),
         Hint_::Hrefinement(_, _) => panic!(),
-        Hint_::HclassArgs(_) => panic!(),
         Hint_::Hwildcard => TAtomic::TPlaceholder,
+        Hint_::HclassPtr(_, _) => panic!(),
     };
 
     types.push(base);
@@ -885,8 +886,8 @@ pub fn get_type_references_from_hint(
                 }
             }
         }
-        Hint_::Htuple(tuple_hints) => {
-            for hint in tuple_hints {
+        Hint_::Htuple(tuple_info) => {
+            for hint in &tuple_info.required {
                 refs.extend(get_type_references_from_hint(hint, resolved_names));
             }
         }

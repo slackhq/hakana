@@ -261,65 +261,59 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         if has_matching_node {
             if let aast::Stmt_::Expr(boxed) = &stmt.1 {
-                if let aast::Expr_::Binop(boxed) = &boxed.2 {
-                    if let oxidized::ast_defs::Bop::Eq(_) = &boxed.bop {
-                        let expression_effects = analysis_data
-                            .expr_effects
-                            .get(&(
-                                boxed.rhs.1.start_offset() as u32,
-                                boxed.rhs.1.end_offset() as u32,
-                            ))
-                            .unwrap_or(&0);
+                if let aast::Expr_::Assign(boxed) = &boxed.2 {
+                    let expression_effects = analysis_data
+                        .expr_effects
+                        .get(&(
+                            boxed.2.1.start_offset() as u32,
+                            boxed.2.1.end_offset() as u32,
+                        ))
+                        .unwrap_or(&0);
 
-                        if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
-                            *expression_effects
-                        {
-                            if !self.in_single_block {
-                                let span = stmt.0.to_raw_span();
-                                analysis_data.add_replacement(
-                                    (stmt.0.start_offset() as u32, stmt.0.end_offset() as u32),
-                                    Replacement::TrimPrecedingWhitespace(
-                                        span.start.beg_of_line() as u32
-                                    ),
-                                );
-
-                                self.remove_fixme_comments(
-                                    stmt,
-                                    analysis_data,
-                                    stmt.0.start_offset(),
-                                );
-                            }
-                        } else {
+                    if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
+                        *expression_effects
+                    {
+                        if !self.in_single_block {
+                            let span = stmt.0.to_raw_span();
                             analysis_data.add_replacement(
-                                (
-                                    stmt.0.start_offset() as u32,
-                                    boxed.rhs.1.start_offset() as u32,
+                                (stmt.0.start_offset() as u32, stmt.0.end_offset() as u32),
+                                Replacement::TrimPrecedingWhitespace(
+                                    span.start.beg_of_line() as u32
                                 ),
-                                Replacement::Remove,
                             );
 
-                            // remove trailing array fetches
-                            if let aast::Expr_::ArrayGet(array_get) = &boxed.rhs.2 {
-                                if let Some(array_offset_expr) = &array_get.1 {
-                                    let array_offset_effects = analysis_data
-                                        .expr_effects
-                                        .get(&(
-                                            array_offset_expr.1.start_offset() as u32,
-                                            array_offset_expr.1.end_offset() as u32,
-                                        ))
-                                        .unwrap_or(&0);
+                            self.remove_fixme_comments(stmt, analysis_data, stmt.0.start_offset());
+                        }
+                    } else {
+                        analysis_data.add_replacement(
+                            (
+                                stmt.0.start_offset() as u32,
+                                boxed.2.1.start_offset() as u32,
+                            ),
+                            Replacement::Remove,
+                        );
 
-                                    if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
-                                        *array_offset_effects
-                                    {
-                                        analysis_data.add_replacement(
-                                            (
-                                                array_offset_expr.pos().start_offset() as u32 - 1,
-                                                array_offset_expr.pos().end_offset() as u32 + 1,
-                                            ),
-                                            Replacement::Remove,
-                                        );
-                                    }
+                        // remove trailing array fetches
+                        if let aast::Expr_::ArrayGet(array_get) = &boxed.2.2 {
+                            if let Some(array_offset_expr) = &array_get.1 {
+                                let array_offset_effects = analysis_data
+                                    .expr_effects
+                                    .get(&(
+                                        array_offset_expr.1.start_offset() as u32,
+                                        array_offset_expr.1.end_offset() as u32,
+                                    ))
+                                    .unwrap_or(&0);
+
+                                if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
+                                    *array_offset_effects
+                                {
+                                    analysis_data.add_replacement(
+                                        (
+                                            array_offset_expr.pos().start_offset() as u32 - 1,
+                                            array_offset_expr.pos().end_offset() as u32 + 1,
+                                        ),
+                                        Replacement::Remove,
+                                    );
                                 }
                             }
                         }
@@ -384,10 +378,7 @@ pub(crate) fn add_unused_expression_replacements(
 ) {
     let mut scanner = Scanner {
         unused_variable_nodes: unused_source_nodes,
-        comments: statements_analyzer
-            .file_analyzer
-            .file_source
-            .comments,
+        comments: statements_analyzer.file_analyzer.file_source.comments,
         in_single_block: false,
     };
 

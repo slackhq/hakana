@@ -18,10 +18,7 @@ use hakana_code_info::{
 use hakana_code_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
 use hakana_str::StrId;
 use indexmap::IndexMap;
-use oxidized::{
-    aast,
-    ast_defs::{self, Pos},
-};
+use oxidized::{aast, ast_defs::Pos};
 use rustc_hash::FxHashMap;
 
 use crate::expr::fetch::array_fetch_analyzer::{
@@ -48,7 +45,7 @@ pub(crate) fn analyze(
     lhs_expr: Option<&aast::Expr<(), ()>>,
     call_expr: (
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     lhs_type_part: &TAtomic,
@@ -282,7 +279,7 @@ fn handle_shapes_static_method(
     method_id: &MethodIdentifier,
     call_expr: (
         &Vec<oxidized::aast::Targ<()>>,
-        &Vec<(oxidized::ast_defs::ParamKind, oxidized::aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<oxidized::aast::Expr<(), ()>>,
     ),
     context: &mut BlockContext,
@@ -295,17 +292,14 @@ fn handle_shapes_static_method(
         StrId::KEY_EXISTS => {
             if call_expr.1.len() == 2 {
                 let expr_var_id = expression_identifier::get_var_id(
-                    &call_expr.1[0].1,
+                    &call_expr.1[0].to_expr_ref(),
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.file_analyzer.resolved_names,
-                    Some((
-                        statements_analyzer.codebase,
-                        statements_analyzer.interner,
-                    )),
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 );
 
                 let dim_var_id = expression_identifier::get_dim_id(
-                    &call_expr.1[1].1,
+                    &call_expr.1[1].to_expr_ref(),
                     None,
                     &FxHashMap::default(),
                 );
@@ -338,16 +332,13 @@ fn handle_shapes_static_method(
         StrId::REMOVE_KEY => {
             if call_expr.1.len() == 2 {
                 let expr_var_id = expression_identifier::get_var_id(
-                    &call_expr.1[0].1,
+                    &call_expr.1[0].to_expr_ref(),
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.file_analyzer.resolved_names,
-                    Some((
-                        statements_analyzer.codebase,
-                        statements_analyzer.interner,
-                    )),
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 );
                 let dim_var_id = expression_identifier::get_dim_id(
-                    &call_expr.1[1].1,
+                    &call_expr.1[1].to_expr_ref(),
                     None,
                     &FxHashMap::default(),
                 );
@@ -374,13 +365,8 @@ fn handle_shapes_static_method(
                         }
 
                         let assignment_node = DataFlowNode::get_for_lvar(
-                            VarId(
-                                statements_analyzer
-                                    .interner
-                                    .get(&expr_var_id)
-                                    .unwrap(),
-                            ),
-                            statements_analyzer.get_hpos(call_expr.1[0].1.pos()),
+                            VarId(statements_analyzer.interner.get(&expr_var_id).unwrap()),
+                            statements_analyzer.get_hpos(call_expr.1[0].to_expr_ref().pos()),
                         );
 
                         for parent_node in &expr_type.parent_nodes {
@@ -405,10 +391,10 @@ fn handle_shapes_static_method(
         StrId::IDX => {
             if call_expr.1.len() >= 2 {
                 let dict_type = analysis_data
-                    .get_rc_expr_type(call_expr.1[0].1.pos())
+                    .get_rc_expr_type(call_expr.1[0].to_expr_ref().pos())
                     .cloned();
                 let dim_type = analysis_data
-                    .get_rc_expr_type(call_expr.1[1].1.pos())
+                    .get_rc_expr_type(call_expr.1[1].to_expr_ref().pos())
                     .cloned();
 
                 let mut expr_type = None;
@@ -478,7 +464,8 @@ fn handle_shapes_static_method(
                     }
 
                     if (is_nullable || has_possibly_undefined) && call_expr.1.len() > 2 {
-                        let default_type = analysis_data.get_expr_type(call_expr.1[2].1.pos());
+                        let default_type =
+                            analysis_data.get_expr_type(call_expr.1[2].to_expr_ref().pos());
                         expr_type = expr_type.map(|expr_type| {
                             if let Some(default_type) = default_type {
                                 add_union_type(expr_type, default_type, codebase, false)
@@ -491,7 +478,7 @@ fn handle_shapes_static_method(
                     if let Some(mut expr_type) = expr_type {
                         add_array_fetch_dataflow(
                             statements_analyzer,
-                            call_expr.1[0].1.pos(),
+                            call_expr.1[0].to_expr_ref().pos(),
                             analysis_data,
                             None,
                             &mut expr_type,
@@ -507,17 +494,21 @@ fn handle_shapes_static_method(
         StrId::AT => {
             if call_expr.1.len() == 2 {
                 let dict_type = analysis_data
-                    .get_rc_expr_type(call_expr.1[0].1.pos())
+                    .get_rc_expr_type(call_expr.1[0].to_expr_ref().pos())
                     .cloned();
                 let dim_type = analysis_data
-                    .get_rc_expr_type(call_expr.1[1].1.pos())
+                    .get_rc_expr_type(call_expr.1[1].to_expr_ref().pos())
                     .cloned();
 
                 if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
                     let mut expr_type_inner = get_array_access_type_given_offset(
                         statements_analyzer,
                         analysis_data,
-                        (&call_expr.1[0].1, Some(&call_expr.1[1].1), pos),
+                        (
+                            &call_expr.1[0].to_expr_ref(),
+                            Some(&call_expr.1[1].to_expr_ref()),
+                            pos,
+                        ),
                         &dict_type,
                         &dim_type,
                         false,
@@ -527,7 +518,7 @@ fn handle_shapes_static_method(
 
                     add_array_fetch_dataflow(
                         statements_analyzer,
-                        call_expr.1[0].1.pos(),
+                        call_expr.1[0].to_expr_ref().pos(),
                         analysis_data,
                         None,
                         &mut expr_type_inner,
@@ -541,7 +532,9 @@ fn handle_shapes_static_method(
             }
         }
         StrId::TO_DICT | StrId::TO_ARRAY => {
-            let arg_type = analysis_data.get_expr_type(call_expr.1[0].1.pos()).cloned();
+            let arg_type = analysis_data
+                .get_expr_type(call_expr.1[0].to_expr_ref().pos())
+                .cloned();
 
             return Some(if let Some(arg_type) = arg_type {
                 if arg_type.is_mixed() {
@@ -562,7 +555,7 @@ fn handle_shapes_static_method(
 fn handle_defined_shape_idx(
     call_expr: (
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     context: &mut BlockContext,
@@ -579,7 +572,7 @@ fn handle_defined_shape_idx(
         if !analysis_data.add_replacement(
             (
                 pos.start_offset() as u32,
-                call_expr.1[0].1.pos().start_offset() as u32,
+                call_expr.1[0].to_expr_ref().pos().start_offset() as u32,
             ),
             Replacement::Remove,
         ) {
@@ -588,8 +581,8 @@ fn handle_defined_shape_idx(
 
         if !analysis_data.add_replacement(
             (
-                call_expr.1[0].1.pos().end_offset() as u32,
-                call_expr.1[1].1.pos().start_offset() as u32,
+                call_expr.1[0].to_expr_ref().pos().end_offset() as u32,
+                call_expr.1[1].to_expr_ref().pos().start_offset() as u32,
             ),
             Replacement::Substitute("[".to_string()),
         ) {
@@ -598,7 +591,7 @@ fn handle_defined_shape_idx(
 
         analysis_data.add_replacement(
             (
-                call_expr.1[1].1.pos().end_offset() as u32,
+                call_expr.1[1].to_expr_ref().pos().end_offset() as u32,
                 pos.end_offset() as u32,
             ),
             Replacement::Substitute("]".to_string()),
@@ -608,17 +601,17 @@ fn handle_defined_shape_idx(
     }
 
     let expr_var_id = expression_identifier::get_var_id(
-        &call_expr.1[0].1,
+        &call_expr.1[0].to_expr_ref(),
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((
-            statements_analyzer.codebase,
-            statements_analyzer.interner,
-        )),
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
-    let dim_var_id =
-        expression_identifier::get_dim_id(&call_expr.1[1].1, None, &FxHashMap::default());
+    let dim_var_id = expression_identifier::get_dim_id(
+        &call_expr.1[1].to_expr_ref(),
+        None,
+        &FxHashMap::default(),
+    );
 
     if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
         analysis_data.maybe_add_issue(

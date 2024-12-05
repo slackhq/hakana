@@ -21,8 +21,8 @@ use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing,
 };
 use hakana_str::Interner;
+use oxidized::aast;
 use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
 
 use super::method_call_info::MethodCallInfo;
 
@@ -33,7 +33,7 @@ pub(crate) fn check_argument_matches(
     function_param: &FunctionLikeParameter,
     param_type: TUnion,
     argument_offset: usize,
-    arg: (&ast_defs::ParamKind, &aast::Expr<(), ()>),
+    arg: &aast::Argument<(), ()>,
     arg_unpacked: bool,
     arg_value_type: TUnion,
     context: &mut BlockContext,
@@ -50,7 +50,7 @@ pub(crate) fn check_argument_matches(
             statements_analyzer,
             arg_value_type,
             analysis_data,
-            arg.1.pos(),
+            arg.to_expr_ref().pos(),
             context,
         );
     }
@@ -58,8 +58,8 @@ pub(crate) fn check_argument_matches(
     let config = statements_analyzer.get_config();
 
     let newly_called = analysis_data.after_arg_hook_called.insert((
-        arg.1.pos().start_offset() as u32,
-        arg.1.pos().end_offset() as u32,
+        arg.to_expr_ref().pos().start_offset() as u32,
+        arg.to_expr_ref().pos().end_offset() as u32,
     ));
 
     for hook in &config.hooks {
@@ -86,7 +86,7 @@ pub(crate) fn check_argument_matches(
         &param_type,
         functionlike_id,
         argument_offset,
-        arg.1,
+        arg.to_expr_ref(),
         context,
         analysis_data,
         function_param,
@@ -601,12 +601,7 @@ fn add_dataflow(
                     .all_classlike_descendants
                     .get(&method_call_info.classlike_storage.name)
                 {
-                    if method_name
-                        != &statements_analyzer
-                            .interner
-                            .get("__construct")
-                            .unwrap()
-                    {
+                    if method_name != &statements_analyzer.interner.get("__construct").unwrap() {
                         for dependent_classlike in dependent_classlikes {
                             if codebase.declaring_method_exists(dependent_classlike, method_name) {
                                 let new_sink = DataFlowNode::get_for_method_argument(

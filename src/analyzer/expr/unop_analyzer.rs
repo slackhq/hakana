@@ -19,12 +19,7 @@ pub(crate) fn analyze(
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
         context.inside_negation = !context.inside_negation;
     }
-    expression_analyzer::analyze(
-        statements_analyzer,
-        expr.1,
-        analysis_data,
-        context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
         context.inside_negation = !context.inside_negation;
     }
@@ -80,10 +75,10 @@ pub(crate) fn analyze(
                 &aast::Expr(
                     (),
                     pos.clone(),
-                    aast::Expr_::Binop(Box::new(Binop {
-                        bop: Bop::Eq(None),
-                        lhs: expr.1.clone(),
-                        rhs: aast::Expr(
+                    aast::Expr_::Assign(Box::new((
+                        expr.1.clone(),
+                        None,
+                        aast::Expr(
                             (),
                             pos.clone(),
                             aast::Expr_::Binop(Box::new(Binop {
@@ -96,7 +91,7 @@ pub(crate) fn analyze(
                                 rhs: aast::Expr((), pos.clone(), aast::Expr_::Int("1".to_string())),
                             })),
                         ),
-                    })),
+                    ))),
                 ),
                 analysis_data,
                 context,

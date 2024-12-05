@@ -38,9 +38,8 @@ use hakana_code_info::ttype::{
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
-use oxidized::ast_defs::ParamKind;
+use oxidized::aast;
 use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
 
 use super::argument_analyzer::{self, get_removed_taints_in_comments};
 use super::method_call_info::MethodCallInfo;
@@ -48,7 +47,7 @@ use super::method_call_info::MethodCallInfo;
 pub(crate) fn check_arguments_match(
     statements_analyzer: &StatementsAnalyzer,
     type_args: &[aast::Targ<()>],
-    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
+    args: &[aast::Argument<(), ()>],
     unpacked_arg: &Option<aast::Expr<(), ()>>,
     functionlike_id: &FunctionLikeIdentifier,
     functionlike_info: &FunctionLikeInfo,
@@ -110,12 +109,7 @@ pub(crate) fn check_arguments_match(
                     } else {
                         false
                     },
-                    file_path: Some(
-                        &statements_analyzer
-                            .file_analyzer
-                            .file_source
-                            .file_path,
-                    ),
+                    file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                     expand_typenames: false,
                     ..Default::default()
                 },
@@ -240,7 +234,7 @@ pub(crate) fn check_arguments_match(
         &class_generic_params,
     );
 
-    for (_, arg_expr) in args.iter() {
+    for arg in args {
         let was_inside_call = context.inside_general_use;
 
         if matches!(functionlike_info.effects, FnEffect::Some(_))
@@ -256,6 +250,8 @@ pub(crate) fn check_arguments_match(
             context.inside_general_use = true;
         }
 
+        let arg_expr = arg.to_expr_ref();
+
         // don't analyse closures here
         if !matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
             expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context)?;
@@ -269,10 +265,12 @@ pub(crate) fn check_arguments_match(
     let mut reordered_args = args.iter().enumerate().collect::<Vec<_>>();
 
     reordered_args.sort_by(|a, b| {
-        matches!(a.1 .1 .2, aast::Expr_::Lfun(..)).cmp(&matches!(b.1 .1 .2, aast::Expr_::Lfun(..)))
+        matches!(a.1.to_expr_ref().2, aast::Expr_::Lfun(..))
+            .cmp(&matches!(b.1.to_expr_ref().2, aast::Expr_::Lfun(..)))
     });
 
-    for (argument_offset, (_, arg_expr)) in reordered_args.clone() {
+    for (argument_offset, arg) in reordered_args.clone() {
+        let arg_expr = arg.to_expr_ref();
         let mut param = functionlike_params.get(argument_offset);
 
         if param.is_none() {
@@ -425,7 +423,8 @@ pub(crate) fn check_arguments_match(
         }
     }
 
-    for (argument_offset, (param_kind, arg_expr)) in reordered_args {
+    for (argument_offset, arg) in reordered_args {
+        let arg_expr = arg.to_expr_ref();
         let function_param = if let Some(function_param) = function_params.get(argument_offset) {
             function_param
         } else {
@@ -489,7 +488,7 @@ pub(crate) fn check_arguments_match(
             function_param,
             param_types.remove(&argument_offset).unwrap(),
             argument_offset,
-            (param_kind, arg_expr),
+            arg,
             false,
             arg_value_type,
             context,
@@ -510,10 +509,7 @@ pub(crate) fn check_arguments_match(
                     arg_expr,
                     None,
                     statements_analyzer.file_analyzer.resolved_names,
-                    Some((
-                        statements_analyzer.codebase,
-                        statements_analyzer.interner,
-                    )),
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 ) {
                     analysis_data.if_true_assertions.insert(
                         (
@@ -523,12 +519,7 @@ pub(crate) fn check_arguments_match(
                         FxHashMap::from_iter([(
                             "hakana taints".to_string(),
                             vec![Assertion::RemoveTaints(
-                                VarId(
-                                    statements_analyzer
-                                        .interner
-                                        .get(&expr_var_id)
-                                        .unwrap(),
-                                ),
+                                VarId(statements_analyzer.interner.get(&expr_var_id).unwrap()),
                                 if removed_taints.is_empty() {
                                     SinkType::user_controllable_taints()
                                 } else {
@@ -569,7 +560,7 @@ pub(crate) fn check_arguments_match(
                     last_param,
                     last_param_type.unwrap().clone(),
                     args.len(),
-                    (&ParamKind::Pnormal, unpacked_arg),
+                    &aast::Argument::Anormal(unpacked_arg.clone()),
                     true,
                     arg_value_type,
                     context,
@@ -748,12 +739,7 @@ fn get_param_type(
                     } else {
                         false
                     },
-                    file_path: Some(
-                        &statements_analyzer
-                            .file_analyzer
-                            .file_source
-                            .file_path,
-                    ),
+                    file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
@@ -774,7 +760,7 @@ fn handle_closure_arg(
     context: &mut BlockContext,
     functionlike_id: &FunctionLikeIdentifier,
     template_result: &mut TemplateResult,
-    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
+    args: &[aast::Argument<(), ()>],
     closure_expr: &aast::Expr<(), ()>,
     param_type: &TUnion,
 ) {
@@ -894,7 +880,7 @@ fn handle_closure_arg(
                     if let Some(ref mut signature_type) = param_storage.signature_type {
                         add_array_fetch_dataflow(
                             statements_analyzer,
-                            args[0].1.pos(),
+                            &args[0].to_expr_ref().1,
                             analysis_data,
                             None,
                             signature_type,
@@ -975,15 +961,21 @@ fn map_class_generic_params(
 
 pub(crate) fn evaluate_arbitrary_param(
     statements_analyzer: &StatementsAnalyzer,
-    expr: &aast::Expr<(), ()>,
-    is_inout: bool,
+    arg: &aast::Argument<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let was_inside_call = context.inside_general_use;
     context.inside_general_use = true;
 
-    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;
+    let is_inout = matches!(arg, aast::Argument::Ainout(..));
+
+    expression_analyzer::analyze(
+        statements_analyzer,
+        arg.to_expr_ref(),
+        analysis_data,
+        context,
+    )?;
 
     if !was_inside_call {
         context.inside_general_use = false;
@@ -991,13 +983,10 @@ pub(crate) fn evaluate_arbitrary_param(
 
     if is_inout {
         let var_id = get_var_id(
-            expr,
+            arg.to_expr_ref(),
             context.function_context.calling_class.as_ref(),
             statements_analyzer.file_analyzer.resolved_names,
-            Some((
-                statements_analyzer.codebase,
-                statements_analyzer.interner,
-            )),
+            Some((statements_analyzer.codebase, statements_analyzer.interner)),
         );
 
         if let Some(var_id) = var_id {
@@ -1022,8 +1011,8 @@ pub(crate) fn evaluate_arbitrary_param(
 
         analysis_data.expr_effects.insert(
             (
-                expr.pos().start_offset() as u32,
-                expr.pos().end_offset() as u32,
+                arg.to_expr_ref().pos().start_offset() as u32,
+                arg.to_expr_ref().pos().end_offset() as u32,
             ),
             EFFECT_WRITE_LOCAL,
         );
@@ -1037,7 +1026,7 @@ fn handle_possibly_matching_inout_param(
     analysis_data: &mut FunctionAnalysisData,
     functionlike_param: &FunctionLikeParameter,
     functionlike_id: &FunctionLikeIdentifier,
-    all_args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
+    all_args: &[aast::Argument<(), ()>],
     argument_offset: usize,
     expr: &aast::Expr<(), ()>,
     classlike_storage: Option<&ClassLikeInfo>,
@@ -1109,12 +1098,7 @@ fn handle_possibly_matching_inout_param(
             } else {
                 false
             },
-            file_path: Some(
-                &statements_analyzer
-                    .file_analyzer
-                    .file_source
-                    .file_path,
-            ),
+            file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
             ..Default::default()
         },
         &mut analysis_data.data_flow_graph,
@@ -1149,12 +1133,12 @@ fn handle_possibly_matching_inout_param(
     ) && argument_offset == 2
     {
         let removed_taints =
-            get_removed_taints_in_comments(statements_analyzer, all_args[0].1.pos());
+            get_removed_taints_in_comments(statements_analyzer, all_args[0].to_expr_ref().pos());
 
         let argument_node = DataFlowNode::get_for_method_argument(
             functionlike_id,
             0,
-            Some(statements_analyzer.get_hpos(all_args[1].1.pos())),
+            Some(statements_analyzer.get_hpos(all_args[1].to_expr_ref().pos())),
             Some(statements_analyzer.get_hpos(function_call_pos)),
         );
 
@@ -1173,7 +1157,7 @@ fn handle_possibly_matching_inout_param(
         let argument_node = DataFlowNode::get_for_method_argument(
             functionlike_id,
             1,
-            Some(statements_analyzer.get_hpos(all_args[1].1.pos())),
+            Some(statements_analyzer.get_hpos(all_args[1].to_expr_ref().pos())),
             Some(statements_analyzer.get_hpos(function_call_pos)),
         );
 
@@ -1196,7 +1180,7 @@ fn handle_possibly_matching_inout_param(
         let argument_node = DataFlowNode::get_for_method_argument(
             functionlike_id,
             0,
-            Some(statements_analyzer.get_hpos(all_args[1].1.pos())),
+            Some(statements_analyzer.get_hpos(all_args[1].to_expr_ref().pos())),
             Some(statements_analyzer.get_hpos(function_call_pos)),
         );
 

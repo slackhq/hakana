@@ -9,7 +9,7 @@ use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use oxidized::aast::{self, CallExpr};
-use oxidized::ast_defs::ParamKind;
+use oxidized::ast::Argument;
 use rustc_hash::FxHashSet;
 
 pub(crate) fn analyze<'expr>(
@@ -136,10 +136,9 @@ pub(crate) fn analyze<'expr>(
                         ))),
                     ),
                     targs: vec![],
-                    args: vec![(
-                        ParamKind::Pnormal,
-                        replacement_left.clone().unwrap_or(left.clone()),
-                    )],
+                    args: vec![
+                        Argument::Anormal(replacement_left.clone().unwrap_or(left.clone())),
+                    ],
                     unpacked_arg: None,
                 })),
             ),

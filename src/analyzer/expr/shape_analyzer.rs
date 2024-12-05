@@ -1,7 +1,8 @@
 use crate::{
-    expression_analyzer, function_analysis_data::FunctionAnalysisData, scope::BlockContext, statements_analyzer::StatementsAnalyzer,
-    stmt_analyzer::AnalysisError,
+    expression_analyzer, function_analysis_data::FunctionAnalysisData, scope::BlockContext,
+    statements_analyzer::StatementsAnalyzer, stmt_analyzer::AnalysisError,
 };
+use hakana_code_info::ttype::{get_mixed_any, wrap_atomic};
 use hakana_code_info::{
     code_location::StmtStart,
     data_flow::{
@@ -12,7 +13,6 @@ use hakana_code_info::{
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
-use hakana_code_info::ttype::{get_mixed_any, wrap_atomic};
 use oxidized::{
     aast,
     ast_defs::{Pos, ShapeFieldName},
@@ -39,6 +39,7 @@ pub(crate) fn analyze(
             ShapeFieldName::SFlitStr(name) => &name.0,
             ShapeFieldName::SFclassConst(lhs, _) => &lhs.0,
             ShapeFieldName::SFregexGroup(_) => todo!(),
+            ShapeFieldName::SFclassname(_) => todo!(),
         };
 
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
@@ -107,6 +108,7 @@ pub(crate) fn analyze(
                 }
             }
             ShapeFieldName::SFregexGroup(_) => todo!(),
+            ShapeFieldName::SFclassname(_) => todo!(),
         };
 
         // Now check types of the values
@@ -134,10 +136,7 @@ pub(crate) fn analyze(
                     DictKey::Int(i) => i.to_string(),
                     DictKey::String(k) => k.clone(),
                     DictKey::Enum(class_name, member_name) => {
-                        statements_analyzer
-                            .interner
-                            .lookup(class_name)
-                            .to_string()
+                        statements_analyzer.interner.lookup(class_name).to_string()
                             + "::"
                             + statements_analyzer.interner.lookup(member_name)
                     }

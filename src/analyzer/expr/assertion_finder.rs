@@ -358,14 +358,14 @@ fn scrape_shapes_isset(
             if let Some((codebase, interner)) = assertion_context.codebase {
                 if class_name == StrId::SHAPES && member_name == StrId::IDX {
                     let shape_name = get_var_id(
-                        &call.args[0].1,
+                        &call.args[0].to_expr_ref(),
                         assertion_context.this_class_name,
                         assertion_context.resolved_names,
                         assertion_context.codebase,
                     );
 
                     let dim_id = get_dim_id(
-                        &call.args[1].1,
+                        &call.args[1].to_expr_ref(),
                         Some((codebase, interner)),
                         assertion_context.resolved_names,
                     );
@@ -495,21 +495,22 @@ fn scrape_inequality_assertions(
 
 fn scrape_function_assertions(
     function_name: &StrId,
-    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
+    args: &[aast::Argument<(), ()>],
     pos: &Pos,
     assertion_context: &AssertionContext,
     analysis_data: &mut FunctionAnalysisData,
     _negate: bool,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let firsts = if let Some(first_arg) = args.first() {
+        let expr = first_arg.to_expr_ref();
         let first_var_name = get_var_id(
-            &first_arg.1,
+            expr,
             assertion_context.this_class_name,
             assertion_context.resolved_names,
             assertion_context.codebase,
         );
-        let first_var_type = analysis_data.get_expr_type(first_arg.1.pos());
-        Some((&first_arg.1, first_var_name, first_var_type))
+        let first_var_type = analysis_data.get_expr_type(expr.pos());
+        Some((expr, first_var_name, first_var_type))
     } else {
         None
     };

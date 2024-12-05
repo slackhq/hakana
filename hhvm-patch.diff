@@ -12,10 +12,10 @@ index b61498ef2a2..536390f62a9 100644
  mod multiset;
  
 diff --git a/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml b/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
-index 1436cf15b33..3913cf0079b 100644
+index decfcbafd1f..30e4ab8f7fe 100644
 --- a/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
 +++ b/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
-@@ -20,7 +20,6 @@ crossbeam = "0.8"
+@@ -19,10 +19,12 @@ crossbeam = "0.8"
  direct_decl_parser = { version = "0.0.0", path = "../../../parser/api/cargo/direct_decl_parser" }
  hh_hash = { version = "0.0.0", path = "../../../utils/hh_hash" }
  ocamlrep = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
@@ -23,8 +23,7 @@ index 1436cf15b33..3913cf0079b 100644
  ocamlrep_custom = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
  ocamlrep_ocamlpool = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
  oxidized = { version = "0.0.0", path = "../../../oxidized" }
-@@ -28,3 +27,6 @@ oxidized_by_ref = { version = "0.0.0", path = "../../../oxidized_by_ref" }
- parser_core_types = { version = "0.0.0", path = "../../../parser/cargo/core_types" }
+ oxidized_by_ref = { version = "0.0.0", path = "../../../oxidized_by_ref" }
  rayon = "1.9.0"
  relative_path = { version = "0.0.0", path = "../../../utils/rust/relative_path" }
 +
@@ -72,7 +71,7 @@ index 826c113cdfd..a82821573fd 100644
  #[derive(
      Clone,
 diff --git a/hphp/hack/src/deps/rust/file_info/Cargo.toml b/hphp/hack/src/deps/rust/file_info/Cargo.toml
-index bf00c11c98a..8f308da1bc6 100644
+index 3f7af76454d..15603cceb55 100644
 --- a/hphp/hack/src/deps/rust/file_info/Cargo.toml
 +++ b/hphp/hack/src/deps/rust/file_info/Cargo.toml
 @@ -17,11 +17,13 @@ eq_modulo_pos = { version = "0.0.0", path = "../../../utils/eq_modulo_pos" }
@@ -85,7 +84,7 @@ index bf00c11c98a..8f308da1bc6 100644
  relative_path = { version = "0.0.0", path = "../../../utils/rust/relative_path" }
 -rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype", "limits"] }
  serde = { version = "1.0.185", features = ["derive", "rc"] }
- thiserror = "1.0.49"
+ thiserror = "2"
  typing_deps_hash = { version = "0.0.0", path = "../../cargo/typing_deps_hash" }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -201,7 +200,7 @@ index 8768bd5b52a..b595a7444d0 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/naming/naming_special_names.rs b/hphp/hack/src/naming/naming_special_names.rs
-index fa2afee6ee5..c95e6a9b908 100644
+index db6825f0bc9..565a27f65d8 100644
 --- a/hphp/hack/src/naming/naming_special_names.rs
 +++ b/hphp/hack/src/naming/naming_special_names.rs
 @@ -7,6 +7,8 @@
@@ -213,30 +212,6 @@ index fa2afee6ee5..c95e6a9b908 100644
  /** Module consisting of the special names known to the typechecker */
  
  pub mod classes {
-diff --git a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-index 313a141fc90..45fbc66797a 100644
---- a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-+++ b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-@@ -2256,7 +2256,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
-         self.file_attributes.accept(c, v)?;
-         self.mode.accept(c, v)?;
-         self.vis.accept(c, v)?;
--        self.namespace.accept(c, v)?;
-         self.span.accept(c, v)?;
-         self.emit_id.accept(c, v)?;
-         self.is_ctx.accept(c, v)?;
-diff --git a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-index db707bc543b..c0394e27abb 100644
---- a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-+++ b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-@@ -2256,7 +2256,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
-         self.file_attributes.accept(c, v)?;
-         self.mode.accept(c, v)?;
-         self.vis.accept(c, v)?;
--        self.namespace.accept(c, v)?;
-         self.span.accept(c, v)?;
-         self.emit_id.accept(c, v)?;
-         self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/gen/warnings_saved_state.rs b/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
 index a9d1e095f6e..701014ce7e6 100644
 --- a/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
@@ -252,7 +227,7 @@ index a9d1e095f6e..701014ce7e6 100644
  
  pub type Path = String;
 diff --git a/hphp/hack/src/oxidized/lib.rs b/hphp/hack/src/oxidized/lib.rs
-index c958cb16391..8ea056dbcef 100644
+index f23fccdd633..777ab4ebf68 100644
 --- a/hphp/hack/src/oxidized/lib.rs
 +++ b/hphp/hack/src/oxidized/lib.rs
 @@ -4,6 +4,7 @@
@@ -264,7 +239,7 @@ index c958cb16391..8ea056dbcef 100644
  #[macro_use]
  extern crate rust_to_ocaml_attr;
 diff --git a/hphp/hack/src/oxidized/manual/user_error_impl.rs b/hphp/hack/src/oxidized/manual/user_error_impl.rs
-index a1e42b308cc..d55ac408def 100644
+index a5c530d745e..5fd19b1810e 100644
 --- a/hphp/hack/src/oxidized/manual/user_error_impl.rs
 +++ b/hphp/hack/src/oxidized/manual/user_error_impl.rs
 @@ -8,7 +8,7 @@ use std::hash::Hash;
@@ -286,7 +261,7 @@ index a1e42b308cc..d55ac408def 100644
  }
  
 diff --git a/hphp/hack/src/oxidized_by_ref/Cargo.toml b/hphp/hack/src/oxidized_by_ref/Cargo.toml
-index dc295e995fc..8f2b9eb5d4e 100644
+index dfdb9592c07..15069b20242 100644
 --- a/hphp/hack/src/oxidized_by_ref/Cargo.toml
 +++ b/hphp/hack/src/oxidized_by_ref/Cargo.toml
 @@ -22,12 +22,14 @@ hh24_types = { version = "0.0.0", path = "../utils/hh24_types" }
@@ -304,7 +279,7 @@ index dc295e995fc..8f2b9eb5d4e 100644
 +
  [dev-dependencies]
  pretty_assertions = { version = "1.2", features = ["alloc"], default-features = false }
- serde_json = { version = "1.0.100", features = ["float_roundtrip", "unbounded_depth"] }
+ serde_json = { version = "1.0.132", features = ["float_roundtrip", "unbounded_depth"] }
 diff --git a/hphp/hack/src/oxidized_by_ref/gen/file_info.rs b/hphp/hack/src/oxidized_by_ref/gen/file_info.rs
 index e82ff539cd2..f397949759a 100644
 --- a/hphp/hack/src/oxidized_by_ref/gen/file_info.rs
@@ -474,7 +449,7 @@ index 0f58d4d92df..7a324fa3189 100644
      }
  }
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index 8f4e0931d4c..2b34c664b73 100644
+index df12c7fa546..7ab0df46e0d 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
 @@ -5,7 +5,7 @@
@@ -486,7 +461,7 @@ index 8f4e0931d4c..2b34c664b73 100644
  
  use bumpalo::Bump;
  use hash::HashSet;
-@@ -90,11 +90,11 @@ impl<'src> AastParser {
+@@ -89,11 +89,11 @@ impl<'src> AastParser {
          if let Some(err) = Self::verify_utf8(indexed_source_text) {
              return Ok(err);
          }
@@ -500,7 +475,7 @@ index 8f4e0931d4c..2b34c664b73 100644
          let parse_peak = stack_limit::peak();
          let mut pr = Self::from_tree_with_namespace_env(
              env,
-@@ -108,8 +108,8 @@ impl<'src> AastParser {
+@@ -107,8 +107,8 @@ impl<'src> AastParser {
          )?;
  
          pr.profile.parse_peak = parse_peak as u64;
@@ -511,7 +486,7 @@ index 8f4e0931d4c..2b34c664b73 100644
          Ok(pr)
      }
  
-@@ -170,7 +170,7 @@ impl<'src> AastParser {
+@@ -169,7 +169,7 @@ impl<'src> AastParser {
          tree: PositionedSyntaxTree<'src, 'arena>,
          default_experimental_features: HashSet<experimental_features::FeatureName>,
      ) -> Result<ParserResult> {
@@ -520,24 +495,22 @@ index 8f4e0931d4c..2b34c664b73 100644
          match language {
              Language::Hack => {}
              _ => return Err(Error::NotAHackFile()),
-@@ -191,14 +191,14 @@ impl<'src> AastParser {
+@@ -241,7 +241,7 @@ impl<'src> AastParser {
          );
          stack_limit::reset();
-         let ret = lower(&mut lowerer_env, tree.root());
+         let aast = lower(&mut lowerer_env, tree.root());
 -        let (lowering_t, elaboration_t) = (lowering_t.elapsed(), Instant::now());
 +        //let (lowering_t, elaboration_t) = (lowering_t.elapsed(), Instant::now());
          let lower_peak = stack_limit::peak() as u64;
-         let mut ret = if env.elaborate_namespaces {
-             namespaces::toplevel_elaborator::elaborate_toplevel_defs(ns, ret)
-         } else {
-             ret
-         };
+         let mut aast = if env.elaborate_namespaces {
+             namespaces::toplevel_elaborator::elaborate_toplevel_defs(ns, aast)
+@@ -260,12 +260,12 @@ impl<'src> AastParser {
+             syntax_errors.extend(expression_tree_check::check_splices(&aast));
+             syntax_errors.extend(coeffects_check::check_program(&aast, env.mode));
+         }
 -        let (elaboration_t, error_t) = (elaboration_t.elapsed(), Instant::now());
 +        //let (elaboration_t, error_t) = (elaboration_t.elapsed(), Instant::now());
-         stack_limit::reset();
-         let syntax_errors = Self::check_syntax_error(
-             env,
-@@ -211,7 +211,7 @@ impl<'src> AastParser {
+         let error_peak = stack_limit::peak() as u64;
          let lowerer_parsing_errors = lowerer_env.parsing_errors().to_vec();
          let errors = lowerer_env.hh_errors().to_vec();
          let lint_errors = lowerer_env.lint_errors().to_vec();
@@ -546,7 +519,7 @@ index 8f4e0931d4c..2b34c664b73 100644
  
          Ok(ParserResult {
              file_mode: mode,
-@@ -223,9 +223,9 @@ impl<'src> AastParser {
+@@ -277,9 +277,9 @@ impl<'src> AastParser {
              lint_errors,
              profile: ParserProfile {
                  lower_peak,
@@ -559,7 +532,7 @@ index 8f4e0931d4c..2b34c664b73 100644
                  error_peak,
                  arena_bytes: arena.allocated_bytes() as u64,
                  ..Default::default()
-@@ -356,7 +356,7 @@ impl<'src> AastParser {
+@@ -354,7 +354,7 @@ impl<'src> AastParser {
                      disable_hh_ignore_error: env.parser_options.disable_hh_ignore_error,
                      allowed_decl_fixme_codes: &env.parser_options.allowed_decl_fixme_codes,
                  };
@@ -569,7 +542,7 @@ index 8f4e0931d4c..2b34c664b73 100644
              Ok(Default::default())
          }
 diff --git a/hphp/hack/src/parser/core/lexer.rs b/hphp/hack/src/parser/core/lexer.rs
-index ccde4795e8b..750afe81b8c 100644
+index 4d69c3d8d25..e082fa6e9fe 100644
 --- a/hphp/hack/src/parser/core/lexer.rs
 +++ b/hphp/hack/src/parser/core/lexer.rs
 @@ -256,7 +256,11 @@ where
@@ -611,10 +584,10 @@ index 28f6dd565f6..1cceff6e7c0 100644
  pub use operator;
  pub use operator::*;
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index 504295b0c8c..a4bba1a942f 100644
+index e4fdbfc79e8..728c0952187 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3432,12 +3432,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3569,12 +3569,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);

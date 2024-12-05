@@ -8,7 +8,7 @@ use hakana_code_info::{
 };
 use oxidized::{
     aast,
-    ast_defs::{self, ParamKind, Pos},
+    ast_defs::{self, Pos},
 };
 
 use crate::{
@@ -48,7 +48,7 @@ pub(crate) fn analyze(
         &aast::Expr<(), ()>,
         &aast::Expr<(), ()>,
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
@@ -153,14 +153,8 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual(),
             );
 
-            for (param_kind, arg_expr) in expr.3 {
-                evaluate_arbitrary_param(
-                    statements_analyzer,
-                    arg_expr,
-                    matches!(param_kind, ParamKind::Pinout(_)),
-                    analysis_data,
-                    context,
-                )?;
+            for arg in expr.3 {
+                evaluate_arbitrary_param(statements_analyzer, arg, analysis_data, context)?;
             }
 
             // todo handle invalid class invocation
@@ -182,7 +176,7 @@ pub(crate) fn handle_method_call_on_named_object(
         &aast::Expr<(), ()>,
         &aast::Expr<(), ()>,
         &Vec<aast::Targ<()>>,
-        &Vec<(ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     lhs_type_part: &TAtomic,
@@ -236,20 +230,19 @@ pub(crate) fn handle_method_call_on_named_object(
     }
 
     if let aast::Expr_::Id(boxed) = &expr.1 .2 {
-        let method_name =
-            if let Some(method_name) = statements_analyzer.interner.get(&boxed.1) {
-                method_name
-            } else {
-                return handle_nonexistent_method(
-                    analysis_data,
-                    statements_analyzer,
-                    boxed,
-                    classlike_name,
-                    pos,
-                    context,
-                    expr.3,
-                );
-            };
+        let method_name = if let Some(method_name) = statements_analyzer.interner.get(&boxed.1) {
+            method_name
+        } else {
+            return handle_nonexistent_method(
+                analysis_data,
+                statements_analyzer,
+                boxed,
+                classlike_name,
+                pos,
+                context,
+                expr.3,
+            );
+        };
 
         classlike_names.retain(|n| codebase.method_exists(n, &method_name));
 
@@ -286,14 +279,8 @@ pub(crate) fn handle_method_call_on_named_object(
             codebase,
         ));
     } else {
-        for (param_kind, arg_expr) in expr.3 {
-            evaluate_arbitrary_param(
-                statements_analyzer,
-                arg_expr,
-                matches!(param_kind, ParamKind::Pinout(_)),
-                analysis_data,
-                context,
-            )?;
+        for arg in expr.3 {
+            evaluate_arbitrary_param(statements_analyzer, arg, analysis_data, context)?;
         }
 
         result.return_type = Some(get_mixed_any());
@@ -309,7 +296,7 @@ fn handle_nonexistent_method(
     classlike_name: &StrId,
     pos: &Pos,
     context: &mut BlockContext,
-    expr_args: &Vec<(ParamKind, aast::Expr<(), ()>)>,
+    expr_args: &Vec<aast::Argument<(), ()>>,
 ) -> Result<(), AnalysisError> {
     analysis_data.maybe_add_issue(
         Issue::new(
@@ -354,14 +341,8 @@ fn handle_nonexistent_method(
         );
     }
 
-    for (param_kind, arg_expr) in expr_args {
-        evaluate_arbitrary_param(
-            statements_analyzer,
-            arg_expr,
-            matches!(param_kind, ParamKind::Pinout(_)),
-            analysis_data,
-            context,
-        )?;
+    for arg in expr_args {
+        evaluate_arbitrary_param(statements_analyzer, arg, analysis_data, context)?;
     }
 
     Ok(())

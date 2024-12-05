@@ -12,8 +12,8 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
 use hakana_code_info::EFFECT_WRITE_PROPS;
+use oxidized::aast;
 use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
 
 use super::atomic_method_call_analyzer::{self, AtomicMethodCallAnalysisResult};
 
@@ -23,7 +23,7 @@ pub(crate) fn analyze(
         &aast::Expr<(), ()>,
         &aast::Expr<(), ()>,
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
@@ -45,10 +45,7 @@ pub(crate) fn analyze(
         expr.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((
-            statements_analyzer.codebase,
-            statements_analyzer.interner,
-        )),
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
     let class_type = analysis_data
@@ -157,12 +154,7 @@ pub(crate) fn analyze(
 
     if let Some(mut stmt_type) = analysis_result.return_type {
         if has_nullsafe_null && !stmt_type.is_mixed() {
-            stmt_type = add_union_type(
-                stmt_type,
-                &get_null(),
-                statements_analyzer.codebase,
-                false,
-            );
+            stmt_type = add_union_type(stmt_type, &get_null(), statements_analyzer.codebase, false);
         }
 
         if stmt_type.is_nothing() && !context.inside_loop {

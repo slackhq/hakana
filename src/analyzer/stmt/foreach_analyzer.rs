@@ -110,7 +110,7 @@ pub(crate) fn analyze(
 
             assignment_analyzer::analyze(
                 statements_analyzer,
-                (&ast_defs::Bop::Eq(None), key_expr, None),
+                (key_expr, None, None),
                 stmt.0.pos(),
                 Some(&key_type),
                 analysis_data,
@@ -131,7 +131,7 @@ pub(crate) fn analyze(
 
     assignment_analyzer::analyze(
         statements_analyzer,
-        (&ast_defs::Bop::Eq(None), value_expr, None),
+        (value_expr, None, None),
         stmt.0.pos(),
         Some(&value_type),
         analysis_data,

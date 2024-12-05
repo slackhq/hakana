@@ -1,7 +1,7 @@
 use oxidized::{
-    aast,
+    aast::{self, Argument},
     aast_visitor::{visit, AstParams, Node, Visitor},
-    ast_defs::{self, ParamKind},
+    ast_defs::{self},
 };
 
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -33,39 +33,6 @@ impl<'ast> Visitor<'ast> for Scanner {
 
     fn visit_expr(&mut self, c: &mut Context, expr: &aast::Expr<(), ()>) -> Result<(), ()> {
         match &expr.2 {
-            aast::Expr_::Binop(boxed) => {
-                if let ast_defs::Bop::Eq(_) = boxed.bop {
-                    let right_var_id = expression_identifier::get_root_var_id(&boxed.rhs);
-
-                    if let aast::Expr_::List(contents) = &boxed.lhs.2 {
-                        for list_expr in contents {
-                            let left_var_id = expression_identifier::get_root_var_id(list_expr);
-
-                            if let Some(left_var_id) = &left_var_id {
-                                if self.first_var_id.is_none() {
-                                    self.first_var_id = Some(left_var_id.clone());
-                                }
-                                self.assignment_map
-                                    .entry(left_var_id.clone())
-                                    .or_default()
-                                    .insert(right_var_id.clone().unwrap_or("isset".to_string()));
-                            }
-                        }
-                    } else {
-                        let left_var_id = expression_identifier::get_root_var_id(&boxed.lhs);
-
-                        if let Some(left_var_id) = &left_var_id {
-                            if self.first_var_id.is_none() {
-                                self.first_var_id = Some(left_var_id.clone());
-                            }
-                            self.assignment_map
-                                .entry(left_var_id.clone())
-                                .or_default()
-                                .insert(right_var_id.clone().unwrap_or("isset".to_string()));
-                        }
-                    }
-                }
-            }
             aast::Expr_::Unop(boxed) => match boxed.0 {
                 ast_defs::Uop::Udecr
                 | ast_defs::Uop::Uincr
@@ -87,8 +54,8 @@ impl<'ast> Visitor<'ast> for Scanner {
             },
             aast::Expr_::Call(boxed) => {
                 for arg_expr in &boxed.args {
-                    if let ParamKind::Pinout(..) = arg_expr.0 {
-                        let arg_var_id = expression_identifier::get_root_var_id(&arg_expr.1);
+                    if let Argument::Ainout(_, arg_expr) = arg_expr {
+                        let arg_var_id = expression_identifier::get_root_var_id(&arg_expr);
 
                         if let Some(arg_var_id) = &arg_var_id {
                             if self.first_var_id.is_none() {
@@ -138,6 +105,37 @@ impl<'ast> Visitor<'ast> for Scanner {
             }
             aast::Expr_::Lfun(_) | aast::Expr_::Efun(_) => {
                 return Result::Ok(());
+            }
+            aast::Expr_::Assign(boxed) => {
+                let right_var_id = expression_identifier::get_root_var_id(&boxed.2);
+
+                if let aast::Expr_::List(contents) = &boxed.0.2 {
+                    for list_expr in contents {
+                        let left_var_id = expression_identifier::get_root_var_id(list_expr);
+
+                        if let Some(left_var_id) = &left_var_id {
+                            if self.first_var_id.is_none() {
+                                self.first_var_id = Some(left_var_id.clone());
+                            }
+                            self.assignment_map
+                                .entry(left_var_id.clone())
+                                .or_default()
+                                .insert(right_var_id.clone().unwrap_or("isset".to_string()));
+                        }
+                    }
+                } else {
+                    let left_var_id = expression_identifier::get_root_var_id(&boxed.0);
+
+                    if let Some(left_var_id) = &left_var_id {
+                        if self.first_var_id.is_none() {
+                            self.first_var_id = Some(left_var_id.clone());
+                        }
+                        self.assignment_map
+                            .entry(left_var_id.clone())
+                            .or_default()
+                            .insert(right_var_id.clone().unwrap_or("isset".to_string()));
+                    }
+                }
             }
             _ => {}
         }

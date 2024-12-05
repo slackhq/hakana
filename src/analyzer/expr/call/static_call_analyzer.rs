@@ -8,8 +8,8 @@ use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use hakana_code_info::EFFECT_WRITE_PROPS;
 use hakana_str::StrId;
+use oxidized::aast;
 use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
 
 use super::atomic_method_call_analyzer::AtomicMethodCallAnalysisResult;
 use super::atomic_static_call_analyzer;
@@ -20,7 +20,7 @@ pub(crate) fn analyze(
         &aast::ClassId<(), ()>,
         &(Pos, String),
         &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,

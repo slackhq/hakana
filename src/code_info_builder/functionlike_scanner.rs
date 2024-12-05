@@ -500,9 +500,9 @@ fn get_async_version(
         if let aast::Expr_::Id(boxed_id) = &call.func.2 {
             if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
                 if fn_id == &StrId::ASIO_JOIN && call.args.len() == 1 {
-                    let first_join_expr = &call.args[0].1;
+                    let first_join_expr = &call.args[0].to_expr_ref().2;
 
-                    if let aast::Expr_::Call(call) = &first_join_expr.2 {
+                    if let aast::Expr_::Call(call) = &first_join_expr {
                         if !is_async_call_is_same_as_sync(&call.args, params, interner) {
                             return None;
                         }
@@ -543,12 +543,12 @@ fn get_async_version(
 }
 
 fn is_async_call_is_same_as_sync(
-    call_args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
+    call_args: &[aast::Argument<(), ()>],
     params: &[FunctionLikeParameter],
     interner: &mut ThreadedInterner,
 ) -> bool {
-    for (offset, (_, call_arg_expr)) in call_args.iter().enumerate() {
-        if let aast::Expr_::Lvar(id) = &call_arg_expr.2 {
+    for (offset, arg) in call_args.iter().enumerate() {
+        if let aast::Expr_::Lvar(id) = &arg.to_expr_ref().2 {
             if let Some(param) = params.get(offset) {
                 if interner.lookup(param.name.0) != id.1 .1 {
                     return false;

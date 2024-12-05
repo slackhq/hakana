@@ -10,17 +10,17 @@ use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::{VarId, EFFECT_IMPURE};
 use hakana_str::StrId;
-use hakana_code_info::ttype::get_mixed_any;
+use oxidized::aast;
 use oxidized::ast_defs::Pos;
-use oxidized::{aast, ast_defs};
 
 use super::call::argument_analyzer;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
+    args: &[aast::Argument<(), ()>],
     call_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -31,7 +31,8 @@ pub(crate) fn analyze(
         HPos::new(call_pos, *statements_analyzer.get_file_path()),
     );
 
-    for (i, (_, arg_expr)) in args.iter().enumerate() {
+    for (i, arg) in args.iter().enumerate() {
+        let arg_expr = arg.to_expr_ref();
         expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context)?;
 
         let arg_type = analysis_data.get_rc_expr_type(arg_expr.pos()).cloned();
