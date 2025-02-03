@@ -479,11 +479,18 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let classlike_name = *c.classlike_name.as_ref().unwrap();
 
-        let functionlike_storage = self
+        let Some(functionlike_storage) = self
             .codebase
             .functionlike_infos
             .get_mut(&(classlike_name, method_name))
-            .unwrap();
+        else {
+            println!(
+                "Could not load storage for {}::{}",
+                self.interner.lookup(classlike_name),
+                m.name.1
+            );
+            panic!()
+        };
 
         if classlike_name == StrId::REFLECTION_CLASS || classlike_name == StrId::REFLECTION_FUNCTION
         {
@@ -519,7 +526,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .get(&(f.name.0.start_offset() as u32))
             .unwrap();
 
-        let functionlike_storage = self.visit_function(
+        let mut functionlike_storage = self.visit_function(
             c,
             Some(name),
             &f.fun,
@@ -554,16 +561,29 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             is_constant: false,
         });
 
-        self.codebase
-            .functionlike_infos
-            .insert((name, StrId::EMPTY), functionlike_storage);
-
         c.function_name = Some(name);
 
         let result = f.recurse(c, self);
 
+        if c.has_yield {
+            functionlike_storage.has_yield = true;
+        }
+
+        if c.has_throw {
+            functionlike_storage.has_throw = true;
+        }
+
+        if c.has_asio_join {
+            functionlike_storage.has_asio_join = true;
+        }
+
+        self.codebase
+            .functionlike_infos
+            .insert((name, StrId::EMPTY), functionlike_storage);
+
         c.has_yield = false;
         c.has_static_field_access = false;
+        c.has_asio_join = false;
 
         c.function_name = None;
 
@@ -617,7 +637,27 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
 
         if let Some(fun) = fun {
-            let functionlike_storage = self.visit_function(c, None, fun, &[], &vec![], None);
+            let had_yield = c.has_yield;
+            let had_throw = c.has_throw;
+            let had_asio_join = c.has_asio_join;
+
+            let mut functionlike_storage = self.visit_function(c, None, fun, &[], &vec![], None);
+
+            if c.has_yield {
+                functionlike_storage.has_yield = true;
+            }
+
+            if c.has_throw {
+                functionlike_storage.has_throw = true;
+            }
+
+            if c.has_asio_join {
+                functionlike_storage.has_asio_join = true;
+            }
+
+            c.has_yield = had_yield;
+            c.has_throw = had_throw;
+            c.has_asio_join = had_asio_join;
 
             self.codebase.functionlike_infos.insert(
                 (
@@ -731,21 +771,6 @@ impl<'a> Scanner<'a> {
             if let Some(name) = name {
                 fix_function_return_type(name, &mut functionlike_storage);
             }
-        }
-
-        if c.has_yield {
-            functionlike_storage.has_yield = true;
-            c.has_yield = false;
-        }
-
-        if c.has_throw {
-            functionlike_storage.has_throw = true;
-            c.has_throw = false;
-        }
-
-        if c.has_asio_join {
-            functionlike_storage.has_asio_join = true;
-            c.has_asio_join = false;
         }
 
         functionlike_storage
