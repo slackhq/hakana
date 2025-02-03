@@ -778,6 +778,7 @@ fn handle_reqs(
                     storage.required_classlikes.push(require_name);
                 }
                 aast::RequireKind::RequireClass => todo!(),
+                aast::RequireKind::RequireThisAs => todo!(),
             };
 
             storage.template_extended_offsets.insert(

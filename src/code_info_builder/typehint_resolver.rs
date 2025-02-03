@@ -265,7 +265,6 @@ fn get_shape_type_from_hints(
                     (field.optional, Arc::new(field_type)),
                 );
             }
-            ast_defs::ShapeFieldName::SFregexGroup(_) => todo!(),
             ast_defs::ShapeFieldName::SFclassname(_) => todo!(),
         }
     }
