@@ -6,7 +6,7 @@ use hakana_str::{Interner, ThreadedInterner};
 use hakana_orchestrator::file::VirtualFileSystem;
 use hakana_orchestrator::scanner::add_builtins_to_scan;
 use indicatif::{ProgressBar, ProgressStyle};
-use oxidized::aast::Stmt_;
+use oxidized::aast::{Expr_, Stmt_};
 use oxidized::ast::Pos;
 use oxidized::{aast, aast_visitor::{visit, AstParams, Node, Visitor}};
 use rustc_hash::FxHashMap;
@@ -238,20 +238,84 @@ impl<'ast> Visitor<'ast> for Scanner {
                 boxed.recurse(c, self)
             }
             Stmt_::Expr(boxed) => {
-                let start = boxed.1.to_raw_span().start.line();
-                let end = boxed.1.to_raw_span().end.line();
-                if start == end {
-                    c.push(format!("{}-{}", start, end));
-                } else {
-                    // Multi-line expressions seem to miss the first line in HHVM coverage
-                    c.push(format!("{}-{}", start + 1, end));
-                }
-                Ok(())
+                boxed.2.recurse(c, self)
             }
             _ => {
                 let result = p.recurse(c, self);
                 push_pos(&p.0, c);
                 result
+            }
+        }
+    }
+
+    fn visit_expr(&mut self, c: &mut Vec<String>, p: &aast::Expr<(), ()>) -> Result<(), ParserError> {
+        c.push(format!("{:#?}", p));
+        let start = &p.1.to_raw_span().start.line();
+        let end = &p.1.to_raw_span().end.line();
+        match &p.2 {
+            Expr_::Efun(_) => {
+                c.push(format!("Efun {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::Lfun(_) => {
+                c.push(format!("Lfun {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::Assign(_) => {
+                c.push(format!("Assign {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::Shape(_) => {
+                c.push(format!("Shape {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::Call(boxed) => {
+                c.push(format!("Call {}-{}", start, end));
+                for arg in &boxed.args {
+                    match &arg {
+                        aast::Argument::Ainout(_, expr) => {
+                            c.push(format!("an Ainout arg"));
+                            self.visit_expr(c, expr)?;
+                        }
+                        aast::Argument::Anormal(expr) => {
+                            c.push(format!("an Anormal arg"));
+                            self.visit_expr(c, expr)?;
+                        }
+                    }
+                }
+                Ok(())
+            }
+            Expr_::Int(_) => {
+                c.push(format!("Int {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::Float(_) => {
+                c.push(format!("Float {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::String(_) => {
+                c.push(format!("String {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::String2(_) => {
+                c.push(format!("String2 {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::PrefixedString(_) => {
+                c.push(format!("PrefixedString {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::Yield(_) => {
+                c.push(format!("Yield {}-{}", start, end));
+                Ok(())
+            }
+            Expr_::Await(_) => {
+                c.push(format!("Await {}-{}", start, end));
+                Ok(())
+            }
+            _ => {
+                c.push(format!("unmatched Expr {}-{}", start, end));
+                Ok(())
             }
         }
     }
