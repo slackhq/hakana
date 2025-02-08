@@ -240,6 +240,19 @@ impl<'ast> Visitor<'ast> for Scanner {
             Stmt_::Expr(boxed) => {
                 boxed.2.recurse(c, self)
             }
+            Stmt_::Try(boxed) => {
+                self.visit_block(c, &boxed.0)
+            }
+            Stmt_::Concurrent(boxed) => {
+                push_start(&p.0, c); // The line where concurrent block is declared is coverable
+                self.visit_block(c, boxed)
+            }
+            Stmt_::Return(boxed) => {
+                match **boxed {
+                    None => Ok(()),
+                    Some(ref expr) => self.visit_expr(c, &expr)
+                }
+            }
             _ => {
                 let result = p.recurse(c, self);
                 push_pos(&p.0, c);
@@ -249,75 +262,61 @@ impl<'ast> Visitor<'ast> for Scanner {
     }
 
     fn visit_expr(&mut self, c: &mut Vec<String>, p: &aast::Expr<(), ()>) -> Result<(), ParserError> {
-        c.push(format!("{:#?}", p));
-        let start = &p.1.to_raw_span().start.line();
-        let end = &p.1.to_raw_span().end.line();
         match &p.2 {
-            Expr_::Efun(_) => {
-                c.push(format!("Efun {}-{}", start, end));
-                Ok(())
+            Expr_::Efun(boxed) => {
+                self.visit_block(c, &boxed.fun.body.fb_ast)
             }
-            Expr_::Lfun(_) => {
-                c.push(format!("Lfun {}-{}", start, end));
-                Ok(())
+            Expr_::Lfun(boxed) => {
+                self.visit_block(c, &boxed.0.body.fb_ast)
+            }
+            Expr_::Await(boxed) => {
+                self.visit_expr(c, boxed)
             }
             Expr_::Assign(_) => {
-                c.push(format!("Assign {}-{}", start, end));
+                push_start(&p.1, c);
                 Ok(())
             }
             Expr_::Shape(_) => {
-                c.push(format!("Shape {}-{}", start, end));
+                // TBI
+                Ok(())
+            }
+            Expr_::Yield(_) => {
+                // TBI
                 Ok(())
             }
             Expr_::Call(boxed) => {
-                c.push(format!("Call {}-{}", start, end));
+                self.visit_expr(c, &boxed.func)?;
                 for arg in &boxed.args {
                     match &arg {
                         aast::Argument::Ainout(_, expr) => {
-                            c.push(format!("an Ainout arg"));
                             self.visit_expr(c, expr)?;
                         }
                         aast::Argument::Anormal(expr) => {
-                            c.push(format!("an Anormal arg"));
                             self.visit_expr(c, expr)?;
                         }
                     }
                 }
                 Ok(())
             }
-            Expr_::Int(_) => {
-                c.push(format!("Int {}-{}", start, end));
-                Ok(())
+            Expr_::Pipe(boxed) => {
+                self.visit_expr(c, &boxed.1)?;
+                self.visit_expr(c, &boxed.2)
             }
-            Expr_::Float(_) => {
-                c.push(format!("Float {}-{}", start, end));
-                Ok(())
-            }
-            Expr_::String(_) => {
-                c.push(format!("String {}-{}", start, end));
-                Ok(())
-            }
-            Expr_::String2(_) => {
-                c.push(format!("String2 {}-{}", start, end));
-                Ok(())
-            }
-            Expr_::PrefixedString(_) => {
-                c.push(format!("PrefixedString {}-{}", start, end));
-                Ok(())
-            }
-            Expr_::Yield(_) => {
-                c.push(format!("Yield {}-{}", start, end));
-                Ok(())
-            }
-            Expr_::Await(_) => {
-                c.push(format!("Await {}-{}", start, end));
+            Expr_::True | Expr_::False | Expr_::Int(_) | Expr_::Float(_) | Expr_::String(_) | Expr_::String2(_) | Expr_::PrefixedString(_) | Expr_::Id(_) => {
+                push_pos(&p.1, c);
                 Ok(())
             }
             _ => {
-                c.push(format!("unmatched Expr {}-{}", start, end));
                 Ok(())
             }
         }
+    }
+
+    fn visit_block(&mut self, c: &mut Vec<String>, p: &aast::Block<(), ()>) -> Result<(), ParserError> {
+        for stmt in &p.0 {
+            self.visit_stmt(c, stmt)?;
+        }
+        Ok(())
     }
 }
 
