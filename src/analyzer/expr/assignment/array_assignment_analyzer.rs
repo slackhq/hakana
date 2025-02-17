@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
+use hakana_code_info::data_flow::node::VariableSourceKind;
 use hakana_code_info::ttype::{
     combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
     template::TemplateBound, type_combiner, wrap_atomic,
@@ -92,6 +93,7 @@ pub(crate) fn analyze(
                 analysis_data
                     .data_flow_graph
                     .add_node(DataFlowNode::get_for_variable_source(
+                        VariableSourceKind::Default,
                         VarId(interner.get(root_var_id).unwrap()),
                         statements_analyzer.get_hpos(root_array_expr.pos()),
                         false,

@@ -128,6 +128,7 @@ pub enum IssueKind {
     UnrecognizedUnaryOp,
     UnusedAssignment,
     UnusedAssignmentInClosure,
+    UnusedInoutAssignment,
     UnusedAssignmentStatement,
     UnusedAwaitable,
     UnusedBuiltinReturnValue,

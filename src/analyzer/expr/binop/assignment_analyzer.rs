@@ -1,6 +1,7 @@
 use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
+use hakana_code_info::data_flow::node::VariableSourceKind;
 use hakana_code_info::VarId;
 use hakana_code_info::EFFECT_WRITE_LOCAL;
 use hakana_str::StrId;
@@ -498,22 +499,6 @@ fn analyze_assignment_to_variable(
     context: &mut BlockContext,
     inout_node: Option<DataFlowNode>,
 ) {
-    // if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody && !is_inout {
-    //     analysis_data
-    //         .data_flow_graph
-    //         .add_node(DataFlowNode::get_for_variable_source(
-    //             var_id.clone(),
-    //             statements_analyzer.get_hpos(var_expr.pos()),
-    //             !context.inside_awaitall
-    //                 && if let Some(source_expr) = source_expr {
-    //                     analysis_data.is_pure(source_expr.pos())
-    //                 } else {
-    //                     false
-    //                 },
-    //             assign_value_type.has_awaitable_types(),
-    //         ));
-    // }
-
     let assign_var_pos = var_expr.pos();
 
     if assign_value_type.is_nothing() {
@@ -540,12 +525,19 @@ fn analyze_assignment_to_variable(
             }
         };
 
-    let assignment_node = if let Some(inout_node) = inout_node {
-        inout_node
-    } else if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
+    if let Some(inout_node) = &inout_node {
+        analysis_data.data_flow_graph.add_node(inout_node.clone());
+    }
+
+    let assignment_node = if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
         && matches!(var_expr.2, aast::Expr_::Lvar(_))
     {
         DataFlowNode::get_for_variable_source(
+            if inout_node.is_some() {
+                VariableSourceKind::InoutArg
+            } else {
+                VariableSourceKind::Default
+            },
             VarId(statements_analyzer.interner.get(var_id).unwrap()),
             statements_analyzer.get_hpos(var_expr.pos()),
             !context.inside_awaitall
@@ -574,18 +566,34 @@ fn analyze_assignment_to_variable(
     if can_taint {
         let removed_taints = get_removed_taints_in_comments(statements_analyzer, assign_var_pos);
 
-        for parent_node in &assign_value_type.parent_nodes {
-            analysis_data.data_flow_graph.add_path(
-                parent_node,
-                &assignment_node,
-                PathKind::Default,
-                vec![],
-                removed_taints.clone(),
-            );
+        if let Some(inout_node) = &inout_node {
+            for parent_node in &assign_value_type.parent_nodes {
+                analysis_data.data_flow_graph.add_path(
+                    parent_node,
+                    inout_node,
+                    PathKind::Default,
+                    vec![],
+                    removed_taints.clone(),
+                );
+            }
+        } else {
+            for parent_node in &assign_value_type.parent_nodes {
+                analysis_data.data_flow_graph.add_path(
+                    parent_node,
+                    &assignment_node,
+                    PathKind::Default,
+                    vec![],
+                    removed_taints.clone(),
+                );
+            }
         }
     }
 
     assign_value_type.parent_nodes = vec![assignment_node];
+
+    if let Some(inout_node) = inout_node {
+        assign_value_type.parent_nodes.push(inout_node);
+    }
 
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
         && !has_parent_nodes
