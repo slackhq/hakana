@@ -55,7 +55,7 @@ pub(crate) fn analyze(
     assign_value_type: Option<&TUnion>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    inout_node: Option<DataFlowNode>,
+    inout_node: Option<(DataFlowNode, &Pos)>,
 ) -> Result<(), AnalysisError> {
     let (assign_var, binop, assign_value) = (expr.0, expr.1, expr.2);
 
@@ -72,13 +72,15 @@ pub(crate) fn analyze(
                 current_stmt_offset.line = expr.0.pos().line() as u32;
             }
 
-            analysis_data.expr_fixme_positions.insert(
-                (
-                    expr.0.pos().start_offset() as u32,
-                    expr.0.pos().end_offset() as u32,
-                ),
-                *current_stmt_offset,
-            );
+            if inout_node.is_none() {
+                analysis_data.expr_fixme_positions.insert(
+                    (
+                        expr.0.pos().start_offset() as u32,
+                        expr.0.pos().end_offset() as u32,
+                    ),
+                    *current_stmt_offset,
+                );
+            }
         }
     }
 
@@ -497,7 +499,7 @@ fn analyze_assignment_to_variable(
     var_id: &String,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    inout_node: Option<DataFlowNode>,
+    inout_node: Option<(DataFlowNode, &Pos)>,
 ) {
     let assign_var_pos = var_expr.pos();
 
@@ -526,12 +528,19 @@ fn analyze_assignment_to_variable(
         };
 
     if let Some(inout_node) = &inout_node {
-        analysis_data.data_flow_graph.add_node(inout_node.clone());
+        analysis_data.data_flow_graph.add_node(inout_node.0.clone());
     }
 
     let assignment_node = if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
         && matches!(var_expr.2, aast::Expr_::Lvar(_))
     {
+        let mut var_expr_pos = statements_analyzer.get_hpos(var_expr.pos());
+        if let Some(inout_node) = &inout_node {
+            let inout_token_pos = statements_analyzer.get_hpos(inout_node.1);
+            var_expr_pos.start_column = inout_token_pos.start_column;
+            var_expr_pos.start_line = inout_token_pos.start_line;
+            var_expr_pos.start_offset = inout_token_pos.start_offset;
+        }
         DataFlowNode::get_for_variable_source(
             if inout_node.is_some() {
                 VariableSourceKind::InoutArg
@@ -539,7 +548,7 @@ fn analyze_assignment_to_variable(
                 VariableSourceKind::Default
             },
             VarId(statements_analyzer.interner.get(var_id).unwrap()),
-            statements_analyzer.get_hpos(var_expr.pos()),
+            var_expr_pos,
             !context.inside_awaitall
                 && if let Some(source_expr) = source_expr {
                     analysis_data.is_pure(source_expr.pos())
@@ -570,7 +579,7 @@ fn analyze_assignment_to_variable(
             for parent_node in &assign_value_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(
                     parent_node,
-                    inout_node,
+                    &inout_node.0,
                     PathKind::Default,
                     vec![],
                     removed_taints.clone(),
@@ -592,7 +601,7 @@ fn analyze_assignment_to_variable(
     assign_value_type.parent_nodes = vec![assignment_node];
 
     if let Some(inout_node) = inout_node {
-        assign_value_type.parent_nodes.push(inout_node);
+        assign_value_type.parent_nodes.push(inout_node.0);
     }
 
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
@@ -709,6 +718,7 @@ pub(crate) fn analyze_inout_param(
     expr: &aast::Expr<(), ()>,
     arg_type: TUnion,
     inout_type: &TUnion,
+    inout_token_pos: &Pos,
     assignment_node: DataFlowNode,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -720,7 +730,7 @@ pub(crate) fn analyze_inout_param(
         Some(inout_type),
         analysis_data,
         context,
-        Some(assignment_node),
+        Some((assignment_node, inout_token_pos)),
     )?;
 
     analysis_data.set_expr_type(expr.pos(), arg_type.clone());

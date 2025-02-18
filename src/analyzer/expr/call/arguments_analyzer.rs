@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_code_info::assertion::Assertion;
+use hakana_code_info::code_location::StmtStart;
 use hakana_code_info::data_flow::path::PathKind;
+use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::ttype::template::standin_type_replacer::StandinOpts;
 use hakana_code_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
 
@@ -448,6 +450,41 @@ pub(crate) fn check_arguments_match(
             } else {
                 true
             } {
+                let Some((inout_token_pos, ..)) = arg.as_ainout() else {
+                    analysis_data.add_issue(Issue::new(
+                        IssueKind::MissingInoutToken,
+                        "Expecting inout token for inout argument".to_string(),
+                        statements_analyzer.get_hpos(&arg_expr.1),
+                        &context.function_context.calling_functionlike_id,
+                    ));
+                    continue;
+                };
+
+                if statements_analyzer.get_config().add_fixmes {
+                    if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
+                        if current_stmt_offset.line != arg.as_ainout().unwrap().0.line() as u32 {
+                            if !matches!(arg_expr.2, aast::Expr_::Xml(..)) {
+                                *current_stmt_offset = StmtStart {
+                                    offset: inout_token_pos.start_offset() as u32,
+                                    line: inout_token_pos.line() as u32,
+                                    column: inout_token_pos.to_raw_span().start.column() as u16,
+                                    add_newline: true,
+                                };
+                            } else {
+                                current_stmt_offset.line = inout_token_pos.line() as u32;
+                            }
+                        }
+
+                        analysis_data.expr_fixme_positions.insert(
+                            (
+                                inout_token_pos.start_offset() as u32,
+                                arg_expr.1.end_offset() as u32,
+                            ),
+                            *current_stmt_offset,
+                        );
+                    }
+                }
+
                 handle_possibly_matching_inout_param(
                     statements_analyzer,
                     analysis_data,
@@ -455,6 +492,7 @@ pub(crate) fn check_arguments_match(
                     functionlike_id,
                     args,
                     argument_offset,
+                    inout_token_pos,
                     arg_expr,
                     class_storage,
                     calling_classlike_storage,
@@ -1028,6 +1066,7 @@ fn handle_possibly_matching_inout_param(
     functionlike_id: &FunctionLikeIdentifier,
     all_args: &[aast::Argument<(), ()>],
     argument_offset: usize,
+    inout_token_pos: &Pos,
     expr: &aast::Expr<(), ()>,
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
@@ -1206,6 +1245,7 @@ fn handle_possibly_matching_inout_param(
         expr,
         arg_type,
         &inout_type,
+        inout_token_pos,
         assignment_node,
         analysis_data,
         context,

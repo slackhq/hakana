@@ -53,6 +53,7 @@ pub enum IssueKind {
     LessSpecificNestedReturnStatement,
     LessSpecificReturnStatement,
     MethodCallOnNull,
+    MissingInoutToken,
     MissingRequiredXhpAttribute,
     MixedAnyArgument,
     MixedAnyArrayAccess,
