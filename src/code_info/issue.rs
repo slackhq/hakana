@@ -226,6 +226,7 @@ impl IssueKind {
             self,
             Self::UnusedAssignment
                 | Self::UnusedAssignmentStatement
+                | Self::UnusedInoutAssignment
                 | Self::UnusedAssignmentInClosure
                 | Self::UnusedParameter
                 | Self::UnusedClosureParameter

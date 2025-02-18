@@ -1,14 +1,14 @@
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_logger::Logger;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::issue::IssueKind;
-use hakana_str::Interner;
+use hakana_logger::Logger;
 use hakana_orchestrator::wasm::get_single_file_codebase;
 use hakana_orchestrator::SuccessfulScanData;
+use hakana_str::Interner;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashMap;
@@ -19,6 +19,7 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use walkdir::WalkDir;
@@ -129,10 +130,21 @@ impl TestRunner {
 
     fn get_config_for_test(&self, dir: &str) -> config::Config {
         let mut analysis_config = config::Config::new(dir.to_string(), FxHashSet::default());
-        analysis_config.find_unused_expressions = dir.contains("/unused/")
-            || dir.contains("UnusedAssignment")
-            || dir.contains("UnusedParameter")
-            || dir.contains("UnusedClosureParameter");
+
+        let mut dir_parts = dir.split('/').collect::<Vec<_>>();
+
+        while let Some(&"tests" | &"internal" | &"public") = dir_parts.first() {
+            dir_parts = dir_parts[1..].to_vec();
+        }
+
+        let maybe_issue_name = dir_parts.get(1).unwrap().to_string();
+
+        let dir_issue = IssueKind::from_str(&maybe_issue_name);
+        analysis_config.find_unused_expressions = if let Ok(dir_issue) = dir_issue {
+            dir_issue.is_unused_expression()
+        } else {
+            false
+        };
         analysis_config.find_unused_definitions =
             dir.to_ascii_lowercase().contains("unused") && !dir.contains("UnusedExpression");
         analysis_config.graph_kind = if dir.contains("/security/") {
@@ -144,12 +156,6 @@ impl TestRunner {
         };
 
         analysis_config.hooks = self.0.get_hooks_for_test(dir);
-
-        let mut dir_parts = dir.split('/').collect::<Vec<_>>();
-
-        while let Some(&"tests" | &"internal" | &"public") = dir_parts.first() {
-            dir_parts = dir_parts[1..].to_vec();
-        }
 
         if dir.contains("/migrations/") {
             let replacements_path = dir.to_string() + "/replacements.txt";
