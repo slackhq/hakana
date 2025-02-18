@@ -5,10 +5,10 @@ final class Arr {
 }
 
 function _renderButton(dict<string, mixed> $settings): void {
-    Arr::pull($settings, "a", true);
+    Arr::pull(inout $settings, "a", true);
 
     if (isset($settings["b"])) {
-        Arr::pull($settings, "b");
+        Arr::pull(inout $settings, "b");
     }
 
     if (isset($settings["c"])) {}

@@ -4,7 +4,9 @@ $a = dict[
 ];
 
 foreach (vec["a"] as $e){
-    takes_ref($a[$e]);
+    $b = $a[$e];
+    takes_ref(inout $b);
+    $a[$e] = $b;
 }
 
 function takes_ref(inout vec<arraykey> $p): void {
