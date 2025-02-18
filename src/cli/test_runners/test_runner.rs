@@ -143,7 +143,7 @@ impl TestRunner {
         analysis_config.find_unused_expressions = if let Ok(dir_issue) = dir_issue {
             dir_issue.is_unused_expression()
         } else {
-            false
+            dir.contains("/unused/")
         };
         analysis_config.find_unused_definitions =
             dir.to_ascii_lowercase().contains("unused") && !dir.contains("UnusedExpression");
