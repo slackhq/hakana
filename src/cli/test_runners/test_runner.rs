@@ -140,13 +140,16 @@ impl TestRunner {
         let maybe_issue_name = dir_parts.get(1).unwrap().to_string();
 
         let dir_issue = IssueKind::from_str(&maybe_issue_name);
-        analysis_config.find_unused_expressions = if let Ok(dir_issue) = dir_issue {
+        analysis_config.find_unused_expressions = if let Ok(dir_issue) = &dir_issue {
             dir_issue.is_unused_expression()
         } else {
             dir.contains("/unused/")
         };
-        analysis_config.find_unused_definitions =
-            dir.to_ascii_lowercase().contains("unused") && !dir.contains("UnusedExpression");
+        analysis_config.find_unused_definitions = if let Ok(dir_issue) = &dir_issue {
+            dir_issue.is_unused_definition()
+        } else {
+            dir.to_ascii_lowercase().contains("unused") && !dir.contains("UnusedExpression")
+        };
         analysis_config.graph_kind = if dir.contains("/security/") {
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         } else if dir.contains("/find-paths/") {
