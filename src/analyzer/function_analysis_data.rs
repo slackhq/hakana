@@ -148,6 +148,7 @@ impl FunctionAnalysisData {
                         | IssueKind::UnusedAssignmentInClosure
                         | IssueKind::UnusedAssignmentStatement
                         | IssueKind::UnusedStatement
+                        | IssueKind::OnlyUsedInTests
                         | IssueKind::UnusedFunction
                         | IssueKind::UnusedPrivateMethod = issue.kind
                         {
