@@ -1,4 +1,4 @@
-use chrono::{Datelike, Utc};
+use chrono::{format, Datelike, Utc};
 use hakana_analyzer::config::Config;
 use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_code_info::classlike_info::ClassLikeInfo;
@@ -655,10 +655,17 @@ fn add_testonly_issue(
             .insert(
                 (def_pos.start_offset, def_pos.start_offset),
                 Replacement::Substitute(format!(
-                    "<<\\Hakana\\TestOnly('Added automatically on {}-{}-{}')>>\n{}",
-                    now.year(),
-                    now.month(),
-                    now.day(),
+                    "<<\\Hakana\\TestOnly{}>>\n{}",
+                    if config.add_date_comments {
+                        format!(
+                            "('Added automatically on {}-{}-{}')",
+                            now.year(),
+                            now.month(),
+                            now.day(),
+                        )
+                    } else {
+                        "".to_string()
+                    },
                     &"\t".repeat((def_pos.start_column as usize) - 1)
                 )),
             );

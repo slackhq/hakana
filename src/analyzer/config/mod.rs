@@ -33,6 +33,7 @@ pub struct Config {
     pub ignore_mixed_issues: bool,
     pub add_fixmes: bool,
     pub remove_fixmes: bool,
+    pub add_date_comments: bool,
     pub all_custom_issues: FxHashSet<String>,
     pub ast_diff: bool,
 }
@@ -83,6 +84,7 @@ impl Config {
             ast_diff: false,
             in_migration: false,
             in_codegen: false,
+            add_date_comments: true,
             banned_builtin_functions: FxHashMap::default(),
         }
     }

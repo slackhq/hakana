@@ -130,6 +130,7 @@ impl TestRunner {
 
     fn get_config_for_test(&self, dir: &str) -> config::Config {
         let mut analysis_config = config::Config::new(dir.to_string(), FxHashSet::default());
+        analysis_config.add_date_comments = false;
 
         let mut dir_parts = dir.split('/').collect::<Vec<_>>();
 
