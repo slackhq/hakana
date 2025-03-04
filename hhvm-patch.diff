@@ -200,7 +200,7 @@ index 8768bd5b52a..b595a7444d0 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/naming/naming_special_names.rs b/hphp/hack/src/naming/naming_special_names.rs
-index e3982e3998a..3eb2d50c9cb 100644
+index 9cad292997e..3db53e77bf1 100644
 --- a/hphp/hack/src/naming/naming_special_names.rs
 +++ b/hphp/hack/src/naming/naming_special_names.rs
 @@ -7,6 +7,8 @@
@@ -598,10 +598,10 @@ index 28f6dd565f6..1cceff6e7c0 100644
  pub use operator;
  pub use operator::*;
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index 6ba1e5b6d39..47a4ba1a027 100644
+index 5a42bf2548b..8830372b78c 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3622,12 +3622,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3586,12 +3586,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);
