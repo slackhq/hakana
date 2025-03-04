@@ -1804,6 +1804,13 @@ pub fn populate_atomic_type(
                     .add_class_member_reference_to_symbol((*a, *b), *name, *in_signature),
             }
         }
+        TAtomic::TEnum { name, .. } => match reference_source {
+            ReferenceSource::Symbol(in_signature, a) => {
+                symbol_references.add_symbol_reference_to_symbol(*a, *name, *in_signature)
+            }
+            ReferenceSource::ClasslikeMember(in_signature, a, b) => symbol_references
+                .add_class_member_reference_to_symbol((*a, *b), *name, *in_signature),
+        },
         TAtomic::TReference {
             ref name,
             ref mut type_params,

@@ -36,6 +36,7 @@ pub struct Config {
     pub add_date_comments: bool,
     pub all_custom_issues: FxHashSet<String>,
     pub ast_diff: bool,
+    pub max_changes_allowed: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -86,6 +87,7 @@ impl Config {
             in_codegen: false,
             add_date_comments: true,
             banned_builtin_functions: FxHashMap::default(),
+            max_changes_allowed: 5000,
         }
     }
 

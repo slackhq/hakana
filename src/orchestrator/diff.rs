@@ -1,10 +1,10 @@
-use hakana_logger::Logger;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::diff::CodebaseDiff;
 use hakana_code_info::issue::Issue;
 use hakana_code_info::symbol_references::SymbolReferences;
+use hakana_logger::Logger;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
@@ -31,6 +31,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
     issues_path: &Option<String>,
     references_path: &Option<String>,
     previous_analysis_result: Option<AnalysisResult>,
+    max_changes_allowed: usize,
 ) -> CachedAnalysis {
     let (existing_references, mut existing_issues) = if let Some(previous_analysis_result) =
         previous_analysis_result
@@ -60,13 +61,14 @@ pub(crate) fn mark_safe_symbols_from_diff(
         return CachedAnalysis::default();
     };
 
-    let (invalid_symbols_and_members, partially_invalid_symbols) =
-        if let Some(invalid_symbols) = existing_references.get_invalid_symbols(&codebase_diff) {
-            invalid_symbols
-        } else {
-            // this happens when there are too many invalidated symbols
-            return CachedAnalysis::default();
-        };
+    let (invalid_symbols_and_members, partially_invalid_symbols) = if let Some(invalid_symbols) =
+        existing_references.get_invalid_symbols(&codebase_diff, max_changes_allowed)
+    {
+        invalid_symbols
+    } else {
+        // this happens when there are too many invalidated symbols
+        return CachedAnalysis::default();
+    };
 
     let mut cached_analysis = CachedAnalysis {
         symbol_references: existing_references,

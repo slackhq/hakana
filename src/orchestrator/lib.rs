@@ -127,6 +127,7 @@ pub async fn scan_and_analyze_async(
             &None,
             &None,
             previous_analysis_result,
+            config.max_changes_allowed,
         )
     } else {
         CachedAnalysis::default()
@@ -276,6 +277,7 @@ pub fn scan_and_analyze<F: FnOnce()>(
             &get_issues_path(cache_dir),
             &get_references_path(cache_dir),
             previous_analysis_result,
+            config.max_changes_allowed
         )
     } else {
         CachedAnalysis::default()

@@ -231,7 +231,9 @@ impl TestRunner {
 
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
-        let analysis_config = self.get_config_for_test(&dir);
+        let mut analysis_config = self.get_config_for_test(&dir);
+
+        augment_with_local_config(&dir, &mut analysis_config);
 
         logger.log_debug_sync(&format!("running test {}", dir));
 
@@ -478,6 +480,8 @@ impl TestRunner {
         let mut previous_analysis_result = None;
 
         let mut config = self.get_config_for_test(&workdir_base);
+        augment_with_local_config(&dir, &mut config);
+
         config.ast_diff = true;
         config.find_unused_definitions = true;
         let interner = Interner::default();
@@ -583,6 +587,21 @@ impl TestRunner {
                 test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
             }
             ("F".to_string(), Some(run_data), Some(analysis_result))
+        }
+    }
+}
+
+fn augment_with_local_config(dir: &String, analysis_config: &mut config::Config) {
+    let config_path_str = format!("{}/config.json", dir);
+    let config_path = Path::new(&config_path_str);
+
+    if config_path.exists() {
+        let Ok(test_config) = super::config::read_from_file(config_path) else {
+            panic!("invalid test config file {}", config_path_str);
+        };
+
+        if let Some(max_changes_allowed) = test_config.max_changes_allowed {
+            analysis_config.max_changes_allowed = max_changes_allowed;
         }
     }
 }
