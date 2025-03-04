@@ -796,7 +796,15 @@ pub fn get_type_from_hint(
         Hint_::Hvar(_) => panic!(),
         Hint_::Hrefinement(_, _) => panic!(),
         Hint_::Hwildcard => TAtomic::TPlaceholder,
-        Hint_::HclassPtr(_, _) => panic!(),
+        Hint_::HclassPtr(_, hint) => {
+            get_classname_type_from_hint(
+                hint,
+                classlike_name,
+                type_context,
+                resolved_names,
+                file_path,
+            )
+        },
     };
 
     types.push(base);
