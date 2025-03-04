@@ -71,7 +71,7 @@ index 826c113cdfd..a82821573fd 100644
  #[derive(
      Clone,
 diff --git a/hphp/hack/src/deps/rust/file_info/Cargo.toml b/hphp/hack/src/deps/rust/file_info/Cargo.toml
-index 3f7af76454d..15603cceb55 100644
+index 2819956d5b6..6ed71ba67cd 100644
 --- a/hphp/hack/src/deps/rust/file_info/Cargo.toml
 +++ b/hphp/hack/src/deps/rust/file_info/Cargo.toml
 @@ -17,11 +17,13 @@ eq_modulo_pos = { version = "0.0.0", path = "../../../utils/eq_modulo_pos" }
@@ -82,13 +82,13 @@ index 3f7af76454d..15603cceb55 100644
  parser_core_types = { version = "0.0.0", path = "../../../parser/cargo/core_types" }
  rc_pos = { version = "0.0.0", path = "../../../utils/rust/pos" }
  relative_path = { version = "0.0.0", path = "../../../utils/rust/relative_path" }
--rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype", "limits"] }
+-rusqlite = { version = "0.32.1", features = ["backup", "blob", "column_decltype", "limits"] }
  serde = { version = "1.0.185", features = ["derive", "rc"] }
  thiserror = "2"
  typing_deps_hash = { version = "0.0.0", path = "../../cargo/typing_deps_hash" }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-+rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype", "limits"] }
++rusqlite = { version = "0.32.1", features = ["backup", "blob", "column_decltype", "limits"] }
 +ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
 \ No newline at end of file
 diff --git a/hphp/hack/src/deps/rust/file_info_lib.rs b/hphp/hack/src/deps/rust/file_info_lib.rs
@@ -143,19 +143,19 @@ index ab6789911ec..4ce9b155a3e 100644
      fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
          Ok(rusqlite::types::ToSqlOutput::from(*self as i64))
 diff --git a/hphp/hack/src/naming/names_rust/Cargo.toml b/hphp/hack/src/naming/names_rust/Cargo.toml
-index ee6cb4d7145..91ada3a2393 100644
+index 12ed44356c2..3c41bd0a979 100644
 --- a/hphp/hack/src/naming/names_rust/Cargo.toml
 +++ b/hphp/hack/src/naming/names_rust/Cargo.toml
 @@ -18,6 +18,8 @@ oxidized = { version = "0.0.0", path = "../../oxidized" }
  oxidized_by_ref = { version = "0.0.0", path = "../../oxidized_by_ref" }
  rand = { version = "0.8", features = ["small_rng"] }
  relative_path = { version = "0.0.0", path = "../../utils/rust/relative_path" }
--rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype", "limits"] }
+-rusqlite = { version = "0.32.1", features = ["backup", "blob", "column_decltype", "limits"] }
  serde = { version = "1.0.185", features = ["derive", "rc"] }
  typing_deps_hash = { version = "0.0.0", path = "../../deps/cargo/typing_deps_hash" }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-+rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype", "limits"] }
++rusqlite = { version = "0.32.1", features = ["backup", "blob", "column_decltype", "limits"] }
 \ No newline at end of file
 diff --git a/hphp/hack/src/naming/names_rust/datatypes.rs b/hphp/hack/src/naming/names_rust/datatypes.rs
 index 91106097aa3..930dfa897c5 100644
@@ -200,7 +200,7 @@ index 8768bd5b52a..b595a7444d0 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/naming/naming_special_names.rs b/hphp/hack/src/naming/naming_special_names.rs
-index ddf355ca9dc..5c0671b13cd 100644
+index e3982e3998a..3eb2d50c9cb 100644
 --- a/hphp/hack/src/naming/naming_special_names.rs
 +++ b/hphp/hack/src/naming/naming_special_names.rs
 @@ -7,6 +7,8 @@
@@ -598,10 +598,10 @@ index 28f6dd565f6..1cceff6e7c0 100644
  pub use operator;
  pub use operator::*;
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index 8b86a687440..c7a220c1493 100644
+index 6ba1e5b6d39..47a4ba1a027 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3586,12 +3586,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3622,12 +3622,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);
