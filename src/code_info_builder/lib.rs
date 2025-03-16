@@ -327,18 +327,68 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             }
         }
 
+        let source_file;
+        let mut actual_type;
+
+        match &typedef.assignment {
+            tast::TypedefAssignment::SimpleTypeDef(typedef_innser) => {
+                if typedef_innser.vis.is_opaque() {
+                    source_file = Some(self.file_source.file_path);
+                } else {
+                    source_file = None;
+                }
+
+                actual_type = get_type_from_hint(
+                    &typedef.runtime_type.1,
+                    None,
+                    &TypeResolutionContext {
+                        template_type_map: template_type_map.clone(),
+                        template_supers: vec![],
+                    },
+                    self.resolved_names,
+                    self.file_source.file_path,
+                    typedef.runtime_type.0.start_offset() as u32,
+                )
+                .unwrap();
+            }
+            tast::TypedefAssignment::CaseType(first_variant, other_variants) => {
+                source_file = None;
+
+                actual_type = get_type_from_hint(
+                    &first_variant.hint.1,
+                    None,
+                    &TypeResolutionContext {
+                        template_type_map: template_type_map.clone(),
+                        template_supers: vec![],
+                    },
+                    self.resolved_names,
+                    self.file_source.file_path,
+                    first_variant.hint.0.start_offset() as u32,
+                )
+                .unwrap();
+
+                for other_variant in other_variants {
+                    actual_type.types.extend(
+                        get_type_from_hint(
+                            &other_variant.hint.1,
+                            None,
+                            &TypeResolutionContext {
+                                template_type_map: template_type_map.clone(),
+                                template_supers: vec![],
+                            },
+                            self.resolved_names,
+                            self.file_source.file_path,
+                            other_variant.hint.0.start_offset() as u32,
+                        )
+                        .unwrap()
+                        .types,
+                    );
+                }
+            }
+        }
+
         let mut type_definition = TypeDefinitionInfo {
-            newtype_file: if typedef
-                .assignment
-                .as_simple_type_def()
-                .unwrap()
-                .vis
-                .is_opaque()
-            {
-                Some(self.file_source.file_path)
-            } else {
-                None
-            },
+            newtype_file: source_file,
             as_type: if let Some(as_hint) = &typedef.as_constraint {
                 get_type_from_hint(
                     &as_hint.1,
@@ -354,18 +404,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             } else {
                 None
             },
-            actual_type: get_type_from_hint(
-                &typedef.runtime_type.1,
-                None,
-                &TypeResolutionContext {
-                    template_type_map: template_type_map.clone(),
-                    template_supers: vec![],
-                },
-                self.resolved_names,
-                self.file_source.file_path,
-                typedef.runtime_type.0.start_offset() as u32,
-            )
-            .unwrap(),
+            actual_type,
             template_types: template_type_map,
             generic_variance,
             shape_field_taints: None,
