@@ -492,15 +492,17 @@ pub(crate) fn analyze(
 
                 if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
                     // Only replace code that's not already covered by a FIXME
-                    if analysis_data.get_matching_hakana_fixme(&issue).is_none() {
+                    if analysis_data.inside_await ||  analysis_data.get_matching_hakana_fixme(&issue).is_none() {
                         analysis_data.add_replacement(
                             (pos.start_offset() as u32, expr.0 .0.end_offset() as u32 + 1),
-                            Replacement::Substitute("await ".to_string()),
+                            Replacement::Substitute(format!("{}await ", if analysis_data.inside_await { "(" } else { "" })),
                         );
-                        analysis_data.add_replacement(
-                            (pos.end_offset() as u32 - 1, pos.end_offset() as u32),
-                            Replacement::Remove,
-                        );
+                        if !analysis_data.inside_await {
+                            analysis_data.add_replacement(
+                                (pos.end_offset() as u32 - 1, pos.end_offset() as u32),
+                                Replacement::Remove,
+                            );
+                        }
                     }
                 } else {
                     analysis_data.maybe_add_issue(
