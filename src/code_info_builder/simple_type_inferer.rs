@@ -1,6 +1,6 @@
 use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict};
-use hakana_str::StrId;
 use hakana_code_info::ttype::{get_nothing, wrap_atomic};
+use hakana_str::StrId;
 use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, num::ParseIntError, sync::Arc};
@@ -197,10 +197,59 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
         aast::Expr_::Eif(_) => None,
         aast::Expr_::New(..) => None,
         aast::Expr_::Omitted => None,
-        _ => {
-            println!("{:#?}", expr.2);
-            panic!()
-        }
+        aast::Expr_::This => todo!(),
+        aast::Expr_::Invalid(..) => todo!(),
+        aast::Expr_::Lvar(..) => todo!(),
+        aast::Expr_::Dollardollar(..) => todo!(),
+        aast::Expr_::Clone(..) => todo!(),
+        aast::Expr_::ObjGet(_) => todo!(),
+        aast::Expr_::ClassGet(_) => todo!(),
+        aast::Expr_::Call(..) => todo!(),
+        aast::Expr_::String2(..) => todo!(),
+        aast::Expr_::PrefixedString(_) => todo!(),
+        aast::Expr_::Yield(..) => todo!(),
+        aast::Expr_::Await(..) => todo!(),
+        aast::Expr_::ReadonlyExpr(..) => todo!(),
+        aast::Expr_::List(..) => todo!(),
+        aast::Expr_::Cast(_) => todo!(),
+        aast::Expr_::Assign(_) => todo!(),
+        aast::Expr_::Pipe(_) => todo!(),
+        aast::Expr_::Is(_) => todo!(),
+        aast::Expr_::As(_) => todo!(),
+        aast::Expr_::Upcast(_) => todo!(),
+        aast::Expr_::Efun(..) => todo!(),
+        aast::Expr_::Lfun(_) => todo!(),
+        aast::Expr_::Xml(_) => todo!(),
+        aast::Expr_::Import(_) => todo!(),
+        aast::Expr_::Collection(_) => todo!(),
+        aast::Expr_::ExpressionTree(..) => todo!(),
+        aast::Expr_::Lplaceholder(..) => todo!(),
+        aast::Expr_::MethodCaller(_) => todo!(),
+        aast::Expr_::Pair(_) => todo!(),
+        aast::Expr_::ETSplice(..) => todo!(),
+        aast::Expr_::EnumClassLabel(_) => todo!(),
+        aast::Expr_::Hole(_) => todo!(),
+        aast::Expr_::Package(..) => todo!(),
+        aast::Expr_::Nameof(class) => match &class.2 {
+            aast::ClassId_::CIexpr(lhs_expr) => {
+                if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                    match id.1.as_str() {
+                        "self" | "parent" | "static" => None,
+                        _ => {
+                            let name_string =
+                                *resolved_names.get(&(id.0.start_offset() as u32)).unwrap();
+
+                            Some(TAtomic::TLiteralClassname { name: name_string })
+                        }
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => {
+                panic!()
+            }
+        },
     };
 }
 
