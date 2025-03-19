@@ -267,18 +267,18 @@ fn expand_atomic(
         return;
     } else if let TAtomic::TEnumLiteralCase {
         ref enum_name,
-        ref mut constraint_type,
+        as_type: ref mut enum_as_type,
         ..
     } = return_type_part
     {
-        if constraint_type.is_none() {
+        if enum_as_type.is_none() {
             if let Some(classlike_storage) = codebase.classlike_infos.get(enum_name) {
-                *constraint_type = classlike_storage.enum_constraint.clone();
+                *enum_as_type = classlike_storage.enum_as_type.clone();
             }
         }
 
-        if let Some(constraint_type) = constraint_type {
-            let mut constraint_union = wrap_atomic((**constraint_type).clone());
+        if let Some(enum_as_type) = enum_as_type {
+            let mut constraint_union = wrap_atomic((**enum_as_type).clone());
             expand_union(
                 codebase,
                 interner,
@@ -286,19 +286,19 @@ fn expand_atomic(
                 options,
                 data_flow_graph,
             );
-            *constraint_type = Box::new(constraint_union.get_single_owned());
+            *enum_as_type = Box::new(constraint_union.get_single_owned());
         }
 
         return;
     } else if let TAtomic::TEnum {
         ref name,
-        ref mut base_type,
+        ref mut as_type,
         ..
     } = return_type_part
     {
         if let Some(enum_storage) = codebase.classlike_infos.get(name) {
-            if let Some(storage_type) = &enum_storage.enum_type {
-                let mut constraint_union = wrap_atomic((*storage_type).clone());
+            if let Some(storage_type) = &enum_storage.enum_as_type {
+                let mut constraint_union = wrap_atomic((**storage_type).clone());
                 expand_union(
                     codebase,
                     interner,
@@ -306,9 +306,7 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                 );
-                *base_type = Some(Box::new(constraint_union.get_single_owned()));
-            } else {
-                *base_type = Some(Box::new(TAtomic::TArraykey { from_any: true }));
+                *as_type = Some(Box::new(constraint_union.get_single_owned()));
             }
         }
 

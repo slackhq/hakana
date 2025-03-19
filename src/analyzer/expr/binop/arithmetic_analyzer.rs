@@ -101,7 +101,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
         }
 
         if let TAtomic::TEnumLiteralCase {
-            constraint_type: Some(constraint),
+            as_type: Some(constraint),
             ..
         } = &e1_type_atomic
         {
@@ -109,7 +109,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
         }
 
         if let TAtomic::TEnum {
-            base_type: Some(base_type),
+            as_type: Some(base_type),
             ..
         } = &e1_type_atomic
         {
@@ -149,7 +149,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             }
 
             if let TAtomic::TEnumLiteralCase {
-                constraint_type: Some(constraint),
+                as_type: Some(constraint),
                 ..
             } = &e2_type_atomic
             {
@@ -157,7 +157,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             }
 
             if let TAtomic::TEnum {
-                base_type: Some(base_type),
+                as_type: Some(base_type),
                 ..
             } = &e2_type_atomic
             {

@@ -300,7 +300,7 @@ pub(crate) fn scan(
                     }
                 }
 
-                storage.enum_type = Some(
+                storage.enum_underlying_type = Some(
                     get_type_from_hint(
                         &enum_node.base.1,
                         None,
@@ -329,7 +329,7 @@ pub(crate) fn scan(
                             extra_types: None,
                             remapped_params: false,
                         }),
-                        wrap_atomic(storage.enum_type.clone().unwrap()),
+                        wrap_atomic(storage.enum_underlying_type.clone().unwrap()),
                     ]),
                     as_type: None,
                 }))],
@@ -446,7 +446,7 @@ pub(crate) fn scan(
             if let Some(enum_node) = &classlike_node.enum_ {
                 signature_end = enum_node.base.0.end_offset() as u32;
 
-                storage.enum_type = Some(
+                storage.enum_underlying_type = Some(
                     get_type_from_hint(
                         &enum_node.base.1,
                         None,
@@ -462,7 +462,7 @@ pub(crate) fn scan(
                 if let Some(constraint) = &enum_node.constraint {
                     signature_end = constraint.0.end_offset() as u32;
 
-                    storage.enum_constraint = Some(Box::new(
+                    storage.enum_as_type = Some(Box::new(
                         get_type_from_hint(
                             &constraint.1,
                             None,
@@ -481,7 +481,8 @@ pub(crate) fn scan(
                 StrId::BUILTIN_ENUM,
                 vec![Arc::new(wrap_atomic(TAtomic::TEnum {
                     name: *class_name,
-                    base_type: None,
+                    as_type: None,
+                    underlying_type: Box::new(TAtomic::TMixed),
                 }))],
             );
 

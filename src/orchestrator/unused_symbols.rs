@@ -1,4 +1,4 @@
-use chrono::{format, Datelike, Utc};
+use chrono::{Datelike, Utc};
 use hakana_analyzer::config::Config;
 use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_code_info::classlike_info::ClassLikeInfo;

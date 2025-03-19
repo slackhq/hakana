@@ -173,14 +173,18 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TEnum {
-        base_type: Some(input_base_type),
+        as_type: input_as_type,
         ..
     } = input_type_part
     {
+        let input_as_type = match input_as_type {
+            Some(input_as_type) => input_as_type,
+            _ => &TAtomic::TArraykey { from_any: false },
+        };
         if let TAtomic::TStringWithFlags(..) = container_type_part {
             return is_contained_by(
                 codebase,
-                input_base_type,
+                input_as_type,
                 &TAtomic::TString,
                 inside_assertion,
                 atomic_comparison_result,
@@ -189,7 +193,7 @@ pub fn is_contained_by(
 
         return atomic_type_comparator::is_contained_by(
             codebase,
-            input_base_type,
+            input_as_type,
             container_type_part,
             inside_assertion,
             atomic_comparison_result,
@@ -215,18 +219,15 @@ pub fn is_contained_by(
     }
 
     // handles newtypes (hopefully)
-    if let TAtomic::TEnumLiteralCase {
-        constraint_type, ..
-    } = input_type_part
-    {
+    if let TAtomic::TEnumLiteralCase { as_type, .. } = input_type_part {
         if let TAtomic::TEnumLiteralCase { .. } = container_type_part {
             return false;
         }
 
         return atomic_type_comparator::is_contained_by(
             codebase,
-            if let Some(enum_type) = &constraint_type {
-                enum_type
+            if let Some(enum_as_type) = &as_type {
+                enum_as_type
             } else {
                 &TAtomic::TArraykey { from_any: false }
             },
@@ -479,7 +480,8 @@ pub fn is_contained_by(
             let input_type = if codebase.enum_exists(input_name) {
                 TAtomic::TEnum {
                     name: *input_name,
-                    base_type: None,
+                    as_type: None,
+                    underlying_type: Box::new(TAtomic::TMixed),
                 }
             } else if let Some(typedef_info) = codebase.type_definitions.get(input_name) {
                 if let TAtomic::TTypeAlias {

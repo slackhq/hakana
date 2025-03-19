@@ -1,1 +1,1 @@
-ERROR: LessSpecificArgument - input.hack:9:9 - Argument 1 of foo expects string, parent type SomeEnum::C|SomeEnum::A|SomeEnum::B provided
+ERROR: LessSpecificArgument - input.hack:9:9 - Argument 1 of foo expects string, parent type SomeEnum provided

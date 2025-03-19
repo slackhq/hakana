@@ -182,8 +182,8 @@ pub struct ClassLikeInfo {
 
     pub attributes: Vec<AttributeInfo>,
 
-    pub enum_type: Option<TAtomic>,
-    pub enum_constraint: Option<Box<TAtomic>>,
+    pub enum_underlying_type: Option<TAtomic>,
+    pub enum_as_type: Option<Box<TAtomic>>,
 
     pub type_constants: FxHashMap<StrId, ClassConstantType>,
 
@@ -235,8 +235,8 @@ impl ClassLikeInfo {
             direct_parent_class: None,
             required_classlikes: vec![],
             inheritable_method_ids: FxHashMap::default(),
-            enum_type: None,
-            enum_constraint: None,
+            enum_underlying_type: None,
+            enum_as_type: None,
             hash: None,
             inheritable_property_ids: FxHashMap::default(),
             initialized_properties: vec![],

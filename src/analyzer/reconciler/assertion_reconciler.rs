@@ -404,10 +404,51 @@ pub(crate) fn intersect_atomic_with_atomic(
         }
         (
             TAtomic::TEnum {
-                name: type_1_name, ..
+                name: enum_name,
+                underlying_type: enum_underlying_type,
+                as_type: enum_as_type,
+                ..
             },
             TAtomic::TLiteralInt { .. } | TAtomic::TLiteralString { .. },
-        ) => return intersect_enum_with_literal(codebase, type_1_name, type_2_atomic),
+        ) => {
+            return intersect_enum_with_literal(
+                codebase,
+                enum_name,
+                enum_underlying_type,
+                enum_as_type,
+                type_2_atomic,
+            )
+        }
+        (
+            TAtomic::TEnum {
+                name: type_1_name,
+                underlying_type,
+                ..
+            },
+            TAtomic::TString | TAtomic::TStringWithFlags(..) | TAtomic::TInt,
+        ) => {
+            return intersect_enum_with_int_or_string(
+                codebase,
+                type_1_name,
+                &underlying_type,
+                type_2_atomic.clone(),
+            );
+        }
+        (
+            TAtomic::TString | TAtomic::TStringWithFlags(..) | TAtomic::TInt,
+            TAtomic::TEnum {
+                name: type_2_name,
+                underlying_type,
+                ..
+            },
+        ) => {
+            return intersect_enum_with_int_or_string(
+                codebase,
+                type_2_name,
+                &underlying_type,
+                type_1_atomic.clone(),
+            );
+        }
         (
             TAtomic::TTypeAlias {
                 as_type: Some(type_1_as),
@@ -909,12 +950,38 @@ fn intersect_enum_case_with_int(
     Some(type_2_atomic.clone())
 }
 
+fn intersect_enum_with_int_or_string(
+    codebase: &CodebaseInfo,
+    enum_name: &StrId,
+    underlying_type: &TAtomic,
+    int_or_string: TAtomic,
+) -> Option<TAtomic> {
+    let mut atomic_comparison_results = TypeComparisonResult::new();
+
+    if atomic_type_comparator::is_contained_by(
+        codebase,
+        &int_or_string,
+        underlying_type,
+        true,
+        &mut atomic_comparison_results,
+    ) {
+        return Some(TAtomic::TEnum {
+            name: *enum_name,
+            as_type: Some(Box::new(int_or_string)),
+            underlying_type: Box::new(underlying_type.clone()),
+        });
+    }
+    None
+}
+
 fn intersect_enum_with_literal(
     codebase: &CodebaseInfo,
-    type_1_name: &StrId,
+    enum_name: &StrId,
+    enum_underlying_type: &TAtomic,
+    enum_as_type: &Option<Box<TAtomic>>,
     type_2_atomic: &TAtomic,
 ) -> Option<TAtomic> {
-    let enum_storage = codebase.classlike_infos.get(type_1_name)?;
+    let enum_storage = codebase.classlike_infos.get(enum_name)?;
 
     let mut all_inferred = true;
 
@@ -922,9 +989,10 @@ fn intersect_enum_with_literal(
         if let Some(inferred_type) = &enum_case.inferred_type {
             if inferred_type == type_2_atomic {
                 return Some(TAtomic::TEnumLiteralCase {
-                    enum_name: *type_1_name,
+                    enum_name: *enum_name,
                     member_name: *case_name,
-                    constraint_type: enum_storage.enum_constraint.clone(),
+                    as_type: enum_as_type.clone(),
+                    underlying_type: Box::new(enum_underlying_type.clone()),
                 });
             }
         } else {

@@ -139,7 +139,7 @@ pub fn populate_codebase(
             }
         }
 
-        if let Some(ref mut enum_type) = storage.enum_type {
+        if let Some(ref mut enum_type) = storage.enum_underlying_type {
             populate_atomic_type(
                 enum_type,
                 &codebase.symbols,
@@ -149,7 +149,7 @@ pub fn populate_codebase(
             );
         }
 
-        if let Some(ref mut enum_constraint) = storage.enum_constraint {
+        if let Some(ref mut enum_constraint) = storage.enum_as_type {
             populate_atomic_type(
                 enum_constraint,
                 &codebase.symbols,

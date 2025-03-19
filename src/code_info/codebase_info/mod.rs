@@ -219,7 +219,8 @@ impl CodebaseInfo {
                 Some(TUnion::new(vec![TAtomic::TEnumLiteralCase {
                     enum_name: classlike_storage.name,
                     member_name: *const_name,
-                    constraint_type: classlike_storage.enum_constraint.clone(),
+                    as_type: classlike_storage.enum_as_type.clone(),
+                    underlying_type: Box::new(classlike_storage.enum_underlying_type.clone().unwrap()),
                 }]))
             } else if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
                 if matches!(classlike_storage.kind, SymbolKind::EnumClass) {

@@ -1160,22 +1160,28 @@ fn intersect_string(
                 return get_string();
             }
             TAtomic::TEnumLiteralCase {
-                constraint_type, ..
+                enum_name,
+                as_type,
+                underlying_type,
+                ..
+            }
+            | TAtomic::TEnum {
+                name: enum_name,
+                underlying_type,
+                as_type,
+                ..
             } => {
-                if let Some(constraint_type) = constraint_type {
-                    if atomic_type_comparator::is_contained_by(
-                        codebase,
-                        constraint_type,
-                        &TAtomic::TString,
-                        false,
-                        &mut TypeComparisonResult::new(),
-                    ) {
-                        acceptable_types.push(atomic.clone());
-                    } else {
-                        did_remove_type = true;
-                    }
-                } else {
-                    return get_string();
+                if let Some(value) = intersect_enum_or_enum_case(
+                    codebase,
+                    &mut acceptable_types,
+                    &mut did_remove_type,
+                    atomic,
+                    enum_name,
+                    &underlying_type,
+                    as_type,
+                    TAtomic::TString,
+                ) {
+                    return value;
                 }
             }
             TAtomic::TGenericParam { as_type, .. }
@@ -1240,10 +1246,6 @@ fn intersect_string(
                     &mut TypeComparisonResult::new(),
                 ) {
                     acceptable_types.push(atomic.clone());
-
-                    if let TAtomic::TEnum { .. } = atomic {
-                        did_remove_type = true;
-                    }
                 } else {
                     did_remove_type = true;
                 }
@@ -1346,22 +1348,28 @@ fn intersect_int(
                 did_remove_type = true;
             }
             TAtomic::TEnumLiteralCase {
-                constraint_type, ..
+                enum_name,
+                as_type,
+                underlying_type,
+                ..
+            }
+            | TAtomic::TEnum {
+                name: enum_name,
+                underlying_type,
+                as_type,
+                ..
             } => {
-                if let Some(constraint_type) = constraint_type {
-                    if atomic_type_comparator::is_contained_by(
-                        codebase,
-                        constraint_type,
-                        &TAtomic::TInt,
-                        true,
-                        &mut TypeComparisonResult::new(),
-                    ) {
-                        acceptable_types.push(atomic.clone());
-                    } else {
-                        did_remove_type = true;
-                    }
-                } else {
-                    return get_int();
+                if let Some(value) = intersect_enum_or_enum_case(
+                    codebase,
+                    &mut acceptable_types,
+                    &mut did_remove_type,
+                    atomic,
+                    enum_name,
+                    &underlying_type,
+                    as_type,
+                    TAtomic::TInt,
+                ) {
+                    return value;
                 }
             }
             _ => {
@@ -1372,15 +1380,7 @@ fn intersect_int(
                     false,
                     &mut TypeComparisonResult::new(),
                 ) {
-                    if let TAtomic::TEnum { name, .. } = atomic {
-                        acceptable_types.push(TAtomic::TEnum {
-                            name: *name,
-                            base_type: Some(Box::new(TAtomic::TInt)),
-                        });
-                        did_remove_type = true;
-                    } else {
-                        acceptable_types.push(atomic.clone());
-                    }
+                    acceptable_types.push(atomic.clone());
                 } else {
                     did_remove_type = true;
                 }
@@ -1412,6 +1412,90 @@ fn intersect_int(
     }
 
     get_nothing()
+}
+
+fn intersect_enum_or_enum_case(
+    codebase: &CodebaseInfo,
+    acceptable_types: &mut Vec<TAtomic>,
+    did_remove_type: &mut bool,
+    atomic: &TAtomic,
+    enum_name: &StrId,
+    underlying_type: &TAtomic,
+    as_type: &Option<Box<TAtomic>>,
+    intersection_type: TAtomic,
+) -> Option<TUnion> {
+    if let Some(as_type) = as_type {
+        if atomic_type_comparator::is_contained_by(
+            codebase,
+            as_type,
+            &intersection_type,
+            true,
+            &mut TypeComparisonResult::new(),
+        ) {
+            match atomic {
+                TAtomic::TEnum { .. } => {
+                    acceptable_types.push(TAtomic::TEnum {
+                        name: *enum_name,
+                        as_type: Some(Box::new(intersection_type)),
+                        underlying_type: Box::new(underlying_type.clone()),
+                    });
+                    *did_remove_type = true;
+                }
+                TAtomic::TEnumLiteralCase { member_name, .. } => {
+                    acceptable_types.push(TAtomic::TEnumLiteralCase {
+                        enum_name: *enum_name,
+                        member_name: *member_name,
+                        as_type: Some(Box::new(intersection_type)),
+                        underlying_type: Box::new(underlying_type.clone()),
+                    });
+                    *did_remove_type = true;
+                }
+                _ => {}
+            }
+        } else {
+            *did_remove_type = true;
+        }
+    } else {
+        if let Some(enum_storage) = codebase.classlike_infos.get(enum_name) {
+            *did_remove_type = true;
+
+            if let Some(enum_type) = &enum_storage.enum_underlying_type {
+                if atomic_type_comparator::is_contained_by(
+                    codebase,
+                    enum_type,
+                    &intersection_type,
+                    false,
+                    &mut TypeComparisonResult::new(),
+                ) {
+                    match atomic {
+                        TAtomic::TEnum { .. } => {
+                            acceptable_types.push(TAtomic::TEnum {
+                                name: *enum_name,
+                                as_type: Some(Box::new(intersection_type)),
+                                underlying_type: Box::new(underlying_type.clone()),
+                            });
+                            *did_remove_type = true;
+                        }
+                        TAtomic::TEnumLiteralCase { member_name, .. } => {
+                            acceptable_types.push(TAtomic::TEnumLiteralCase {
+                                enum_name: *enum_name,
+                                member_name: *member_name,
+                                as_type: Some(Box::new(intersection_type)),
+                                underlying_type: Box::new(underlying_type.clone()),
+                            });
+                            *did_remove_type = true;
+                        }
+                        _ => {}
+                    }
+                }
+            } else {
+                return Some(wrap_atomic(intersection_type));
+            }
+        } else {
+            return Some(wrap_atomic(intersection_type));
+        }
+    }
+    None
 }
 
 fn reconcile_truthy(
@@ -1956,7 +2040,8 @@ fn reconcile_has_array_key(
                             DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
                                 enum_name: *a,
                                 member_name: *b,
-                                constraint_type: None,
+                                as_type: None,
+                                underlying_type: Box::new(TAtomic::TArraykey { from_any: true }),
                             },
                         }),
                         key_param,
@@ -2166,7 +2251,8 @@ fn reconcile_has_nonnull_entry_for_key(
                             DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
                                 enum_name: *a,
                                 member_name: *b,
-                                constraint_type: None,
+                                as_type: None,
+                                underlying_type: Box::new(TAtomic::TArraykey { from_any: true }),
                             },
                         }),
                         key_param,

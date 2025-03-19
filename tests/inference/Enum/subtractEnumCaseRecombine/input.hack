@@ -6,7 +6,8 @@ enum SomeEnum: int {
 
 function bar(SomeEnum $step): void {
     if ($step == SomeEnum::C) { }
-    foo($step); 
+    foo($step);
+	echo($step as int);
 }
 
 function foo(string $e): void {}

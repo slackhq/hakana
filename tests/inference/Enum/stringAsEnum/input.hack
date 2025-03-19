@@ -6,8 +6,7 @@ enum A: string {
 }
 
 function foo(string $s): void {
-    /* HAKANA_FIXME[ImpossibleNullTypeComparison] */
-    if ($s is ?A) {
+    if ($s is A) {
         $a = $s;
     } else {
         exit();

@@ -7,8 +7,9 @@ use crate::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
+use indexmap::IndexMap;
 use itertools::Itertools;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::ttype::{
     combine_union_types,
@@ -165,24 +166,26 @@ pub fn combine(
         new_types.push(TAtomic::TScalar {});
     }
 
-    for (enum_name, base_type) in combination.enum_types {
+    for (enum_name, (as_type, underlying_type)) in combination.enum_types {
         combination.value_types.insert(
             enum_name.0.to_string(),
             TAtomic::TEnum {
                 name: enum_name,
-                base_type,
+                as_type,
+                underlying_type,
             },
         );
     }
 
     for (enum_name, values) in combination.enum_value_types {
-        for value in values {
+        for (member_name, (as_type, underlying_type)) in values.1 {
             combination.value_types.insert(
-                format!("{}::{}", enum_name.0, value.0 .0),
+                format!("{}::{}", enum_name.0, member_name.0),
                 TAtomic::TEnumLiteralCase {
                     enum_name,
-                    member_name: value.0,
-                    constraint_type: value.1,
+                    member_name,
+                    as_type,
+                    underlying_type,
                 },
             );
         }
@@ -837,28 +840,64 @@ fn scrape_type_properties(
     if let TAtomic::TEnumLiteralCase {
         enum_name,
         member_name,
-        constraint_type,
+        as_type,
+        underlying_type,
     } = atomic
     {
         if combination.enum_types.contains_key(&enum_name) {
             return;
         }
 
-        combination
-            .enum_value_types
-            .entry(enum_name)
-            .or_default()
-            .insert(member_name, constraint_type);
+        let mut matched_len_constraint = None;
+
+        if let Some((expected_count, existing_enum_values)) =
+            combination.enum_value_types.get_mut(&enum_name)
+        {
+            if *expected_count == existing_enum_values.len() + 1
+                && !existing_enum_values.contains_key(&member_name)
+            {
+                matched_len_constraint = Some((as_type, underlying_type));
+            } else {
+                existing_enum_values.insert(member_name, (as_type, underlying_type));
+            }
+        } else {
+            if let Some(enum_storage) = codebase.classlike_infos.get(&enum_name) {
+                combination.enum_value_types.insert(
+                    enum_name,
+                    (
+                        enum_storage.constants.len(),
+                        FxHashMap::from_iter([(member_name, (as_type, underlying_type))]),
+                    ),
+                );
+            }
+        }
+
+        if let Some((as_type, underlying_type)) = matched_len_constraint {
+            combination.enum_value_types.remove(&enum_name);
+            combination.value_types.insert(
+                enum_name.0.to_string(),
+                TAtomic::TEnum {
+                    name: enum_name,
+                    as_type,
+                    underlying_type,
+                },
+            );
+        }
 
         return;
     }
 
     if let TAtomic::TEnum {
-        name, base_type, ..
+        name,
+        as_type,
+        underlying_type,
+        ..
     } = atomic
     {
         combination.enum_value_types.remove(&name);
-        combination.enum_types.insert(name, base_type);
+        combination
+            .enum_types
+            .insert(name, (as_type, underlying_type));
 
         return;
     }
@@ -1209,11 +1248,12 @@ fn adjust_key_value_dict_params(
         DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
             enum_name: *a,
             member_name: *b,
-            constraint_type: if let Some(classlike_info) = codebase.classlike_infos.get(a) {
-                classlike_info.enum_constraint.as_ref().cloned()
+            as_type: if let Some(classlike_info) = codebase.classlike_infos.get(a) {
+                classlike_info.enum_as_type.as_ref().cloned()
             } else {
                 None
             },
+            underlying_type: Box::new(TAtomic::TMixed),
         },
     });
 
