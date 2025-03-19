@@ -1,5 +1,5 @@
 ERROR: ImpossibleTypeComparison - input.hack:8:7 - Type Foo is never =string(C)
 ERROR: ImpossibleTypeComparison - input.hack:12:7 - Type Foo is never =string(C)
 ERROR: ImpossibleTypeComparison - input.hack:16:7 - Type string is never =Foo
-ERROR: ImpossibleTypeComparison - input.hack:20:7 - Type Foo is never =string
 ERROR: ImpossibleTypeComparison - input.hack:20:7 - Type string is never =Foo
+ERROR: ImpossibleTypeComparison - input.hack:24:7 - Type string is never =Foo

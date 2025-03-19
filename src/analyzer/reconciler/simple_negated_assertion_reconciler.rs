@@ -689,18 +689,10 @@ fn subtract_string(
                 acceptable_types.push(atomic);
             }
         } else {
-            if let TAtomic::TTypeAlias {
-                as_type: Some(_), ..
-            } = atomic
-            {
-                did_remove_type = true;
-            }
-
-            if let TAtomic::TEnum {
-                as_type: Some(_), ..
-            } = &atomic
-            {
-                did_remove_type = true;
+            if is_equality {
+                if let TAtomic::TTypeAlias { .. } | TAtomic::TEnum { .. } = &atomic {
+                    did_remove_type = true;
+                }
             }
 
             acceptable_types.push(atomic);

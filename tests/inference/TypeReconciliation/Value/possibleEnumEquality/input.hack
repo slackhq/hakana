@@ -1,7 +1,7 @@
-enum Foo: int {
-	C = 0;
-	D = 1;
-	G = 2;
+enum Foo: string {
+	C = 'C';
+	D = 'D';
+	G = 'G';
 }
 
 function a(Foo $foo): void {
