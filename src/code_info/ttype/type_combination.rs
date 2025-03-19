@@ -5,6 +5,7 @@ use crate::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
+use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug)]
@@ -14,7 +15,7 @@ pub(crate) struct TypeCombination {
     pub has_object_top_type: bool,
 
     pub enum_types: FxHashMap<StrId, Option<Box<TAtomic>>>,
-    pub enum_value_types: FxHashMap<StrId, FxHashMap<StrId, Option<Box<TAtomic>>>>,
+    pub enum_value_types: FxHashMap<StrId, IndexMap<StrId, Option<Box<TAtomic>>>>,
 
     pub object_type_params: FxHashMap<String, (StrId, Vec<TUnion>)>,
 
