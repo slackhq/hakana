@@ -75,8 +75,8 @@ pub enum TAtomic {
     TDict(TDict),
     TEnum {
         name: StrId,
-        as_type: Option<Box<TAtomic>>,
-        underlying_type: Box<TAtomic>,
+        as_type: Option<Arc<TAtomic>>,
+        underlying_type: Option<Arc<TAtomic>>,
     },
     TFalse,
     TFloat,
@@ -94,8 +94,8 @@ pub enum TAtomic {
     TEnumLiteralCase {
         enum_name: StrId,
         member_name: StrId,
-        as_type: Option<Box<TAtomic>>,
-        underlying_type: Box<TAtomic>,
+        as_type: Option<Arc<TAtomic>>,
+        underlying_type: Option<Arc<TAtomic>>,
     },
     TMemberReference {
         classlike_name: StrId,
@@ -1843,7 +1843,7 @@ pub fn populate_atomic_type(
                         *t_atomic = TAtomic::TEnum {
                             name: *name,
                             as_type: None,
-                            underlying_type: Box::new(TAtomic::TMixed),
+                            underlying_type: None,
                         };
                     }
                     SymbolKind::TypeDefinition => {
@@ -1897,7 +1897,7 @@ pub fn populate_atomic_type(
                     enum_name: *classlike_name,
                     member_name: *member_name,
                     as_type: None,
-                    underlying_type: Box::new(TAtomic::TMixed),
+                    underlying_type: None,
                 };
             }
         }

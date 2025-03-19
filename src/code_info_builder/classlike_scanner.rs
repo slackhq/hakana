@@ -317,23 +317,25 @@ pub(crate) fn scan(
             storage.direct_parent_class = Some(StrId::BUILTIN_ENUM_CLASS);
             storage.all_parent_classes.push(StrId::BUILTIN_ENUM_CLASS);
 
-            storage.template_extended_offsets.insert(
-                StrId::BUILTIN_ENUM_CLASS,
-                vec![Arc::new(wrap_atomic(TAtomic::TTypeAlias {
-                    name: StrId::MEMBER_OF,
-                    type_params: Some(vec![
-                        wrap_atomic(TAtomic::TNamedObject {
-                            name: *class_name,
-                            type_params: None,
-                            is_this: false,
-                            extra_types: None,
-                            remapped_params: false,
-                        }),
-                        wrap_atomic(storage.enum_underlying_type.clone().unwrap()),
-                    ]),
-                    as_type: None,
-                }))],
-            );
+            if let Some(underlying_enum_type) = &storage.enum_underlying_type {
+                storage.template_extended_offsets.insert(
+                    StrId::BUILTIN_ENUM_CLASS,
+                    vec![Arc::new(wrap_atomic(TAtomic::TTypeAlias {
+                        name: StrId::MEMBER_OF,
+                        type_params: Some(vec![
+                            wrap_atomic(TAtomic::TNamedObject {
+                                name: *class_name,
+                                type_params: None,
+                                is_this: false,
+                                extra_types: None,
+                                remapped_params: false,
+                            }),
+                            wrap_atomic(underlying_enum_type.clone()),
+                        ]),
+                        as_type: None,
+                    }))],
+                );
+            }
         }
         ClassishKind::Cinterface => {
             storage.kind = SymbolKind::Interface;
@@ -462,7 +464,7 @@ pub(crate) fn scan(
                 if let Some(constraint) = &enum_node.constraint {
                     signature_end = constraint.0.end_offset() as u32;
 
-                    storage.enum_as_type = Some(Box::new(
+                    storage.enum_as_type = Some(
                         get_type_from_hint(
                             &constraint.1,
                             None,
@@ -473,7 +475,7 @@ pub(crate) fn scan(
                         )
                         .unwrap()
                         .get_single_owned(),
-                    ));
+                    );
                 }
             }
 
@@ -482,7 +484,7 @@ pub(crate) fn scan(
                 vec![Arc::new(wrap_atomic(TAtomic::TEnum {
                     name: *class_name,
                     as_type: None,
-                    underlying_type: Box::new(TAtomic::TMixed),
+                    underlying_type: None,
                 }))],
             );
 

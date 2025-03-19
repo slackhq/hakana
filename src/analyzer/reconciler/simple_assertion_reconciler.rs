@@ -1162,12 +1162,12 @@ fn intersect_string(
             TAtomic::TEnumLiteralCase {
                 enum_name,
                 as_type,
-                underlying_type,
+                underlying_type: Some(underlying_type),
                 ..
             }
             | TAtomic::TEnum {
                 name: enum_name,
-                underlying_type,
+                underlying_type: Some(underlying_type),
                 as_type,
                 ..
             } => {
@@ -1350,12 +1350,12 @@ fn intersect_int(
             TAtomic::TEnumLiteralCase {
                 enum_name,
                 as_type,
-                underlying_type,
+                underlying_type: Some(underlying_type),
                 ..
             }
             | TAtomic::TEnum {
                 name: enum_name,
-                underlying_type,
+                underlying_type: Some(underlying_type),
                 as_type,
                 ..
             } => {
@@ -1420,8 +1420,8 @@ fn intersect_enum_or_enum_case(
     did_remove_type: &mut bool,
     atomic: &TAtomic,
     enum_name: &StrId,
-    underlying_type: &TAtomic,
-    as_type: &Option<Box<TAtomic>>,
+    underlying_type: &Arc<TAtomic>,
+    as_type: &Option<Arc<TAtomic>>,
     intersection_type: TAtomic,
 ) -> Option<TUnion> {
     if let Some(as_type) = as_type {
@@ -1436,8 +1436,8 @@ fn intersect_enum_or_enum_case(
                 TAtomic::TEnum { .. } => {
                     acceptable_types.push(TAtomic::TEnum {
                         name: *enum_name,
-                        as_type: Some(Box::new(intersection_type)),
-                        underlying_type: Box::new(underlying_type.clone()),
+                        as_type: Some(Arc::new(intersection_type)),
+                        underlying_type: Some(underlying_type.clone()),
                     });
                     *did_remove_type = true;
                 }
@@ -1445,8 +1445,8 @@ fn intersect_enum_or_enum_case(
                     acceptable_types.push(TAtomic::TEnumLiteralCase {
                         enum_name: *enum_name,
                         member_name: *member_name,
-                        as_type: Some(Box::new(intersection_type)),
-                        underlying_type: Box::new(underlying_type.clone()),
+                        as_type: Some(Arc::new(intersection_type)),
+                        underlying_type: Some(underlying_type.clone()),
                     });
                     *did_remove_type = true;
                 }
@@ -1456,42 +1456,35 @@ fn intersect_enum_or_enum_case(
             *did_remove_type = true;
         }
     } else {
-        if let Some(enum_storage) = codebase.classlike_infos.get(enum_name) {
-            *did_remove_type = true;
-
-            if let Some(enum_type) = &enum_storage.enum_underlying_type {
-                if atomic_type_comparator::is_contained_by(
-                    codebase,
-                    enum_type,
-                    &intersection_type,
-                    false,
-                    &mut TypeComparisonResult::new(),
-                ) {
-                    match atomic {
-                        TAtomic::TEnum { .. } => {
-                            acceptable_types.push(TAtomic::TEnum {
-                                name: *enum_name,
-                                as_type: Some(Box::new(intersection_type)),
-                                underlying_type: Box::new(underlying_type.clone()),
-                            });
-                            *did_remove_type = true;
-                        }
-                        TAtomic::TEnumLiteralCase { member_name, .. } => {
-                            acceptable_types.push(TAtomic::TEnumLiteralCase {
-                                enum_name: *enum_name,
-                                member_name: *member_name,
-                                as_type: Some(Box::new(intersection_type)),
-                                underlying_type: Box::new(underlying_type.clone()),
-                            });
-                            *did_remove_type = true;
-                        }
-                        _ => {}
-                    }
+        if atomic_type_comparator::is_contained_by(
+            codebase,
+            underlying_type,
+            &intersection_type,
+            false,
+            &mut TypeComparisonResult::new(),
+        ) {
+            match atomic {
+                TAtomic::TEnum { .. } => {
+                    acceptable_types.push(TAtomic::TEnum {
+                        name: *enum_name,
+                        as_type: Some(Arc::new(intersection_type)),
+                        underlying_type: Some(underlying_type.clone()),
+                    });
+                    *did_remove_type = true;
                 }
-            } else {
-                return Some(wrap_atomic(intersection_type));
+                TAtomic::TEnumLiteralCase { member_name, .. } => {
+                    acceptable_types.push(TAtomic::TEnumLiteralCase {
+                        enum_name: *enum_name,
+                        member_name: *member_name,
+                        as_type: Some(Arc::new(intersection_type)),
+                        underlying_type: Some(underlying_type.clone()),
+                    });
+                    *did_remove_type = true;
+                }
+                _ => {}
             }
         } else {
+            *did_remove_type = true;
             return Some(wrap_atomic(intersection_type));
         }
     }
@@ -2041,7 +2034,7 @@ fn reconcile_has_array_key(
                                 enum_name: *a,
                                 member_name: *b,
                                 as_type: None,
-                                underlying_type: Box::new(TAtomic::TArraykey { from_any: true }),
+                                underlying_type: None,
                             },
                         }),
                         key_param,
@@ -2252,7 +2245,7 @@ fn reconcile_has_nonnull_entry_for_key(
                                 enum_name: *a,
                                 member_name: *b,
                                 as_type: None,
-                                underlying_type: Box::new(TAtomic::TArraykey { from_any: true }),
+                                underlying_type: None,
                             },
                         }),
                         key_param,

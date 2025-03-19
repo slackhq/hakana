@@ -1248,12 +1248,8 @@ fn adjust_key_value_dict_params(
         DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
             enum_name: *a,
             member_name: *b,
-            as_type: if let Some(classlike_info) = codebase.classlike_infos.get(a) {
-                classlike_info.enum_as_type.as_ref().cloned()
-            } else {
-                None
-            },
-            underlying_type: Box::new(TAtomic::TMixed),
+            as_type: None,
+            underlying_type: None,
         },
     });
 

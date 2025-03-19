@@ -183,7 +183,7 @@ pub struct ClassLikeInfo {
     pub attributes: Vec<AttributeInfo>,
 
     pub enum_underlying_type: Option<TAtomic>,
-    pub enum_as_type: Option<Box<TAtomic>>,
+    pub enum_as_type: Option<TAtomic>,
 
     pub type_constants: FxHashMap<StrId, ClassConstantType>,
 

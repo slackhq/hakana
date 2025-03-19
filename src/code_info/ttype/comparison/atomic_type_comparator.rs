@@ -840,7 +840,7 @@ pub(crate) fn can_be_identical<'a>(
         enum_name,
         member_name,
         as_type: None,
-        underlying_type,
+        underlying_type: Some(underlying_type),
     } = type1_part
     {
         if !matches!(type2_part, TAtomic::TEnum { .. }) {
@@ -858,7 +858,7 @@ pub(crate) fn can_be_identical<'a>(
         enum_name,
         member_name,
         as_type: None,
-        underlying_type,
+        underlying_type: Some(underlying_type),
     } = type2_part
     {
         if !matches!(type1_part, TAtomic::TEnum { .. }) {
@@ -875,7 +875,7 @@ pub(crate) fn can_be_identical<'a>(
     if let TAtomic::TEnum {
         name,
         as_type: None,
-        underlying_type,
+        underlying_type: Some(underlying_type),
     } = type1_part
     {
         if !matches!(
@@ -893,7 +893,7 @@ pub(crate) fn can_be_identical<'a>(
     if let TAtomic::TEnum {
         name,
         as_type: None,
-        underlying_type,
+        underlying_type: Some(underlying_type),
     } = type2_part
     {
         if !matches!(

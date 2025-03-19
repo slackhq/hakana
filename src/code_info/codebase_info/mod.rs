@@ -1,5 +1,7 @@
 pub mod symbols;
 
+use std::sync::Arc;
+
 use self::symbols::SymbolKind;
 pub use self::symbols::Symbols;
 use crate::classlike_info::ClassLikeInfo;
@@ -219,8 +221,14 @@ impl CodebaseInfo {
                 Some(TUnion::new(vec![TAtomic::TEnumLiteralCase {
                     enum_name: classlike_storage.name,
                     member_name: *const_name,
-                    as_type: classlike_storage.enum_as_type.clone(),
-                    underlying_type: Box::new(classlike_storage.enum_underlying_type.clone().unwrap()),
+                    as_type: classlike_storage
+                        .enum_as_type
+                        .as_ref()
+                        .map(|t| Arc::new(t.clone())),
+                    underlying_type: classlike_storage
+                        .enum_underlying_type
+                        .as_ref()
+                        .map(|t| Arc::new(t.clone())),
                 }]))
             } else if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
                 if matches!(classlike_storage.kind, SymbolKind::EnumClass) {

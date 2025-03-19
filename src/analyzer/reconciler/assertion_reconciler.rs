@@ -405,7 +405,7 @@ pub(crate) fn intersect_atomic_with_atomic(
         (
             TAtomic::TEnum {
                 name: enum_name,
-                underlying_type: enum_underlying_type,
+                underlying_type: Some(enum_underlying_type),
                 as_type: enum_as_type,
                 ..
             },
@@ -422,7 +422,7 @@ pub(crate) fn intersect_atomic_with_atomic(
         (
             TAtomic::TEnum {
                 name: type_1_name,
-                underlying_type,
+                underlying_type: Some(underlying_type),
                 ..
             },
             TAtomic::TString | TAtomic::TStringWithFlags(..) | TAtomic::TInt,
@@ -438,7 +438,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             TAtomic::TString | TAtomic::TStringWithFlags(..) | TAtomic::TInt,
             TAtomic::TEnum {
                 name: type_2_name,
-                underlying_type,
+                underlying_type: Some(underlying_type),
                 ..
             },
         ) => {
@@ -953,7 +953,7 @@ fn intersect_enum_case_with_int(
 fn intersect_enum_with_int_or_string(
     codebase: &CodebaseInfo,
     enum_name: &StrId,
-    underlying_type: &TAtomic,
+    underlying_type: &Arc<TAtomic>,
     int_or_string: TAtomic,
 ) -> Option<TAtomic> {
     let mut atomic_comparison_results = TypeComparisonResult::new();
@@ -967,8 +967,8 @@ fn intersect_enum_with_int_or_string(
     ) {
         return Some(TAtomic::TEnum {
             name: *enum_name,
-            as_type: Some(Box::new(int_or_string)),
-            underlying_type: Box::new(underlying_type.clone()),
+            as_type: Some(Arc::new(int_or_string)),
+            underlying_type: Some(underlying_type.clone()),
         });
     }
     None
@@ -977,8 +977,8 @@ fn intersect_enum_with_int_or_string(
 fn intersect_enum_with_literal(
     codebase: &CodebaseInfo,
     enum_name: &StrId,
-    enum_underlying_type: &TAtomic,
-    enum_as_type: &Option<Box<TAtomic>>,
+    enum_underlying_type: &Arc<TAtomic>,
+    enum_as_type: &Option<Arc<TAtomic>>,
     type_2_atomic: &TAtomic,
 ) -> Option<TAtomic> {
     let enum_storage = codebase.classlike_infos.get(enum_name)?;
@@ -992,7 +992,7 @@ fn intersect_enum_with_literal(
                     enum_name: *enum_name,
                     member_name: *case_name,
                     as_type: enum_as_type.clone(),
-                    underlying_type: Box::new(enum_underlying_type.clone()),
+                    underlying_type: Some(enum_underlying_type.clone()),
                 });
             }
         } else {

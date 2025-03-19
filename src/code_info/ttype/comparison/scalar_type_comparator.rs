@@ -481,7 +481,7 @@ pub fn is_contained_by(
                 TAtomic::TEnum {
                     name: *input_name,
                     as_type: None,
-                    underlying_type: Box::new(TAtomic::TMixed),
+                    underlying_type: None,
                 }
             } else if let Some(typedef_info) = codebase.type_definitions.get(input_name) {
                 if let TAtomic::TTypeAlias {
