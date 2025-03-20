@@ -225,13 +225,25 @@ impl TestRunner {
 
         logger.log_debug_sync(&format!("running test {}", dir));
 
+        let config = Arc::new(analysis_config);
+
+        if dir.contains("/executable-code-finder/") {
+            let r = executable_finder::scan_files(
+                &vec![dir.clone()],
+                None,
+                &config.clone(),
+                1,
+                logger,
+            );
+
+            return (format!("{:#?}", r), None, None);
+        }
+
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
         if dir.to_ascii_lowercase().contains("xhp") {
             stub_dirs.push(cwd.clone() + "/third-party/xhp-lib/src");
         }
-
-        let config = Arc::new(analysis_config);
 
         let interner = Interner::default();
 
