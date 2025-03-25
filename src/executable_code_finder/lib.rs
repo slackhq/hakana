@@ -5,7 +5,7 @@ use hakana_code_info::file_info::ParserError;
 use hakana_str::{Interner, ThreadedInterner};
 use hakana_orchestrator::scanner::get_filesystem;
 use indicatif::{ProgressBar, ProgressStyle};
-use oxidized::aast::Stmt_;
+use oxidized::aast::{Def, Expr_, Stmt_};
 use oxidized::ast::Pos;
 use oxidized::{aast, aast_visitor::{visit, AstParams, Node, Visitor}};
 use rustc_hash::FxHashMap;
@@ -177,6 +177,27 @@ impl<'ast> Visitor<'ast> for Scanner {
         self
     }
 
+    fn visit_program(&mut self, c: &mut BTreeSet<u64>, p: &aast::Program<(), ()>) -> Result<(), ParserError> {
+        for def in &p.0 {
+            match &def {
+                Def::Fun(boxed) => {
+                    self.visit_block(c, &boxed.fun.body.fb_ast)?;
+                    ()
+                }
+                Def::Class(boxed) => {
+                    for method in &boxed.methods {
+                        self.visit_block(c, &method.body.fb_ast)?;
+                    }
+                    ()
+                }
+                _ => {
+                    ()
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn visit_stmt(&mut self, c: &mut BTreeSet<u64>, p: &aast::Stmt<(), ()>) -> Result<(), ParserError> {
         match &p.1 {
             Stmt_::For(boxed) => {
@@ -201,7 +222,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 boxed.2.recurse(c, self)
             }
             Stmt_::Switch(boxed) => {
-                // Skipping the switch statement, it's never covered by HHVM
+                push_start(&p.0, c);
                 for case_stmt in &boxed.1 {
                     push_pos(&case_stmt.0.1, c);
                     case_stmt.recurse(c, self)?;
@@ -212,15 +233,25 @@ impl<'ast> Visitor<'ast> for Scanner {
                 boxed.recurse(c, self)
             }
             Stmt_::Expr(boxed) => {
-                let start = boxed.1.to_raw_span().start.line();
-                let end = boxed.1.to_raw_span().end.line();
-                if start == end {
-                    c.push(format!("{}-{}", start, end));
-                } else {
-                    // Multi-line expressions seem to miss the first line in HHVM coverage
-                    c.push(format!("{}-{}", start + 1, end));
+                self.visit_expr(c, &boxed)
+            }
+            Stmt_::Try(boxed) => {
+                self.visit_block(c, &boxed.0)
+            }
+            Stmt_::Concurrent(boxed) => {
+                push_start(&p.0, c); // The line where concurrent block is declared is coverable
+                self.visit_block(c, boxed)
+            }
+            Stmt_::Return(boxed) => {
+                // a single-line return is always coverable
+                if is_single_line(&p.0) {
+                    push_pos(&p.0, c);
+                    return Ok(());
                 }
-                Ok(())
+                match **boxed {
+                    None => Ok(()),
+                    Some(ref expr) => self.visit_expr(c, &expr)
+                }
             }
             _ => {
                 let result = p.recurse(c, self);
@@ -228,6 +259,97 @@ impl<'ast> Visitor<'ast> for Scanner {
                 result
             }
         }
+    }
+
+    fn visit_expr(&mut self, c: &mut BTreeSet<u64>, p: &aast::Expr<(), ()>) -> Result<(), ParserError> {
+        match &p.2 {
+            Expr_::Efun(boxed) => {
+                self.visit_block(c, &boxed.fun.body.fb_ast)
+            }
+            Expr_::Lfun(boxed) => {
+                self.visit_block(c, &boxed.0.body.fb_ast)
+            }
+            Expr_::Await(boxed) => {
+                self.visit_expr(c, boxed)
+            }
+            Expr_::As(boxed) => {
+                self.visit_expr(c, &boxed.expr)
+            }
+            Expr_::Assign(boxed) => {
+                // a single-line assignment is always coverable
+                if is_single_line(&boxed.2.1) {
+                    push_pos(&boxed.2.1, c);
+                    return Ok(());
+                }
+                self.visit_expr(c, &boxed.2)?;
+                Ok(())
+            }
+            Expr_::Shape(vec) => {
+                for tuple in vec {
+                    // a single-line shape field is always coverable
+                    if is_single_line(&tuple.1.1) {
+                        push_pos(&tuple.1.1, c);
+                    }
+                }
+                push_end(&p.1, c);
+                Ok(())
+            }
+            Expr_::ValCollection(boxed) => {
+                for expr in &boxed.2 {
+                    self.visit_expr(c, expr)?;
+                }
+                push_end(&p.1, c);
+                Ok(())
+            }
+            Expr_::KeyValCollection(boxed) => {
+                for field in &boxed.2 {
+                    self.visit_expr(c, &field.0)?;
+                    self.visit_expr(c, &field.1)?;
+                }
+                push_end(&p.1, c);
+                Ok(())
+            }
+            Expr_::Call(boxed) => {
+                // a single-line function call is always coverable
+                if is_single_line(&p.1) {
+                    push_pos(&p.1, c);
+                    return Ok(());
+                }
+
+                self.visit_expr(c, &boxed.func)?;
+                for arg in &boxed.args {
+                    match &arg {
+                        aast::Argument::Ainout(_, expr) => {
+                            self.visit_expr(c, expr)?;
+                        }
+                        aast::Argument::Anormal(expr) => {
+                            self.visit_expr(c, expr)?;
+                        }
+                    }
+                }
+                push_end(&p.1, c);
+                Ok(())
+            }
+            Expr_::Pipe(boxed) => {
+                self.visit_expr(c, &boxed.1)?;
+                self.visit_expr(c, &boxed.2)?;
+                Ok(())
+            }
+            Expr_::True | Expr_::False | Expr_::Int(_) | Expr_::Float(_) | Expr_::String(_) | Expr_::String2(_) | Expr_::PrefixedString(_) | Expr_::Lvar(_) => {
+                push_pos(&p.1, c);
+                Ok(())
+            }
+            _ => {
+                Ok(())
+            }
+        }
+    }
+
+    fn visit_block(&mut self, c: &mut BTreeSet<u64>, p: &aast::Block<(), ()>) -> Result<(), ParserError> {
+        for stmt in &p.0 {
+            self.visit_stmt(c, stmt)?;
+        }
+        Ok(())
     }
 }
 
@@ -244,6 +366,17 @@ fn push_pos(p: &Pos, res: &mut BTreeSet<u64>) {
             res.insert(line);
         }
     }
+}
+
+fn push_end(p: &Pos, res: &mut BTreeSet<u64>) {
+    let end = p.to_raw_span().end.line();
+    res.insert(end);
+}
+
+fn is_single_line(p: &Pos) -> bool {
+    let start = p.to_raw_span().start.line();
+    let end = p.to_raw_span().end.line();
+    return start == end;
 }
 
 fn internal_to_external(internal: Vec<ExecutableLinesInternal>) -> Vec<ExecutableLines> {
