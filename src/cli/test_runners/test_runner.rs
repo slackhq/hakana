@@ -1,3 +1,4 @@
+use executable_finder::ExecutableLines;
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_logger::Logger;
@@ -225,13 +226,56 @@ impl TestRunner {
 
         logger.log_debug_sync(&format!("running test {}", dir));
 
+        let config = Arc::new(analysis_config);
+
+        if dir.contains("/executable-code-finder/") {
+            return match executable_finder::scan_files(
+                &vec![dir.clone()],
+                None,
+                &config.clone(),
+                1,
+                logger,
+            ) {
+                Ok(test_output) => {
+                    let expected_output_path = dir.clone() + "/output.txt";
+                    let expected_output = if Path::new(&expected_output_path).exists() {
+                        let file_contents = fs::read_to_string(expected_output_path)
+                            .unwrap()
+                            .trim()
+                            .to_string();
+                        let j: Vec<ExecutableLines> = serde_json::from_str(&file_contents).unwrap();
+                        Some(j)
+                    } else {
+                        None
+                    };
+                    if let Some(expected_output) = &expected_output {
+                        if test_output == *expected_output {
+                            (".".to_string(), None, None)
+                        } else {
+                            let expected_output_str = serde_json::to_string_pretty(&expected_output).unwrap();
+                            let test_output_str = serde_json::to_string_pretty(&test_output).unwrap();
+                            test_diagnostics.push((
+                                dir,
+                                format!("- {}\n+ {}", expected_output_str, test_output_str),
+                            ));
+                            ("F".to_string(), None, None)
+                        }
+                    } else {
+                        ("F".to_string(), None, None)
+                    }
+                }
+                Err(_) => {
+                    *had_error = true;
+                    ("F".to_string(), None, None)
+                }
+            }
+        }
+
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
         if dir.to_ascii_lowercase().contains("xhp") {
             stub_dirs.push(cwd.clone() + "/third-party/xhp-lib/src");
         }
-
-        let config = Arc::new(analysis_config);
 
         let interner = Interner::default();
 

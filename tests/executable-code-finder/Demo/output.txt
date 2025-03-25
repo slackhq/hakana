@@ -1,0 +1,8 @@
+[
+  {
+    "path": "input.hack",
+    "executable_lines": [
+      "1-1"
+    ]
+  }
+]

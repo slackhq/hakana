@@ -3,21 +3,27 @@ use hakana_logger::Logger;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::file_info::ParserError;
 use hakana_str::{Interner, ThreadedInterner};
-use hakana_orchestrator::file::VirtualFileSystem;
-use hakana_orchestrator::scanner::add_builtins_to_scan;
+use hakana_orchestrator::scanner::get_filesystem;
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast::Stmt_;
 use oxidized::ast::Pos;
 use oxidized::{aast, aast_visitor::{visit, AstParams, Node, Visitor}};
 use rustc_hash::FxHashMap;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ExecutableLines {
     pub path: String,
     pub executable_lines: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ExecutableLinesInternal {
+    pub path: String,
+    pub executable_lines: BTreeSet<u64>,
 }
 
 pub fn scan_files(
@@ -43,6 +49,7 @@ pub fn scan_files(
         config,
         cache_dir,
         &mut files_to_analyze,
+        Some(false),
     );
 
     let executable_lines = Arc::new(Mutex::new(vec![]));
@@ -121,41 +128,8 @@ pub fn scan_files(
         }
     }
 
-    Ok(Arc::try_unwrap(executable_lines).unwrap().into_inner().unwrap())
+    Ok(internal_to_external(Arc::try_unwrap(executable_lines).unwrap().into_inner().unwrap()))
 }
-
-fn get_filesystem(
-    files_to_scan: &mut Vec<String>,
-    interner: &mut Interner,
-    logger: &Logger,
-    scan_dirs: &Vec<String>,
-    existing_file_system: &Option<VirtualFileSystem>,
-    config: &Arc<Config>,
-    cache_dir: Option<&String>,
-    files_to_analyze: &mut Vec<String>,
-) -> VirtualFileSystem {
-    let mut file_system = VirtualFileSystem::default();
-
-    add_builtins_to_scan(files_to_scan, interner, &mut file_system);
-
-    logger.log_sync("Looking for Hack files");
-
-    for scan_dir in scan_dirs {
-        logger.log_debug_sync(&format!(" - in {}", scan_dir));
-
-        files_to_scan.extend(file_system.find_files_in_dir(
-            scan_dir,
-            interner,
-            existing_file_system,
-            config,
-            cache_dir.is_some() || config.ast_diff,
-            files_to_analyze,
-        ));
-    }
-
-    file_system
-}
-
 
 fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
     if let Some(bar) = bar {
@@ -168,7 +142,7 @@ pub(crate) fn scan_file(
     root_dir: &str,
     file_path: FilePath,
     logger: &Logger,
-) -> ExecutableLines {
+) -> ExecutableLinesInternal {
     let interner = interner
         .parent
         .lock()
@@ -184,9 +158,9 @@ pub(crate) fn scan_file(
         Err(_) => panic!("invalid file: {}", str_path)
     };
     let mut checker = Scanner {};
-    let mut context = Vec::new();
+    let mut context = BTreeSet::new();
     match visit(&mut checker, &mut context, &aast.0) {
-        Ok(_) => ExecutableLines {
+        Ok(_) => ExecutableLinesInternal {
             path: file_path.get_relative_path(&interner, root_dir),
             executable_lines: context,
         },
@@ -197,13 +171,13 @@ pub(crate) fn scan_file(
 struct Scanner {}
 
 impl<'ast> Visitor<'ast> for Scanner {
-    type Params = AstParams<Vec<String>, ParserError>;
+    type Params = AstParams<BTreeSet<u64>, ParserError>;
 
     fn object(&mut self) -> &mut dyn Visitor<'ast, Params=Self::Params> {
         self
     }
 
-    fn visit_stmt(&mut self, c: &mut Vec<String>, p: &aast::Stmt<(), ()>) -> Result<(), ParserError> {
+    fn visit_stmt(&mut self, c: &mut BTreeSet<u64>, p: &aast::Stmt<(), ()>) -> Result<(), ParserError> {
         match &p.1 {
             Stmt_::For(boxed) => {
                 push_start(&p.0, c); // The line where for loop is declared is coverable
@@ -257,15 +231,50 @@ impl<'ast> Visitor<'ast> for Scanner {
     }
 }
 
-fn push_start(p: &Pos, res: &mut Vec<String>) {
+fn push_start(p: &Pos, res: &mut BTreeSet<u64>) {
     let start = p.to_raw_span().start.line();
-    res.push(format!("{}-{}", start, start));
+    res.insert(start);
 }
 
-fn push_pos(p: &Pos, res: &mut Vec<String>) {
+fn push_pos(p: &Pos, res: &mut BTreeSet<u64>) {
     let start = p.to_raw_span().start.line();
     let end = p.to_raw_span().end.line();
     if start != 0 && end != 0 {
-        res.push(format!("{}-{}", start, end));
+        for line in start..(end+1) {
+            res.insert(line);
+        }
     }
+}
+
+fn internal_to_external(internal: Vec<ExecutableLinesInternal>) -> Vec<ExecutableLines> {
+    internal.iter().map(|v| ExecutableLines {
+            path: v.path.clone(),
+            executable_lines: to_ranges(v.executable_lines.clone()),
+    }).collect()
+}
+
+fn to_ranges(lines: BTreeSet<u64>) -> Vec<String> {
+    let sorted = Vec::from_iter(lines);
+    let mut out = vec![];
+    let mut i = 0;
+    while let Some(start) = sorted.get(i) {
+        i += 1;
+        out.push(make_range(&sorted, &start, &mut i));
+    }
+    out
+}
+
+fn make_range(sorted: &Vec<u64>, start: &u64, i: &mut usize) -> String {
+    let mut end = start;
+
+    while let Some(curr) = sorted.get(*i) {
+        if *curr == end + 1 {
+            end = curr;
+            *i += 1;
+        } else {
+            break;
+        }
+    }
+
+    format!("{}-{}", start, end)
 }
