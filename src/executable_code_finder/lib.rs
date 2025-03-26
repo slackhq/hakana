@@ -373,6 +373,9 @@ fn is_single_line(p: &Pos) -> bool {
     return start == end;
 }
 
+// Given an ordered set of ints representing individual executable lines,
+// return an ordered vec of strings representing continuous executable ranges.
+// For example: [1, 3, 4, 5, 7, 10, 11, 12] -> ["1-1", "3-5", "7-7", "10-12"]
 fn to_ranges(lines: BTreeSet<u64>) -> Vec<String> {
     let sorted = Vec::from_iter(lines);
     let mut out = vec![];
@@ -384,6 +387,8 @@ fn to_ranges(lines: BTreeSet<u64>) -> Vec<String> {
     out
 }
 
+// Create a single range where the first executable line number is `start`
+// and `i` is the index just *after* that line. Update `i` as we go.
 fn make_range(sorted: &Vec<u64>, start: &u64, i: &mut usize) -> String {
     let mut end = start;
 
