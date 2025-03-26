@@ -20,12 +20,6 @@ pub struct ExecutableLines {
     pub executable_lines: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct ExecutableLinesInternal {
-    pub path: String,
-    pub executable_lines: BTreeSet<u64>,
-}
-
 pub fn scan_files(
     scan_dirs: &Vec<String>,
     cache_dir: Option<&String>,
@@ -128,7 +122,7 @@ pub fn scan_files(
         }
     }
 
-    Ok(internal_to_external(Arc::try_unwrap(executable_lines).unwrap().into_inner().unwrap()))
+    Ok(Arc::try_unwrap(executable_lines).unwrap().into_inner().unwrap())
 }
 
 fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
@@ -142,7 +136,7 @@ pub(crate) fn scan_file(
     root_dir: &str,
     file_path: FilePath,
     logger: &Logger,
-) -> ExecutableLinesInternal {
+) -> ExecutableLines {
     let interner = interner
         .parent
         .lock()
@@ -160,9 +154,9 @@ pub(crate) fn scan_file(
     let mut checker = Scanner {};
     let mut context = BTreeSet::new();
     match visit(&mut checker, &mut context, &aast.0) {
-        Ok(_) => ExecutableLinesInternal {
+        Ok(_) => ExecutableLines {
             path: file_path.get_relative_path(&interner, root_dir),
-            executable_lines: context,
+            executable_lines: to_ranges(context.clone()),
         },
         Err(_) => panic!("invalid file: {}", str_path)
     }
@@ -377,13 +371,6 @@ fn is_single_line(p: &Pos) -> bool {
     let start = p.to_raw_span().start.line();
     let end = p.to_raw_span().end.line();
     return start == end;
-}
-
-fn internal_to_external(internal: Vec<ExecutableLinesInternal>) -> Vec<ExecutableLines> {
-    internal.iter().map(|v| ExecutableLines {
-            path: v.path.clone(),
-            executable_lines: to_ranges(v.executable_lines.clone()),
-    }).collect()
 }
 
 fn to_ranges(lines: BTreeSet<u64>) -> Vec<String> {
