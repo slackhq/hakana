@@ -4,7 +4,7 @@ enum Test: string {
 
 function checkDictArrayKeyExistsInt(dict<string, Test> $arr, string $foobar): int
 {
-    if (C\contains($arr , "FOO")) {
+    if (C\contains($arr, "FOO")) {
         return 0;
     }
 

@@ -1,3 +1,3 @@
 $a = vec["hello", "goodbye"];
-shuffle($a);
+shuffle(inout $a);
 $a = vec[0, 1];

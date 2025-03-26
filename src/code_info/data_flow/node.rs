@@ -17,6 +17,7 @@ pub enum VariableSourceKind {
     PrivateParam,
     NonPrivateParam,
     InoutParam,
+    InoutArg,
     ClosureParam,
 }
 
@@ -755,6 +756,7 @@ impl DataFlowNode {
     }
 
     pub fn get_for_variable_source(
+        kind: VariableSourceKind,
         label: VarId,
         assignment_location: HPos,
         pure: bool,
@@ -771,7 +773,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::VariableUseSource {
                 pos: assignment_location,
-                kind: VariableSourceKind::Default,
+                kind,
                 pure,
                 has_awaitable,
                 has_parent_nodes,

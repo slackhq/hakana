@@ -689,18 +689,10 @@ fn subtract_string(
                 acceptable_types.push(atomic);
             }
         } else {
-            if let TAtomic::TTypeAlias {
-                as_type: Some(_), ..
-            } = atomic
-            {
-                did_remove_type = true;
-            }
-
-            if let TAtomic::TEnum {
-                base_type: Some(_), ..
-            } = &atomic
-            {
-                did_remove_type = true;
+            if is_equality {
+                if let TAtomic::TTypeAlias { .. } | TAtomic::TEnum { .. } = &atomic {
+                    did_remove_type = true;
+                }
             }
 
             acceptable_types.push(atomic);
@@ -812,7 +804,7 @@ fn subtract_int(
             }
 
             if let TAtomic::TEnum {
-                base_type: Some(_), ..
+                as_type: Some(_), ..
             } = &atomic
             {
                 did_remove_type = true;
@@ -1837,7 +1829,8 @@ fn reconcile_no_array_key(
                                 DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
                                     enum_name: *a,
                                     member_name: *b,
-                                    constraint_type: None,
+                                    as_type: None,
+                                    underlying_type: None,
                                 },
                             }),
                             key_param,
@@ -1855,7 +1848,8 @@ fn reconcile_no_array_key(
                             DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
                                 enum_name: *a,
                                 member_name: *b,
-                                constraint_type: None,
+                                as_type: None,
+                                underlying_type: None,
                             },
                         }),
                         key_param,

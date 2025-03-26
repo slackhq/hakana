@@ -416,6 +416,7 @@ impl SymbolReferences {
     pub fn get_invalid_symbols(
         &self,
         codebase_diff: &CodebaseDiff,
+        max_changes_allowed: usize,
     ) -> Option<(FxHashSet<(StrId, StrId)>, FxHashSet<StrId>)> {
         let mut invalid_symbols = FxHashSet::default();
         let mut invalid_symbol_members = FxHashSet::default();
@@ -446,7 +447,7 @@ impl SymbolReferences {
 
             expense += 1;
 
-            if expense > 5000 {
+            if expense >= max_changes_allowed {
                 return None;
             }
 
@@ -467,7 +468,7 @@ impl SymbolReferences {
                     expense += 1;
                 }
 
-                if expense > 5000 {
+                if expense >= max_changes_allowed {
                     return None;
                 }
             }

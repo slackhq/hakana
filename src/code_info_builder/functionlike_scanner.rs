@@ -323,16 +323,6 @@ pub(crate) fn get_functionlike(
     functionlike_info.user_defined = user_defined;
     functionlike_info.is_closure = name.is_none();
 
-    if let Some(name_pos) = name_pos {
-        let name_offset = 9 + if fun_kind.is_async() { 6 } else { 0 };
-
-        let (_, name_line_start_offset, name_start_offset) =
-            name_pos.to_start_and_end_lnum_bol_offset().0;
-        functionlike_info.def_location.start_offset = name_start_offset as u32 - name_offset;
-        functionlike_info.def_location.start_column =
-            (name_start_offset - name_line_start_offset) as u16 - name_offset as u16;
-    }
-
     for user_attribute in user_attributes {
         let attribute_name = *resolved_names
             .get(&(user_attribute.name.0.start_offset() as u32))

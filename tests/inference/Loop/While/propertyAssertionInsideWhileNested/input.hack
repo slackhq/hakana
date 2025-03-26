@@ -16,11 +16,17 @@ final class Foo {
 
     public function alter() : void {
         if (rand(0, 1)) {
-            array_pop($this->a);
+            $a = $this->a;
+            array_pop(inout $a);
+            $this->a = $a;
         } else if (rand(0, 1)) {
-            array_pop($this->a);
+            $b = $this->b;
+            array_pop(inout $b);
+            $this->b = $b;
         } else {
-            array_pop($this->c);
+            $c = $this->c;
+            array_pop(inout $c);
+            $this->c = $c;
         }
     }
 }

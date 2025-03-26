@@ -11,7 +11,8 @@ use oxidized::scoured_comments::ScouredComments;
 use oxidized::{aast, aast_visitor::visit};
 use parser_core_types::{indexed_source_text::IndexedSourceText, source_text::SourceText};
 use relative_path::{Prefix, RelativePath};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -48,7 +49,7 @@ pub fn get_aast_for_path_and_contents(
     let mut parser_result = match aast_parser::AastParser::from_text(
         &parser_env,
         &indexed_source_text,
-        FxHashSet::default(),
+        HashSet::default(),
     ) {
         Ok(parser_result) => parser_result,
         Err(err) => {

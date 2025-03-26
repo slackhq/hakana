@@ -65,10 +65,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve function name".to_string(),
-                HPos::new(
-                    stmt.name.pos(),
-                    self.file_analyzer.file_source.file_path,
-                ),
+                HPos::new(stmt.name.pos(), self.file_analyzer.file_source.file_path),
             ));
         };
 
@@ -88,10 +85,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot load function storage".to_string(),
-                HPos::new(
-                    stmt.name.pos(),
-                    self.file_analyzer.file_source.file_path,
-                ),
+                HPos::new(stmt.name.pos(), self.file_analyzer.file_source.file_path),
             ));
         };
 
@@ -897,10 +891,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             update_analysis_result_with_tast(
                 analysis_data,
                 analysis_result,
-                &statements_analyzer
-                    .file_analyzer
-                    .file_source
-                    .file_path,
+                &statements_analyzer.file_analyzer.file_source.file_path,
                 functionlike_storage.ignore_taint_path,
             );
         }
@@ -1239,18 +1230,22 @@ fn report_unused_expressions(
                     }
                 }
 
-                if let VariableSourceKind::Default = &kind {
-                    handle_unused_assignment(
-                        config,
-                        statements_analyzer,
-                        pos,
-                        &mut unused_variable_nodes,
-                        node,
-                        analysis_data,
-                        calling_functionlike_id,
-                        pure,
-                        has_awaitable,
-                    );
+                match &kind {
+                    VariableSourceKind::Default => {
+                        handle_unused_assignment(
+                            config,
+                            statements_analyzer,
+                            pos,
+                            &mut unused_variable_nodes,
+                            node,
+                            analysis_data,
+                            calling_functionlike_id,
+                            pure,
+                            has_awaitable,
+                            false,
+                        );
+                    }
+                    _ => (),
                 }
             }
             _ => {
@@ -1340,6 +1335,21 @@ fn report_unused_expressions(
                             calling_functionlike_id,
                             &false,
                             has_awaitable,
+                            false,
+                        );
+                    }
+                    VariableSourceKind::InoutArg => {
+                        handle_unused_assignment(
+                            config,
+                            statements_analyzer,
+                            pos,
+                            &mut unused_variable_nodes,
+                            node,
+                            analysis_data,
+                            calling_functionlike_id,
+                            &false,
+                            has_awaitable,
+                            true,
                         );
                     }
                     VariableSourceKind::InoutParam => {
@@ -1386,6 +1396,7 @@ fn handle_unused_assignment(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     pure: &bool,
     has_awaitable: &bool,
+    from_inout: bool,
 ) {
     if config.allow_issue_kind_in_file(
         &IssueKind::UnusedAssignment,
@@ -1417,12 +1428,22 @@ fn handle_unused_assignment(
                         *pos,
                         calling_functionlike_id,
                     )
+                } else if from_inout {
+                    Issue::new(
+                        IssueKind::UnusedInoutAssignment,
+                        format!(
+                            "Assignment to {} from inout argument is unused",
+                            node.id.to_label(interner),
+                        ),
+                        *pos,
+                        calling_functionlike_id,
+                    )
                 } else if unused_closure_variable {
                     Issue::new(
                         IssueKind::UnusedAssignmentInClosure,
                         format!(
                             "Assignment to {} is unused in this closure ",
-                            node.id.to_label(interner)
+                            node.id.to_label(interner),
                         ),
                         *pos,
                         calling_functionlike_id,
@@ -1432,7 +1453,7 @@ fn handle_unused_assignment(
                         IssueKind::UnusedAssignmentStatement,
                         format!(
                             "Assignment to {} is unused, and this expression has no effect",
-                            node.id.to_label(interner)
+                            node.id.to_label(interner),
                         ),
                         *pos,
                         calling_functionlike_id,
@@ -1450,7 +1471,7 @@ fn handle_unused_assignment(
                 } else {
                     Issue::new(
                         IssueKind::UnusedAssignment,
-                        format!("Assignment to {} is unused", node.id.to_label(interner)),
+                        format!("Assignment to {} is unused", node.id.to_label(interner),),
                         *pos,
                         calling_functionlike_id,
                     )
@@ -1543,9 +1564,6 @@ pub(crate) fn get_closure_storage(
     file_analyzer
         .codebase
         .functionlike_infos
-        .get(&(
-            file_analyzer.file_source.file_path.0,
-            StrId(offset as u32),
-        ))
+        .get(&(file_analyzer.file_source.file_path.0, StrId(offset as u32)))
         .cloned()
 }

@@ -144,9 +144,11 @@ impl FunctionAnalysisData {
                         issue.kind.to_string(),
                         if let IssueKind::UnusedParameter
                         | IssueKind::UnusedAssignment
+                        | IssueKind::UnusedInoutAssignment
                         | IssueKind::UnusedAssignmentInClosure
                         | IssueKind::UnusedAssignmentStatement
                         | IssueKind::UnusedStatement
+                        | IssueKind::OnlyUsedInTests
                         | IssueKind::UnusedFunction
                         | IssueKind::UnusedPrivateMethod = issue.kind
                         {
@@ -230,7 +232,8 @@ impl FunctionAnalysisData {
                 for line_issue in hakana_fixme_or_ignores.1 {
                     if line_issue.0 == issue.kind
                         || (line_issue.0 == IssueKind::UnusedAssignment
-                            && issue.kind == IssueKind::UnusedAssignmentStatement)
+                            && (issue.kind == IssueKind::UnusedAssignmentStatement
+                                || issue.kind == IssueKind::UnusedInoutAssignment))
                     {
                         return Some((line_issue.1 .0, line_issue.1 .1));
                     }

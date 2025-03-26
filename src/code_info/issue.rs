@@ -53,6 +53,7 @@ pub enum IssueKind {
     LessSpecificNestedReturnStatement,
     LessSpecificReturnStatement,
     MethodCallOnNull,
+    MissingInoutToken,
     MissingRequiredXhpAttribute,
     MixedAnyArgument,
     MixedAnyArrayAccess,
@@ -128,6 +129,7 @@ pub enum IssueKind {
     UnrecognizedUnaryOp,
     UnusedAssignment,
     UnusedAssignmentInClosure,
+    UnusedInoutAssignment,
     UnusedAssignmentStatement,
     UnusedAwaitable,
     UnusedBuiltinReturnValue,
@@ -225,6 +227,7 @@ impl IssueKind {
             self,
             Self::UnusedAssignment
                 | Self::UnusedAssignmentStatement
+                | Self::UnusedInoutAssignment
                 | Self::UnusedAssignmentInClosure
                 | Self::UnusedParameter
                 | Self::UnusedClosureParameter

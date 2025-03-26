@@ -75,7 +75,8 @@ pub enum TAtomic {
     TDict(TDict),
     TEnum {
         name: StrId,
-        base_type: Option<Box<TAtomic>>,
+        as_type: Option<Arc<TAtomic>>,
+        underlying_type: Option<Arc<TAtomic>>,
     },
     TFalse,
     TFloat,
@@ -93,7 +94,8 @@ pub enum TAtomic {
     TEnumLiteralCase {
         enum_name: StrId,
         member_name: StrId,
-        constraint_type: Option<Box<TAtomic>>,
+        as_type: Option<Arc<TAtomic>>,
+        underlying_type: Option<Arc<TAtomic>>,
     },
     TMemberReference {
         classlike_name: StrId,
@@ -1804,6 +1806,13 @@ pub fn populate_atomic_type(
                     .add_class_member_reference_to_symbol((*a, *b), *name, *in_signature),
             }
         }
+        TAtomic::TEnum { name, .. } => match reference_source {
+            ReferenceSource::Symbol(in_signature, a) => {
+                symbol_references.add_symbol_reference_to_symbol(*a, *name, *in_signature)
+            }
+            ReferenceSource::ClasslikeMember(in_signature, a, b) => symbol_references
+                .add_class_member_reference_to_symbol((*a, *b), *name, *in_signature),
+        },
         TAtomic::TReference {
             ref name,
             ref mut type_params,
@@ -1833,7 +1842,8 @@ pub fn populate_atomic_type(
                     SymbolKind::Enum => {
                         *t_atomic = TAtomic::TEnum {
                             name: *name,
-                            base_type: None,
+                            as_type: None,
+                            underlying_type: None,
                         };
                     }
                     SymbolKind::TypeDefinition => {
@@ -1886,7 +1896,8 @@ pub fn populate_atomic_type(
                 *t_atomic = TAtomic::TEnumLiteralCase {
                     enum_name: *classlike_name,
                     member_name: *member_name,
-                    constraint_type: None,
+                    as_type: None,
+                    underlying_type: None,
                 };
             }
         }

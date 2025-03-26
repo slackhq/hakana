@@ -5,7 +5,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::data_flow::graph::GraphKind;
-use hakana_code_info::data_flow::node::DataFlowNode;
+use hakana_code_info::data_flow::node::{DataFlowNode, VariableSourceKind};
 use hakana_code_info::{VarId, EFFECT_IMPURE, EFFECT_PURE};
 use hakana_str::StrId;
 use hakana_code_info::ttype::get_mixed_any;
@@ -32,6 +32,7 @@ pub(crate) fn analyze(
 
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
         let parent_node = DataFlowNode::get_for_variable_source(
+            VariableSourceKind::Default,
             VarId(StrId::DOLLAR_DOLLAR),
             statements_analyzer.get_hpos(expr.1.pos()),
             false,

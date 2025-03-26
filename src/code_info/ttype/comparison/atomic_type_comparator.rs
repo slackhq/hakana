@@ -179,13 +179,10 @@ pub fn is_contained_by(
     }
 
     // handles newtypes (hopefully)
-    if let TAtomic::TEnumLiteralCase {
-        constraint_type, ..
-    } = input_type_part
-    {
+    if let TAtomic::TEnumLiteralCase { as_type, .. } = input_type_part {
         return is_contained_by(
             codebase,
-            if let Some(enum_type) = &constraint_type {
+            if let Some(enum_type) = &as_type {
                 enum_type
             } else {
                 &TAtomic::TArraykey { from_any: false }
@@ -842,7 +839,8 @@ pub(crate) fn can_be_identical<'a>(
     if let TAtomic::TEnumLiteralCase {
         enum_name,
         member_name,
-        constraint_type: None,
+        as_type: None,
+        underlying_type: Some(underlying_type),
     } = type1_part
     {
         if !matches!(type2_part, TAtomic::TEnum { .. }) {
@@ -851,11 +849,7 @@ pub(crate) fn can_be_identical<'a>(
             if let Some(class_const_type) = class_const_type {
                 type1_part = class_const_type;
             } else {
-                let enum_info = codebase.classlike_infos.get(enum_name).unwrap();
-
-                if let Some(enum_type) = &enum_info.enum_type {
-                    type1_part = enum_type;
-                }
+                type1_part = underlying_type;
             }
         }
     }
@@ -863,7 +857,8 @@ pub(crate) fn can_be_identical<'a>(
     if let TAtomic::TEnumLiteralCase {
         enum_name,
         member_name,
-        constraint_type: None,
+        as_type: None,
+        underlying_type: Some(underlying_type),
     } = type2_part
     {
         if !matches!(type1_part, TAtomic::TEnum { .. }) {
@@ -872,46 +867,44 @@ pub(crate) fn can_be_identical<'a>(
             if let Some(class_const_type) = class_const_type {
                 type2_part = class_const_type;
             } else {
-                let enum_info = codebase.classlike_infos.get(enum_name).unwrap();
-
-                if let Some(enum_type) = &enum_info.enum_type {
-                    type2_part = enum_type;
-                }
+                type2_part = underlying_type;
             }
         }
     }
 
     if let TAtomic::TEnum {
         name,
-        base_type: None,
+        as_type: None,
+        underlying_type: Some(underlying_type),
     } = type1_part
     {
         if !matches!(
             type2_part,
-            TAtomic::TEnum { .. } | TAtomic::TEnumLiteralCase { .. }
+            TAtomic::TEnum { .. }
+                | TAtomic::TEnumLiteralCase { .. }
+                | TAtomic::TLiteralString { .. }
+                | TAtomic::TLiteralInt { .. }
+                | TAtomic::TLiteralClassname { .. }
         ) {
-            if let Some(enum_info) = codebase.classlike_infos.get(name) {
-                if let Some(enum_type) = &enum_info.enum_type {
-                    type1_part = enum_type;
-                }
-            }
+            type1_part = underlying_type;
         }
     }
 
     if let TAtomic::TEnum {
         name,
-        base_type: None,
+        as_type: None,
+        underlying_type: Some(underlying_type),
     } = type2_part
     {
         if !matches!(
             type1_part,
-            TAtomic::TEnum { .. } | TAtomic::TEnumLiteralCase { .. }
+            TAtomic::TEnum { .. }
+                | TAtomic::TEnumLiteralCase { .. }
+                | TAtomic::TLiteralString { .. }
+                | TAtomic::TLiteralInt { .. }
+                | TAtomic::TLiteralClassname { .. }
         ) {
-            if let Some(enum_info) = codebase.classlike_infos.get(name) {
-                if let Some(enum_type) = &enum_info.enum_type {
-                    type2_part = enum_type;
-                }
-            }
+            type2_part = underlying_type;
         }
     }
 

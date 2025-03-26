@@ -265,7 +265,6 @@ fn get_shape_type_from_hints(
                     (field.optional, Arc::new(field_type)),
                 );
             }
-            ast_defs::ShapeFieldName::SFregexGroup(_) => todo!(),
             ast_defs::ShapeFieldName::SFclassname(_) => todo!(),
         }
     }
@@ -795,9 +794,26 @@ pub fn get_type_from_hint(
         Hint_::Hintersection(_) => TAtomic::TObject,
         Hint_::HfunContext(_) => panic!(),
         Hint_::Hvar(_) => panic!(),
-        Hint_::Hrefinement(_, _) => panic!(),
+        Hint_::Hrefinement(hint, _refinements) => {
+            // this is a hack, and misses type refinements
+            // of the form MyClass with { SomeClassTypeConst = OtherType, ... }
+            return get_type_from_hint(
+                &hint.1,
+                classlike_name,
+                type_context,
+                resolved_names,
+                file_path,
+                hint.0.start_offset() as u32,
+            )
+        }
         Hint_::Hwildcard => TAtomic::TPlaceholder,
-        Hint_::HclassPtr(_, _) => panic!(),
+        Hint_::HclassPtr(_, hint) => get_classname_type_from_hint(
+            hint,
+            classlike_name,
+            type_context,
+            resolved_names,
+            file_path,
+        ),
     };
 
     types.push(base);

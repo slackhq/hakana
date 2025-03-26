@@ -521,8 +521,7 @@ fn add_nested_assertions(
                     } else if let Ok(arraykey_value) = array_key.parse::<u64>() {
                         Some(DictKey::Int(arraykey_value))
                     } else {
-                        println!("bad int key {}", array_key);
-                        panic!()
+                        continue;
                     };
 
                     if let Some(new_key) = new_key {

@@ -25,7 +25,7 @@ use crate::stmt::{
 };
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
-use oxidized::{aast};
+use oxidized::aast;
 
 pub enum AnalysisError {
     UserError,
@@ -330,9 +330,8 @@ fn detect_unused_statement_expressions(
                                             IssueKind::UnusedBuiltinReturnValue,
                                             format!(
                                                 "The value {} returned from {} should be consumed",
-                                                expr_type.get_id(Some(
-                                                    statements_analyzer.interner
-                                                )),
+                                                expr_type
+                                                    .get_id(Some(statements_analyzer.interner)),
                                                 function_name
                                             ),
                                             statements_analyzer.get_hpos(&stmt.0),
@@ -405,8 +404,11 @@ fn has_unused_must_use(
                         // Asio\join does not count as "using" the value
                         if function_id == StrId::ASIO_JOIN {
                             for arg in boxed_call.args.iter() {
-                                let has_unused =
-                                    has_unused_must_use(&arg.to_expr_ref(), statements_analyzer, analysis_data);
+                                let has_unused = has_unused_must_use(
+                                    &arg.to_expr_ref(),
+                                    statements_analyzer,
+                                    analysis_data,
+                                );
                                 if has_unused.is_some() {
                                     return has_unused;
                                 }

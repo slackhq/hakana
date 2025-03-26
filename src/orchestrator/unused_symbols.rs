@@ -1,11 +1,12 @@
-use chrono::Utc;
+use chrono::{Datelike, Utc};
 use hakana_analyzer::config::Config;
 use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_code_info::classlike_info::ClassLikeInfo;
-use hakana_code_info::code_location::StmtStart;
+use hakana_code_info::code_location::{HPos, StmtStart};
 use hakana_code_info::codebase_info::symbols::SymbolKind;
 use hakana_code_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::property_info::PropertyKind;
@@ -183,17 +184,7 @@ pub(crate) fn find_unused_definitions(
                     &Some(FunctionLikeIdentifier::Function(functionlike_name.0)),
                 );
 
-                if config.can_add_issue(&issue) {
-                    *analysis_result
-                        .issue_counts
-                        .entry(issue.kind.clone())
-                        .or_insert(0) += 1;
-                    analysis_result
-                        .emitted_definition_issues
-                        .entry(pos.file_path)
-                        .or_default()
-                        .push(issue);
-                }
+                add_testonly_issue(analysis_result, config, pos, functionlike_info, issue);
             }
         }
     }
@@ -468,27 +459,30 @@ pub(crate) fn find_unused_definitions(
                             &referenced_symbols_and_members_in_production,
                         )
                     {
-                        let issue = Issue::new(
+                        let functionlike_storage = codebase
+                            .functionlike_infos
+                            .get(&(*classlike_name, *method_name_ptr))
+                            .unwrap();
+
+                        if functionlike_storage.is_production_code {
+                            let issue = Issue::new(
                                 IssueKind::OnlyUsedInTests,
                                 format!(
                                     "Production-code method {}::{} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> attribute",
                                     interner.lookup(classlike_name),
                                     interner.lookup(method_name_ptr)
                                 ),
-                                *pos,
+                                functionlike_storage.name_location.unwrap(),
                                 &Some(FunctionLikeIdentifier::Method(*classlike_name, *method_name_ptr)),
                             );
 
-                        if config.can_add_issue(&issue) {
-                            *analysis_result
-                                .issue_counts
-                                .entry(issue.kind.clone())
-                                .or_insert(0) += 1;
-                            analysis_result
-                                .emitted_definition_issues
-                                .entry(pos.file_path)
-                                .or_default()
-                                .push(issue);
+                            add_testonly_issue(
+                                analysis_result,
+                                config,
+                                pos,
+                                functionlike_storage,
+                                issue,
+                            );
                         }
                     }
                 }
@@ -641,6 +635,50 @@ pub(crate) fn find_unused_definitions(
                 }
             }
         }
+    }
+}
+
+fn add_testonly_issue(
+    analysis_result: &mut AnalysisResult,
+    config: &Config,
+    pos: &HPos,
+    functionlike_storage: &FunctionLikeInfo,
+    issue: Issue,
+) {
+    if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+        let now = Utc::now();
+        let def_pos = functionlike_storage.def_location;
+        analysis_result
+            .replacements
+            .entry(pos.file_path)
+            .or_default()
+            .insert(
+                (def_pos.start_offset, def_pos.start_offset),
+                Replacement::Substitute(format!(
+                    "<<\\Hakana\\TestOnly{}>>\n{}",
+                    if config.add_date_comments {
+                        format!(
+                            "('Added automatically on {}-{}-{}')",
+                            now.year(),
+                            now.month(),
+                            now.day(),
+                        )
+                    } else {
+                        "".to_string()
+                    },
+                    &"\t".repeat((def_pos.start_column as usize) - 1)
+                )),
+            );
+    } else if config.can_add_issue(&issue) {
+        *analysis_result
+            .issue_counts
+            .entry(issue.kind.clone())
+            .or_insert(0) += 1;
+        analysis_result
+            .emitted_definition_issues
+            .entry(pos.file_path)
+            .or_default()
+            .push(issue);
     }
 }
 

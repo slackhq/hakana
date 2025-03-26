@@ -6,7 +6,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::data_flow::graph::GraphKind;
-use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
+use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind};
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::ttype::{combine_union_types, get_named_object};
 use hakana_code_info::VarId;
@@ -151,6 +151,7 @@ pub(crate) fn analyze(
 
         let new_parent_node = if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
             DataFlowNode::get_for_variable_source(
+                VariableSourceKind::Default,
                 VarId(statements_analyzer.interner.get(catch_var_id).unwrap()),
                 statements_analyzer.get_hpos(&catch.1 .0),
                 false,

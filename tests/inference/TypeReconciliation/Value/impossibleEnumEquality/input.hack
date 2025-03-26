@@ -5,17 +5,21 @@ enum Foo: int {
 }
 
 function a(Foo $foo): void {
-  if ($foo == 'C') {}
+  if ($foo === 'C') {}
 }
 
 function b(Foo $foo): void {
-  if ($foo != 'C') {}
+  if ($foo !== 'C') {}
 }
 
 function c(Foo $foo, string $s): void {
-  if ($foo == $s) {}
+  if ($foo === $s) {}
 }
 
 function d(Foo $foo, string $s): void {
-  if ($foo != $s) {}
+  if ($foo !== $s) {}
+}
+
+function e(Foo $foo, string $s): void {
+  if ($s !== $foo) {}
 }

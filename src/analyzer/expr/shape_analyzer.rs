@@ -38,7 +38,6 @@ pub(crate) fn analyze(
         let start_pos = match name {
             ShapeFieldName::SFlitStr(name) => &name.0,
             ShapeFieldName::SFclassConst(lhs, _) => &lhs.0,
-            ShapeFieldName::SFregexGroup(_) => todo!(),
             ShapeFieldName::SFclassname(_) => todo!(),
         };
 
@@ -107,7 +106,6 @@ pub(crate) fn analyze(
                     ));
                 }
             }
-            ShapeFieldName::SFregexGroup(_) => todo!(),
             ShapeFieldName::SFclassname(_) => todo!(),
         };
 

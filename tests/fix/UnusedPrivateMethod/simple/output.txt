@@ -1,4 +1,5 @@
 final class Foo {
+
 }
 
 <<__EntryPoint>>

@@ -1,15 +1,15 @@
 use executable_finder::ExecutableLines;
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_logger::Logger;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::issue::IssueKind;
-use hakana_str::Interner;
+use hakana_logger::Logger;
 use hakana_orchestrator::wasm::get_single_file_codebase;
 use hakana_orchestrator::SuccessfulScanData;
+use hakana_str::Interner;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashMap;
@@ -20,6 +20,7 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use walkdir::WalkDir;
@@ -130,12 +131,27 @@ impl TestRunner {
 
     fn get_config_for_test(&self, dir: &str) -> config::Config {
         let mut analysis_config = config::Config::new(dir.to_string(), FxHashSet::default());
-        analysis_config.find_unused_expressions = dir.contains("/unused/")
-            || dir.contains("UnusedAssignment")
-            || dir.contains("UnusedParameter")
-            || dir.contains("UnusedClosureParameter");
-        analysis_config.find_unused_definitions =
-            dir.to_ascii_lowercase().contains("unused") && !dir.contains("UnusedExpression");
+        analysis_config.add_date_comments = false;
+
+        let mut dir_parts = dir.split('/').collect::<Vec<_>>();
+
+        while let Some(&"tests" | &"internal" | &"public") = dir_parts.first() {
+            dir_parts = dir_parts[1..].to_vec();
+        }
+
+        let maybe_issue_name = dir_parts.get(1).unwrap().to_string();
+
+        let dir_issue = IssueKind::from_str(&maybe_issue_name);
+        analysis_config.find_unused_expressions = if let Ok(dir_issue) = &dir_issue {
+            dir_issue.is_unused_expression()
+        } else {
+            dir.contains("/unused/")
+        };
+        analysis_config.find_unused_definitions = if let Ok(dir_issue) = &dir_issue {
+            dir_issue.is_unused_definition()
+        } else {
+            dir.to_ascii_lowercase().contains("unused") && !dir.contains("UnusedExpression")
+        };
         analysis_config.graph_kind = if dir.contains("/security/") {
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         } else if dir.contains("/find-paths/") {
@@ -145,12 +161,6 @@ impl TestRunner {
         };
 
         analysis_config.hooks = self.0.get_hooks_for_test(dir);
-
-        let mut dir_parts = dir.split('/').collect::<Vec<_>>();
-
-        while let Some(&"tests" | &"internal" | &"public") = dir_parts.first() {
-            dir_parts = dir_parts[1..].to_vec();
-        }
 
         if dir.contains("/migrations/") {
             let replacements_path = dir.to_string() + "/replacements.txt";
@@ -222,7 +232,9 @@ impl TestRunner {
 
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
-        let analysis_config = self.get_config_for_test(&dir);
+        let mut analysis_config = self.get_config_for_test(&dir);
+
+        augment_with_local_config(&dir, &mut analysis_config);
 
         logger.log_debug_sync(&format!("running test {}", dir));
 
@@ -512,6 +524,8 @@ impl TestRunner {
         let mut previous_analysis_result = None;
 
         let mut config = self.get_config_for_test(&workdir_base);
+        augment_with_local_config(&dir, &mut config);
+
         config.ast_diff = true;
         config.find_unused_definitions = true;
         let interner = Interner::default();
@@ -617,6 +631,21 @@ impl TestRunner {
                 test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
             }
             ("F".to_string(), Some(run_data), Some(analysis_result))
+        }
+    }
+}
+
+fn augment_with_local_config(dir: &String, analysis_config: &mut config::Config) {
+    let config_path_str = format!("{}/config.json", dir);
+    let config_path = Path::new(&config_path_str);
+
+    if config_path.exists() {
+        let Ok(test_config) = super::config::read_from_file(config_path) else {
+            panic!("invalid test config file {}", config_path_str);
+        };
+
+        if let Some(max_changes_allowed) = test_config.max_changes_allowed {
+            analysis_config.max_changes_allowed = max_changes_allowed;
         }
     }
 }

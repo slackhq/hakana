@@ -1,0 +1,1 @@
+UnusedInoutAssignment - input.hack:8:9 - Assignment to $barr from inout argument is unused

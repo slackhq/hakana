@@ -110,6 +110,21 @@ pub(crate) fn analyze(
             .map(|p| p.0)
             .collect::<FxHashSet<_>>();
 
+        for classlike_parent_id in &classlike_info.all_parent_classes {
+            if let Some(parent_classlike_info) = codebase.classlike_infos.get(classlike_parent_id) {
+                required_attributes.extend(
+                    parent_classlike_info
+                        .properties
+                        .iter()
+                        .filter(|p| {
+                            matches!(p.1.kind, PropertyKind::XhpAttribute { is_required: true })
+                        })
+                        .map(|p| p.0)
+                        .collect::<FxHashSet<_>>(),
+                );
+            }
+        }
+
         required_attributes.retain(|attr| !used_attributes.contains(attr));
 
         if !required_attributes.is_empty() {
@@ -126,8 +141,7 @@ pub(crate) fn analyze(
                         },
                         required_attributes
                             .iter()
-                            .map(|attr| statements_analyzer.interner.lookup(attr)[1..]
-                                .to_string())
+                            .map(|attr| statements_analyzer.interner.lookup(attr)[1..].to_string())
                             .join(", ")
                     ),
                     statements_analyzer.get_hpos(pos),
@@ -277,9 +291,7 @@ fn handle_attribute_spread(
                             context,
                             false,
                             expr_type_atomic.clone(),
-                            statements_analyzer
-                                .interner
-                                .lookup(spread_attribute.0),
+                            statements_analyzer.interner.lookup(spread_attribute.0),
                             &None,
                         )?;
 
@@ -300,9 +312,7 @@ fn handle_attribute_spread(
                                 xhp_expr.pos(),
                                 xhp_expr.pos(),
                                 property_fetch_type,
-                                statements_analyzer
-                                    .interner
-                                    .lookup(spread_attribute.0),
+                                statements_analyzer.interner.lookup(spread_attribute.0),
                             );
                         }
                     }

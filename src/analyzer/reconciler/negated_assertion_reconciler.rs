@@ -450,7 +450,8 @@ fn handle_literal_negated_equality(
                 TAtomic::TEnumLiteralCase {
                     enum_name,
                     member_name,
-                    constraint_type,
+                    as_type,
+                    underlying_type,
                 } => {
                     did_remove_type = true;
 
@@ -462,7 +463,8 @@ fn handle_literal_negated_equality(
                                 acceptable_types.push(TAtomic::TEnumLiteralCase {
                                     enum_name: *enum_name,
                                     member_name: *cname,
-                                    constraint_type: constraint_type.clone(),
+                                    as_type: as_type.clone(),
+                                    underlying_type: underlying_type.clone(),
                                 });
                             }
                         }
