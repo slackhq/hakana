@@ -152,6 +152,7 @@ pub fn scan_files(
             config,
             cache_dir,
             &mut files_to_analyze,
+            None,
         )
     };
 
@@ -444,7 +445,7 @@ pub fn scan_files(
     })
 }
 
-fn get_filesystem(
+pub fn get_filesystem(
     files_to_scan: &mut Vec<String>,
     interner: &mut Interner,
     logger: &Logger,
@@ -453,10 +454,13 @@ fn get_filesystem(
     config: &Arc<Config>,
     cache_dir: Option<&String>,
     files_to_analyze: &mut Vec<String>,
+    include_builtins: Option<bool>,
 ) -> VirtualFileSystem {
     let mut file_system = VirtualFileSystem::default();
 
-    add_builtins_to_scan(files_to_scan, interner, &mut file_system);
+    if include_builtins.unwrap_or(true) {
+        add_builtins_to_scan(files_to_scan, interner, &mut file_system);
+    }
 
     logger.log_sync("Looking for Hack files");
 
