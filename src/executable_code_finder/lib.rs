@@ -174,6 +174,26 @@ impl<'ast> Visitor<'ast> for Scanner {
     fn visit_program(&mut self, c: &mut BTreeSet<u64>, p: &aast::Program<(), ()>) -> Result<(), ParserError> {
         for def in &p.0 {
             match &def {
+                Def::Namespace(boxed) => {
+                    for ns_def in &boxed.1 {
+                        match &ns_def {
+                            Def::Fun(boxed) => {
+                                self.visit_block(c, &boxed.fun.body.fb_ast)?;
+                                ()
+                            }
+                            Def::Class(boxed) => {
+                                for method in &boxed.methods {
+                                    self.visit_block(c, &method.body.fb_ast)?;
+                                }
+                                ()
+                            }
+                            _ => {
+                                ()
+                            }
+                        }
+                    }
+                    ()
+                }
                 Def::Fun(boxed) => {
                     self.visit_block(c, &boxed.fun.body.fb_ast)?;
                     ()
@@ -329,7 +349,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 self.visit_expr(c, &boxed.2)?;
                 Ok(())
             }
-            Expr_::True | Expr_::False | Expr_::Int(_) | Expr_::Float(_) | Expr_::String(_) | Expr_::String2(_) | Expr_::PrefixedString(_) | Expr_::Lvar(_) => {
+            Expr_::Null | Expr_::True | Expr_::False | Expr_::Int(_) | Expr_::Float(_) | Expr_::String(_) | Expr_::String2(_) | Expr_::PrefixedString(_) | Expr_::Lvar(_) => {
                 push_pos(&p.1, c);
                 Ok(())
             }

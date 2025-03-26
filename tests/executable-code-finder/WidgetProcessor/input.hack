@@ -1,3 +1,5 @@
+namespace Industry;
+
 use namespace HH\Lib\{C, Str, Vec};
 use type Sprockets\Spindle;
 
@@ -134,7 +136,7 @@ public async function topLevelFunction(
 				return await ClassName::containsInterestingStuff(
 					$widget as \Widgets\Writeable,
 					$all_ts,
-					$levels,
+					null,
 					$sprocket_opts,
 					true, // Why not?
 				);
