@@ -53,6 +53,8 @@ pub enum IssueKind {
     LessSpecificNestedReturnStatement,
     LessSpecificReturnStatement,
     MethodCallOnNull,
+    MissingCallsDbAsioJoinAttribute,
+    MissingHasDbAsioJoinAttribute,
     MissingInoutToken,
     MissingRequiredXhpAttribute,
     MixedAnyArgument,
@@ -219,6 +221,8 @@ impl IssueKind {
                 | Self::UnusedXhpAttribute
                 | Self::UnusedTrait
                 | Self::OnlyUsedInTests
+                | Self::MissingCallsDbAsioJoinAttribute
+                | Self::MissingHasDbAsioJoinAttribute
         )
     }
 

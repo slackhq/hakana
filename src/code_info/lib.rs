@@ -26,9 +26,9 @@ pub mod symbol_references;
 pub mod t_atomic;
 pub mod t_union;
 pub mod taint;
+pub mod ttype;
 pub mod type_definition_info;
 pub mod type_resolution;
-pub mod ttype;
 
 use std::collections::BTreeMap;
 
@@ -53,12 +53,14 @@ pub const EFFECT_WRITE_LOCAL: u8 = 0b00000010;
 pub const EFFECT_READ_PROPS: u8 = 0b00000100;
 pub const EFFECT_READ_GLOBALS: u8 = 0b00001000;
 pub const EFFECT_WRITE_PROPS: u8 = 0b00010000;
-pub const EFFECT_WRITE_GLOBALS: u8 = 0b0100000;
+pub const EFFECT_WRITE_GLOBALS: u8 = 0b00100000;
+pub const EFFECT_DB: u8 = 0b01000000;
 pub const EFFECT_IMPURE: u8 = EFFECT_CAN_THROW
     | EFFECT_READ_PROPS
     | EFFECT_READ_GLOBALS
     | EFFECT_WRITE_PROPS
     | EFFECT_WRITE_GLOBALS;
+pub const EFFECT_IMPURE_DB: u8 = EFFECT_IMPURE | EFFECT_DB;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 

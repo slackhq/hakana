@@ -87,6 +87,14 @@ pub(crate) fn find_unused_definitions(
         }
     }
 
+    if config
+        .issues_to_fix
+        .contains(&IssueKind::MissingCallsDbAsioJoinAttribute)
+        && !config.add_fixmes
+    {
+        add_calls_db_asio_attributes(analysis_result, codebase, &referenced_symbols_and_members);
+    }
+
     let referenced_symbols_and_members = referenced_symbols_and_members
         .into_keys()
         .collect::<FxHashSet<_>>();
@@ -633,6 +641,98 @@ pub(crate) fn find_unused_definitions(
                         .or_default()
                         .push(issue);
                 }
+            }
+        }
+    }
+}
+
+fn add_calls_db_asio_attributes(
+    analysis_result: &mut AnalysisResult,
+    codebase: &CodebaseInfo,
+    referenced_symbols_and_members: &FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
+) {
+    let calls_db_asio_join_fns = codebase
+        .functionlike_infos
+        .iter()
+        .filter(|(_, c)| c.user_defined && c.is_production_code && c.calls_db_asio_join)
+        .map(|(k, _)| *k)
+        .collect::<FxHashSet<_>>();
+
+    let request_handler_fns = codebase
+        .functionlike_infos
+        .iter()
+        .filter(|(_, c)| c.is_request_handler)
+        .map(|(k, _)| *k)
+        .collect::<FxHashSet<_>>();
+
+    let mut all_calls_db_asio_join_fns = calls_db_asio_join_fns.clone();
+    let mut next_new_caller_ids = calls_db_asio_join_fns.into_iter().collect::<Vec<_>>();
+
+    for _ in 0..4 {
+        let mut new_caller_ids = next_new_caller_ids;
+        next_new_caller_ids = vec![];
+        while let Some(new_caller_id) = new_caller_ids.pop() {
+            let Some(back_refs) = referenced_symbols_and_members.get(&new_caller_id) else {
+                continue;
+            };
+            let back_refs = back_refs
+                .iter()
+                .filter(|k| {
+                    !all_calls_db_asio_join_fns.contains(&k)
+                        && match codebase.functionlike_infos.get(&k) {
+                            Some(functionlike_info) => {
+                                if functionlike_info.is_production_code
+                                    && !functionlike_info.is_request_handler
+                                    && !functionlike_info.generated
+                                {
+                                    if k.1 == StrId::EMPTY {
+                                        true
+                                    } else {
+                                        match codebase.classlike_infos.get(&k.0) {
+                                            Some(classlike_info) => {
+                                                if let Some(parent_classes) =
+                                                    classlike_info.overridden_method_ids.get(&k.1)
+                                                {
+                                                    !parent_classes.iter().any(|parent_class| {
+                                                        request_handler_fns
+                                                            .contains(&(*parent_class, k.1))
+                                                    })
+                                                } else {
+                                                    true
+                                                }
+                                            }
+                                            _ => false,
+                                        }
+                                    }
+                                } else {
+                                    false
+                                }
+                            }
+                            None => false,
+                        }
+                })
+                .map(|k| *k)
+                .collect::<FxHashSet<_>>();
+            next_new_caller_ids.extend(back_refs.clone());
+            all_calls_db_asio_join_fns.extend(back_refs);
+        }
+    }
+
+    for k in all_calls_db_asio_join_fns {
+        if let Some(functionlike_info) = codebase.functionlike_infos.get(&k) {
+            if !functionlike_info.calls_db_asio_join {
+                let def_pos = functionlike_info.def_location;
+                analysis_result
+                    .replacements
+                    .entry(def_pos.file_path)
+                    .or_default()
+                    .insert(
+                        (def_pos.start_offset, def_pos.start_offset),
+                        Replacement::Substitute(format!(
+                            "<<\\Hakana\\CallsDbAsioJoin>>\n{}",
+                            &"\t".repeat((def_pos.start_column as usize) - 1)
+                        )),
+                    );
             }
         }
     }

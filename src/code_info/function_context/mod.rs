@@ -1,7 +1,11 @@
 use hakana_str::StrId;
 
 pub use crate::functionlike_identifier::FunctionLikeIdentifier;
-use crate::{codebase_info::CodebaseInfo, symbol_references::ReferenceSource};
+use crate::{
+    codebase_info::CodebaseInfo,
+    functionlike_info::{self, FunctionLikeInfo},
+    symbol_references::ReferenceSource,
+};
 
 #[derive(Clone, Debug, Copy)]
 pub struct FunctionContext {
@@ -49,22 +53,26 @@ impl FunctionContext {
         }
     }
 
-    pub fn is_production(&self, codebase: &CodebaseInfo) -> bool {
+    pub fn get_functionlike_info<'a>(
+        &self,
+        codebase: &'a CodebaseInfo,
+    ) -> Option<&'a FunctionLikeInfo> {
         match self.calling_functionlike_id {
-            Some(FunctionLikeIdentifier::Function(function_id)) => {
-                codebase
-                    .functionlike_infos
-                    .get(&(function_id, StrId::EMPTY))
-                    .unwrap()
-                    .is_production_code
-            }
-            Some(FunctionLikeIdentifier::Method(classlike_name, method_name)) => {
-                codebase
-                    .functionlike_infos
-                    .get(&(classlike_name, method_name))
-                    .unwrap()
-                    .is_production_code
-            }
+            Some(FunctionLikeIdentifier::Function(function_id)) => codebase
+                .functionlike_infos
+                .get(&(function_id, StrId::EMPTY)),
+            Some(FunctionLikeIdentifier::Method(classlike_name, method_name)) => codebase
+                .functionlike_infos
+                .get(&(classlike_name, method_name)),
+            _ => None,
+        }
+    }
+
+    pub fn is_production(&self, codebase: &CodebaseInfo) -> bool {
+        let functionlike_info = self.get_functionlike_info(codebase);
+
+        match functionlike_info {
+            Some(functionlike_info) => functionlike_info.is_production_code,
             _ => {
                 if let Some(calling_class) = self.calling_class {
                     codebase
@@ -76,6 +84,26 @@ impl FunctionContext {
                     false
                 }
             }
+        }
+    }
+
+    pub fn can_call_db_asio_join(&self, codebase: &CodebaseInfo) -> bool {
+        let functionlike_info = self.get_functionlike_info(codebase);
+
+        match functionlike_info {
+            Some(functionlike_info) => {
+                functionlike_info.calls_db_asio_join || functionlike_info.is_request_handler
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_request_handler(&self, codebase: &CodebaseInfo) -> bool {
+        let functionlike_info = self.get_functionlike_info(codebase);
+
+        match functionlike_info {
+            Some(functionlike_info) => functionlike_info.is_request_handler,
+            _ => false,
         }
     }
 }

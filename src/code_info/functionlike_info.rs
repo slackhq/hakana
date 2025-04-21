@@ -16,7 +16,7 @@ use crate::{
     GenericParent, EFFECT_PURE,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FnEffect {
     Unknown,
     Pure,
@@ -102,6 +102,12 @@ pub struct FunctionLikeInfo {
     pub is_async: bool,
 
     pub has_asio_join: bool,
+
+    pub has_db_asio_join: bool,
+
+    pub calls_db_asio_join: bool,
+
+    pub is_request_handler: bool,
 
     pub must_use: bool,
 
@@ -196,6 +202,9 @@ impl FunctionLikeInfo {
             method_info: None,
             is_async: false,
             has_asio_join: false,
+            has_db_asio_join: false,
+            calls_db_asio_join: false,
+            is_request_handler: false,
             must_use: false,
             ignore_taint_path: false,
             dynamically_callable: false,

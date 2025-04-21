@@ -25,6 +25,7 @@ use hakana_code_info::FileSource;
 use hakana_code_info::GenericParent;
 use hakana_code_info::VarId;
 use hakana_code_info::EFFECT_IMPURE;
+use hakana_code_info::EFFECT_IMPURE_DB;
 use hakana_str::{StrId, ThreadedInterner};
 use oxidized::aast;
 use oxidized::aast::Stmt;
@@ -360,6 +361,19 @@ pub(crate) fn get_functionlike(
             StrId::HAKANA_TEST_ONLY => {
                 functionlike_info.is_production_code = false;
             }
+            StrId::HAKANA_HAS_DB_ASIO_JOIN => {
+                functionlike_info.has_db_asio_join = true;
+                functionlike_info.calls_db_asio_join = true;
+            }
+            StrId::HAKANA_CALLS_DB_ASIO_JOIN => {
+                functionlike_info.calls_db_asio_join = true;
+            }
+            StrId::HAKANA_REQUEST_HANDLER => {
+                functionlike_info.is_request_handler = true;
+            }
+            StrId::HAKANA_HAS_DB_OPERATION => {
+                functionlike_info.effects = FnEffect::Some(EFFECT_IMPURE_DB);
+            }
             StrId::HAKANA_BANNED_FUNCTION => {
                 if let Some(attribute_param_expr) = user_attribute.params.first() {
                     if let aast::Expr_::String(str) = &attribute_param_expr.2 {
@@ -392,6 +406,7 @@ pub(crate) fn get_functionlike(
             StrId::ENTRY_POINT => {
                 functionlike_info.dynamically_callable = true;
                 functionlike_info.ignore_taint_path = true;
+                functionlike_info.is_request_handler = true;
             }
             StrId::DYNAMICALLY_CALLABLE => {
                 functionlike_info.dynamically_callable = true;
@@ -420,13 +435,16 @@ pub(crate) fn get_functionlike(
     functionlike_info.suppressed_issues = suppressed_issues;
 
     functionlike_info.is_async = fun_kind.is_async();
-    functionlike_info.effects = if let Some(contexts) = contexts {
-        get_effect_from_contexts(contexts, &functionlike_info, interner)
-    } else if name.is_none() {
-        FnEffect::Unknown
-    } else {
-        FnEffect::Some(EFFECT_IMPURE)
-    };
+
+    if functionlike_info.effects == FnEffect::Unknown {
+        functionlike_info.effects = if let Some(contexts) = contexts {
+            get_effect_from_contexts(contexts, &functionlike_info, interner)
+        } else if name.is_none() {
+            FnEffect::Unknown
+        } else {
+            FnEffect::Some(EFFECT_IMPURE)
+        };
+    }
 
     if matches!(functionlike_info.effects, FnEffect::Pure) || this_name.is_none() {
         functionlike_info.specialize_call = true;

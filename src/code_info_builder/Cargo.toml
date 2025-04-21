@@ -15,6 +15,12 @@ naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/namin
 rustc-hash = "1.1.0"
 xxhash-rust = { version = "0.8.3", features = ["xxh3", "xxh32"] }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+pcre2 = "0.2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+regex = "1.6.0"
+
 [lib]
 path = "lib.rs"
 
