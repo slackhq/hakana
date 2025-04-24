@@ -27,6 +27,7 @@ pub struct Config {
     pub ignore_issue_patterns: FxHashMap<IssueKind, Vec<glob::Pattern>>,
     pub ignore_all_issues_in_patterns: Vec<glob::Pattern>,
     pub banned_builtin_functions: FxHashMap<StrId, StrId>,
+    pub banned_namespaces: FxHashMap<StrId, BannedNamespace>,
     pub security_config: SecurityConfig,
     pub root_dir: String,
     pub hooks: Vec<Box<dyn CustomHook>>,
@@ -44,6 +45,11 @@ pub struct SecurityConfig {
     ignore_patterns: Vec<glob::Pattern>,
     ignore_sink_files: FxHashMap<String, Vec<glob::Pattern>>,
     pub max_depth: u8,
+}
+
+pub struct BannedNamespace {
+    pub message: String,
+    pub allowed_namespaces: Vec<String>
 }
 
 impl Default for SecurityConfig {
@@ -151,6 +157,11 @@ impl Config {
             .into_iter()
             .map(|(k, v)| (interner.intern(k), interner.intern(v)))
             .collect();
+        
+        self.banned_namespaces = json_config
+            .banned_namespaces
+            .into_iter()
+            .map(|(k,v)| (interner.intern(k), ))
 
         self.security_config.ignore_patterns = json_config
             .security_analysis
