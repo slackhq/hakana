@@ -48,7 +48,7 @@ pub struct SecurityConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct BannedNamespace {
+pub struct JsonBannedNamespace {
     pub message: StrId,
     pub allowed_namespaces: Vec<StrId>,
 }
@@ -167,7 +167,7 @@ impl Config {
         .map(|(namespace, json_banned_namespace)| {
             let interned_namespace = interner.intern(namespace);
             let interned_message = interner.intern(json_banned_namespace.message);
-            let interned_allowed_namespaces: Vec<u32> = json_banned_namespace
+            let interned_allowed_namespaces = json_banned_namespace
                 .allowed_namespaces
                 .into_iter()
                 .map(|allowed| interner.intern(allowed))
