@@ -214,7 +214,7 @@ pub(crate) fn analyze(
 
     if let Some(banned_namespace_message) = function_storage.banned_namespace_message {
         let interned_message_id = banned_namespace_message.message;
-        let original_message = statements_analyzer.interner.lookup(&interned_message_id).to_string();
+        let original_message = statements_analyzer.interner.lookup(&banned_namespace_message).to_string();
 
         analysis_data.maybe_add_issue(
             Issue::new(

@@ -27,7 +27,7 @@ pub struct JsonSecurityConfig {
     pub ignore_sink_files: FxHashMap<String, Vec<String>>,
     pub max_depth: Option<u8>,
 }
-
+#[derive(Debug, Clone)]
 pub struct JsonBannedNamespace {
     pub message: String,
     pub allowed_namespaces: Vec<String>,
