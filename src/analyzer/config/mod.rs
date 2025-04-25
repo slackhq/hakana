@@ -47,9 +47,10 @@ pub struct SecurityConfig {
     pub max_depth: u8,
 }
 
+#[derive(Debug, Clone)]
 pub struct BannedNamespace {
-    pub message: u32,
-    pub allowed_namespaces: Vec<u32>,
+    pub message: StrId,
+    pub allowed_namespaces: Vec<StrId>,
 }
 
 impl Default for SecurityConfig {
