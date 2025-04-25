@@ -382,7 +382,7 @@ pub(crate) fn get_functionlike(
                     }
                 }
             }
-            StrId::HAKANA_BANNED_FUNCTION => {
+            StrId::HAKANA_BANNED_NAMESPACE => {
                 if let Some(attribute_param_expr) = user_attribute.params.first() {
                     if let aast::Expr_::String(str) = &attribute_param_expr.2 {
                         functionlike_info.banned_namespace_message =
