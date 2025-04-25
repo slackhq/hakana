@@ -48,8 +48,8 @@ pub struct SecurityConfig {
 }
 
 pub struct BannedNamespace {
-    pub message: String,
-    pub allowed_namespaces: Vec<String>
+    pub message: u32,
+    pub allowed_namespaces: Vec<u32>,
 }
 
 impl Default for SecurityConfig {
@@ -93,6 +93,7 @@ impl Config {
             in_codegen: false,
             add_date_comments: true,
             banned_builtin_functions: FxHashMap::default(),
+            banned_namespaces: FxHashMap::default(),
             max_changes_allowed: 5000,
         }
     }
@@ -159,9 +160,26 @@ impl Config {
             .collect();
         
         self.banned_namespaces = json_config
-            .banned_namespaces
-            .into_iter()
-            .map(|(k,v)| (interner.intern(k), ))
+        .banned_namespaces
+        .clone()
+        .into_iter()
+        .map(|(namespace, json_banned_namespace)| {
+            let interned_namespace = interner.intern(namespace);
+            let interned_message = interner.intern(json_banned_namespace.message);
+            let interned_allowed_namespaces: Vec<u32> = json_banned_namespace
+                .allowed_namespaces
+                .into_iter()
+                .map(|allowed| interner.intern(allowed))
+                .collect();
+            (
+                interned_namespace,
+                JsonBannedNamespace {
+                    message: interned_message,
+                    allowed_namespaces: interned_allowed_namespaces,
+                },
+            )
+        })
+        .collect();
 
         self.security_config.ignore_patterns = json_config
             .security_analysis
