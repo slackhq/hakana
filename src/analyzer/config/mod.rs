@@ -27,7 +27,7 @@ pub struct Config {
     pub ignore_issue_patterns: FxHashMap<IssueKind, Vec<glob::Pattern>>,
     pub ignore_all_issues_in_patterns: Vec<glob::Pattern>,
     pub banned_builtin_functions: FxHashMap<StrId, StrId>,
-    pub banned_namespaces: FxHashMap<StrId, BannedNamespace>,
+    pub banned_namespaces: FxHashMap<StrId, JsonBannedNamespace>,
     pub security_config: SecurityConfig,
     pub root_dir: String,
     pub hooks: Vec<Box<dyn CustomHook>>,
