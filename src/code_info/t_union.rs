@@ -509,19 +509,22 @@ impl TUnion {
                     format!("?{}", a.get_id_with_refs(interner, refs, indent))
                 }
                 (a, b) => {
-                    format!(
-                        "{}|{}",
-                        a.get_id_with_refs(interner, refs, indent),
-                        b.get_id_with_refs(interner, refs, indent)
-                    )
+                    let a_string = a.get_id_with_refs(interner, refs, indent);
+                    let b_string = b.get_id_with_refs(interner, refs, indent);
+                    if a_string > b_string {
+                        format!("{}|{}", b_string, a_string)
+                    } else {
+                        format!("{}|{}", a_string, b_string)
+                    }
                 }
             }
         } else {
-            let mut tatomic_strings = self
+            let tatomic_strings = self
                 .types
                 .iter()
                 .map(|atomic| atomic.get_id_with_refs(interner, refs, indent));
-            tatomic_strings.join("|")
+
+            tatomic_strings.sorted().join("|")
         }
     }
 
