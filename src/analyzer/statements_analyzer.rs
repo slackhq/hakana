@@ -2,9 +2,9 @@ use crate::config::Config;
 use crate::file_analyzer::FileAnalyzer;
 use crate::formula_generator::AssertionContext;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::loop_scope::LoopScope;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::stmt_analyzer::{self, AnalysisError};
 use hakana_code_info::code_location::{FilePath, HPos};
 use hakana_code_info::codebase_info::CodebaseInfo;
@@ -116,11 +116,11 @@ impl<'a> StatementsAnalyzer<'a> {
     }
 
     #[inline]
-    pub(crate) fn get_assertion_context<'b>(
-        &'b self,
+    pub(crate) fn get_assertion_context(
+        &self,
         this_class_name: Option<&'a StrId>,
         calling_functionlike_id: Option<&'a FunctionLikeIdentifier>,
-    ) -> AssertionContext {
+    ) -> AssertionContext<'a> {
         AssertionContext {
             file_source: &self.file_analyzer.file_source,
             resolved_names: self.file_analyzer.resolved_names,

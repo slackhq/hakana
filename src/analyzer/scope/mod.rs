@@ -42,6 +42,11 @@ impl CaseScope {
 
 #[derive(Clone, Debug)]
 pub struct BlockContext {
+    /**
+     * Stores the local variables for the current function being analyzed and
+     * also any properties that have assertions e.g. $foo and $foo->bar would
+     * both get entries if the function contained an assertion about $foo->bar.
+     */
     pub locals: BTreeMap<String, Rc<TUnion>>,
 
     /**
