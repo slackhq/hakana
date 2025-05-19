@@ -1,1 +1,1 @@
-ERROR: PossiblyInvalidArgument - input.hack:8:9 - Argument 1 of foo expects shape('a' => string), possibly different type shape('a' => string|int) provided in :4:45 is a mismatch with string
+ERROR: PossiblyInvalidArgument - input.hack:8:9 - Argument 1 of foo expects shape('a' => string), possibly different type shape('a' => int|string) provided in :4:45 is a mismatch with string
