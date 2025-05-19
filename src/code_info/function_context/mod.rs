@@ -2,8 +2,7 @@ use hakana_str::StrId;
 
 pub use crate::functionlike_identifier::FunctionLikeIdentifier;
 use crate::{
-    codebase_info::CodebaseInfo,
-    functionlike_info::{self, FunctionLikeInfo},
+    codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo,
     symbol_references::ReferenceSource,
 };
 

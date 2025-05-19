@@ -1,12 +1,4 @@
-use hakana_code_info::t_union::TUnion;
 use hakana_reflector::simple_type_inferer::get_atomic_for_prefix_regex_string;
-
-use std::sync::Arc;
-
-use hakana_code_info::t_atomic::DictKey;
-
-use std::collections::BTreeMap;
-
 use std::rc::Rc;
 
 use hakana_code_info::ttype::{get_string, wrap_atomic};
@@ -43,7 +35,7 @@ pub(crate) fn analyze(
     analysis_data.expr_types.insert(
         (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
         Rc::new(if boxed.0 == "re" {
-            let mut inner_text = inner_type.get_single_literal_string_value().unwrap();
+            let inner_text = inner_type.get_single_literal_string_value().unwrap();
             wrap_atomic(get_atomic_for_prefix_regex_string(inner_text))
         } else {
             inner_type

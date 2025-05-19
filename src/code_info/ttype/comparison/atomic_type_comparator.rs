@@ -873,9 +873,9 @@ pub(crate) fn can_be_identical<'a>(
     }
 
     if let TAtomic::TEnum {
-        name,
         as_type: None,
         underlying_type: Some(underlying_type),
+        ..
     } = type1_part
     {
         if !matches!(
@@ -891,9 +891,9 @@ pub(crate) fn can_be_identical<'a>(
     }
 
     if let TAtomic::TEnum {
-        name,
         as_type: None,
         underlying_type: Some(underlying_type),
+        ..
     } = type2_part
     {
         if !matches!(

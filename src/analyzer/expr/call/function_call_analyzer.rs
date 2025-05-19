@@ -4,9 +4,7 @@ use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{get_arrayish_params, get_void};
-use hakana_code_info::{
-    VarId, EFFECT_DB, EFFECT_IMPURE_DB, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS,
-};
+use hakana_code_info::{VarId, EFFECT_IMPURE_DB, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
 use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;

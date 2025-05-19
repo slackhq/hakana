@@ -7,7 +7,6 @@ use crate::{
     t_union::TUnion,
 };
 use hakana_str::StrId;
-use indexmap::IndexMap;
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
