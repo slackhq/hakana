@@ -17,7 +17,6 @@ use crate::{
 use crate::{functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier};
 use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
-use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::ttype::{extend_dataflow_uniquely, get_nothing, template, type_combiner, wrap_atomic};
@@ -73,48 +72,45 @@ pub fn expand_union(
     options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
 ) {
-    let mut new_return_type_parts = vec![];
+    let mut overall_new_atomic_types = Vec::with_capacity(return_type.types.len());
+    let mut overall_extra_data_flow_nodes = vec![];
 
-    let mut extra_data_flow_nodes = vec![];
+    // Take ownership of the types to process them one by one.
+    let original_types = std::mem::take(&mut return_type.types);
 
-    let mut skipped_keys = vec![];
+    for mut current_atomic_being_processed in original_types {
+        let mut skip_this_atomic = false;
+        // This vector will receive replacements if current_atomic_being_processed is skipped.
+        let mut replacements_for_current_atomic = Vec::new();
 
-    for (i, return_type_part) in return_type.types.iter_mut().enumerate() {
-        let mut skip_key = false;
         expand_atomic(
-            return_type_part,
+            &mut current_atomic_being_processed, // Modified in-place if not skipped
             codebase,
             interner,
             options,
             data_flow_graph,
-            &mut skip_key,
-            &mut new_return_type_parts,
-            &mut extra_data_flow_nodes,
+            &mut skip_this_atomic, // expand_atomic sets this to true if it wants to replace
+            &mut replacements_for_current_atomic, // expand_atomic pushes replacements here
+            &mut overall_extra_data_flow_nodes, // expand_atomic can still add global extras
         );
 
-        if skip_key {
-            skipped_keys.push(i);
-        }
-    }
-
-    if !skipped_keys.is_empty() {
-        let mut i = 0;
-        return_type.types.retain(|_| {
-            let to_retain = !skipped_keys.contains(&i);
-            i += 1;
-            to_retain
-        });
-
-        new_return_type_parts.extend(return_type.types.drain(..).collect_vec());
-
-        if new_return_type_parts.len() > 1 {
-            return_type.types = type_combiner::combine(new_return_type_parts, codebase, false)
+        if skip_this_atomic {
+            // current_atomic_being_processed is discarded, use replacements
+            overall_new_atomic_types.extend(replacements_for_current_atomic);
         } else {
-            return_type.types = new_return_type_parts;
+            // current_atomic_being_processed was modified in-place, keep it.
+            // replacements_for_current_atomic should be empty in this case.
+            overall_new_atomic_types.push(current_atomic_being_processed);
         }
     }
 
-    extend_dataflow_uniquely(&mut return_type.parent_nodes, extra_data_flow_nodes);
+    if overall_new_atomic_types.len() > 1 {
+        return_type.types = type_combiner::combine(overall_new_atomic_types, codebase, false);
+    } else {
+        return_type.types = overall_new_atomic_types;
+    }
+
+    extend_dataflow_uniquely(&mut return_type.parent_nodes, overall_extra_data_flow_nodes);
 }
 
 fn expand_atomic(
@@ -193,7 +189,7 @@ fn expand_atomic(
                 StaticClassType::Name(this_name) => *this_name,
                 StaticClassType::Object(obj) => {
                     *skip_key = true;
-                    new_return_type_parts.push(obj.clone().clone());
+                    new_return_type_parts.push(obj.clone());
                     return;
                 }
             };
@@ -210,7 +206,7 @@ fn expand_atomic(
                 {
                     if codebase.class_extends_or_implements(new_this_name, name) {
                         *skip_key = true;
-                        new_return_type_parts.push(obj.clone().clone());
+                        new_return_type_parts.push(obj.clone());
                         return;
                     }
                 }
