@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use hakana_algebra::Clause;
 use hakana_code_info::symbol_references::ReferenceSource;
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::FileSource;
 use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
@@ -84,7 +85,7 @@ pub(crate) fn get_formula(
                     {
                         let mut map = BTreeMap::new();
                         map.insert(
-                            var_id.clone(),
+                            VarName::new(var_id.clone()),
                             orred_types
                                 .into_iter()
                                 .map(|a| (a.to_hash(), a))
@@ -116,7 +117,7 @@ pub(crate) fn get_formula(
         {
             let mut map = BTreeMap::new();
             map.insert(
-                conditional_ref,
+                VarName::new(conditional_ref),
                 IndexMap::from([(Assertion::Truthy.to_hash(), Assertion::Truthy)]),
             );
             map

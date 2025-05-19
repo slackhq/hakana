@@ -5,22 +5,26 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, intersect_simple,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_code_info::ttype::{
-    comparison::{
-        atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
-    },
-    get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
-    get_mixed_dict, get_mixed_keyset, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing,
-    get_null, get_num, get_object, get_scalar, get_string, get_true, intersect_union_types,
-    template::TemplateBound,
-    wrap_atomic,
-};
 use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
+};
+use hakana_code_info::{
+    ttype::{
+        comparison::{
+            atomic_type_comparator, type_comparison_result::TypeComparisonResult,
+            union_type_comparator,
+        },
+        get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
+        get_mixed_dict, get_mixed_keyset, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing,
+        get_null, get_num, get_object, get_scalar, get_string, get_true, intersect_union_types,
+        template::TemplateBound,
+        wrap_atomic,
+    },
+    var_name::VarName,
 };
 use hakana_str::StrId;
 use oxidized::ast_defs::Pos;
@@ -31,7 +35,7 @@ pub(crate) fn reconcile(
     assertion: &Assertion,
     existing_var_type: &TUnion,
     possibly_undefined: bool,
-    key: Option<&String>,
+    key: Option<&VarName>,
     codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -446,7 +450,7 @@ pub(crate) fn reconcile(
 pub(crate) fn intersect_null(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -561,7 +565,7 @@ pub(crate) fn intersect_null(
 fn intersect_object(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -640,7 +644,7 @@ fn intersect_object(
 fn intersect_vec(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -768,7 +772,7 @@ fn intersect_vec(
 fn intersect_keyset(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -874,7 +878,7 @@ fn intersect_keyset(
 fn intersect_dict(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1013,7 +1017,7 @@ fn intersect_dict(
 fn intersect_arraykey(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1071,7 +1075,7 @@ fn intersect_arraykey(
 fn intersect_num(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1130,7 +1134,7 @@ fn intersect_string(
     codebase: &CodebaseInfo,
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1283,7 +1287,7 @@ fn intersect_int(
     codebase: &CodebaseInfo,
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1494,7 +1498,7 @@ fn intersect_enum_or_enum_case(
 fn reconcile_truthy(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1601,7 +1605,7 @@ fn reconcile_isset(
     assertion: &Assertion,
     existing_var_type: &TUnion,
     possibly_undefined: bool,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1681,7 +1685,7 @@ fn reconcile_isset(
 fn reconcile_non_empty_countable(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1787,7 +1791,7 @@ fn reconcile_non_empty_countable(
 fn reconcile_exactly_countable(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1887,7 +1891,7 @@ fn reconcile_exactly_countable(
 fn reconcile_array_access(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1945,7 +1949,7 @@ fn reconcile_in_array(
     codebase: &CodebaseInfo,
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1983,7 +1987,7 @@ fn reconcile_in_array(
 fn reconcile_has_array_key(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     key_name: &DictKey,
     negated: bool,
     possibly_undefined: bool,
@@ -2169,7 +2173,7 @@ fn reconcile_has_array_key(
 fn reconcile_has_nonnull_entry_for_key(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     key_name: &DictKey,
     negated: bool,
     possibly_undefined: bool,
@@ -2432,7 +2436,7 @@ fn reconcile_has_nonnull_entry_for_key(
 pub(crate) fn get_acceptable_type(
     acceptable_types: Vec<TAtomic>,
     did_remove_type: bool,
-    key: Option<&String>,
+    key: Option<&VarName>,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     existing_var_type: &TUnion,

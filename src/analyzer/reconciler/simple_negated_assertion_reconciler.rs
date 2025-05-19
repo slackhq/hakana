@@ -7,6 +7,7 @@ use hakana_code_info::ttype::{
     comparison::union_type_comparator, get_mixed_any, get_nothing, get_null, intersect_union_types,
     wrap_atomic,
 };
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
@@ -23,7 +24,7 @@ pub(crate) fn reconcile(
     assertion: &Assertion,
     existing_var_type: &TUnion,
     possibly_undefined: bool,
-    key: Option<&String>,
+    key: Option<&VarName>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     pos: Option<&Pos>,
@@ -319,7 +320,7 @@ pub(crate) fn reconcile(
 fn subtract_object(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -395,7 +396,7 @@ fn subtract_object(
 fn subtract_vec(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -470,7 +471,7 @@ fn subtract_vec(
 fn subtract_keyset(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -545,7 +546,7 @@ fn subtract_keyset(
 fn subtract_dict(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -620,7 +621,7 @@ fn subtract_dict(
 fn subtract_string(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -718,7 +719,7 @@ fn subtract_string(
 fn subtract_int(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -833,7 +834,7 @@ fn subtract_int(
 fn subtract_float(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -933,7 +934,7 @@ fn subtract_float(
 fn subtract_num(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1030,7 +1031,7 @@ fn subtract_num(
 fn subtract_arraykey(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1129,7 +1130,7 @@ fn subtract_arraykey(
 fn subtract_bool(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1219,7 +1220,7 @@ fn subtract_bool(
 pub(crate) fn subtract_null(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1303,7 +1304,7 @@ pub(crate) fn subtract_null(
 fn subtract_false(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1386,7 +1387,7 @@ fn subtract_false(
 fn subtract_true(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1476,7 +1477,7 @@ fn subtract_true(
 fn reconcile_falsy(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1595,7 +1596,7 @@ fn reconcile_falsy(
 fn reconcile_not_isset(
     existing_var_type: &TUnion,
     possibly_undefined: bool,
-    key: Option<&String>,
+    key: Option<&VarName>,
     pos: Option<&Pos>,
     _suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1623,7 +1624,7 @@ fn reconcile_not_isset(
 fn reconcile_empty_countable(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1694,7 +1695,7 @@ fn reconcile_empty_countable(
 fn reconcile_not_exactly_countable(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1752,7 +1753,7 @@ fn reconcile_not_in_array(
     codebase: &CodebaseInfo,
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     negated: bool,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -1790,7 +1791,7 @@ fn reconcile_not_in_array(
 fn reconcile_no_array_key(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     key_name: &DictKey,

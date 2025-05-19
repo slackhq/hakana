@@ -33,6 +33,7 @@ use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansio
 use hakana_code_info::ttype::{
     add_optional_union_type, comparison, get_mixed_any, get_nothing, get_void, wrap_atomic,
 };
+use hakana_code_info::var_name::VarName;
 use hakana_str::{Interner, StrId};
 use itertools::Itertools;
 use oxidized::ast_defs::Pos;
@@ -306,7 +307,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             context
                 .locals
-                .insert("$this".to_string(), Rc::new(this_type));
+                .insert(VarName::new("$this".to_string()), Rc::new(this_type));
         }
 
         statements_analyzer.set_function_info(functionlike_storage);
@@ -410,7 +411,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     &mut analysis_data.data_flow_graph,
                 );
 
-                context.locals.insert(expr_id, Rc::new(property_type));
+                context
+                    .locals
+                    .insert(VarName::new(expr_id), Rc::new(property_type));
             }
         }
 
@@ -1089,10 +1092,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             context.locals.insert(
-                statements_analyzer
-                    .interner
-                    .lookup(&param.name.0)
-                    .to_string(),
+                VarName::new(
+                    statements_analyzer
+                        .interner
+                        .lookup(&param.name.0)
+                        .to_string(),
+                ),
                 Rc::new(param_type.clone()),
             );
         }

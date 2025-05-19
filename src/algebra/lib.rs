@@ -1,6 +1,7 @@
 pub mod clause;
 
 pub use clause::Clause;
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::assertion::Assertion;
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -286,10 +287,10 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 pub fn get_truths_from_formula(
     clauses: Vec<&Clause>,
     creating_conditional_id: Option<(u32, u32)>,
-    cond_referenced_var_ids: &mut FxHashSet<String>,
+    cond_referenced_var_ids: &mut FxHashSet<VarName>,
 ) -> (
-    BTreeMap<String, Vec<Vec<Assertion>>>,
-    BTreeMap<String, FxHashSet<usize>>,
+    BTreeMap<VarName, Vec<Vec<Assertion>>>,
+    BTreeMap<VarName, FxHashSet<usize>>,
 ) {
     let mut truths = BTreeMap::new();
 

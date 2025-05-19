@@ -43,7 +43,7 @@ pub(crate) fn analyze(
             (pos.start_offset() as u32, pos.end_offset() as u32),
             EFFECT_READ_GLOBALS,
         );
-    } else if let Some(var_type) = context.locals.get(&lid.1 .1) {
+    } else if let Some(var_type) = context.locals.get(lid.1 .1.as_str()) {
         if var_type.parent_nodes.len() > 1
             && !context.inside_loop_exprs
             && context.for_loop_init_bounds.0 == 0

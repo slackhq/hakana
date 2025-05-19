@@ -8,14 +8,15 @@ use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::EFFECT_IMPURE;
-use hakana_code_info::{data_flow::graph::DataFlowGraph, t_union::populate_union_type};
-use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_code_info::ttype::wrap_atomic;
 use hakana_code_info::ttype::{
     get_mixed_any,
     type_expander::{self, TypeExpansionOptions},
 };
+use hakana_code_info::var_name::VarName;
+use hakana_code_info::EFFECT_IMPURE;
+use hakana_code_info::{data_flow::graph::DataFlowGraph, t_union::populate_union_type};
+use hakana_reflector::typehint_resolver::get_type_from_hint;
 use oxidized::aast;
 
 pub(crate) fn analyze<'expr>(
@@ -197,7 +198,9 @@ fn get_fake_as_var(
         .cloned()
         .unwrap_or(Rc::new(get_mixed_any()));
 
-    context.locals.insert(left_var_id.clone(), condition_type);
+    context
+        .locals
+        .insert(VarName::new(left_var_id.clone()), condition_type);
 
     return Some(aast::Expr(
         (),

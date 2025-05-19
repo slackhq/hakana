@@ -6,9 +6,12 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::data_flow::graph::GraphKind;
-use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind};
+use hakana_code_info::data_flow::node::{
+    DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind,
+};
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::ttype::{combine_union_types, get_named_object};
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::VarId;
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -193,7 +196,7 @@ pub(crate) fn analyze(
 
         catch_context
             .locals
-            .insert(catch_var_id.clone(), Rc::new(catch_type));
+            .insert(VarName::new(catch_var_id.clone()), Rc::new(catch_type));
 
         let old_catch_assigned_var_ids = catch_context.assigned_var_ids.clone();
 

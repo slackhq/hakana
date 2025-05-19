@@ -1,6 +1,6 @@
 use std::borrow::{Borrow, Cow};
-use std::fmt::{Debug, Display, Formatter, Write};
-use std::hash::{Hash, Hasher};
+use std::fmt::{Debug, Formatter};
+use std::hash::Hash;
 use std::ops::Deref;
 
 #[derive(

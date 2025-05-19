@@ -1,32 +1,32 @@
 use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
-use hakana_code_info::{assertion::Assertion, t_union::TUnion};
+use hakana_code_info::{assertion::Assertion, t_union::TUnion, var_name::VarName};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::control_action::ControlAction;
 
 #[derive(Clone, Debug, Default)]
 pub struct IfScope {
-    pub new_vars: Option<BTreeMap<String, TUnion>>,
+    pub new_vars: Option<BTreeMap<VarName, TUnion>>,
 
-    pub new_vars_possibly_in_scope: FxHashSet<String>,
+    pub new_vars_possibly_in_scope: FxHashSet<VarName>,
 
-    pub redefined_vars: Option<FxHashMap<String, TUnion>>,
+    pub redefined_vars: Option<FxHashMap<VarName, TUnion>>,
 
-    pub removed_var_ids: FxHashSet<String>,
+    pub removed_var_ids: FxHashSet<VarName>,
 
-    pub assigned_var_ids: Option<FxHashMap<String, usize>>,
+    pub assigned_var_ids: Option<FxHashMap<VarName, usize>>,
 
-    pub possibly_assigned_var_ids: FxHashSet<String>,
+    pub possibly_assigned_var_ids: FxHashSet<VarName>,
 
-    pub possibly_redefined_vars: FxHashMap<String, TUnion>,
+    pub possibly_redefined_vars: FxHashMap<VarName, TUnion>,
 
-    pub updated_vars: FxHashSet<String>,
+    pub updated_vars: FxHashSet<VarName>,
 
-    pub negated_types: BTreeMap<String, Vec<Vec<Assertion>>>,
+    pub negated_types: BTreeMap<VarName, Vec<Vec<Assertion>>>,
 
-    pub if_cond_changed_var_ids: FxHashSet<String>,
+    pub if_cond_changed_var_ids: FxHashSet<VarName>,
 
     pub negated_clauses: Vec<Clause>,
 

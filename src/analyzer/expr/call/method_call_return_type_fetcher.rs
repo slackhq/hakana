@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::ttype::get_mixed;
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::{ExprId, GenericParent, VarId};
 use hakana_str::{Interner, StrId};
 use oxidized::aast;
@@ -411,9 +412,10 @@ fn add_dataflow(
 
                     context_type_inner.parent_nodes = vec![var_node.clone()];
 
-                    context
-                        .locals
-                        .insert(lhs_var_id.clone(), Rc::new(context_type_inner));
+                    context.locals.insert(
+                        VarName::new(lhs_var_id.clone()),
+                        Rc::new(context_type_inner),
+                    );
 
                     data_flow_graph.add_node(var_node);
                     data_flow_graph.add_node(this_before_method_node);

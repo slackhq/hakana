@@ -1028,7 +1028,7 @@ pub(crate) fn evaluate_arbitrary_param(
         );
 
         if let Some(var_id) = var_id {
-            if let Some(t) = context.locals.get(&var_id) {
+            if let Some(t) = context.locals.get(var_id.as_str()) {
                 let t = (**t).clone();
 
                 context.remove_var_from_conflicting_clauses(

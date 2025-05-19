@@ -12,6 +12,7 @@ use crate::{algebra_analyzer, expression_analyzer, formula_generator};
 use hakana_algebra::Clause;
 use hakana_code_info::assertion::Assertion;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any};
+use hakana_code_info::var_name::VarName;
 use oxidized::aast;
 use oxidized::ast_defs::Uop;
 use oxidized::pos::Pos;
@@ -86,7 +87,7 @@ pub(crate) fn analyze(
     if_clauses = if_clauses
         .into_iter()
         .map(|c| {
-            let keys = &c.possibilities.keys().collect::<Vec<&String>>();
+            let keys = &c.possibilities.keys().collect::<Vec<&VarName>>();
 
             let mut new_mixed_var_ids = vec![];
             for i in mixed_var_ids.clone() {

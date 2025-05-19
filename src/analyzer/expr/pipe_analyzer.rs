@@ -6,9 +6,10 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::{DataFlowNode, VariableSourceKind};
+use hakana_code_info::ttype::get_mixed_any;
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::{VarId, EFFECT_IMPURE, EFFECT_PURE};
 use hakana_str::StrId;
-use hakana_code_info::ttype::get_mixed_any;
 use oxidized::{aast, aast_defs, ast_defs::Pos};
 
 pub(crate) fn analyze(
@@ -18,12 +19,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    expression_analyzer::analyze(
-        statements_analyzer,
-        expr.1,
-        analysis_data,
-        context,
-    )?;
+    expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
 
     let mut pipe_expr_type = analysis_data
         .get_expr_type(&expr.1 .1)
@@ -47,7 +43,7 @@ pub(crate) fn analyze(
 
     context
         .locals
-        .insert("$$".to_string(), Rc::new(pipe_expr_type));
+        .insert(VarName::new("$$".to_string()), Rc::new(pipe_expr_type));
 
     context.pipe_var_effects = *analysis_data
         .expr_effects
@@ -57,12 +53,8 @@ pub(crate) fn analyze(
         ))
         .unwrap_or(&EFFECT_PURE);
 
-    let analyzed_ok = expression_analyzer::analyze(
-        statements_analyzer,
-        expr.2,
-        analysis_data,
-        context,
-    );
+    let analyzed_ok =
+        expression_analyzer::analyze(statements_analyzer, expr.2, analysis_data, context);
 
     context.locals.remove("$$");
     context.pipe_var_effects = EFFECT_PURE;

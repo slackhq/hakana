@@ -9,12 +9,16 @@ use hakana_code_info::{
     t_union::TUnion,
     EFFECT_WRITE_PROPS,
 };
-use hakana_str::StrId;
-use hakana_code_info::ttype::{
-    add_optional_union_type, get_mixed_any,
-    comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
-    type_expander::{self, StaticClassType, TypeExpansionOptions},
+use hakana_code_info::{
+    ttype::{
+        add_optional_union_type,
+        comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+        get_mixed_any,
+        type_expander::{self, StaticClassType, TypeExpansionOptions},
+    },
+    var_name::VarName,
 };
+use hakana_str::StrId;
 use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
@@ -87,7 +91,9 @@ pub(crate) fn analyze(
         if type_match_found {
             if let Some(union_type) = union_comparison_result.replacement_union_type {
                 if let Some(var_id) = var_id.clone() {
-                    context.locals.insert(var_id, Rc::new(union_type));
+                    context
+                        .locals
+                        .insert(VarName::new(var_id), Rc::new(union_type));
                 }
             }
 
@@ -133,8 +139,7 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
-                                class_property_type
-                                    .get_id(Some(statements_analyzer.interner)),
+                                class_property_type.get_id(Some(statements_analyzer.interner)),
                                 assignment_type.get_id(Some(statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
@@ -150,8 +155,7 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
-                                class_property_type
-                                    .get_id(Some(statements_analyzer.interner)),
+                                class_property_type.get_id(Some(statements_analyzer.interner)),
                                 assignment_type.get_id(Some(statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
@@ -246,10 +250,7 @@ pub(crate) fn analyze_regular_assignment(
         stmt_var,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((
-            statements_analyzer.codebase,
-            statements_analyzer.interner,
-        )),
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
     // if let Some(var_id) = var_id.clone() {
@@ -354,7 +355,9 @@ pub(crate) fn analyze_regular_assignment(
     if let Some(var_id) = var_id {
         let context_type = Rc::new(context_type.unwrap_or(get_mixed_any()).clone());
 
-        context.locals.insert(var_id.to_owned(), context_type);
+        context
+            .locals
+            .insert(VarName::new(var_id.to_owned()), context_type);
     }
 
     Ok(assigned_properties)
@@ -438,10 +441,7 @@ pub(crate) fn analyze_atomic_assignment(
             expr.0,
             None,
             statements_analyzer.file_analyzer.resolved_names,
-            Some((
-                statements_analyzer.codebase,
-                statements_analyzer.interner,
-            )),
+            Some((statements_analyzer.codebase, statements_analyzer.interner)),
         );
 
         add_instance_property_dataflow(
@@ -549,12 +549,7 @@ pub(crate) fn analyze_atomic_assignment(
                     self_class: Some(&declaring_classlike_storage.name),
                     static_class_type: StaticClassType::Name(&declaring_classlike_storage.name),
                     parent_class: declaring_classlike_storage.direct_parent_class.as_ref(),
-                    file_path: Some(
-                        &statements_analyzer
-                            .file_analyzer
-                            .file_source
-                            .file_path,
-                    ),
+                    file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
@@ -673,7 +668,7 @@ fn add_instance_property_assignment_dataflow(
             vec![],
         );
     }
-    let stmt_var_type = context.locals.get_mut(&lhs_var_id);
+    let stmt_var_type = context.locals.get_mut(lhs_var_id.as_str());
     if let Some(stmt_var_type) = stmt_var_type {
         let mut stmt_type_inner = (**stmt_var_type).clone();
 
