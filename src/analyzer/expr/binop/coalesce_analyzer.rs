@@ -8,6 +8,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any, get_null};
+use hakana_code_info::var_name::VarName;
 use oxidized::aast::{self, CallExpr};
 use oxidized::ast::Argument;
 use rustc_hash::FxHashSet;
@@ -136,9 +137,9 @@ pub(crate) fn analyze<'expr>(
                         ))),
                     ),
                     targs: vec![],
-                    args: vec![
-                        Argument::Anormal(replacement_left.clone().unwrap_or(left.clone())),
-                    ],
+                    args: vec![Argument::Anormal(
+                        replacement_left.clone().unwrap_or(left.clone()),
+                    )],
                     unpacked_arg: None,
                 })),
             ),
@@ -225,7 +226,7 @@ fn get_left_expr(
 
     context
         .locals
-        .insert(root_expr_var_id.clone(), condition_type);
+        .insert(VarName::new(root_expr_var_id.clone()), condition_type);
 
     if root_expr != left {
         let mut left = left.clone();

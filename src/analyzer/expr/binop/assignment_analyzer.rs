@@ -1,7 +1,9 @@
+use hakana_algebra::clause::ClauseKey;
 use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::data_flow::node::VariableSourceKind;
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::VarId;
 use hakana_code_info::EFFECT_WRITE_LOCAL;
 use hakana_str::StrId;
@@ -89,13 +91,16 @@ pub(crate) fn analyze(
     let mut existing_var_type = None;
 
     if let Some(var_id) = &var_id {
-        context.cond_referenced_var_ids.remove(var_id);
+        context.cond_referenced_var_ids.remove(var_id.as_str());
+        context.assigned_var_ids.insert(
+            VarName::new(var_id.clone()),
+            assign_var.pos().start_offset(),
+        );
         context
-            .assigned_var_ids
-            .insert(var_id.clone(), assign_var.pos().start_offset());
-        context.possibly_assigned_var_ids.insert(var_id.clone());
+            .possibly_assigned_var_ids
+            .insert(VarName::new(var_id.clone()));
 
-        existing_var_type = context.locals.get(var_id).cloned();
+        existing_var_type = context.locals.get(var_id.as_str()).cloned();
     }
 
     if let Some(assign_value) = assign_value {
@@ -285,7 +290,8 @@ pub(crate) fn analyze(
         let root_var_id = get_root_var_id(assign_var);
 
         if let Some(root_var_id) = root_var_id {
-            if let Some(existing_root_type) = context.locals.get(&root_var_id).cloned() {
+            let root_var_id = VarName::new(root_var_id);
+            if let Some(existing_root_type) = context.locals.get(root_var_id.as_str()).cloned() {
                 context.remove_var_from_conflicting_clauses(
                     &root_var_id,
                     Some(&existing_root_type),
@@ -307,7 +313,7 @@ pub(crate) fn analyze(
             assign_var,
             assign_value,
             assign_value_type,
-            var_id.as_ref().unwrap(),
+            VarName::new(var_id.as_ref().unwrap().clone()),
             analysis_data,
             context,
             inout_node,
@@ -496,7 +502,7 @@ fn analyze_assignment_to_variable(
     var_expr: &aast::Expr<(), ()>,
     source_expr: Option<&aast::Expr<(), ()>>,
     mut assign_value_type: TUnion,
-    var_id: &String,
+    var_id: VarName,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     inout_node: Option<(DataFlowNode, &Pos)>,
@@ -547,7 +553,7 @@ fn analyze_assignment_to_variable(
             } else {
                 VariableSourceKind::Default
             },
-            VarId(statements_analyzer.interner.get(var_id).unwrap()),
+            VarId(statements_analyzer.interner.get(var_id.as_str()).unwrap()),
             var_expr_pos,
             !context.inside_awaitall
                 && if let Some(source_expr) = source_expr {
@@ -563,7 +569,7 @@ fn analyze_assignment_to_variable(
         )
     } else {
         DataFlowNode::get_for_lvar(
-            VarId(statements_analyzer.interner.get(var_id).unwrap()),
+            VarId(statements_analyzer.interner.get(var_id.as_str()).unwrap()),
             statements_analyzer.get_hpos(var_expr.pos()),
         )
     };
@@ -614,7 +620,7 @@ fn analyze_assignment_to_variable(
             let for_node = DataFlowNode {
                 id: DataFlowNodeId::ForInit(start_offset, end_offset),
                 kind: DataFlowNodeKind::ForLoopInit {
-                    var_id: VarId(statements_analyzer.interner.get(var_id).unwrap()),
+                    var_id: VarId(statements_analyzer.interner.get(var_id.as_str()).unwrap()),
                 },
             };
 
@@ -632,7 +638,7 @@ fn analyze_assignment_to_variable(
                     statements_analyzer,
                     context,
                     analysis_data,
-                    var_id,
+                    &var_id,
                 );
             }
         }
@@ -640,7 +646,7 @@ fn analyze_assignment_to_variable(
 
     context
         .locals
-        .insert(var_id.clone(), Rc::new(assign_value_type));
+        .insert(VarName::new(var_id.to_string()), Rc::new(assign_value_type));
 }
 
 fn handle_assignment_with_boolean_logic(
@@ -649,7 +655,7 @@ fn handle_assignment_with_boolean_logic(
     statements_analyzer: &StatementsAnalyzer<'_>,
     context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
-    var_id: &String,
+    var_id: &VarName,
 ) {
     // todo support $a = !($b || $c)
     let var_object_id = (
@@ -678,7 +684,7 @@ fn handle_assignment_with_boolean_logic(
 
     if let Ok(right_clauses) = right_clauses {
         let right_clauses = BlockContext::filter_clauses(
-            var_id,
+            var_id.as_str(),
             right_clauses.into_iter().map(Rc::new).collect(),
             None,
             None,
@@ -687,7 +693,7 @@ fn handle_assignment_with_boolean_logic(
 
         let mut possibilities = BTreeMap::new();
         possibilities.insert(
-            var_id.clone(),
+            ClauseKey::Name(var_id.clone()),
             IndexMap::from([(Assertion::Falsy.to_hash(), Assertion::Falsy)]),
         );
 

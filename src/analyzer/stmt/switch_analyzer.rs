@@ -1,4 +1,7 @@
-use hakana_code_info::ttype::{combine_union_types, get_mixed_any};
+use hakana_code_info::{
+    ttype::{combine_union_types, get_mixed_any},
+    var_name::VarName,
+};
 
 use indexmap::IndexMap;
 use oxidized::{aast, aast::Pos};
@@ -44,17 +47,14 @@ pub(crate) fn analyze(
         stmt.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((
-            statements_analyzer.codebase,
-            statements_analyzer.interner,
-        )),
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     ) {
         switch_var_id
     } else {
         let switch_var_id = format!("$-tmp_switch-{}", stmt.0 .1.start_offset());
 
         context.locals.insert(
-            switch_var_id.clone(),
+            VarName::new(switch_var_id.clone()),
             analysis_data
                 .get_rc_expr_type(&stmt.0 .1)
                 .cloned()
@@ -94,6 +94,8 @@ pub(crate) fn analyze(
     cases.reverse();
 
     let mut previous_empty_cases = vec![];
+
+    let switch_var_id = VarName::new(switch_var_id);
 
     for (i, case) in &cases {
         if !case

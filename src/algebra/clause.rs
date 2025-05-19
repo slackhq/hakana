@@ -1,10 +1,27 @@
 use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::num::Wrapping;
 
 use hakana_code_info::assertion::Assertion;
+use hakana_code_info::var_name::VarName;
 use hakana_str::Interner;
 use indexmap::IndexMap;
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ClauseKey {
+    Name(VarName),
+    Range(u32, u32),
+}
+
+impl Display for ClauseKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ClauseKey::Name(var_name) => write!(f, "{}", var_name.to_string()),
+            ClauseKey::Range(start, end) => write!(f, "{}-{}", start, end),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Eq)]
 pub struct Clause {
@@ -13,7 +30,7 @@ pub struct Clause {
 
     pub hash: u32,
 
-    // An array of strings of the form
+    // An array of VarName strings of the form
     // [
     //     '$a' => ['falsy'],
     //     '$b' => ['!falsy'],
@@ -23,7 +40,7 @@ pub struct Clause {
     //
     // represents the formula
     // !$a || $b || $c !== null || is_string($d) || is_int($d)
-    pub possibilities: BTreeMap<String, IndexMap<u64, Assertion>>,
+    pub possibilities: BTreeMap<ClauseKey, IndexMap<u64, Assertion>>,
 
     pub wedge: bool,
     pub reconcilable: bool,
@@ -44,7 +61,7 @@ impl Hash for Clause {
 
 impl Clause {
     pub fn new(
-        possibilities: BTreeMap<String, IndexMap<u64, Assertion>>,
+        possibilities: BTreeMap<ClauseKey, IndexMap<u64, Assertion>>,
         creating_conditional_id: (u32, u32),
         creating_object_id: (u32, u32),
         wedge: Option<bool>,
@@ -67,7 +84,7 @@ impl Clause {
         }
     }
 
-    pub fn remove_possibilities(&self, var_id: &String) -> Option<Clause> {
+    pub fn remove_possibilities(&self, var_id: &ClauseKey) -> Option<Clause> {
         let mut possibilities = self.possibilities.clone();
 
         possibilities.remove(var_id);
@@ -94,7 +111,7 @@ impl Clause {
 
     pub fn add_possibility(
         &self,
-        var_id: String,
+        var_id: ClauseKey,
         new_possibility: IndexMap<u64, Assertion>,
     ) -> Clause {
         let mut possibilities = self.possibilities.clone();
@@ -137,10 +154,10 @@ impl Clause {
             })
     }
 
-    pub fn get_impossibilities(&self) -> BTreeMap<String, Vec<Assertion>> {
+    pub fn get_impossibilities(&self) -> BTreeMap<ClauseKey, Vec<Assertion>> {
         let mut impossibilities = BTreeMap::new();
 
-        for (var_id, possiblity) in &self.possibilities {
+        for (var_key, possiblity) in &self.possibilities {
             let mut impossibility = vec![];
 
             for (_, assertion) in possiblity {
@@ -157,7 +174,7 @@ impl Clause {
             }
 
             if !impossibility.is_empty() {
-                impossibilities.insert(var_id.clone(), impossibility);
+                impossibilities.insert(var_key.clone(), impossibility);
             }
         }
         impossibilities
@@ -171,35 +188,36 @@ impl Clause {
         }
 
         for (var_id, values) in self.possibilities.iter() {
-            let mut var_id = var_id.clone();
-
-            if var_id[0..1] == *"*" {
-                var_id = "<expr>".to_string()
-            }
+            let var_id_str = match var_id {
+                ClauseKey::Name(var_id) => var_id.to_string(),
+                ClauseKey::Range(_, _) => "<expr>".to_string(),
+            };
 
             let mut clause_string_parts = vec![];
 
             for (_, value) in values {
                 match value {
                     Assertion::Any => {
-                        clause_string_parts.push(var_id.to_string() + " is any");
+                        clause_string_parts.push(var_id_str.to_string() + " is any");
                     }
                     Assertion::Falsy => {
-                        clause_string_parts.push("!".to_string() + &var_id);
+                        clause_string_parts.push("!".to_string() + &var_id_str);
                         continue;
                     }
                     Assertion::Truthy => {
-                        clause_string_parts.push(var_id.clone());
+                        clause_string_parts.push(var_id_str.clone());
                         continue;
                     }
                     Assertion::IsType(value) | Assertion::IsEqual(value) => {
                         clause_string_parts.push(
-                            var_id.to_string() + " is " + value.get_id(Some(interner)).as_str(),
+                            var_id_str.to_string() + " is " + value.get_id(Some(interner)).as_str(),
                         );
                     }
                     Assertion::IsNotType(value) | Assertion::IsNotEqual(value) => {
                         clause_string_parts.push(
-                            var_id.to_string() + " is not " + value.get_id(Some(interner)).as_str(),
+                            var_id_str.to_string()
+                                + " is not "
+                                + value.get_id(Some(interner)).as_str(),
                         );
                     }
                     _ => {
@@ -228,7 +246,7 @@ impl Clause {
 
 #[inline]
 fn get_hash(
-    possibilities: &BTreeMap<String, IndexMap<u64, Assertion>>,
+    possibilities: &BTreeMap<ClauseKey, IndexMap<u64, Assertion>>,
     creating_object_id: (u32, u32),
     wedge: bool,
     reconcilable: bool,

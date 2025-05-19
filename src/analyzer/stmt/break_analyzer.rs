@@ -6,6 +6,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::ttype::{combine_optional_union_types, combine_union_types};
+use hakana_code_info::var_name::VarName;
 use rustc_hash::FxHashMap;
 
 pub(crate) fn analyze(
@@ -54,7 +55,7 @@ pub(crate) fn analyze(
             for (var_id, var_type) in &context.locals {
                 if !loop_scope.parent_context_vars.contains_key(var_id) {
                     loop_scope.possibly_defined_loop_parent_vars.insert(
-                        var_id.clone(),
+                        VarName::new(var_id.to_string()),
                         combine_optional_union_types(
                             Some(var_type),
                             loop_scope.possibly_defined_loop_parent_vars.get(var_id),

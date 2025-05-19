@@ -5,12 +5,12 @@ use crate::{
     },
     stmt_analyzer::AnalysisError,
 };
-use hakana_algebra::Clause;
-use hakana_code_info::{
-    analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS,
-    EFFECT_READ_PROPS,
-};
+use hakana_algebra::{clause::ClauseKey, Clause};
 use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
+use hakana_code_info::{
+    analysis_result::Replacement, issue::IssueKind, var_name::VarName, EFFECT_PURE,
+    EFFECT_READ_GLOBALS, EFFECT_READ_PROPS,
+};
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
@@ -406,13 +406,18 @@ pub(crate) fn analyze(
 
 pub(crate) fn remove_clauses_with_mixed_vars(
     if_clauses: Vec<Clause>,
-    mut mixed_var_ids: Vec<&String>,
+    mut mixed_var_ids: Vec<&VarName>,
     cond_object_id: (u32, u32),
 ) -> Vec<Clause> {
     if_clauses
         .into_iter()
         .map(|c| {
-            let keys = c.possibilities.keys().collect::<Vec<_>>();
+            let mut keys = vec![];
+            for k in c.possibilities.keys() {
+                if let ClauseKey::Name(var_name) = k {
+                    keys.push(var_name);
+                }
+            }
 
             let mut new_mixed_var_ids = vec![];
             for i in &mixed_var_ids {

@@ -11,17 +11,18 @@ use crate::{
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
+use hakana_code_info::ttype::{
+    add_optional_union_type, add_union_type, combine_optional_union_types, get_arraykey, get_int,
+    get_literal_int, get_literal_string, get_mixed_any, get_nothing,
+};
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
+    var_name::VarName,
 };
 use hakana_str::StrId;
-use hakana_code_info::ttype::{
-    add_optional_union_type, add_union_type, combine_optional_union_types, get_arraykey, get_int,
-    get_literal_int, get_literal_string, get_mixed_any, get_nothing,
-};
 use itertools::Itertools;
 use oxidized::{aast, ast_defs};
 
@@ -63,17 +64,15 @@ pub(crate) fn analyze(
         stmt.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((
-            statements_analyzer.codebase,
-            statements_analyzer.interner,
-        )),
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
     let iterator_type = if let Some(stmt_expr_type) = analysis_data.get_expr_type(stmt.0.pos()) {
         Some(stmt_expr_type.clone())
     } else if let Some(var_id) = &var_id {
-        if context.has_variable(var_id) {
-            context.locals.get(var_id).map(|t| (**t).clone())
+        let var_id = VarName::new(var_id.clone());
+        if context.has_variable(&var_id) {
+            context.locals.get(&var_id).map(|t| (**t).clone())
         } else {
             None
         }

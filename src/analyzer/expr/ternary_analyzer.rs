@@ -9,6 +9,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::{self, add_branch_dataflow};
 use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
+use hakana_algebra::clause::ClauseKey;
 use hakana_algebra::Clause;
 use hakana_code_info::assertion::Assertion;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any};
@@ -86,7 +87,12 @@ pub(crate) fn analyze(
     if_clauses = if_clauses
         .into_iter()
         .map(|c| {
-            let keys = &c.possibilities.keys().collect::<Vec<&String>>();
+            let mut keys = vec![];
+            for k in c.possibilities.keys() {
+                if let ClauseKey::Name(var_name) = k {
+                    keys.push(var_name);
+                }
+            }
 
             let mut new_mixed_var_ids = vec![];
             for i in mixed_var_ids.clone() {

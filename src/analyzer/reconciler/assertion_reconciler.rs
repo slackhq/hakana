@@ -6,21 +6,24 @@ use super::{
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
-use hakana_code_info::ttype::{
-    comparison::{
-        atomic_type_comparator::{self, expand_constant_value},
-        type_comparison_result::TypeComparisonResult,
-    },
-    get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
-    type_expander::{self, TypeExpansionOptions},
-    wrap_atomic,
-};
 use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{TAtomic, TDict},
     t_union::TUnion,
+};
+use hakana_code_info::{
+    ttype::{
+        comparison::{
+            atomic_type_comparator::{self, expand_constant_value},
+            type_comparison_result::TypeComparisonResult,
+        },
+        get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
+        type_expander::{self, TypeExpansionOptions},
+        wrap_atomic,
+    },
+    var_name::VarName,
 };
 use hakana_str::StrId;
 use oxidized::ast_defs::Pos;
@@ -30,7 +33,7 @@ pub fn reconcile(
     assertion: &Assertion,
     existing_var_type: Option<&TUnion>,
     possibly_undefined: bool,
-    key: Option<&String>,
+    key: Option<&VarName>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     inside_loop: bool,

@@ -1,7 +1,9 @@
 pub mod clause;
 
 pub use clause::Clause;
+use clause::ClauseKey;
 use hakana_code_info::assertion::Assertion;
+use hakana_code_info::var_name::VarName;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use rand::Rng;
@@ -36,7 +38,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
             let mut clause_has_unknown = false;
 
             for (key, _) in clause.possibilities.iter() {
-                if &key[0..1] == "*" {
+                if matches!(key, ClauseKey::Range(..)) {
                     clause_has_unknown = true;
                     break;
                 }
@@ -286,10 +288,10 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 pub fn get_truths_from_formula(
     clauses: Vec<&Clause>,
     creating_conditional_id: Option<(u32, u32)>,
-    cond_referenced_var_ids: &mut FxHashSet<String>,
+    cond_referenced_var_ids: &mut FxHashSet<VarName>,
 ) -> (
-    BTreeMap<String, Vec<Vec<Assertion>>>,
-    BTreeMap<String, FxHashSet<usize>>,
+    BTreeMap<VarName, Vec<Vec<Assertion>>>,
+    BTreeMap<VarName, FxHashSet<usize>>,
 ) {
     let mut truths = BTreeMap::new();
 
@@ -300,34 +302,37 @@ pub fn get_truths_from_formula(
             continue;
         }
 
-        for (var_id, possible_types) in &clause.possibilities {
-            if var_id.starts_with('*') {
-                continue;
-            }
+        for (clause_key, possible_types) in &clause.possibilities {
+            let var_name = match clause_key {
+                ClauseKey::Name(var_name) => var_name,
+                ClauseKey::Range(_, _) => {
+                    continue;
+                }
+            };
 
             if possible_types.len() == 1 {
                 let possible_type = possible_types.values().next().unwrap();
 
                 truths
-                    .entry(var_id.clone())
+                    .entry(var_name.clone())
                     .or_insert_with(Vec::new)
                     .push(vec![possible_type.clone()]);
 
                 if let Some(creating_conditional_id) = creating_conditional_id {
                     if creating_conditional_id == clause.creating_conditional_id {
                         active_truths
-                            .entry(var_id.clone())
+                            .entry(var_name.clone())
                             .or_insert_with(FxHashSet::default)
-                            .insert(truths.get(var_id).unwrap().len() - 1);
+                            .insert(truths.get(var_name).unwrap().len() - 1);
                     }
                 }
             } else {
                 if clause.generated {
-                    cond_referenced_var_ids.remove(var_id);
+                    cond_referenced_var_ids.remove(var_name);
                 }
 
                 truths.insert(
-                    var_id.clone(),
+                    var_name.clone(),
                     vec![possible_types
                         .into_iter()
                         .map(|(_, v)| v.clone())
@@ -337,9 +342,9 @@ pub fn get_truths_from_formula(
                 if let Some(creating_conditional_id) = creating_conditional_id {
                     if creating_conditional_id == clause.creating_conditional_id {
                         active_truths
-                            .entry(var_id.clone())
+                            .entry(var_name.clone())
                             .or_insert_with(FxHashSet::default)
-                            .insert(truths.get(var_id).unwrap().len() - 1);
+                            .insert(truths.get(var_name).unwrap().len() - 1);
                     }
                 }
             }

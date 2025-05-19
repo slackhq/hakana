@@ -1,11 +1,5 @@
 use std::rc::Rc;
 
-use hakana_code_info::ttype::{
-    add_optional_union_type, add_union_type,
-    comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
-    get_arraykey, get_int, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, get_null,
-    get_string,
-};
 use hakana_code_info::{
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
@@ -15,6 +9,15 @@ use hakana_code_info::{
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
+};
+use hakana_code_info::{
+    ttype::{
+        add_optional_union_type, add_union_type,
+        comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+        get_arraykey, get_int, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, get_null,
+        get_string,
+    },
+    var_name::VarName,
 };
 use hakana_str::StrId;
 use oxidized::{aast, ast_defs::Pos};
@@ -32,16 +35,13 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    keyed_array_var_id: Option<String>,
+    keyed_array_var_id: Option<VarName>,
 ) -> Result<(), AnalysisError> {
     let extended_var_id = expression_identifier::get_var_id(
         expr.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((
-            statements_analyzer.codebase,
-            statements_analyzer.interner,
-        )),
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
     let mut used_key_type;
@@ -69,13 +69,13 @@ pub(crate) fn analyze(
 
     if let Some(keyed_array_var_id) = &keyed_array_var_id {
         if context.has_variable(keyed_array_var_id) {
-            let mut stmt_type = context.locals.remove(keyed_array_var_id).unwrap();
+            let mut stmt_type = context.locals.remove(keyed_array_var_id.as_str()).unwrap();
 
             add_array_fetch_dataflow_rc(
                 statements_analyzer,
                 expr.0,
                 analysis_data,
-                Some(keyed_array_var_id.clone()),
+                Some(keyed_array_var_id.to_string()),
                 &mut stmt_type,
                 &mut used_key_type,
             );
@@ -120,7 +120,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             expr.0.pos(),
             analysis_data,
-            keyed_array_var_id.clone(),
+            keyed_array_var_id.map(|t| t.to_string()),
             &mut stmt_type_inner,
             &mut used_key_type,
         );
@@ -182,7 +182,7 @@ pub(crate) fn add_array_fetch_dataflow(
             // TODO Add events dispatchers
 
             let node_name = if let Some(keyed_array_var_id) = &keyed_array_var_id {
-                keyed_array_var_id.clone()
+                keyed_array_var_id.to_string()
             } else {
                 "arrayvalue-fetch".to_string()
             };
@@ -445,7 +445,7 @@ pub(crate) fn get_array_access_type_given_offset(
                             } else {
                                 stmt_type = Some(type_params[1].clone());
                             }
-    
+
                             has_valid_expected_offset = true;
                         }
                     }
@@ -901,8 +901,7 @@ pub(crate) fn handle_array_access_on_string(
         false,
         &mut TypeComparisonResult::new(),
     ) {
-        expected_offset_types
-            .push(valid_offset_type.get_id(Some(statements_analyzer.interner)));
+        expected_offset_types.push(valid_offset_type.get_id(Some(statements_analyzer.interner)));
 
         TUnion::new(vec![TAtomic::TString, TAtomic::TNull])
     } else {

@@ -21,6 +21,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
+use hakana_algebra::clause::ClauseKey;
 use hakana_algebra::Clause;
 use hakana_code_info::ast::get_id_name;
 use hakana_code_info::code_location::StmtStart;
@@ -37,6 +38,7 @@ use hakana_code_info::ttype::{
     extend_dataflow_uniquely, get_bool, get_false, get_float, get_int, get_literal_int,
     get_literal_string, get_mixed_any, get_null, get_true, wrap_atomic,
 };
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::EFFECT_IMPURE;
 use hakana_reflector::simple_type_inferer::int_from_string;
 use hakana_str::StrId;
@@ -149,10 +151,7 @@ pub(crate) fn analyze(
                 expr,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.file_analyzer.resolved_names,
-                Some((
-                    statements_analyzer.codebase,
-                    statements_analyzer.interner,
-                )),
+                Some((statements_analyzer.codebase, statements_analyzer.interner)),
             );
 
             array_fetch_analyzer::analyze(
@@ -161,7 +160,7 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-                keyed_array_var_id,
+                keyed_array_var_id.map(|t| VarName::new(t)),
             )?;
         }
         aast::Expr_::Eif(boxed) => {
@@ -523,7 +522,7 @@ pub(crate) fn analyze(
                 context,
                 None,
             )?;
-        },
+        }
     }
 
     let newly_called = analysis_data.after_expr_hook_called.insert((
@@ -615,7 +614,12 @@ pub(crate) fn find_expr_logic_issues(
     expr_clauses = expr_clauses
         .into_iter()
         .map(|c| {
-            let keys = &c.possibilities.keys().collect::<Vec<&String>>();
+            let mut keys = vec![];
+            for k in c.possibilities.keys() {
+                if let ClauseKey::Name(var_name) = k {
+                    keys.push(var_name);
+                }
+            }
 
             let mut new_mixed_var_ids = vec![];
             for i in mixed_var_ids.clone() {

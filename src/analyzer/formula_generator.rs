@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
+use hakana_algebra::clause::ClauseKey;
 use hakana_algebra::Clause;
 use hakana_code_info::symbol_references::ReferenceSource;
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::FileSource;
 use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
@@ -84,7 +86,7 @@ pub(crate) fn get_formula(
                     {
                         let mut map = BTreeMap::new();
                         map.insert(
-                            var_id.clone(),
+                            ClauseKey::Name(VarName::new(var_id.clone())),
                             orred_types
                                 .into_iter()
                                 .map(|a| (a.to_hash(), a))
@@ -106,11 +108,10 @@ pub(crate) fn get_formula(
         return Ok(clauses);
     }
 
-    let mut conditional_ref = String::new();
-    conditional_ref += "*";
-    conditional_ref += conditional.1.start_offset().to_string().as_str();
-    conditional_ref += "-";
-    conditional_ref += conditional.1.end_offset().to_string().as_str();
+    let conditional_ref = ClauseKey::Range(
+        conditional.1.start_offset() as u32,
+        conditional.1.end_offset() as u32,
+    );
 
     Ok(vec![Clause::new(
         {

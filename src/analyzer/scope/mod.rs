@@ -2,8 +2,10 @@ use std::cell::RefCell;
 use std::{collections::BTreeMap, rc::Rc};
 
 use control_action::ControlAction;
+use hakana_algebra::clause::ClauseKey;
 use hakana_algebra::Clause;
 use hakana_code_info::function_context::FunctionContext;
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::EFFECT_PURE;
 use hakana_code_info::{assertion::Assertion, t_union::TUnion};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -20,12 +22,12 @@ pub mod switch_scope;
 
 #[derive(Clone, Debug)]
 pub struct FinallyScope {
-    pub locals: BTreeMap<String, Rc<TUnion>>,
+    pub locals: BTreeMap<VarName, Rc<TUnion>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct CaseScope {
-    pub break_vars: Option<FxHashMap<String, TUnion>>,
+    pub break_vars: Option<FxHashMap<VarName, TUnion>>,
 }
 
 impl Default for CaseScope {
@@ -47,22 +49,22 @@ pub struct BlockContext {
      * also any properties that have assertions e.g. $foo and $foo->bar would
      * both get entries if the function contained an assertion about $foo->bar.
      */
-    pub locals: BTreeMap<String, Rc<TUnion>>,
+    pub locals: BTreeMap<VarName, Rc<TUnion>>,
 
     /**
      * A list of variables that have been referenced
      */
-    pub cond_referenced_var_ids: FxHashSet<String>,
+    pub cond_referenced_var_ids: FxHashSet<VarName>,
 
     /**
      * A list of vars that have been assigned to
      */
-    pub assigned_var_ids: FxHashMap<String, usize>,
+    pub assigned_var_ids: FxHashMap<VarName, usize>,
 
     /**
      * A list of vars that have been may have been assigned to
      */
-    pub possibly_assigned_var_ids: FxHashSet<String>,
+    pub possibly_assigned_var_ids: FxHashSet<VarName>,
 
     /**
      * Whether or not we're inside the conditional of an if/where etc.
@@ -159,7 +161,7 @@ pub struct BlockContext {
 
     pub has_returned: bool,
 
-    pub parent_conflicting_clause_vars: FxHashSet<String>,
+    pub parent_conflicting_clause_vars: FxHashSet<VarName>,
 
     pub allow_taints: bool,
 
@@ -224,10 +226,10 @@ impl BlockContext {
 
     pub fn get_redefined_locals(
         &self,
-        new_locals: &BTreeMap<String, Rc<TUnion>>,
+        new_locals: &BTreeMap<VarName, Rc<TUnion>>,
         include_new_vars: bool, // default false
-        removed_vars: &mut FxHashSet<String>,
-    ) -> FxHashMap<String, TUnion> {
+        removed_vars: &mut FxHashSet<VarName>,
+    ) -> FxHashMap<VarName, TUnion> {
         let mut redefined_vars = FxHashMap::default();
 
         let mut var_ids = self.locals.keys().collect::<Vec<_>>();
@@ -253,7 +255,7 @@ impl BlockContext {
     pub fn get_new_or_updated_locals(
         original_context: &Self,
         new_context: &Self,
-    ) -> FxHashSet<String> {
+    ) -> FxHashSet<VarName> {
         let mut redefined_var_ids = FxHashSet::default();
 
         for (var_id, new_type) in &new_context.locals {
@@ -274,7 +276,7 @@ impl BlockContext {
 
     pub fn remove_reconciled_clause_refs(
         clauses: &Vec<Rc<Clause>>,
-        changed_var_ids: &FxHashSet<String>,
+        changed_var_ids: &FxHashSet<VarName>,
     ) -> (Vec<Rc<Clause>>, Vec<Rc<Clause>>) {
         let mut included_clauses = Vec::new();
         let mut rejected_clauses = Vec::new();
@@ -287,9 +289,11 @@ impl BlockContext {
 
             for key in c.possibilities.keys() {
                 for changed_var_id in changed_var_ids {
-                    if changed_var_id == key || var_has_root(key, changed_var_id) {
-                        rejected_clauses.push(c.clone());
-                        continue 'outer;
+                    if let ClauseKey::Name(var_name) = key {
+                        if changed_var_id == var_name || var_has_root(&var_name, changed_var_id) {
+                            rejected_clauses.push(c.clone());
+                            continue 'outer;
+                        }
                     }
                 }
             }
@@ -302,7 +306,7 @@ impl BlockContext {
 
     pub fn remove_reconciled_clauses(
         clauses: &Vec<Clause>,
-        changed_var_ids: &FxHashSet<String>,
+        changed_var_ids: &FxHashSet<VarName>,
     ) -> (Vec<Clause>, Vec<Clause>) {
         let mut included_clauses = Vec::new();
         let mut rejected_clauses = Vec::new();
@@ -314,9 +318,11 @@ impl BlockContext {
             }
 
             for key in c.possibilities.keys() {
-                if changed_var_ids.contains(key) {
-                    rejected_clauses.push(c.clone());
-                    continue 'outer;
+                if let ClauseKey::Name(var_name) = key {
+                    if changed_var_ids.contains(var_name) {
+                        rejected_clauses.push(c.clone());
+                        continue 'outer;
+                    }
                 }
             }
 
@@ -327,7 +333,7 @@ impl BlockContext {
     }
 
     pub(crate) fn filter_clauses(
-        remove_var_id: &String,
+        remove_var_id: &str,
         clauses: Vec<Rc<Clause>>,
         new_type: Option<&TUnion>,
         statements_analyzer: Option<&StatementsAnalyzer>,
@@ -339,8 +345,10 @@ impl BlockContext {
 
         'outer: for clause in clauses {
             for var_id in clause.possibilities.keys() {
-                if var_has_root(var_id, remove_var_id) {
-                    break 'outer;
+                if let ClauseKey::Name(var_name) = var_id {
+                    if var_has_root(var_name, remove_var_id) {
+                        break 'outer;
+                    }
                 }
             }
 
@@ -356,12 +364,14 @@ impl BlockContext {
         if let Some(statements_analyzer) = statements_analyzer {
             if let Some(new_type) = new_type {
                 if !new_type.is_mixed() {
+                    let clause_key = ClauseKey::Name(VarName::new(remove_var_id.to_string()));
+
                     for clause in other_clauses {
                         let mut type_changed = false;
 
                         // if the clause contains any possibilities that would be altered
                         // by the new type
-                        for (_, assertion) in clause.possibilities.get(remove_var_id).unwrap() {
+                        for (_, assertion) in clause.possibilities.get(&clause_key).unwrap() {
                             // if we're negating a type, we generally don't need the clause anymore
                             if assertion.has_negation() {
                                 type_changed = true;
@@ -402,7 +412,7 @@ impl BlockContext {
 
     pub(crate) fn remove_var_from_conflicting_clauses(
         &mut self,
-        remove_var_id: &String,
+        remove_var_id: &str,
         new_type: Option<&TUnion>,
         statements_analyzer: Option<&StatementsAnalyzer>,
         analysis_data: &mut FunctionAnalysisData,
@@ -415,12 +425,12 @@ impl BlockContext {
             analysis_data,
         );
         self.parent_conflicting_clause_vars
-            .insert(remove_var_id.clone());
+            .insert(VarName::new(remove_var_id.to_string()));
     }
 
     pub(crate) fn remove_descendants(
         &mut self,
-        remove_var_id: &String,
+        remove_var_id: &str,
         existing_type: &TUnion,
         new_type: Option<&TUnion>,
         statements_analyzer: Option<&StatementsAnalyzer>,
@@ -467,8 +477,10 @@ impl BlockContext {
             let mut retain_clause = true;
 
             for var_id in clause.possibilities.keys() {
-                if var_id.contains("->") || var_id.contains("::") {
-                    retain_clause = false;
+                if let ClauseKey::Name(var_id) = var_id {
+                    if var_id.contains("->") || var_id.contains("::") {
+                        retain_clause = false;
+                    }
                 }
             }
 
@@ -476,19 +488,19 @@ impl BlockContext {
         });
     }
 
-    pub(crate) fn has_variable(&mut self, var_name: &String) -> bool {
-        self.cond_referenced_var_ids.insert(var_name.clone());
+    pub(crate) fn has_variable(&mut self, var_name: &str) -> bool {
+        self.cond_referenced_var_ids
+            .insert(VarName::new(var_name.to_string()));
 
         self.locals.contains_key(var_name)
     }
 }
 
-fn should_keep_clause(
-    clause: &Rc<Clause>,
-    remove_var_id: &String,
-    new_type: Option<&TUnion>,
-) -> bool {
-    if let Some(possibilities) = clause.possibilities.get(remove_var_id) {
+fn should_keep_clause(clause: &Rc<Clause>, remove_var_id: &str, new_type: Option<&TUnion>) -> bool {
+    if let Some(possibilities) = clause
+        .possibilities
+        .get(&ClauseKey::Name(VarName::new(remove_var_id.to_string())))
+    {
         if possibilities.len() == 1 {
             let assertion = possibilities.values().next().unwrap();
 
@@ -508,7 +520,7 @@ fn should_keep_clause(
 }
 
 #[inline]
-pub fn var_has_root(var_id: &String, root_var_id: &String) -> bool {
+pub fn var_has_root(var_id: &str, root_var_id: &str) -> bool {
     if let Some(pos) = var_id.find(root_var_id) {
         if var_id == root_var_id {
             return false;

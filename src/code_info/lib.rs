@@ -29,6 +29,7 @@ pub mod taint;
 pub mod ttype;
 pub mod type_definition_info;
 pub mod type_resolution;
+pub mod var_name;
 
 use std::collections::BTreeMap;
 

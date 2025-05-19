@@ -15,6 +15,7 @@ use hakana_code_info::ttype::{
     get_named_object,
     type_expander::{self, StaticClassType},
 };
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::EFFECT_READ_PROPS;
 use oxidized::ast;
 use oxidized::{
@@ -127,11 +128,11 @@ pub(crate) fn analyze(
         }
     };
 
-    let var_id = format!(
+    let var_id = VarName::new(format!(
         "{}::${}",
         statements_analyzer.interner.lookup(&classlike_name),
         prop_name
-    );
+    ));
 
     let prop_name_id = statements_analyzer.interner.get(&prop_name);
 
@@ -289,9 +290,10 @@ fn analyze_variable_static_property_fetch(
 
     if let Some(stmt_class_type) = stmt_class_type {
         let fake_var_name = "__fake_var_".to_string() + &pos.line().to_string();
-        context
-            .locals
-            .insert(fake_var_name.to_owned(), Rc::new(stmt_class_type));
+        context.locals.insert(
+            VarName::new(fake_var_name.to_owned()),
+            Rc::new(stmt_class_type),
+        );
 
         let lhs = &aast::Expr(
             (),

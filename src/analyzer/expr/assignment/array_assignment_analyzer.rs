@@ -5,6 +5,7 @@ use hakana_code_info::ttype::{
     combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
     template::TemplateBound, type_combiner, wrap_atomic,
 };
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::{
     codebase_info::CodebaseInfo,
     data_flow::{
@@ -165,9 +166,10 @@ pub(crate) fn analyze(
     }
 
     if let Some(root_var_id) = &root_var_id {
-        context
-            .locals
-            .insert(root_var_id.clone(), Rc::new(root_type.clone()));
+        context.locals.insert(
+            VarName::new(root_var_id.clone()),
+            Rc::new(root_type.clone()),
+        );
     }
 
     analysis_data.set_expr_type(&root_array_expr.1, root_type);
@@ -735,8 +737,8 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
             analysis_data.set_rc_expr_type(array_expr.0.pos(), array_expr_var_type.clone());
         } else if let Some(parent_var_id) = parent_var_id.to_owned() {
-            if context.locals.contains_key(&parent_var_id) {
-                let scoped_type = context.locals.get(&parent_var_id).unwrap();
+            if context.locals.contains_key(parent_var_id.as_str()) {
+                let scoped_type = context.locals.get(parent_var_id.as_str()).unwrap();
                 analysis_data.set_rc_expr_type(array_expr.0.pos(), scoped_type.clone());
 
                 array_expr_var_type = scoped_type.clone();
@@ -800,23 +802,23 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             if let Some(parent_var_id) = &parent_var_id {
                 if full_var_id && parent_var_id.contains("[$") {
                     context.locals.insert(
-                        parent_var_id.clone(),
+                        VarName::new(parent_var_id.clone()),
                         Rc::new(array_expr_var_type_inner.clone()),
                     );
                     context
                         .possibly_assigned_var_ids
-                        .insert(parent_var_id.clone());
+                        .insert(VarName::new(parent_var_id.clone()));
                 }
             } else {
                 *root_type = array_expr_var_type_inner.clone();
 
                 context.locals.insert(
-                    root_var_id.clone(),
+                    VarName::new(root_var_id.clone()),
                     Rc::new(array_expr_var_type_inner.clone()),
                 );
                 context
                     .possibly_assigned_var_ids
-                    .insert(root_var_id.clone());
+                    .insert(VarName::new(root_var_id.clone()));
             }
         }
 
@@ -835,10 +837,13 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             let extended_var_id = root_var_id.clone() + var_id_additions.join("").as_str();
 
             if full_var_id && extended_var_id.contains("[$") {
+                context.locals.insert(
+                    VarName::new(extended_var_id.clone()),
+                    Rc::new(assign_value_type.clone()),
+                );
                 context
-                    .locals
-                    .insert(extended_var_id.clone(), Rc::new(assign_value_type.clone()));
-                context.possibly_assigned_var_ids.insert(extended_var_id);
+                    .possibly_assigned_var_ids
+                    .insert(VarName::new(extended_var_id));
             }
         }
     }
@@ -891,12 +896,13 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
         if let Some(array_expr_id) = &array_expr_id {
             if array_expr_id.contains("[$") {
-                context
-                    .locals
-                    .insert(array_expr_id.clone(), Rc::new(array_expr_type.clone()));
+                context.locals.insert(
+                    VarName::new(array_expr_id.clone()),
+                    Rc::new(array_expr_type.clone()),
+                );
                 context
                     .possibly_assigned_var_ids
-                    .insert(array_expr_id.clone());
+                    .insert(VarName::new(array_expr_id.clone()));
             }
         }
 

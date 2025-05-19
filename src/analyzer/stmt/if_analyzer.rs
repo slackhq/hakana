@@ -8,8 +8,10 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
+use hakana_algebra::clause::ClauseKey;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::ttype::add_union_type;
+use hakana_code_info::var_name::VarName;
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -22,7 +24,7 @@ pub(crate) fn analyze(
     ),
     analysis_data: &mut FunctionAnalysisData,
     if_scope: &mut IfScope,
-    mut cond_referenced_var_ids: FxHashSet<String>,
+    mut cond_referenced_var_ids: FxHashSet<VarName>,
     if_context: &mut BlockContext,
     outer_context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
@@ -50,7 +52,11 @@ pub(crate) fn analyze(
                 .clauses
                 .iter()
                 .fold(FxHashSet::default(), |mut acc, clause| {
-                    acc.extend(clause.possibilities.keys());
+                    for k in clause.possibilities.keys() {
+                        if let ClauseKey::Name(var_name) = k {
+                            acc.insert(var_name);
+                        }
+                    }
                     acc
                 });
 
@@ -183,9 +189,9 @@ pub(crate) fn update_if_scope(
     if_scope: &mut IfScope,
     if_context: &BlockContext,
     outer_context: &BlockContext,
-    assigned_var_ids: &FxHashMap<String, usize>,
-    possibly_assigned_var_ids: &FxHashSet<String>,
-    newly_reconciled_var_ids: FxHashSet<String>,
+    assigned_var_ids: &FxHashMap<VarName, usize>,
+    possibly_assigned_var_ids: &FxHashSet<VarName>,
+    newly_reconciled_var_ids: FxHashSet<VarName>,
     update_new_vars: bool,
 ) {
     let redefined_vars = if_context.get_redefined_locals(

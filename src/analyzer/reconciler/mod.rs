@@ -10,6 +10,11 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
+use hakana_code_info::ttype::{
+    add_union_type, get_mixed_any, get_null, get_value_param,
+    type_expander::{self, StaticClassType, TypeExpansionOptions},
+    wrap_atomic,
+};
 use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
@@ -18,14 +23,10 @@ use hakana_code_info::{
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
+    var_name::VarName,
     VarId,
 };
 use hakana_str::{Interner, StrId};
-use hakana_code_info::ttype::{
-    add_union_type, get_mixed_any, get_null, get_value_param,
-    type_expander::{self, StaticClassType, TypeExpansionOptions},
-    wrap_atomic,
-};
 use lazy_static::lazy_static;
 use oxidized::ast_defs::Pos;
 use regex::Regex;
@@ -33,12 +34,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
 pub(crate) fn reconcile_keyed_types(
-    new_types: &BTreeMap<String, Vec<Vec<Assertion>>>,
+    new_types: &BTreeMap<VarName, Vec<Vec<Assertion>>>,
     // types we can complain about
-    mut active_new_types: BTreeMap<String, FxHashSet<usize>>,
+    mut active_new_types: BTreeMap<VarName, FxHashSet<usize>>,
     context: &mut BlockContext,
-    changed_var_ids: &mut FxHashSet<String>,
-    referenced_var_ids: &FxHashSet<String>,
+    changed_var_ids: &mut FxHashSet<VarName>,
+    referenced_var_ids: &FxHashSet<VarName>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
@@ -82,7 +83,7 @@ pub(crate) fn reconcile_keyed_types(
 
         for new_type_part_parts in new_type_parts {
             for assertion in new_type_part_parts {
-                if key == "hakana taints" {
+                if key.as_str() == "hakana taints" {
                     match assertion {
                         Assertion::RemoveTaints(key, taints) => {
                             let key_str = statements_analyzer.interner.lookup(&key.0);
@@ -251,7 +252,7 @@ pub(crate) fn reconcile_keyed_types(
                         DataFlowNode::get_for_lvar(VarId(var_id), statements_analyzer.get_hpos(pos))
                     } else {
                         DataFlowNode::get_for_local_string(
-                            key.clone(),
+                            key.to_string(),
                             statements_analyzer.get_hpos(pos),
                         )
                     };
@@ -285,7 +286,7 @@ pub(crate) fn reconcile_keyed_types(
                     };
                     if let Some(narrowed_symbol) = narrowed_symbol {
                         let narrowing_node = DataFlowNode::get_for_narrowing(
-                            key.clone(),
+                            key.to_string(),
                             narrowed_symbol,
                             statements_analyzer.get_hpos(pos),
                         );
@@ -329,7 +330,7 @@ pub(crate) fn reconcile_keyed_types(
         if type_changed {
             changed_var_ids.insert(key.clone());
 
-            if key != "$this" && !key.ends_with(']') {
+            if key.as_str() != "$this" && !key.ends_with(']') {
                 let mut removable_keys = Vec::new();
                 for (new_key, _) in context.locals.iter() {
                     if new_key.eq(key) {
@@ -360,7 +361,7 @@ pub(crate) fn reconcile_keyed_types(
 fn adjust_array_type(
     mut key_parts: Vec<String>,
     context: &mut BlockContext,
-    changed_var_ids: &mut FxHashSet<String>,
+    changed_var_ids: &mut FxHashSet<VarName>,
     result_type: &TUnion,
 ) {
     key_parts.pop();
@@ -382,7 +383,7 @@ fn adjust_array_type(
 
     let base_key = key_parts.join("");
 
-    let mut existing_type = if let Some(existing_type) = context.locals.get(&base_key) {
+    let mut existing_type = if let Some(existing_type) = context.locals.get(base_key.as_str()) {
         (**existing_type).clone()
     } else {
         return;
@@ -440,7 +441,7 @@ fn adjust_array_type(
             }
         }
 
-        changed_var_ids.insert(format!("{}[{}]", base_key, array_key.clone()));
+        changed_var_ids.insert(VarName::new(format!("{}[{}]", base_key, array_key.clone())));
 
         if let Some(last_part) = key_parts.last() {
             if last_part == "]" {
@@ -454,12 +455,14 @@ fn adjust_array_type(
         }
     }
 
-    context.locals.insert(base_key, Rc::new(existing_type));
+    context
+        .locals
+        .insert(VarName::new(base_key), Rc::new(existing_type));
 }
 
 fn add_nested_assertions(
-    new_types: &mut BTreeMap<String, Vec<Vec<Assertion>>>,
-    active_new_types: &mut BTreeMap<String, FxHashSet<usize>>,
+    new_types: &mut BTreeMap<VarName, Vec<Vec<Assertion>>>,
+    active_new_types: &mut BTreeMap<VarName, FxHashSet<usize>>,
     context: &mut BlockContext,
 ) {
     lazy_static! {
@@ -487,19 +490,22 @@ fn add_nested_assertions(
                 base_key += key_parts.pop().unwrap().as_str();
             }
 
-            let base_key_set = if let Some(base_key_type) = context.locals.get(&base_key) {
+            let base_key_set = if let Some(base_key_type) = context.locals.get(base_key.as_str()) {
                 !base_key_type.is_nullable()
             } else {
                 false
             };
 
             if !base_key_set {
-                if !new_types.contains_key(&base_key) {
-                    new_types.insert(base_key.clone(), vec![vec![Assertion::IsEqualIsset]]);
+                if !new_types.contains_key(base_key.as_str()) {
+                    new_types.insert(
+                        VarName::new(base_key.clone()),
+                        vec![vec![Assertion::IsEqualIsset]],
+                    );
                 } else {
-                    let mut existing_entry = new_types.get(&base_key).unwrap().clone();
+                    let mut existing_entry = new_types.get(base_key.as_str()).unwrap().clone();
                     existing_entry.push(vec![Assertion::IsEqualIsset]);
-                    new_types.insert(base_key.clone(), existing_entry);
+                    new_types.insert(VarName::new(base_key.clone()), existing_entry);
                 }
             }
 
@@ -510,7 +516,7 @@ fn add_nested_assertions(
 
                     let new_base_key = base_key.clone() + "[" + array_key.as_str() + "]";
 
-                    let entry = new_types.entry(base_key.clone()).or_default();
+                    let entry = new_types.entry(VarName::new(base_key.clone())).or_default();
 
                     let new_key = if array_key.starts_with('\'') {
                         Some(DictKey::String(
@@ -535,7 +541,7 @@ fn add_nested_assertions(
                                 && active_new_types.remove(&nk).is_some()
                             {
                                 active_new_types
-                                    .entry(base_key.clone())
+                                    .entry(VarName::new(base_key.clone()))
                                     .or_default()
                                     .insert(entry.len() - 1);
                             }
@@ -560,8 +566,11 @@ fn add_nested_assertions(
 
                     let new_base_key = base_key.clone() + "->" + property_name.as_str();
 
-                    if !new_types.contains_key(&base_key) {
-                        new_types.insert(base_key.clone(), vec![vec![Assertion::IsIsset]]);
+                    if !new_types.contains_key(base_key.as_str()) {
+                        new_types.insert(
+                            VarName::new(base_key.clone()),
+                            vec![vec![Assertion::IsIsset]],
+                        );
                     }
 
                     base_key = new_base_key;
@@ -684,10 +693,10 @@ fn break_up_path_into_parts(path: &str) -> Vec<String> {
 fn get_value_for_key(
     codebase: &CodebaseInfo,
     interner: &Interner,
-    key: String,
+    key: VarName,
     context: &mut BlockContext,
-    added_var_ids: &mut FxHashSet<String>,
-    new_assertions: &BTreeMap<String, Vec<Vec<Assertion>>>,
+    added_var_ids: &mut FxHashSet<VarName>,
+    new_assertions: &BTreeMap<VarName, Vec<Vec<Assertion>>>,
     has_isset: bool,
     has_inverted_isset: bool,
     inside_loop: bool,
@@ -701,7 +710,7 @@ fn get_value_for_key(
     let mut key_parts = break_up_path_into_parts(&key);
 
     if key_parts.len() == 1 {
-        if let Some(t) = context.locals.get(&key) {
+        if let Some(t) = context.locals.get(key.as_str()) {
             return Some((**t).clone());
         }
 
@@ -720,7 +729,7 @@ fn get_value_for_key(
         base_key += key_parts.pop().unwrap().as_str();
     }
 
-    if !context.locals.contains_key(&base_key) {
+    if !context.locals.contains_key(base_key.as_str()) {
         if base_key.contains("::") {
             let base_key_parts = &base_key.split("::").collect::<Vec<&str>>();
             let fq_class_name = base_key_parts[0].to_string();
@@ -746,7 +755,7 @@ fn get_value_for_key(
             if let Some(class_constant) = class_constant {
                 context
                     .locals
-                    .insert(base_key.clone(), Rc::new(class_constant));
+                    .insert(VarName::new(base_key.clone()), Rc::new(class_constant));
             } else {
                 return None;
             }
@@ -762,10 +771,10 @@ fn get_value_for_key(
 
             let new_base_key = base_key.clone() + "[" + array_key.as_str() + "]";
 
-            if !context.locals.contains_key(&new_base_key) {
+            if !context.locals.contains_key(new_base_key.as_str()) {
                 let mut new_base_type: Option<TUnion> = None;
 
-                let mut atomic_types = context.locals.get(&base_key).unwrap().types.clone();
+                let mut atomic_types = context.locals.get(base_key.as_str()).unwrap().types.clone();
 
                 atomic_types.reverse();
 
@@ -817,9 +826,9 @@ fn get_value_for_key(
                             }
 
                             if (has_isset || has_inverted_isset)
-                                && new_assertions.contains_key(&new_base_key)
+                                && new_assertions.contains_key(new_base_key.as_str())
                             {
-                                if has_inverted_isset && new_base_key.eq(&key) {
+                                if has_inverted_isset && new_base_key.eq(&key.as_str()) {
                                     new_base_type_candidate = add_union_type(
                                         new_base_type_candidate,
                                         &get_null(),
@@ -854,9 +863,9 @@ fn get_value_for_key(
                                 get_value_param(&existing_key_type_part, codebase).unwrap();
 
                             if (has_isset || has_inverted_isset)
-                                && new_assertions.contains_key(&new_base_key)
+                                && new_assertions.contains_key(new_base_key.as_str())
                             {
-                                if has_inverted_isset && new_base_key.eq(&key) {
+                                if has_inverted_isset && new_base_key.eq(&key.as_str()) {
                                     new_base_type_candidate = add_union_type(
                                         new_base_type_candidate,
                                         &get_null(),
@@ -879,7 +888,9 @@ fn get_value_for_key(
                         existing_key_type_part,
                         TAtomic::TNothing | TAtomic::TMixedFromLoopIsset
                     ) {
-                        return Some(hakana_code_info::ttype::get_mixed_maybe_from_loop(inside_loop));
+                        return Some(hakana_code_info::ttype::get_mixed_maybe_from_loop(
+                            inside_loop,
+                        ));
                     } else if let TAtomic::TNamedObject {
                         name,
                         type_params: Some(type_params),
@@ -895,9 +906,9 @@ fn get_value_for_key(
                                 };
 
                                 if (has_isset || has_inverted_isset)
-                                    && new_assertions.contains_key(&new_base_key)
+                                    && new_assertions.contains_key(new_base_key.as_str())
                                 {
-                                    if has_inverted_isset && new_base_key.eq(&key) {
+                                    if has_inverted_isset && new_base_key.eq(&key.as_str()) {
                                         new_base_type_candidate = add_union_type(
                                             new_base_type_candidate,
                                             &get_null(),
@@ -929,11 +940,11 @@ fn get_value_for_key(
                     };
 
                     if !array_key.starts_with('$') {
-                        added_var_ids.insert(new_base_key.clone());
+                        added_var_ids.insert(VarName::new(new_base_key.clone()));
                     }
 
                     context.locals.insert(
-                        new_base_key.clone(),
+                        VarName::new(new_base_key.clone()),
                         Rc::new(new_base_type.clone().unwrap()),
                     );
                 }
@@ -945,10 +956,10 @@ fn get_value_for_key(
 
             let new_base_key = base_key.clone() + "->" + property_name.as_str();
 
-            if !context.locals.contains_key(&new_base_key) {
+            if !context.locals.contains_key(new_base_key.as_str()) {
                 let mut new_base_type: Option<TUnion> = None;
 
-                let base_type = context.locals.get(&base_key).unwrap();
+                let base_type = context.locals.get(base_key.as_str()).unwrap();
 
                 let mut atomic_types = base_type.types.clone();
 
@@ -1011,7 +1022,7 @@ fn get_value_for_key(
                     };
 
                     context.locals.insert(
-                        new_base_key.clone(),
+                        VarName::new(new_base_key.clone()),
                         Rc::new(new_base_type.clone().unwrap()),
                     );
                 }
@@ -1023,7 +1034,7 @@ fn get_value_for_key(
         }
     }
 
-    context.locals.get(&base_key).map(|t| (**t).clone())
+    context.locals.get(base_key.as_str()).map(|t| (**t).clone())
 }
 
 fn get_property_type(
@@ -1066,7 +1077,7 @@ pub(crate) fn trigger_issue_for_impossible(
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
     old_var_type_string: &String,
-    key: &String,
+    key: &VarName,
     assertion: &Assertion,
     redundant: bool,
     negated: bool,
@@ -1156,7 +1167,7 @@ pub(crate) fn trigger_issue_for_impossible(
 fn get_impossible_issue(
     assertion: &Assertion,
     assertion_string: &String,
-    key: &String,
+    key: &VarName,
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
@@ -1166,7 +1177,7 @@ fn get_impossible_issue(
         if key.contains("tmp_coalesce_var") {
             "".to_string()
         } else {
-            format!("of {} ", key)
+            format!("of {} ", key.as_str())
         }
     } else {
         format!("{} ", old_var_type_string)
@@ -1181,7 +1192,7 @@ fn get_impossible_issue(
         ),
         Assertion::IsType(TAtomic::TNull) | Assertion::IsNotType(TAtomic::TNull) => Issue::new(
             IssueKind::ImpossibleNullTypeComparison,
-            format!("{} is never null", key),
+            format!("{} is never null", key.as_str()),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,
         ),
@@ -1217,7 +1228,7 @@ fn get_impossible_issue(
 fn get_redundant_issue(
     assertion: &Assertion,
     assertion_string: &String,
-    key: &String,
+    key: &VarName,
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
@@ -1227,7 +1238,7 @@ fn get_redundant_issue(
         if key.contains("tmp_coalesce_var") {
             "".to_string()
         } else {
-            format!("of {} ", key)
+            format!("of {} ", key.as_str())
         }
     } else {
         format!("{} ", old_var_type_string)
@@ -1269,7 +1280,7 @@ fn get_redundant_issue(
         Assertion::IsType(TAtomic::TMixedWithFlags(_, _, _, true))
         | Assertion::IsNotType(TAtomic::TMixedWithFlags(_, _, _, true)) => Issue::new(
             IssueKind::RedundantNonnullTypeComparison,
-            format!("{} is always nonnull", key),
+            format!("{} is always nonnull", key.as_str()),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,
         ),

@@ -9,6 +9,7 @@ use hakana_code_info::ttype::template::standin_type_replacer::{self, StandinOpts
 use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
 };
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::{
     assertion::Assertion,
     data_flow::{node::DataFlowNode, path::PathKind},
@@ -349,7 +350,7 @@ fn handle_shapes_static_method(
                 );
 
                 if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
-                    if let Some(expr_type) = context.locals.get(&expr_var_id) {
+                    if let Some(expr_type) = context.locals.get(expr_var_id.as_str()) {
                         let mut new_type = (**expr_type).clone();
 
                         let dim_var_id = dim_var_id[1..dim_var_id.len() - 1].to_string();
@@ -383,7 +384,9 @@ fn handle_shapes_static_method(
 
                         analysis_data.data_flow_graph.add_node(assignment_node);
 
-                        context.locals.insert(expr_var_id, Rc::new(new_type));
+                        context
+                            .locals
+                            .insert(VarName::new(expr_var_id), Rc::new(new_type));
                     }
                 }
             }

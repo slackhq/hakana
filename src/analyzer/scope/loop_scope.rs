@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, rc::Rc};
 
-use hakana_code_info::t_union::TUnion;
+use hakana_code_info::{t_union::TUnion, var_name::VarName};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::control_action::ControlAction;
@@ -9,21 +9,21 @@ use super::control_action::ControlAction;
 pub struct LoopScope {
     pub iteration_count: usize,
 
-    pub parent_context_vars: BTreeMap<String, Rc<TUnion>>,
+    pub parent_context_vars: BTreeMap<VarName, Rc<TUnion>>,
 
-    pub redefined_loop_vars: FxHashMap<String, TUnion>,
+    pub redefined_loop_vars: FxHashMap<VarName, TUnion>,
 
-    pub possibly_redefined_loop_vars: FxHashMap<String, TUnion>,
+    pub possibly_redefined_loop_vars: FxHashMap<VarName, TUnion>,
 
-    pub possibly_redefined_loop_parent_vars: FxHashMap<String, Rc<TUnion>>,
+    pub possibly_redefined_loop_parent_vars: FxHashMap<VarName, Rc<TUnion>>,
 
-    pub possibly_defined_loop_parent_vars: FxHashMap<String, TUnion>,
+    pub possibly_defined_loop_parent_vars: FxHashMap<VarName, TUnion>,
 
     pub final_actions: FxHashSet<ControlAction>,
 }
 
 impl LoopScope {
-    pub fn new(parent_context_vars: BTreeMap<String, Rc<TUnion>>) -> Self {
+    pub fn new(parent_context_vars: BTreeMap<VarName, Rc<TUnion>>) -> Self {
         Self {
             parent_context_vars,
             iteration_count: 0,

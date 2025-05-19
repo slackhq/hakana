@@ -6,10 +6,13 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_code_info::ttype::{
-    get_mixed_any,
-    comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
-    type_expander::{self, StaticClassType, TypeExpansionOptions},
+use hakana_code_info::{
+    ttype::{
+        comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+        get_mixed_any,
+        type_expander::{self, StaticClassType, TypeExpansionOptions},
+    },
+    var_name::VarName,
 };
 use oxidized::{
     aast::{self, ClassGetExpr, ClassId},
@@ -182,12 +185,7 @@ pub(crate) fn analyze(
                         self_class: Some(&declaring_class_storage.name),
                         static_class_type: StaticClassType::Name(&declaring_class_storage.name),
                         parent_class: declaring_class_storage.direct_parent_class.as_ref(),
-                        file_path: Some(
-                            &statements_analyzer
-                                .file_analyzer
-                                .file_source
-                                .file_path,
-                        ),
+                        file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                         ..Default::default()
                     },
                     &mut analysis_data.data_flow_graph,
@@ -209,7 +207,9 @@ pub(crate) fn analyze(
             if type_match_found && union_comparison_result.replacement_union_type.is_some() {
                 if let Some(union_type) = union_comparison_result.replacement_union_type {
                     if let Some(var_id) = var_id.clone() {
-                        context.locals.insert(var_id, Rc::new(union_type));
+                        context
+                            .locals
+                            .insert(VarName::new(var_id), Rc::new(union_type));
                     }
                 }
             }
@@ -246,8 +246,7 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("This property".to_string()),
-                                class_property_type
-                                    .get_id(Some(statements_analyzer.interner)),
+                                class_property_type.get_id(Some(statements_analyzer.interner)),
                                 assign_value_type.get_id(Some(statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_class.1),
@@ -263,8 +262,7 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("This property".to_string()),
-                                class_property_type
-                                    .get_id(Some(statements_analyzer.interner)),
+                                class_property_type.get_id(Some(statements_analyzer.interner)),
                                 assign_value_type.get_id(Some(statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_class.1),
@@ -279,7 +277,7 @@ pub(crate) fn analyze(
             if let Some(var_id) = var_id.clone() {
                 context
                     .locals
-                    .insert(var_id, Rc::new(assign_value_type.clone()));
+                    .insert(VarName::new(var_id), Rc::new(assign_value_type.clone()));
             }
         }
     }

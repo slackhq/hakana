@@ -5,8 +5,9 @@ use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::EFFECT_READ_PROPS;
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
+use hakana_code_info::var_name::VarName;
+use hakana_code_info::EFFECT_READ_PROPS;
 use itertools::Itertools;
 use oxidized::{
     aast::{self, Expr},
@@ -52,10 +53,7 @@ pub(crate) fn analyze(
         expr.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((
-            statements_analyzer.codebase,
-            statements_analyzer.interner,
-        )),
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
     let var_id = if let Some(stmt_var_id) = stmt_var_id.clone() {
@@ -77,7 +75,7 @@ pub(crate) fn analyze(
 
     let stmt_var_type = if let Some(stmt_var_id) = &stmt_var_id {
         if context.has_variable(stmt_var_id) {
-            Some(context.locals.get(stmt_var_id).unwrap().clone())
+            Some(context.locals.get(stmt_var_id.as_str()).unwrap().clone())
         } else {
             analysis_data.get_rc_expr_type(expr.0.pos()).cloned()
         }
@@ -175,7 +173,7 @@ pub(crate) fn analyze(
 
     if let Some(var_id) = &var_id {
         context.locals.insert(
-            var_id.to_owned(),
+            VarName::new(var_id.clone()),
             stmt_type.unwrap_or(Rc::new(get_mixed_any())),
         );
     }
@@ -191,7 +189,7 @@ pub(crate) fn handle_scoped_property(
     context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
-    var_id: &String,
+    var_id: &str,
 ) {
     let stmt_type = context.locals.get(var_id);
 

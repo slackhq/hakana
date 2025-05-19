@@ -4,6 +4,7 @@ use hakana_algebra::Clause;
 
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
+use hakana_code_info::var_name::VarName;
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -492,7 +493,7 @@ pub(crate) fn analyze<'a>(
                 );
 
                 loop_parent_context.remove_var_from_conflicting_clauses(
-                    var_id,
+                    var_id.as_str(),
                     None,
                     None,
                     analysis_data,
@@ -692,7 +693,7 @@ fn apply_pre_condition_to_loop_context(
     loop_parent_context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     is_do: bool,
-) -> Result<FxHashSet<String>, AnalysisError> {
+) -> Result<FxHashSet<VarName>, AnalysisError> {
     let pre_referenced_var_ids = loop_context.cond_referenced_var_ids.clone();
     loop_context.cond_referenced_var_ids = FxHashSet::default();
 

@@ -5,6 +5,7 @@ use hakana_code_info::issue::Issue;
 use hakana_code_info::ttype::combine_union_types;
 
 use hakana_code_info::ttype::combine_optional_union_types;
+use hakana_code_info::var_name::VarName;
 use oxidized::aast;
 use oxidized::aast::CallExpr;
 use oxidized::ast::Binop;
@@ -63,7 +64,7 @@ pub(crate) fn analyze_case(
     ),
     switch_condition: &aast::Expr<(), ()>,
     condition_is_fake: bool,
-    switch_var_id: &String,
+    switch_var_id: &VarName,
     case_cond: Option<&aast::Expr<(), ()>>,
     case_pos: &Pos,
     case_stmts: Vec<aast::Stmt<(), ()>>,
@@ -505,7 +506,7 @@ pub(crate) fn analyze_case(
 
 pub(crate) fn handle_non_returning_case(
     statements_analyzer: &StatementsAnalyzer,
-    switch_var_id: &String,
+    switch_var_id: &VarName,
     is_default_case: bool,
     case_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,

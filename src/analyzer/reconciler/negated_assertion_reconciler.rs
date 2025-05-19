@@ -12,6 +12,7 @@ use hakana_code_info::ttype::{
     type_combiner,
 };
 use hakana_code_info::ttype::{get_nothing, get_placeholder, wrap_atomic};
+use hakana_code_info::var_name::VarName;
 use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion,
@@ -25,7 +26,7 @@ pub(crate) fn reconcile(
     assertion: &Assertion,
     existing_var_type: &TUnion,
     possibly_undefined: bool,
-    key: Option<&String>,
+    key: Option<&VarName>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     old_var_type_string: String,
@@ -329,7 +330,7 @@ fn handle_negated_class(
 fn handle_literal_negated_equality(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
+    key: Option<&VarName>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     old_var_type_string: String,
