@@ -240,6 +240,7 @@ fn get_is_assertions(
             ..Default::default()
         },
         &mut DataFlowGraph::new(GraphKind::FunctionBody),
+        &mut 0,
     );
 
     let var_name = get_var_id(

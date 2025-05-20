@@ -485,6 +485,7 @@ fn analyze_named_constructor(
                             ..Default::default()
                         },
                         &mut analysis_data.data_flow_graph,
+                        &mut 0,
                     );
 
                     if let Some((template_name, map)) = template_result.template_types.get_index(i)
@@ -600,6 +601,7 @@ fn analyze_named_constructor(
                                 ..Default::default()
                             },
                             &mut analysis_data.data_flow_graph,
+                            &mut 0,
                         );
 
                         generic_params.push(param_type);

@@ -290,6 +290,7 @@ fn analyse_known_class_constant(
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
+            &mut 0,
         );
     }
 

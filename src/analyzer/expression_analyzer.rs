@@ -831,6 +831,7 @@ fn analyze_function_pointer(
         codebase,
         &Some(&analysis_data.scoped_interner),
         &mut analysis_data.data_flow_graph,
+        &mut 0,
     ) {
         analysis_data.expr_types.insert(
             (expr.1.start_offset() as u32, expr.1.end_offset() as u32),

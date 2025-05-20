@@ -242,6 +242,7 @@ pub(crate) fn analyze(
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
+            &mut 0,
         );
 
         inserted_type = add_unspecialized_property_fetch_dataflow(

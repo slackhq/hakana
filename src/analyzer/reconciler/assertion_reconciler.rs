@@ -139,6 +139,7 @@ pub fn reconcile(
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
+            &mut 0,
         );
 
         return refined_type;

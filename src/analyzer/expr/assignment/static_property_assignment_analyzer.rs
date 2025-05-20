@@ -189,6 +189,7 @@ pub(crate) fn analyze(
                         ..Default::default()
                     },
                     &mut analysis_data.data_flow_graph,
+                    &mut 0,
                 );
             }
 

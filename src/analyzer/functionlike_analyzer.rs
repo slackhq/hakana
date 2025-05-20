@@ -410,6 +410,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         ..Default::default()
                     },
                     &mut analysis_data.data_flow_graph,
+                    &mut 0,
                 );
 
                 context
@@ -670,6 +671,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
+                &mut 0,
             );
 
             let config = statements_analyzer.get_config();
@@ -949,6 +951,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             ..Default::default()
                         },
                         &mut analysis_data.data_flow_graph,
+                        &mut 0,
                     );
 
                     for type_node in param_type.get_all_child_nodes() {
@@ -1484,7 +1487,10 @@ fn handle_unused_assignment(
                 } else {
                     Issue::new(
                         IssueKind::UnusedAssignment,
-                        format!("Assignment to {} is unused", node.id.to_label(&interner.parent()),),
+                        format!(
+                            "Assignment to {} is unused",
+                            node.id.to_label(&interner.parent()),
+                        ),
                         *pos,
                         calling_functionlike_id,
                     )

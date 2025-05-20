@@ -123,6 +123,7 @@ pub(crate) fn analyze(
             ..Default::default()
         },
         &mut analysis_data.data_flow_graph,
+        &mut 0,
     );
 
     if functionlike_storage.is_async {
@@ -165,6 +166,7 @@ pub(crate) fn analyze(
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
+            &mut 0,
         );
 
         expected_type

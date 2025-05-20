@@ -235,6 +235,7 @@ fn get_class_property_type(
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
+            &mut 0,
         );
 
         if !declaring_class_storage.template_types.is_empty() {
@@ -332,6 +333,7 @@ fn update_template_types(
                                     ..Default::default()
                                 },
                                 &mut analysis_data.data_flow_graph,
+                                &mut 0,
                             );
 
                             lhs_param_type

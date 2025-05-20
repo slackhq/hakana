@@ -3,13 +3,13 @@ use std::rc::Rc;
 
 use hakana_code_info::issue::Issue;
 use hakana_code_info::issue::IssueKind;
-use hakana_str::StrId;
 use hakana_code_info::ttype::get_literal_string;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::get_string;
 use hakana_code_info::ttype::type_expander;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::wrap_atomic;
+use hakana_str::StrId;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
@@ -85,6 +85,7 @@ pub(crate) fn analyze(
             ..Default::default()
         },
         &mut analysis_data.data_flow_graph,
+        &mut 0,
     );
 
     analysis_data.expr_types.insert(

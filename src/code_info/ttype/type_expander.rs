@@ -71,6 +71,7 @@ pub fn expand_union(
     return_type: &mut TUnion,
     options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
+    cost: &mut u32,
 ) {
     let mut overall_new_atomic_types = Vec::with_capacity(return_type.types.len());
     let mut overall_extra_data_flow_nodes = vec![];
@@ -89,6 +90,7 @@ pub fn expand_union(
             interner,
             options,
             data_flow_graph,
+            cost,
             &mut skip_this_atomic, // expand_atomic sets this to true if it wants to replace
             &mut replacements_for_current_atomic, // expand_atomic pushes replacements here
             &mut overall_extra_data_flow_nodes, // expand_atomic can still add global extras
@@ -119,10 +121,13 @@ fn expand_atomic(
     interner: &Option<&Interner>,
     options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
+    cost: &mut u32,
     skip_key: &mut bool,
     new_return_type_parts: &mut Vec<TAtomic>,
     extra_data_flow_nodes: &mut Vec<DataFlowNode>,
 ) {
+    *cost += 1;
+
     if let TAtomic::TDict(TDict {
         ref mut known_items,
         ref mut params,
@@ -131,8 +136,8 @@ fn expand_atomic(
     }) = return_type_part
     {
         if let Some(params) = params {
-            expand_union(codebase, interner, &mut params.0, options, data_flow_graph);
-            expand_union(codebase, interner, &mut params.1, options, data_flow_graph);
+            expand_union(codebase, interner, &mut params.0, options, data_flow_graph, cost);
+            expand_union(codebase, interner, &mut params.1, options, data_flow_graph, cost);
         }
 
         if let Some(known_items) = known_items {
@@ -143,6 +148,7 @@ fn expand_atomic(
                     Arc::make_mut(item_type),
                     options,
                     data_flow_graph,
+                    cost,
                 );
             }
         }
@@ -156,11 +162,11 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        expand_union(codebase, interner, type_param, options, data_flow_graph);
+        expand_union(codebase, interner, type_param, options, data_flow_graph, cost);
 
         if let Some(known_items) = known_items {
             for (_, item_type) in known_items.values_mut() {
-                expand_union(codebase, interner, item_type, options, data_flow_graph);
+                expand_union(codebase, interner, item_type, options, data_flow_graph, cost);
             }
         }
 
@@ -169,11 +175,11 @@ fn expand_atomic(
         ref mut type_param, ..
     } = return_type_part
     {
-        expand_union(codebase, interner, type_param, options, data_flow_graph);
+        expand_union(codebase, interner, type_param, options, data_flow_graph, cost);
 
         return;
     } else if let TAtomic::TAwaitable { ref mut value } = return_type_part {
-        expand_union(codebase, interner, value, options, data_flow_graph);
+        expand_union(codebase, interner, value, options, data_flow_graph, cost);
 
         return;
     } else if let TAtomic::TNamedObject {
@@ -215,26 +221,26 @@ fn expand_atomic(
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(codebase, interner, param_type, options, data_flow_graph);
+                expand_union(codebase, interner, param_type, options, data_flow_graph, cost);
             }
         }
 
         return;
     } else if let TAtomic::TClosure(ref mut closure) = return_type_part {
         if let Some(ref mut return_type) = closure.return_type {
-            expand_union(codebase, interner, return_type, options, data_flow_graph);
+            expand_union(codebase, interner, return_type, options, data_flow_graph, cost);
         }
 
         for param in closure.params.iter_mut() {
             if let Some(ref mut param_type) = param.signature_type {
-                expand_union(codebase, interner, param_type, options, data_flow_graph);
+                expand_union(codebase, interner, param_type, options, data_flow_graph, cost);
             }
         }
     } else if let TAtomic::TGenericParam {
         ref mut as_type, ..
     } = return_type_part
     {
-        expand_union(codebase, interner, as_type, options, data_flow_graph);
+        expand_union(codebase, interner, as_type, options, data_flow_graph, cost);
 
         return;
     } else if let TAtomic::TClassname {
@@ -251,6 +257,7 @@ fn expand_atomic(
             interner,
             options,
             data_flow_graph,
+            cost,
             &mut false,
             &mut atomic_return_type_parts,
             extra_data_flow_nodes,
@@ -283,6 +290,7 @@ fn expand_atomic(
                     &mut as_type_union,
                     options,
                     data_flow_graph,
+                    cost,
                 );
                 *as_type = Some(Arc::new(as_type_union.get_single_owned()));
             }
@@ -295,6 +303,7 @@ fn expand_atomic(
                     &mut underlying_type_union,
                     options,
                     data_flow_graph,
+                    cost,
                 );
                 *underlying_type = Some(Arc::new(underlying_type_union.get_single_owned()));
             }
@@ -319,6 +328,7 @@ fn expand_atomic(
                 interner,
                 options,
                 data_flow_graph,
+                cost,
                 skip_key,
                 new_return_type_parts,
                 extra_data_flow_nodes,
@@ -340,6 +350,7 @@ fn expand_atomic(
                     &mut const_type,
                     options,
                     data_flow_graph,
+                    cost,
                 );
 
                 new_return_type_parts.extend(const_type.types);
@@ -415,6 +426,7 @@ fn expand_atomic(
                 &mut untemplated_type,
                 options,
                 data_flow_graph,
+                cost,
             );
 
             let expanded_types = untemplated_type
@@ -516,6 +528,7 @@ fn expand_atomic(
                 &mut definition_as_type,
                 options,
                 data_flow_graph,
+                cost,
             );
 
             *as_type = Some(Box::new(definition_as_type));
@@ -523,7 +536,7 @@ fn expand_atomic(
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(codebase, interner, param_type, options, data_flow_graph);
+                expand_union(codebase, interner, param_type, options, data_flow_graph, cost);
             }
         }
 
@@ -541,6 +554,7 @@ fn expand_atomic(
             interner,
             options,
             data_flow_graph,
+            cost,
             &mut false,
             &mut atomic_return_type_parts,
             extra_data_flow_nodes,
@@ -595,7 +609,7 @@ fn expand_atomic(
                 match (is_this, type_constant) {
                     (_, ClassConstantType::Concrete(mut type_))
                     | (false, ClassConstantType::Abstract(Some(mut type_))) => {
-                        expand_union(codebase, interner, &mut type_, options, data_flow_graph);
+                        expand_union(codebase, interner, &mut type_, options, data_flow_graph, cost);
 
                         *skip_key = true;
                         new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
@@ -611,7 +625,7 @@ fn expand_atomic(
                         }));
                     }
                     (true, ClassConstantType::Abstract(Some(mut type_))) => {
-                        expand_union(codebase, interner, &mut type_, options, data_flow_graph);
+                        expand_union(codebase, interner, &mut type_, options, data_flow_graph, cost);
 
                         *as_type = Box::new(type_);
                     }
@@ -625,7 +639,7 @@ fn expand_atomic(
             }
         };
     } else if let TAtomic::TClosureAlias { id, .. } = &return_type_part {
-        if let Some(value) = get_closure_from_id(id, codebase, interner, data_flow_graph) {
+        if let Some(value) = get_closure_from_id(id, codebase, interner, data_flow_graph, cost) {
             *skip_key = true;
             new_return_type_parts.push(value);
             return;
@@ -638,6 +652,7 @@ pub fn get_closure_from_id(
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
     data_flow_graph: &mut DataFlowGraph,
+    cost: &mut u32,
 ) -> Option<TAtomic> {
     match id {
         FunctionLikeIdentifier::Function(name) => {
@@ -649,6 +664,7 @@ pub fn get_closure_from_id(
                     interner,
                     data_flow_graph,
                     &TypeExpansionOptions::default(),
+                    cost,
                 ));
             }
         }
@@ -667,6 +683,7 @@ pub fn get_closure_from_id(
                         static_class_type: StaticClassType::Name(classlike_name),
                         ..Default::default()
                     },
+                    cost,
                 ));
             }
         }
@@ -683,6 +700,7 @@ fn get_expanded_closure(
     interner: &Option<&Interner>,
     data_flow_graph: &mut DataFlowGraph,
     options: &TypeExpansionOptions,
+    cost: &mut u32,
 ) -> TAtomic {
     TAtomic::TClosure(Box::new(TClosure {
         params: functionlike_info
@@ -691,7 +709,7 @@ fn get_expanded_closure(
             .map(|param| FnParameter {
                 signature_type: if let Some(t) = &param.signature_type {
                     let mut t = t.clone();
-                    expand_union(codebase, interner, &mut t, options, data_flow_graph);
+                    expand_union(codebase, interner, &mut t, options, data_flow_graph, cost);
                     Some(Box::new(t))
                 } else {
                     None
@@ -709,6 +727,7 @@ fn get_expanded_closure(
                 &mut return_type,
                 options,
                 data_flow_graph,
+                cost,
             );
             Some(return_type)
         } else {

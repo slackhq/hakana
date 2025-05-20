@@ -87,6 +87,7 @@ pub(crate) fn is_contained_by(
                                         ..Default::default()
                                     },
                                     &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                                    &mut 0,
                                 );
                                 v
                             })

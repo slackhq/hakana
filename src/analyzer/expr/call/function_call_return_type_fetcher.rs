@@ -110,6 +110,7 @@ pub(crate) fn fetch(
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
+                &mut 0,
             );
 
             function_return_type = template::inferred_type_replacer::replace(
@@ -130,6 +131,7 @@ pub(crate) fn fetch(
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
+            &mut 0,
         );
 
         if function_return_type.is_nothing() && context.function_context.ignore_noreturn_calls {

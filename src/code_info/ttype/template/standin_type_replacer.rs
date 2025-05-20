@@ -841,6 +841,7 @@ fn handle_template_param_standin<'a>(
                 ..Default::default()
             },
             &mut DataFlowGraph::new(GraphKind::FunctionBody),
+            &mut 0,
         );
 
         if opts.iteration_depth < 15 && replacement_type.has_template_types() {
@@ -919,6 +920,7 @@ fn handle_template_param_standin<'a>(
             ..Default::default()
         },
         &mut DataFlowGraph::new(GraphKind::FunctionBody),
+        &mut 0,
     );
 
     let as_type = self::replace(
@@ -1895,6 +1897,7 @@ pub fn get_mapped_generic_type_params(
                         ..Default::default()
                     },
                     &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    &mut 0,
                 );
                 v
             })

@@ -1066,6 +1066,7 @@ fn get_property_type(
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
+            &mut 0,
         );
         return Some(class_property_type);
     }

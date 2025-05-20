@@ -116,6 +116,7 @@ pub(crate) fn check_arguments_match(
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
+                &mut 0,
             );
 
             if let Some((template_name, map)) = template_result.template_types.get_index(i) {
@@ -785,6 +786,7 @@ fn get_param_type(
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
+                &mut 0,
             );
 
             param_type
@@ -1146,6 +1148,7 @@ fn handle_possibly_matching_inout_param(
             ..Default::default()
         },
         &mut analysis_data.data_flow_graph,
+        &mut 0,
     );
 
     let arg_type = arg_type.unwrap_or(get_mixed_any());
@@ -1427,6 +1430,7 @@ pub(crate) fn get_template_types_for_class_member(
                                 ..Default::default()
                             },
                             &mut analysis_data.data_flow_graph,
+                            &mut 0,
                         );
                         v
                     })

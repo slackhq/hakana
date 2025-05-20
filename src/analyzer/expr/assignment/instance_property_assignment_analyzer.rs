@@ -555,6 +555,7 @@ pub(crate) fn analyze_atomic_assignment(
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
+                &mut 0,
             );
 
             // TODO localizeType
