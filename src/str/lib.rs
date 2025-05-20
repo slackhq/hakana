@@ -14,7 +14,7 @@ pub struct StrId(pub u32);
 include!(concat!(env!("OUT_DIR"), "/interned_strings.rs"));
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct ReflectionInterner {
+pub struct Interner {
     map: IndexSet<String, BuildHasherDefault<FxHasher>>,
 }
 
@@ -25,7 +25,7 @@ impl StrId {
     }
 }
 
-impl ReflectionInterner {
+impl Interner {
     /// Get the id corresponding to `path`.
     ///
     /// If `path` does not exists in `self`, returns [`None`].
@@ -69,11 +69,11 @@ impl ReflectionInterner {
 pub struct ThreadedInterner {
     map: IndexMap<String, StrId>,
     reverse_map: BTreeMap<StrId, usize>,
-    pub parent: Arc<Mutex<ReflectionInterner>>,
+    pub parent: Arc<Mutex<Interner>>,
 }
 
 impl ThreadedInterner {
-    pub fn new(interner: Arc<Mutex<ReflectionInterner>>) -> Self {
+    pub fn new(interner: Arc<Mutex<Interner>>) -> Self {
         ThreadedInterner {
             map: IndexMap::default(),
             reverse_map: BTreeMap::new(),
@@ -121,15 +121,15 @@ impl ThreadedInterner {
 }
 
 #[derive(Debug)]
-pub struct Interner {
-    parent: Arc<ReflectionInterner>,
+pub struct ScopedStringInterner {
+    parent: Arc<Interner>,
     local_strings: Vec<String>,
     local_map: FxHashMap<String, StrId>,
     next_local_id: u32,
 }
 
-impl Interner {
-    pub fn new(parent: Arc<ReflectionInterner>) -> Self {
+impl ScopedStringInterner {
+    pub fn new(parent: Arc<Interner>) -> Self {
         Self {
             next_local_id: parent.get_size() as u32,
             parent,
@@ -168,29 +168,15 @@ impl Interner {
         id
     }
 
-    pub fn lookup(&self, id: &StrId) -> &str {
+    pub fn lookup(&self, id: StrId) -> &str {
         // Check if it's a local ID
-        if id.0 >= self.next_local_id {
-            let local_index = (id.0 - self.next_local_id) as usize;
+        if id.0 >= 1_000_000_000 {
+            let local_index = (id.0 - 1_000_000_000) as usize;
             if local_index < self.local_strings.len() {
                 return &self.local_strings[local_index];
             }
         }
         // Otherwise, assume it's a parent ID
         self.parent.lookup(&id)
-    }
-
-    /// Get the id corresponding to `path`.
-    ///
-    /// If `path` does not exists in `self`, returns [`None`].
-    pub fn get(&self, path: &str) -> Option<StrId> {
-        if let Some(id) = self.local_map.get(path) {
-            return Some(*id);
-        }
-        self.parent.get(path)
-    }
-
-    pub fn parent(&self) -> &ReflectionInterner {
-        &self.parent
     }
 }

@@ -6,9 +6,9 @@ use std::time::Duration;
 use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
+use hakana_str::Interner;
 use hakana_orchestrator::file::FileStatus;
 use hakana_orchestrator::{scan_and_analyze_async, SuccessfulScanData};
-use hakana_str::ReflectionInterner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::sync::RwLock;
 use tokio::time::sleep;
@@ -20,7 +20,7 @@ use tower_lsp::{Client, LanguageServer};
 pub struct Backend {
     client: Client,
     analysis_config: Arc<Config>,
-    starter_interner: Arc<ReflectionInterner>,
+    starter_interner: Arc<Interner>,
     previous_scan_data: RwLock<Option<SuccessfulScanData>>,
     previous_analysis_result: RwLock<Option<AnalysisResult>>,
     all_diagnostics: RwLock<Option<FxHashMap<Url, Vec<Diagnostic>>>>,
@@ -29,11 +29,7 @@ pub struct Backend {
 }
 
 impl Backend {
-    pub fn new(
-        client: Client,
-        analysis_config: Config,
-        starter_interner: ReflectionInterner,
-    ) -> Self {
+    pub fn new(client: Client, analysis_config: Config, starter_interner: Interner) -> Self {
         Self {
             client,
             analysis_config: Arc::new(analysis_config),
@@ -329,7 +325,7 @@ impl Backend {
 pub fn get_config(
     plugins: Vec<Box<dyn CustomHook>>,
     cwd: &String,
-    interner: &mut ReflectionInterner,
+    interner: &mut Interner,
 ) -> std::result::Result<Config, Box<dyn Error>> {
     let mut all_custom_issues = vec![];
 

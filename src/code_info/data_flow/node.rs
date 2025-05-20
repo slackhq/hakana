@@ -8,7 +8,7 @@ use crate::{
     code_location::HPos,
     taint::{SinkType, SourceType},
 };
-use hakana_str::{ReflectionInterner, StrId};
+use hakana_str::{Interner, StrId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,7 +54,7 @@ pub enum DataFlowNodeId {
 }
 
 impl DataFlowNodeId {
-    pub fn to_string(&self, interner: &ReflectionInterner) -> String {
+    pub fn to_string(&self, interner: &Interner) -> String {
         match self {
             DataFlowNodeId::String(str) => str.clone(),
             DataFlowNodeId::LocalString(str, file_path, start_offset, end_offset) => {
@@ -228,7 +228,7 @@ impl DataFlowNodeId {
         }
     }
 
-    pub fn to_label(&self, interner: &ReflectionInterner) -> String {
+    pub fn to_label(&self, interner: &Interner) -> String {
         match self {
             DataFlowNodeId::String(str) | DataFlowNodeId::LocalString(str, ..) => str.clone(),
             DataFlowNodeId::Param(var_id, ..) | DataFlowNodeId::Var(var_id, ..) => {

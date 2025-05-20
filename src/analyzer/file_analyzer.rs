@@ -14,7 +14,7 @@ use hakana_code_info::data_flow::graph::DataFlowGraph;
 use hakana_code_info::function_context::FunctionContext;
 use hakana_code_info::type_resolution::TypeResolutionContext;
 use hakana_code_info::FileSource;
-use hakana_str::{ReflectionInterner, StrId};
+use hakana_str::{Interner, StrId};
 use oxidized::aast;
 use rustc_hash::FxHashMap;
 
@@ -26,7 +26,7 @@ pub struct FileAnalyzer<'a> {
     namespace_name: Option<String>,
     pub resolved_names: &'a FxHashMap<u32, StrId>,
     pub codebase: &'a CodebaseInfo,
-    pub interner: Arc<ReflectionInterner>,
+    pub interner: Arc<Interner>,
     pub analysis_config: &'a Config,
 }
 
@@ -35,7 +35,7 @@ impl<'a> FileAnalyzer<'a> {
         file_source: FileSource<'a>,
         resolved_names: &'a FxHashMap<u32, StrId>,
         codebase: &'a CodebaseInfo,
-        interner: Arc<ReflectionInterner>,
+        interner: Arc<Interner>,
         analysis_config: &'a Config,
     ) -> Self {
         Self {

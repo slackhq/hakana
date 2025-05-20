@@ -50,7 +50,7 @@ pub(crate) fn check_for_paradox(
                 })
             })
         {
-            let clause_string = formula_2_clause.to_string(&analysis_data.scoped_interner);
+            let clause_string = formula_2_clause.to_string(&statements_analyzer.interner);
 
             analysis_data.maybe_add_issue(
                 Issue::new(
@@ -116,7 +116,7 @@ pub(crate) fn check_for_paradox(
                             paradox_message += "(";
                             paradox_message += mini_formula_2
                                 .iter()
-                                .map(|c| c.to_string(&analysis_data.scoped_interner))
+                                .map(|c| c.to_string(&statements_analyzer.interner))
                                 .collect::<Vec<String>>()
                                 .join(") && (")
                                 .as_str();
@@ -125,18 +125,18 @@ pub(crate) fn check_for_paradox(
                             paradox_message += mini_formula_2
                                 .first()
                                 .unwrap()
-                                .to_string(&analysis_data.scoped_interner)
+                                .to_string(&statements_analyzer.interner)
                                 .as_str();
                         }
                     } else {
                         paradox_message += "Condition not (";
                         paradox_message += negated_clause_2
-                            .to_string(&analysis_data.scoped_interner)
+                            .to_string(&statements_analyzer.interner)
                             .as_str();
                     }
 
                     paradox_message += ") contradicts a previously-established condition (";
-                    paradox_message += clause_1.to_string(&analysis_data.scoped_interner).as_str();
+                    paradox_message += clause_1.to_string(&statements_analyzer.interner).as_str();
                     paradox_message += ")";
 
                     analysis_data.maybe_add_issue(

@@ -100,7 +100,7 @@ pub(crate) fn check_arguments_match(
 
             type_expander::expand_union(
                 statements_analyzer.codebase,
-                &Some(&analysis_data.scoped_interner),
+                &Some(&statements_analyzer.interner),
                 &mut param_type,
                 &TypeExpansionOptions {
                     parent_class: None,
@@ -340,7 +340,6 @@ pub(crate) fn check_arguments_match(
             arg_expr.pos(),
             context,
             template_result,
-            analysis_data,
             statements_analyzer,
             functionlike_id,
         );
@@ -389,7 +388,6 @@ pub(crate) fn check_arguments_match(
             unpacked_arg.pos(),
             context,
             template_result,
-            analysis_data,
             statements_analyzer,
             functionlike_id,
         );
@@ -550,8 +548,7 @@ pub(crate) fn check_arguments_match(
                     arg_expr,
                     None,
                     statements_analyzer.file_analyzer.resolved_names,
-                    statements_analyzer.codebase,
-                    &analysis_data.scoped_interner,
+                    Some((statements_analyzer.codebase, &statements_analyzer.interner)),
                 ) {
                     analysis_data.if_true_assertions.insert(
                         (
@@ -638,7 +635,6 @@ fn adjust_param_type(
     arg_pos: &Pos,
     context: &mut BlockContext,
     template_result: &mut TemplateResult,
-    analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
     functionlike_id: &FunctionLikeIdentifier,
 ) {
@@ -653,7 +649,7 @@ fn adjust_param_type(
             class_generic_params,
             param_type,
             codebase,
-            &analysis_data.scoped_interner,
+            &statements_analyzer.interner,
             &mut arg_value_type,
             argument_offset,
             context,
@@ -668,7 +664,7 @@ fn adjust_param_type(
                 &*param_type,
                 template_result,
                 statements_analyzer.codebase,
-                &analysis_data.scoped_interner,
+                &statements_analyzer.interner,
                 &Some(&arg_value_type),
                 Some(argument_offset),
                 Some(statements_analyzer.get_hpos(arg_pos)),
@@ -755,7 +751,7 @@ fn get_param_type(
 
             type_expander::expand_union(
                 codebase,
-                &Some(&analysis_data.scoped_interner),
+                &Some(&statements_analyzer.interner),
                 &mut param_type,
                 &TypeExpansionOptions {
                     self_class: if let Some(classlike_storage) = class_storage {
@@ -839,7 +835,7 @@ fn handle_closure_arg(
         param_type,
         &mut replace_template_result,
         codebase,
-        &analysis_data.scoped_interner,
+        &statements_analyzer.interner,
         &None,
         None,
         None,
@@ -1030,8 +1026,7 @@ pub(crate) fn evaluate_arbitrary_param(
             arg.to_expr_ref(),
             context.function_context.calling_class.as_ref(),
             statements_analyzer.file_analyzer.resolved_names,
-            statements_analyzer.codebase,
-            &analysis_data.scoped_interner,
+            Some((statements_analyzer.codebase, &statements_analyzer.interner)),
         );
 
         if let Some(var_id) = var_id {
@@ -1097,7 +1092,7 @@ fn handle_possibly_matching_inout_param(
             &inout_type,
             template_result,
             codebase,
-            &analysis_data.scoped_interner,
+            &statements_analyzer.interner,
             &if let Some(arg_type) = &arg_type {
                 Some(arg_type)
             } else {
@@ -1125,7 +1120,7 @@ fn handle_possibly_matching_inout_param(
 
     type_expander::expand_union(
         codebase,
-        &Some(&analysis_data.scoped_interner),
+        &Some(&statements_analyzer.interner),
         &mut inout_type,
         &TypeExpansionOptions {
             self_class: if let Some(classlike_storage) = classlike_storage {

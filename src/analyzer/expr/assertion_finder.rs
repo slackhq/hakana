@@ -58,11 +58,15 @@ pub(crate) fn scrape_assertions(
             );
         }
         aast::Expr_::Call(call) => {
-            let functionlike_id = get_static_functionlike_id_from_call(
-                call,
-                &analysis_data.scoped_interner,
-                assertion_context.resolved_names,
-            );
+            let functionlike_id = if let Some((_, interner)) = assertion_context.codebase {
+                get_static_functionlike_id_from_call(
+                    call,
+                    interner,
+                    assertion_context.resolved_names,
+                )
+            } else {
+                None
+            };
 
             if let Some(FunctionLikeIdentifier::Function(name)) = functionlike_id {
                 return scrape_function_assertions(
@@ -85,7 +89,6 @@ pub(crate) fn scrape_assertions(
         assertion_context.this_class_name,
         assertion_context.resolved_names,
         assertion_context.codebase,
-        &analysis_data.scoped_interner,
     );
 
     // matches if ($foo) {}
@@ -131,7 +134,6 @@ pub(crate) fn scrape_assertions(
                         assertion_context.this_class_name,
                         assertion_context.resolved_names,
                         assertion_context.codebase,
-                        &analysis_data.scoped_interner,
                     );
 
                     if let Some(var_name) = var_name {
@@ -223,32 +225,33 @@ fn get_is_assertions(
         return vec![];
     };
 
-    populate_union_type(
-        &mut is_type,
-        &assertion_context.codebase.symbols,
-        &assertion_context.reference_source,
-        &mut analysis_data.symbol_references,
-        false,
-    );
-    type_expander::expand_union(
-        assertion_context.codebase,
-        &None,
-        &mut is_type,
-        &TypeExpansionOptions {
-            self_class: assertion_context.this_class_name,
-            expand_hakana_types: false,
-            ..Default::default()
-        },
-        &mut DataFlowGraph::new(GraphKind::FunctionBody),
-        &mut 0,
-    );
+    if let Some((codebase, _)) = assertion_context.codebase {
+        populate_union_type(
+            &mut is_type,
+            &codebase.symbols,
+            &assertion_context.reference_source,
+            &mut analysis_data.symbol_references,
+            false,
+        );
+        type_expander::expand_union(
+            codebase,
+            &None,
+            &mut is_type,
+            &TypeExpansionOptions {
+                self_class: assertion_context.this_class_name,
+                expand_hakana_types: false,
+                ..Default::default()
+            },
+            &mut DataFlowGraph::new(GraphKind::FunctionBody),
+            &mut 0,
+        );
+    }
 
     let var_name = get_var_id(
         var_expr,
         assertion_context.this_class_name,
         assertion_context.resolved_names,
         assertion_context.codebase,
-        &analysis_data.scoped_interner,
     );
 
     if let Some(var_name) = var_name {
@@ -263,27 +266,15 @@ fn get_is_assertions(
     } else {
         match is_type.get_single() {
             TAtomic::TMixedWithFlags(_, _, _, true) => {
-                scrape_shapes_isset(
-                    var_expr,
-                    assertion_context,
-                    &analysis_data,
-                    &mut if_types,
-                    false,
-                );
+                scrape_shapes_isset(var_expr, assertion_context, &mut if_types, false);
             }
             TAtomic::TNull => {
-                scrape_shapes_isset(
-                    var_expr,
-                    assertion_context,
-                    &analysis_data,
-                    &mut if_types,
-                    true,
-                );
+                scrape_shapes_isset(var_expr, assertion_context, &mut if_types, true);
             }
             _ => {}
         }
 
-        if let (Some(lhs_type), codebase) = (
+        if let (Some(lhs_type), Some((codebase, interner))) = (
             analysis_data.expr_types.get(&(
                 var_expr.1.start_offset() as u32,
                 var_expr.1.end_offset() as u32,
@@ -298,8 +289,8 @@ fn get_is_assertions(
                         IssueKind::ImpossibleTypeComparison,
                         format!(
                             "Type {} is never {}",
-                            lhs_type.get_id(Some(&analysis_data.scoped_interner)),
-                            is_type.get_id(Some(&analysis_data.scoped_interner)),
+                            lhs_type.get_id(Some(interner)),
+                            is_type.get_id(Some(interner)),
                         ),
                         HPos::new(var_expr.pos(), assertion_context.file_source.file_path),
                         &Some(match assertion_context.reference_source {
@@ -328,8 +319,8 @@ fn get_is_assertions(
                         IssueKind::RedundantTypeComparison,
                         format!(
                             "Type {} is always {}",
-                            lhs_type.get_id(Some(&analysis_data.scoped_interner)),
-                            is_type.get_id(Some(&analysis_data.scoped_interner)),
+                            lhs_type.get_id(Some(interner)),
+                            is_type.get_id(Some(interner)),
                         ),
                         HPos::new(var_expr.pos(), assertion_context.file_source.file_path),
                         &Some(match assertion_context.reference_source {
@@ -354,50 +345,49 @@ fn get_is_assertions(
 fn scrape_shapes_isset(
     var_expr: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    analysis_data: &FunctionAnalysisData,
     if_types: &mut FxHashMap<String, Vec<Vec<Assertion>>>,
     negated: bool,
 ) {
     if let aast::Expr_::Call(call) = &var_expr.2 {
-        let functionlike_id = get_static_functionlike_id_from_call(
-            call,
-            &analysis_data.scoped_interner,
-            assertion_context.resolved_names,
-        );
+        let functionlike_id = if let Some((_, interner)) = assertion_context.codebase {
+            get_static_functionlike_id_from_call(call, interner, assertion_context.resolved_names)
+        } else {
+            None
+        };
 
         if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
-            if class_name == StrId::SHAPES && member_name == StrId::IDX {
-                let shape_name = get_var_id(
-                    &call.args[0].to_expr_ref(),
-                    assertion_context.this_class_name,
-                    assertion_context.resolved_names,
-                    assertion_context.codebase,
-                    &analysis_data.scoped_interner,
-                );
-
-                let dim_id = get_dim_id(
-                    &call.args[1].to_expr_ref(),
-                    assertion_context.codebase,
-                    &analysis_data.scoped_interner,
-                    assertion_context.resolved_names,
-                );
-
-                if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
-                    let dict_key = if dim_id.starts_with('\'') {
-                        DictKey::String(dim_id[1..(dim_id.len() - 1)].to_string())
-                    } else if let Ok(arraykey_value) = dim_id.parse::<u64>() {
-                        DictKey::Int(arraykey_value)
-                    } else {
-                        panic!("bad int key {}", dim_id);
-                    };
-                    if_types.insert(
-                        shape_name,
-                        vec![vec![if negated {
-                            Assertion::DoesNotHaveNonnullEntryForKey(dict_key)
-                        } else {
-                            Assertion::HasNonnullEntryForKey(dict_key)
-                        }]],
+            if let Some((codebase, interner)) = assertion_context.codebase {
+                if class_name == StrId::SHAPES && member_name == StrId::IDX {
+                    let shape_name = get_var_id(
+                        &call.args[0].to_expr_ref(),
+                        assertion_context.this_class_name,
+                        assertion_context.resolved_names,
+                        assertion_context.codebase,
                     );
+
+                    let dim_id = get_dim_id(
+                        &call.args[1].to_expr_ref(),
+                        Some((codebase, interner)),
+                        assertion_context.resolved_names,
+                    );
+
+                    if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
+                        let dict_key = if dim_id.starts_with('\'') {
+                            DictKey::String(dim_id[1..(dim_id.len() - 1)].to_string())
+                        } else if let Ok(arraykey_value) = dim_id.parse::<u64>() {
+                            DictKey::Int(arraykey_value)
+                        } else {
+                            panic!("bad int key {}", dim_id);
+                        };
+                        if_types.insert(
+                            shape_name,
+                            vec![vec![if negated {
+                                Assertion::DoesNotHaveNonnullEntryForKey(dict_key)
+                            } else {
+                                Assertion::HasNonnullEntryForKey(dict_key)
+                            }]],
+                        );
+                    }
                 }
             }
         }
@@ -416,40 +406,19 @@ fn scrape_equality_assertions(
     let null_position = has_null_variable(bop, left, right);
 
     if let Some(null_position) = null_position {
-        return get_null_equality_assertions(
-            bop,
-            left,
-            right,
-            assertion_context,
-            &analysis_data,
-            null_position,
-        );
+        return get_null_equality_assertions(bop, left, right, assertion_context, null_position);
     }
 
     let true_position = has_true_variable(bop, left, right);
 
     if let Some(true_position) = true_position {
-        return get_true_equality_assertions(
-            bop,
-            left,
-            right,
-            assertion_context,
-            &analysis_data,
-            true_position,
-        );
+        return get_true_equality_assertions(bop, left, right, assertion_context, true_position);
     }
 
     let false_position = has_false_variable(left, right);
 
     if let Some(false_position) = false_position {
-        return get_false_equality_assertions(
-            bop,
-            left,
-            right,
-            assertion_context,
-            &analysis_data,
-            false_position,
-        );
+        return get_false_equality_assertions(bop, left, right, assertion_context, false_position);
     }
 
     if let Some(typed_value_position) =
@@ -479,14 +448,7 @@ fn scrape_inequality_assertions(
     let null_position = has_null_variable(bop, left, right);
 
     if let Some(null_position) = null_position {
-        return get_null_inequality_assertions(
-            bop,
-            left,
-            right,
-            assertion_context,
-            analysis_data,
-            null_position,
-        );
+        return get_null_inequality_assertions(bop, left, right, assertion_context, null_position);
     }
 
     // let true_position = has_true_variable(bop, left, right, source);
@@ -547,7 +509,6 @@ fn scrape_function_assertions(
             assertion_context.this_class_name,
             assertion_context.resolved_names,
             assertion_context.codebase,
-            &analysis_data.scoped_interner,
         );
         let first_var_type = analysis_data.get_expr_type(expr.pos());
         Some((expr, first_var_name, first_var_type))
@@ -605,7 +566,6 @@ fn get_null_equality_assertions(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    analysis_data: &FunctionAnalysisData,
     null_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let mut if_types = FxHashMap::default();
@@ -619,19 +579,12 @@ fn get_null_equality_assertions(
         assertion_context.this_class_name,
         assertion_context.resolved_names,
         assertion_context.codebase,
-        &analysis_data.scoped_interner,
     );
 
     if let Some(var_name) = var_name {
         if_types.insert(var_name, vec![vec![Assertion::IsType(TAtomic::TNull)]]);
     } else {
-        scrape_shapes_isset(
-            base_conditional,
-            assertion_context,
-            analysis_data,
-            &mut if_types,
-            true,
-        );
+        scrape_shapes_isset(base_conditional, assertion_context, &mut if_types, true);
     }
 
     vec![if_types]
@@ -642,7 +595,6 @@ fn get_null_inequality_assertions(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    analysis_data: &FunctionAnalysisData,
     null_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let mut if_types = FxHashMap::default();
@@ -656,19 +608,12 @@ fn get_null_inequality_assertions(
         assertion_context.this_class_name,
         assertion_context.resolved_names,
         assertion_context.codebase,
-        &analysis_data.scoped_interner,
     );
 
     if let Some(var_name) = var_name {
         if_types.insert(var_name, vec![vec![Assertion::IsNotType(TAtomic::TNull)]]);
     } else {
-        scrape_shapes_isset(
-            base_conditional,
-            assertion_context,
-            analysis_data,
-            &mut if_types,
-            false,
-        );
+        scrape_shapes_isset(base_conditional, assertion_context, &mut if_types, false);
     }
 
     vec![if_types]
@@ -695,7 +640,6 @@ fn get_true_equality_assertions(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    analysis_data: &FunctionAnalysisData,
     true_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let mut if_types = FxHashMap::default();
@@ -709,7 +653,6 @@ fn get_true_equality_assertions(
         assertion_context.this_class_name,
         assertion_context.resolved_names,
         assertion_context.codebase,
-        &analysis_data.scoped_interner,
     );
 
     if let Some(var_name) = var_name {
@@ -746,14 +689,12 @@ pub(crate) fn has_typed_value_comparison(
         assertion_context.this_class_name,
         assertion_context.resolved_names,
         assertion_context.codebase,
-        &analysis_data.scoped_interner,
     );
     let right_var_id = get_var_id(
         right,
         assertion_context.this_class_name,
         assertion_context.resolved_names,
         assertion_context.codebase,
-        &analysis_data.scoped_interner,
     );
 
     if let Some(right_type) = analysis_data.get_expr_type(right.pos()) {
@@ -778,7 +719,6 @@ fn get_false_equality_assertions(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    analysis_data: &FunctionAnalysisData,
     false_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let mut if_types = FxHashMap::default();
@@ -792,7 +732,6 @@ fn get_false_equality_assertions(
         assertion_context.this_class_name,
         assertion_context.resolved_names,
         assertion_context.codebase,
-        &analysis_data.scoped_interner,
     );
 
     if let Some(var_name) = var_name {
@@ -824,14 +763,12 @@ fn get_typed_value_equality_assertions(
                 assertion_context.this_class_name,
                 assertion_context.resolved_names,
                 assertion_context.codebase,
-                &analysis_data.scoped_interner,
             );
             other_value_var_name = get_var_id(
                 right,
                 assertion_context.this_class_name,
                 assertion_context.resolved_names,
                 assertion_context.codebase,
-                &analysis_data.scoped_interner,
             );
 
             var_type = analysis_data.get_expr_type(left.pos());
@@ -843,14 +780,12 @@ fn get_typed_value_equality_assertions(
                 assertion_context.this_class_name,
                 assertion_context.resolved_names,
                 assertion_context.codebase,
-                &analysis_data.scoped_interner,
             );
             other_value_var_name = get_var_id(
                 left,
                 assertion_context.this_class_name,
                 assertion_context.resolved_names,
                 assertion_context.codebase,
-                &analysis_data.scoped_interner,
             );
 
             var_type = analysis_data.get_expr_type(right.pos());
@@ -908,14 +843,12 @@ fn get_typed_value_inequality_assertions(
                 assertion_context.this_class_name,
                 assertion_context.resolved_names,
                 assertion_context.codebase,
-                &analysis_data.scoped_interner,
             );
             other_value_var_name = get_var_id(
                 right,
                 assertion_context.this_class_name,
                 assertion_context.resolved_names,
                 assertion_context.codebase,
-                &analysis_data.scoped_interner,
             );
 
             var_type = analysis_data.get_expr_type(left.pos());
@@ -927,14 +860,12 @@ fn get_typed_value_inequality_assertions(
                 assertion_context.this_class_name,
                 assertion_context.resolved_names,
                 assertion_context.codebase,
-                &analysis_data.scoped_interner,
             );
             other_value_var_name = get_var_id(
                 left,
                 assertion_context.this_class_name,
                 assertion_context.resolved_names,
                 assertion_context.codebase,
-                &analysis_data.scoped_interner,
             );
 
             var_type = analysis_data.get_expr_type(right.pos());

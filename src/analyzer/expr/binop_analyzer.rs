@@ -101,7 +101,7 @@ pub(crate) fn analyze(
             let lhs_type = analysis_data.get_rc_expr_type(expr.1.pos());
             let rhs_type = analysis_data.get_rc_expr_type(expr.2.pos());
 
-            let interner = &analysis_data.scoped_interner;
+            let interner = &statements_analyzer.interner;
 
             if let (Some(lhs_type), Some(rhs_type)) = (lhs_type, rhs_type) {
                 if is_resolvable(expr.1)

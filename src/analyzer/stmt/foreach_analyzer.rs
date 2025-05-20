@@ -64,8 +64,7 @@ pub(crate) fn analyze(
         stmt.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        statements_analyzer.codebase,
-        &analysis_data.scoped_interner,
+        Some((statements_analyzer.codebase, &statements_analyzer.interner)),
     );
 
     let iterator_type = if let Some(stmt_expr_type) = analysis_data.get_expr_type(stmt.0.pos()) {

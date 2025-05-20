@@ -287,8 +287,7 @@ pub(crate) fn analyze(
                 &expr.2[0].to_expr_ref(),
                 context.function_context.calling_class.as_ref(),
                 resolved_names,
-                statements_analyzer.codebase,
-                &analysis_data.scoped_interner,
+                Some((statements_analyzer.codebase, &statements_analyzer.interner)),
             );
 
             if (name == StrId::LIB_C_CONTAINS || name == StrId::LIB_DICT_CONTAINS)
@@ -339,8 +338,7 @@ pub(crate) fn analyze(
                     } else {
                         if let Some(dim_var_id) = expression_identifier::get_dim_id(
                             &expr.2[1].to_expr_ref(),
-                            statements_analyzer.codebase,
-                            &analysis_data.scoped_interner,
+                            Some((statements_analyzer.codebase, &statements_analyzer.interner)),
                             resolved_names,
                         ) {
                             analysis_data.if_true_assertions.insert(
@@ -376,8 +374,7 @@ pub(crate) fn analyze(
                     &expr.2[1].to_expr_ref(),
                     context.function_context.calling_class.as_ref(),
                     resolved_names,
-                    statements_analyzer.codebase,
-                    &analysis_data.scoped_interner,
+                    Some((statements_analyzer.codebase, &statements_analyzer.interner)),
                 );
 
                 if let Some(expr_var_id) = second_arg_var_id {
@@ -405,8 +402,7 @@ pub(crate) fn analyze(
                         &expr.2[0].to_expr_ref(),
                         context.function_context.calling_class.as_ref(),
                         resolved_names,
-                        statements_analyzer.codebase,
-                        &analysis_data.scoped_interner,
+                        Some((statements_analyzer.codebase, &statements_analyzer.interner)),
                     );
 
                     let second_arg_type =
@@ -448,8 +444,7 @@ pub(crate) fn analyze(
                         &expr.2[0].to_expr_ref(),
                         context.function_context.calling_class.as_ref(),
                         resolved_names,
-                        statements_analyzer.codebase,
-                        &analysis_data.scoped_interner,
+                        Some((statements_analyzer.codebase, &statements_analyzer.interner)),
                     );
 
                     let second_arg_type =
@@ -687,8 +682,8 @@ fn check_array_key_or_value_type(
                         error_message = Some(format!(
                             "Second arg of {} expects type {}, saw {}",
                             statements_analyzer.interner.lookup(&function_name),
-                            param.get_id(Some(&analysis_data.scoped_interner)),
-                            arg_type.get_id(Some(&analysis_data.scoped_interner))
+                            param.get_id(Some(&statements_analyzer.interner)),
+                            arg_type.get_id(Some(&statements_analyzer.interner))
                         ));
                     }
                 };

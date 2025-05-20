@@ -65,8 +65,7 @@ pub(crate) fn analyze(
         assign_var,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        statements_analyzer.codebase,
-        &analysis_data.scoped_interner,
+        Some((statements_analyzer.codebase, &statements_analyzer.interner)),
     );
 
     if statements_analyzer.get_config().add_fixmes {
@@ -400,8 +399,7 @@ fn analyze_list_assignment(
             assign_var_item,
             context.function_context.calling_class.as_ref(),
             statements_analyzer.file_analyzer.resolved_names,
-            statements_analyzer.codebase,
-            &analysis_data.scoped_interner,
+            Some((statements_analyzer.codebase, &statements_analyzer.interner)),
         );
 
         if list_var_id.unwrap_or("".to_string()) == "$_" {
@@ -466,8 +464,7 @@ fn analyze_list_assignment(
                 source_expr,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.file_analyzer.resolved_names,
-                statements_analyzer.codebase,
-                &analysis_data.scoped_interner,
+                Some((statements_analyzer.codebase, &statements_analyzer.interner)),
             );
 
             let keyed_array_var_id = source_expr_id

@@ -15,7 +15,7 @@ use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::ReferenceSource;
 use hakana_code_info::type_resolution::TypeResolutionContext;
-use hakana_str::{ReflectionInterner, StrId};
+use hakana_str::{Interner, StrId};
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
@@ -26,7 +26,7 @@ pub struct StatementsAnalyzer<'a> {
     pub comments: Vec<&'a (Pos, Comment)>,
     type_resolution_context: &'a TypeResolutionContext,
     pub in_migratable_function: bool,
-    pub interner: Arc<ReflectionInterner>,
+    pub interner: Arc<Interner>,
     pub codebase: &'a CodebaseInfo,
 }
 
@@ -122,11 +122,11 @@ impl<'a> StatementsAnalyzer<'a> {
         &'a self,
         this_class_name: Option<&'a StrId>,
         calling_functionlike_id: Option<&'a FunctionLikeIdentifier>,
-    ) -> AssertionContext<'a> {
+    ) -> AssertionContext<'a, 'a> {
         AssertionContext {
             file_source: &self.file_analyzer.file_source,
             resolved_names: self.file_analyzer.resolved_names,
-            codebase: self.codebase,
+            codebase: Some((self.codebase, &self.interner)),
             this_class_name,
             type_resolution_context: self.type_resolution_context,
             reference_source: match calling_functionlike_id {

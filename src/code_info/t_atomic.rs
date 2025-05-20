@@ -363,7 +363,7 @@ impl TAtomic {
             TAtomic::TClosureAlias { id } => {
                 let mut str = String::new();
                 if let Some(interner) = interner {
-                    str += id.to_string(interner.parent()).as_str();
+                    str += id.to_string(interner).as_str();
                 } else {
                     str += id.to_hash().as_str();
                 }

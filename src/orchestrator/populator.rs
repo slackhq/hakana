@@ -10,14 +10,14 @@ use hakana_code_info::symbol_references::{ReferenceSource, SymbolReferences};
 use hakana_code_info::t_atomic::{populate_atomic_type, TAtomic};
 use hakana_code_info::t_union::{populate_union_type, TUnion};
 use hakana_code_info::GenericParent;
-use hakana_str::{ReflectionInterner, StrId};
+use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 // as currently constructed this is not efficient memory-wise
 pub fn populate_codebase(
     codebase: &mut CodebaseInfo,
-    interner: &ReflectionInterner,
+    interner: &Interner,
     symbol_references: &mut SymbolReferences,
     safe_symbols: FxHashSet<StrId>,
     safe_symbol_members: FxHashSet<(StrId, StrId)>,

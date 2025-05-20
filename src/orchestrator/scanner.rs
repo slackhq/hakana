@@ -29,7 +29,7 @@ use hakana_code_info::file_info::FileInfo;
 use hakana_code_info::file_info::ParserError;
 use hakana_code_info::FileSource;
 use hakana_logger::Logger;
-use hakana_str::ReflectionInterner;
+use hakana_str::Interner;
 use hakana_str::StrId;
 use hakana_str::ThreadedInterner;
 use indicatif::ProgressBar;
@@ -40,7 +40,7 @@ use rustc_hash::FxHashSet;
 #[derive(Debug)]
 pub struct ScanFilesResult {
     pub codebase: CodebaseInfo,
-    pub interner: ReflectionInterner,
+    pub interner: Interner,
     pub file_system: VirtualFileSystem,
     pub resolved_names: FxHashMap<FilePath, FxHashMap<u32, StrId>>,
     pub codebase_diff: CodebaseDiff,
@@ -55,7 +55,7 @@ pub fn scan_files(
     threads: u8,
     logger: Arc<Logger>,
     build_checksum: &str,
-    starter_interner: &Arc<ReflectionInterner>,
+    starter_interner: &Arc<Interner>,
     starter_data: Option<SuccessfulScanData>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
 ) -> io::Result<ScanFilesResult> {
@@ -447,7 +447,7 @@ pub fn scan_files(
 
 pub fn get_filesystem(
     files_to_scan: &mut Vec<String>,
-    interner: &mut ReflectionInterner,
+    interner: &mut Interner,
     logger: &Logger,
     scan_dirs: &Vec<String>,
     existing_file_system: &Option<VirtualFileSystem>,
@@ -482,7 +482,7 @@ pub fn get_filesystem(
 
 pub fn add_builtins_to_scan(
     files_to_scan: &mut Vec<String>,
-    interner: &mut ReflectionInterner,
+    interner: &mut Interner,
     file_system: &mut VirtualFileSystem,
 ) {
     // add HHVM libs

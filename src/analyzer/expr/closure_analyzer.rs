@@ -44,7 +44,7 @@ pub(crate) fn analyze(
         if let Some(ref mut param_type) = param.signature_type {
             type_expander::expand_union(
                 statements_analyzer.codebase,
-                &Some(&analysis_data.scoped_interner),
+                &Some(&statements_analyzer.interner),
                 param_type,
                 &TypeExpansionOptions {
                     evaluate_conditional_types: true,

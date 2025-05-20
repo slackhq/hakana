@@ -2,7 +2,7 @@ use std::{fs, path::Path, time::SystemTime};
 
 use hakana_analyzer::config::Config;
 use hakana_code_info::{code_location::FilePath, data_flow::graph::GraphKind};
-use hakana_str::ReflectionInterner;
+use hakana_str::Interner;
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,7 @@ impl VirtualFileSystem {
         &mut self,
         language_server_changes: FxHashMap<String, FileStatus>,
         files_to_scan: &mut Vec<String>,
-        interner: &mut ReflectionInterner,
+        interner: &mut Interner,
         config: &Config,
         files_to_analyze: &mut Vec<String>,
     ) {
@@ -97,7 +97,7 @@ impl VirtualFileSystem {
     pub(crate) fn get_file_statuses(
         &self,
         target_files: &Vec<String>,
-        interner: &ReflectionInterner,
+        interner: &Interner,
         existing_file_system: &Option<VirtualFileSystem>,
     ) -> IndexMap<FilePath, FileStatus> {
         let mut file_statuses = IndexMap::new();
@@ -160,7 +160,7 @@ impl VirtualFileSystem {
     pub fn find_files_in_dir(
         &mut self,
         scan_dir: &String,
-        interner: &mut ReflectionInterner,
+        interner: &mut Interner,
         existing_file_system: &Option<VirtualFileSystem>,
         config: &Config,
         calculate_file_hashes: bool,
@@ -217,7 +217,7 @@ impl VirtualFileSystem {
         &mut self,
         path: &std::path::Path,
         ignore_patterns: &Vec<glob::Pattern>,
-        interner: &mut ReflectionInterner,
+        interner: &mut Interner,
         existing_file_system: &Option<VirtualFileSystem>,
         calculate_file_hashes: bool,
         files_to_scan: &mut Vec<String>,

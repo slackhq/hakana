@@ -117,8 +117,8 @@ pub(crate) fn analyze(
                         IssueKind::UpcastAwaitable,
                         format!(
                             "{} contains Awaitable but was passed into a more general type {}",
-                            assignment_type.get_id(Some(&analysis_data.scoped_interner)),
-                            class_property_type.get_id(Some(&analysis_data.scoped_interner)),
+                            assignment_type.get_id(Some(&statements_analyzer.interner)),
+                            class_property_type.get_id(Some(&statements_analyzer.interner)),
                         ),
                         statements_analyzer.get_hpos(&stmt_var.1),
                         &context.function_context.calling_functionlike_id,
@@ -139,8 +139,8 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
-                                class_property_type.get_id(Some(&analysis_data.scoped_interner)),
-                                assignment_type.get_id(Some(&analysis_data.scoped_interner)),
+                                class_property_type.get_id(Some(&statements_analyzer.interner)),
+                                assignment_type.get_id(Some(&statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
                             &context.function_context.calling_functionlike_id,
@@ -155,8 +155,8 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
-                                class_property_type.get_id(Some(&analysis_data.scoped_interner)),
-                                assignment_type.get_id(Some(&analysis_data.scoped_interner)),
+                                class_property_type.get_id(Some(&statements_analyzer.interner)),
+                                assignment_type.get_id(Some(&statements_analyzer.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
                             &context.function_context.calling_functionlike_id,
@@ -181,7 +181,7 @@ pub(crate) fn analyze(
                 // }
                 invalid_assignment_value_types.insert(
                     &assigned_property.1 .1,
-                    class_property_type.get_id(Some(&analysis_data.scoped_interner)),
+                    class_property_type.get_id(Some(&statements_analyzer.interner)),
                 );
             } else {
                 // has_valid_assignment_value_type = true;
@@ -198,7 +198,7 @@ pub(crate) fn analyze(
                         "Property ${} with declared type {}, cannot be assigned type {}",
                         statements_analyzer.interner.lookup(property_id),
                         invalid_class_property_type,
-                        assignment_type.get_id(Some(&analysis_data.scoped_interner)),
+                        assignment_type.get_id(Some(&statements_analyzer.interner)),
                     ),
                     statements_analyzer.get_hpos(&stmt_var.1),
                     &context.function_context.calling_functionlike_id,
@@ -250,8 +250,7 @@ pub(crate) fn analyze_regular_assignment(
         stmt_var,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        statements_analyzer.codebase,
-        &analysis_data.scoped_interner,
+        Some((statements_analyzer.codebase, &statements_analyzer.interner)),
     );
 
     // if let Some(var_id) = var_id.clone() {
@@ -442,8 +441,7 @@ pub(crate) fn analyze_atomic_assignment(
             expr.0,
             None,
             statements_analyzer.file_analyzer.resolved_names,
-            statements_analyzer.codebase,
-            &analysis_data.scoped_interner,
+            Some((statements_analyzer.codebase, &statements_analyzer.interner)),
         );
 
         add_instance_property_dataflow(
@@ -545,7 +543,7 @@ pub(crate) fn analyze_atomic_assignment(
         if !class_property_type.is_mixed() {
             type_expander::expand_union(
                 codebase,
-                &Some(&analysis_data.scoped_interner),
+                &Some(&statements_analyzer.interner),
                 &mut class_property_type,
                 &TypeExpansionOptions {
                     self_class: Some(&declaring_classlike_storage.name),

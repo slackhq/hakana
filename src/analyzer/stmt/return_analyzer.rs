@@ -23,7 +23,7 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_str::StrId;
+use hakana_str::{Interner, StrId};
 use oxidized::aast;
 use rustc_hash::FxHashSet;
 
@@ -39,6 +39,8 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let return_expr = stmt.1.as_return().unwrap();
+
+    let interner = &statements_analyzer.interner;
 
     let mut inferred_return_type = if let Some(return_expr) = return_expr {
         context.inside_return = true;
@@ -98,14 +100,14 @@ pub(crate) fn analyze(
         return Ok(());
     };
 
-    handle_inout_at_return(functionlike_storage, context, analysis_data);
+    handle_inout_at_return(functionlike_storage, context, analysis_data, &interner);
 
     // todo maybe check inout params here, though that's covered by Hack's typechecker
     // examineParamTypes in Psalm's source code
 
     type_expander::expand_union(
         codebase,
-        &Some(&analysis_data.scoped_interner),
+        &Some(&statements_analyzer.interner),
         &mut inferred_return_type,
         &TypeExpansionOptions {
             self_class: context.function_context.calling_class.as_ref(),
@@ -146,7 +148,7 @@ pub(crate) fn analyze(
 
         type_expander::expand_union(
             codebase,
-            &Some(&analysis_data.scoped_interner),
+            &Some(&statements_analyzer.interner),
             &mut expected_type,
             &TypeExpansionOptions {
                 self_class: context.function_context.calling_class.as_ref(),
@@ -212,7 +214,7 @@ pub(crate) fn analyze(
                                     .calling_functionlike_id
                                     .as_ref()
                                     .unwrap()
-                                    .to_string(&analysis_data.scoped_interner.parent())
+                                    .to_string(&interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
                             &context.function_context.calling_functionlike_id,
@@ -241,7 +243,7 @@ pub(crate) fn analyze(
                         },
                         format!(
                             "Could not infer a proper return type — saw {}",
-                            inferred_return_type.get_id(Some(&analysis_data.scoped_interner))
+                            inferred_return_type.get_id(Some(&interner))
                         ),
                         statements_analyzer.get_hpos(&return_expr.1),
                         &context.function_context.calling_functionlike_id,
@@ -266,7 +268,7 @@ pub(crate) fn analyze(
                                 .calling_functionlike_id
                                 .as_ref()
                                 .unwrap()
-                                .to_string(&analysis_data.scoped_interner.parent())
+                                .to_string(&interner)
                         ),
                         statements_analyzer.get_hpos(&return_expr.1),
                         &context.function_context.calling_functionlike_id,
@@ -301,9 +303,9 @@ pub(crate) fn analyze(
                             IssueKind::LessSpecificNestedAnyReturnStatement,
                             format!(
                                 "The type {} is more general than the declared return type {} for {}",
-                                inferred_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                                expected_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                                context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&analysis_data.scoped_interner.parent())
+                                inferred_return_type.get_id(Some(&interner)),
+                                expected_return_type.get_id(Some(&interner)),
+                                context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
                             &context.function_context.calling_functionlike_id,
@@ -323,9 +325,9 @@ pub(crate) fn analyze(
                                     IssueKind::LessSpecificNestedReturnStatement,
                                     format!(
                                         "The type {} is more general than the declared return type {} for {}",
-                                        inferred_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                                        expected_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&analysis_data.scoped_interner.parent())
+                                        inferred_return_type.get_id(Some(&interner)),
+                                        expected_return_type.get_id(Some(&interner)),
+                                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&interner)
                                     ),
                                     statements_analyzer.get_hpos(&return_expr.1),
                                     &context.function_context.calling_functionlike_id,
@@ -342,9 +344,9 @@ pub(crate) fn analyze(
                             IssueKind::LessSpecificReturnStatement,
                             format!(
                                 "The type {} is more general than the declared return type {} for {}",
-                                inferred_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                                expected_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                                context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&analysis_data.scoped_interner.parent())
+                                inferred_return_type.get_id(Some(&interner)),
+                                expected_return_type.get_id(Some(&interner)),
+                                context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
                             &context.function_context.calling_functionlike_id,
@@ -359,14 +361,14 @@ pub(crate) fn analyze(
                             IssueKind::InvalidReturnStatement,
                             format!(
                                 "The type {} does not match the declared return type {} for {}",
-                                inferred_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                                expected_return_type.get_id(Some(&analysis_data.scoped_interner)),
+                                inferred_return_type.get_id(Some(&interner)),
+                                expected_return_type.get_id(Some(&interner)),
                                 context
                                     .function_context
                                     .calling_functionlike_id
                                     .as_ref()
                                     .unwrap()
-                                    .to_string(&analysis_data.scoped_interner.parent())
+                                    .to_string(&interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
                             &context.function_context.calling_functionlike_id,
@@ -382,8 +384,8 @@ pub(crate) fn analyze(
                             IssueKind::UpcastAwaitable,
                             format!(
                                 "{} contains Awaitable but was passed into a more general type {}",
-                                inferred_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                                expected_return_type.get_id(Some(&analysis_data.scoped_interner)),
+                                inferred_return_type.get_id(Some(&interner)),
+                                expected_return_type.get_id(Some(&interner)),
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
                             &context.function_context.calling_functionlike_id,
@@ -424,9 +426,9 @@ pub(crate) fn analyze(
                     IssueKind::NullableReturnStatement,
                     format!(
                         "The declared return type {} for {} is not nullable, but the function returns {}",
-                        expected_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&analysis_data.scoped_interner.parent()),
-                        inferred_return_type.get_id(Some(&analysis_data.scoped_interner)),
+                        expected_return_type.get_id(Some(&interner)),
+                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&interner),
+                        inferred_return_type.get_id(Some(&interner)),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
                     &context.function_context.calling_functionlike_id,
@@ -445,9 +447,9 @@ pub(crate) fn analyze(
                     IssueKind::FalsableReturnStatement,
                     format!(
                         "The declared return type {} for {} is not falsable, but the function returns {}",
-                        expected_return_type.get_id(Some(&analysis_data.scoped_interner)),
-                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&analysis_data.scoped_interner.parent()),
-                        inferred_return_type.get_id(Some(&analysis_data.scoped_interner)),
+                        expected_return_type.get_id(Some(&interner)),
+                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(&interner),
+                        inferred_return_type.get_id(Some(&interner)),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
                     &context.function_context.calling_functionlike_id,
@@ -474,7 +476,7 @@ pub(crate) fn analyze(
                         .calling_functionlike_id
                         .as_ref()
                         .unwrap()
-                        .to_string(&analysis_data.scoped_interner.parent())
+                        .to_string(&interner)
                 ),
                 statements_analyzer.get_hpos(&stmt.0),
                 &context.function_context.calling_functionlike_id,
@@ -491,13 +493,11 @@ pub(crate) fn handle_inout_at_return(
     functionlike_storage: &FunctionLikeInfo,
     context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
+    interner: &Interner,
 ) {
     for (i, param) in functionlike_storage.params.iter().enumerate() {
         if param.is_inout {
-            if let Some(context_type) = context
-                .locals
-                .get(analysis_data.scoped_interner.lookup(&param.name.0))
-            {
+            if let Some(context_type) = context.locals.get(interner.lookup(&param.name.0)) {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {}
                 let new_parent_node =
                     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {

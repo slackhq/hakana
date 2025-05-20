@@ -5,7 +5,7 @@ use hakana_code_info::{
     issue::{Issue, IssueKind},
     taint::{SinkType, SourceType},
 };
-use hakana_str::{ReflectionInterner, StrId};
+use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::custom_hook::CustomHook;
@@ -95,7 +95,7 @@ impl Config {
         &mut self,
         cwd: &String,
         config_path: &Path,
-        interner: &mut ReflectionInterner,
+        interner: &mut Interner,
     ) -> Result<(), Box<dyn Error>> {
         let json_config = json_config::read_from_file(config_path)?;
 
@@ -223,7 +223,7 @@ impl Config {
         source_type: &SourceType,
         sink_type: &SinkType,
         node: &TaintedNode,
-        interner: &ReflectionInterner,
+        interner: &Interner,
     ) -> bool {
         let str_type = source_type.to_string() + " -> " + &sink_type.to_string();
 

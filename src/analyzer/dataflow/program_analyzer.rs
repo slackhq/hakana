@@ -1,10 +1,10 @@
+use hakana_logger::Logger;
+use hakana_logger::Verbosity;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
-use hakana_logger::Logger;
-use hakana_logger::Verbosity;
-use hakana_str::ReflectionInterner;
+use hakana_str::Interner;
 use hakana_str::StrId;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
@@ -25,7 +25,7 @@ pub fn find_tainted_data(
     graph: &DataFlowGraph,
     config: &Config,
     logger: &Logger,
-    interner: &ReflectionInterner,
+    interner: &Interner,
 ) -> Vec<Issue> {
     let mut new_issues = vec![];
 
@@ -73,7 +73,7 @@ pub fn find_connections(
     graph: &DataFlowGraph,
     config: &Config,
     logger: &Logger,
-    interner: &ReflectionInterner,
+    interner: &Interner,
 ) -> Vec<Issue> {
     let mut new_issues = vec![];
 
@@ -117,7 +117,7 @@ fn find_paths_to_sinks(
     logger: &Logger,
     new_issues: &mut Vec<Issue>,
     match_sinks: bool,
-    interner: &ReflectionInterner,
+    interner: &Interner,
 ) {
     let mut seen_sources = FxHashSet::default();
 
@@ -283,7 +283,7 @@ fn get_child_nodes(
     new_issues: &mut Vec<Issue>,
     is_last: bool,
     match_sinks: bool,
-    interner: &ReflectionInterner,
+    interner: &Interner,
 ) -> Vec<Rc<TaintedNode>> {
     let mut new_child_nodes = Vec::new();
 

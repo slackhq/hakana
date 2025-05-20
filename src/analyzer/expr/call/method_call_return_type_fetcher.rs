@@ -53,7 +53,7 @@ pub(crate) fn fetch(
     let codebase = statements_analyzer.codebase;
 
     let mut return_type_candidate = if let Some(return_type) =
-        get_special_method_return(method_id, &analysis_data.scoped_interner)
+        get_special_method_return(method_id, &statements_analyzer.interner)
     {
         return_type
     } else {
@@ -85,7 +85,7 @@ pub(crate) fn fetch(
     if !template_result.lower_bounds.is_empty() {
         type_expander::expand_union(
             codebase,
-            &Some(&analysis_data.scoped_interner),
+            &Some(&statements_analyzer.interner),
             &mut return_type_candidate,
             &TypeExpansionOptions {
                 self_class: Some(&method_id.0),
@@ -107,7 +107,7 @@ pub(crate) fn fetch(
 
     type_expander::expand_union(
         codebase,
-        &Some(&analysis_data.scoped_interner),
+        &Some(&statements_analyzer.interner),
         &mut return_type_candidate,
         &TypeExpansionOptions {
             self_class: Some(&method_id.0),

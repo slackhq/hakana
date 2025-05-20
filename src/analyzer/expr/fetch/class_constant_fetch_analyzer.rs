@@ -278,7 +278,7 @@ fn analyse_known_class_constant(
         };
         type_expander::expand_union(
             codebase,
-            &Some(&analysis_data.scoped_interner),
+            &Some(&statements_analyzer.interner),
             class_constant_type,
             &TypeExpansionOptions {
                 evaluate_conditional_types: true,

@@ -225,7 +225,7 @@ fn get_class_property_type(
         let parent_class = declaring_class_storage.direct_parent_class;
         type_expander::expand_union(
             codebase,
-            &Some(&analysis_data.scoped_interner),
+            &Some(&statements_analyzer.interner),
             &mut class_property_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),
@@ -323,7 +323,7 @@ fn update_template_types(
 
                             type_expander::expand_union(
                                 statements_analyzer.codebase,
-                                &Some(&analysis_data.scoped_interner),
+                                &Some(&statements_analyzer.interner),
                                 &mut lhs_param_type,
                                 &TypeExpansionOptions {
                                     parent_class: None,
