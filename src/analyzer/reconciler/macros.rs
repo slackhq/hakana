@@ -49,7 +49,7 @@ macro_rules! intersect_simple {
                         trigger_issue_for_impossible(
                             $analysis_data,
                             $statements_analyzer,
-                            &$existing_var_type.get_id(Some(&$statements_analyzer.interner)),
+                            &$existing_var_type.get_id(Some(&$analysis_data.scoped_interner)),
                             &k,
                             $assertion,
                             !did_remove_type,

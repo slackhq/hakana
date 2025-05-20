@@ -1,4 +1,4 @@
-use hakana_str::{Interner, StrId};
+use hakana_str::{ReflectionInterner, StrId};
 use serde::{Deserialize, Serialize};
 
 use crate::{code_location::FilePath, method_identifier::MethodIdentifier};
@@ -19,7 +19,7 @@ impl FunctionLikeIdentifier {
         }
     }
 
-    pub fn to_string(&self, interner: &Interner) -> String {
+    pub fn to_string(&self, interner: &ReflectionInterner) -> String {
         match self {
             FunctionLikeIdentifier::Function(fn_name) => interner.lookup(fn_name).to_string(),
             FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => {
@@ -53,9 +53,7 @@ impl FunctionLikeIdentifier {
             FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => {
                 (*fq_classlike_name, *method_name)
             }
-            FunctionLikeIdentifier::Closure(file_name, offset) => {
-                (file_name .0, StrId(*offset))
-            }
+            FunctionLikeIdentifier::Closure(file_name, offset) => (file_name.0, StrId(*offset)),
         }
     }
 }

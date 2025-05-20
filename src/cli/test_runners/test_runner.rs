@@ -9,7 +9,7 @@ use hakana_code_info::issue::IssueKind;
 use hakana_logger::Logger;
 use hakana_orchestrator::wasm::get_single_file_codebase;
 use hakana_orchestrator::SuccessfulScanData;
-use hakana_str::Interner;
+use hakana_str::ReflectionInterner;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashMap;
@@ -264,8 +264,10 @@ impl TestRunner {
                         if test_output == *expected_output {
                             (".".to_string(), None, None)
                         } else {
-                            let expected_output_str = serde_json::to_string_pretty(&expected_output).unwrap();
-                            let test_output_str = serde_json::to_string_pretty(&test_output).unwrap();
+                            let expected_output_str =
+                                serde_json::to_string_pretty(&expected_output).unwrap();
+                            let test_output_str =
+                                serde_json::to_string_pretty(&test_output).unwrap();
                             test_diagnostics.push((
                                 dir,
                                 format!("- {}\n+ {}", expected_output_str, test_output_str),
@@ -280,7 +282,7 @@ impl TestRunner {
                     *had_error = true;
                     ("F".to_string(), None, None)
                 }
-            }
+            };
         }
 
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
@@ -289,7 +291,7 @@ impl TestRunner {
             stub_dirs.push(cwd.clone() + "/third-party/xhp-lib/src");
         }
 
-        let interner = Interner::default();
+        let interner = ReflectionInterner::default();
 
         let result = hakana_orchestrator::scan_and_analyze(
             stub_dirs,
@@ -528,7 +530,7 @@ impl TestRunner {
 
         config.ast_diff = true;
         config.find_unused_definitions = true;
-        let interner = Interner::default();
+        let interner = ReflectionInterner::default();
         let config = Arc::new(config);
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 

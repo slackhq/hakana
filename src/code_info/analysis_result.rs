@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, time::Duration};
 
-use hakana_str::Interner;
+use hakana_str::ReflectionInterner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 
@@ -90,7 +90,7 @@ impl AnalysisResult {
 
     pub fn get_all_issues(
         &self,
-        interner: &Interner,
+        interner: &ReflectionInterner,
         root_dir: &str,
         use_relative_path: bool,
     ) -> BTreeMap<String, Vec<&Issue>> {

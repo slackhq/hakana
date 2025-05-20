@@ -475,7 +475,7 @@ fn analyze_named_constructor(
 
                     type_expander::expand_union(
                         statements_analyzer.codebase,
-                        &Some(&statements_analyzer.interner),
+                        &Some(&analysis_data.scoped_interner),
                         &mut param_type,
                         &TypeExpansionOptions {
                             parent_class: None,
@@ -590,7 +590,7 @@ fn analyze_named_constructor(
 
                         type_expander::expand_union(
                             statements_analyzer.codebase,
-                            &Some(&statements_analyzer.interner),
+                            &Some(&analysis_data.scoped_interner),
                             &mut param_type,
                             &TypeExpansionOptions {
                                 parent_class: None,

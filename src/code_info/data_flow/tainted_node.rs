@@ -6,7 +6,7 @@ use super::{
 use core::panic;
 use std::{collections::BTreeSet, rc::Rc};
 
-use hakana_str::Interner;
+use hakana_str::{ReflectionInterner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,7 @@ pub struct TaintedNode {
 }
 
 impl TaintedNode {
-    pub fn get_trace(&self, interner: &Interner, root_dir: &str) -> String {
+    pub fn get_trace(&self, interner: &ReflectionInterner, root_dir: &str) -> String {
         let mut source_descriptor = format!(
             "{}{}",
             self.id.to_label(interner),
@@ -129,7 +129,7 @@ impl TaintedNode {
         }
     }
 
-    pub fn get_unique_source_id(&self, interner: &Interner) -> String {
+    pub fn get_unique_source_id(&self, interner: &ReflectionInterner) -> String {
         let mut id = self.id.to_string(interner)
             + "|"
             + self

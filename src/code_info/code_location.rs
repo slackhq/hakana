@@ -1,7 +1,7 @@
 use oxidized::ast::Pos;
 use serde::{Deserialize, Serialize};
 
-use hakana_str::{Interner, StrId};
+use hakana_str::{ReflectionInterner, StrId};
 
 // offset, start line, start column
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -16,7 +16,7 @@ pub struct StmtStart {
 pub struct FilePath(pub StrId);
 
 impl FilePath {
-    pub fn get_relative_path(&self, interner: &Interner, root_dir: &str) -> String {
+    pub fn get_relative_path(&self, interner: &ReflectionInterner, root_dir: &str) -> String {
         let full_path = interner.lookup(&self.0);
         if full_path.contains(root_dir) {
             full_path[(root_dir.len() + 1)..].to_string()

@@ -536,11 +536,11 @@ fn main() -> Result<()> {
     }
     writeln!(f, "}}")?;
 
-    writeln!(f, "impl Default for Interner {{")?;
+    writeln!(f, "impl Default for ReflectionInterner {{")?;
     writeln!(f, "    fn default() -> Self {{")?;
     writeln!(
         f,
-        "        let mut interner = Interner {{ map: IndexSet::default() }};"
+        "        let mut interner = ReflectionInterner {{ map: IndexSet::default() }};"
     )?;
     for name in &strings {
         writeln!(

@@ -71,7 +71,7 @@ pub(crate) fn analyze(
                 let constant_type = codebase.get_class_constant_type(
                     lhs_name,
                     false,
-                    &statements_analyzer.interner.get(&name.1).unwrap(),
+                    &analysis_data.scoped_interner.get(&name.1).unwrap(),
                     FxHashSet::default(),
                 );
 
@@ -91,7 +91,7 @@ pub(crate) fn analyze(
                     } else {
                         println!(
                             "surprising union type {}",
-                            constant_type.get_id(Some(&statements_analyzer.interner))
+                            constant_type.get_id(Some(&analysis_data.scoped_interner))
                         );
                         panic!();
                     }

@@ -10,7 +10,7 @@ use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::property_info::PropertyKind;
-use hakana_str::{Interner, StrId};
+use hakana_str::{ReflectionInterner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use std::sync::Arc;
@@ -21,7 +21,7 @@ pub(crate) fn find_unused_definitions(
     analysis_result: &mut AnalysisResult,
     config: &Arc<Config>,
     codebase: &mut CodebaseInfo,
-    interner: &Interner,
+    interner: &ReflectionInterner,
     ignored_paths: &Option<FxHashSet<String>>,
     file_system: &mut VirtualFileSystem,
 ) {

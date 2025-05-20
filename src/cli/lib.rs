@@ -7,7 +7,7 @@ use hakana_code_info::analysis_result::{
 use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::issue::IssueKind;
 use hakana_logger::{Logger, Verbosity};
-use hakana_str::Interner;
+use hakana_str::ReflectionInterner;
 use indexmap::IndexMap;
 use rand::Rng;
 use rustc_hash::FxHashSet;
@@ -703,7 +703,7 @@ fn do_fix(
 
     let config_path = config_path.unwrap();
 
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
 
     if config_path.exists() {
         config
@@ -800,7 +800,7 @@ fn do_remove_unused_fixmes(
 
     let config_path = config_path.unwrap();
 
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
 
     if config_path.exists() {
         config
@@ -880,7 +880,7 @@ fn do_add_fixmes(
 
     let config_path = config_path.unwrap();
 
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
 
     if config_path.exists() {
         config
@@ -949,7 +949,7 @@ fn do_migrate(
 
     let config_path = config_path.unwrap();
 
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
 
     if config_path.exists() {
         config
@@ -1041,7 +1041,7 @@ fn do_migration_candidates(
 
     let config_path = config_path.unwrap();
 
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
 
     if config_path.exists() {
         config
@@ -1124,7 +1124,7 @@ fn do_codegen(
 
     let config_path = config_path.unwrap();
 
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
 
     if config_path.exists() {
         config
@@ -1238,7 +1238,7 @@ fn do_find_paths(
 
     let config_path = config_path.unwrap();
 
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
 
     if config_path.exists() {
         config
@@ -1306,7 +1306,7 @@ fn do_security_check(
 
     let config_path = config_path.unwrap();
 
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
 
     if config_path.exists() {
         config
@@ -1430,7 +1430,7 @@ fn do_analysis(
 
     let config_path = config_path.unwrap();
 
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
 
     if config_path.exists() {
         config
@@ -1532,7 +1532,7 @@ fn write_analysis_output_files(
     output_format: Option<String>,
     cwd: &String,
     analysis_result: &AnalysisResult,
-    interner: &Interner,
+    interner: &ReflectionInterner,
 ) {
     let output_path = if output_file.starts_with('/') {
         output_file
@@ -1603,7 +1603,11 @@ fn write_codegen_output_files(output_file: String, cwd: &String, errors: &Vec<(S
     write!(output_path, "{}", json).unwrap();
 }
 
-fn update_files(analysis_result: &mut AnalysisResult, root_dir: &String, interner: &Interner) {
+fn update_files(
+    analysis_result: &mut AnalysisResult,
+    root_dir: &String,
+    interner: &ReflectionInterner,
+) {
     let mut replacement_and_insertion_keys = analysis_result
         .replacements
         .keys()

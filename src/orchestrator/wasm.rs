@@ -12,7 +12,7 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_code_info::FileSource;
 use hakana_logger::Logger;
-use hakana_str::{Interner, StrId, ThreadedInterner};
+use hakana_str::{ReflectionInterner, StrId, ThreadedInterner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Mutex};
 
@@ -23,11 +23,11 @@ use crate::{HhiAsset, HslAsset};
 
 pub fn scan_and_analyze_single_file(
     codebase: &mut CodebaseInfo,
-    interner: &Interner,
+    interner: &ReflectionInterner,
     file_name: String,
     file_contents: String,
     find_unused_expressions: bool,
-) -> std::result::Result<(AnalysisResult, Interner), String> {
+) -> std::result::Result<(AnalysisResult, ReflectionInterner), String> {
     let mut analysis_config = Config::new("".to_string(), FxHashSet::default());
     analysis_config.find_unused_expressions = find_unused_expressions;
     analysis_config.graph_kind = if file_contents.starts_with("// security-check")
@@ -97,9 +97,9 @@ pub fn scan_and_analyze_single_file(
 
 pub fn get_single_file_codebase(
     additional_files: Vec<&str>,
-) -> (CodebaseInfo, Interner, VirtualFileSystem) {
+) -> (CodebaseInfo, ReflectionInterner, VirtualFileSystem) {
     let mut codebase = CodebaseInfo::new();
-    let interner = Arc::new(Mutex::new(Interner::default()));
+    let interner = Arc::new(Mutex::new(ReflectionInterner::default()));
 
     let mut threaded_interner = ThreadedInterner::new(interner.clone());
     let empty_name_context = NameContext::new(&mut threaded_interner);
@@ -231,7 +231,7 @@ pub fn analyze_single_file(
     path: String,
     file_contents: String,
     codebase: &CodebaseInfo,
-    interner: &Arc<Interner>,
+    interner: &Arc<ReflectionInterner>,
     resolved_names: &FxHashMap<u32, StrId>,
     analysis_config: &Config,
 ) -> std::result::Result<AnalysisResult, String> {

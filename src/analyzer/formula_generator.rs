@@ -8,7 +8,7 @@ use hakana_code_info::FileSource;
 use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
 };
-use hakana_str::{Interner, StrId};
+use hakana_str::StrId;
 use indexmap::IndexMap;
 use oxidized::{
     aast,
@@ -19,10 +19,10 @@ use rustc_hash::FxHashMap;
 use crate::config::Config;
 use crate::{expr::assertion_finder, function_analysis_data::FunctionAnalysisData};
 
-pub(crate) struct AssertionContext<'a, 'b> {
+pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource<'a>,
     pub resolved_names: &'a FxHashMap<u32, StrId>,
-    pub codebase: Option<(&'a CodebaseInfo, &'b Interner)>,
+    pub codebase: &'a CodebaseInfo,
     pub this_class_name: Option<&'a StrId>,
     pub type_resolution_context: &'a TypeResolutionContext,
     pub config: &'a Config,

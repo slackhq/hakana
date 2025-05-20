@@ -85,7 +85,7 @@ pub(crate) fn analyze<'a>(
 
     let final_actions = control_analyzer::get_control_actions(
         codebase,
-        &statements_analyzer.interner,
+        &analysis_data.scoped_interner,
         statements_analyzer.file_analyzer.resolved_names,
         stmts,
         analysis_data,

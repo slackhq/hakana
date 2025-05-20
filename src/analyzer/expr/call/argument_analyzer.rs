@@ -147,7 +147,7 @@ fn get_unpacked_type(
                         IssueKind::MixedAnyArgument,
                         format!(
                             "Unpacking requires a collection type, {} provided",
-                            atomic_type.get_id(Some(&statements_analyzer.interner))
+                            atomic_type.get_id(Some(&analysis_data.scoped_interner))
                         ),
                         statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
@@ -170,7 +170,7 @@ fn get_unpacked_type(
                         IssueKind::MixedArgument,
                         format!(
                             "Unpacking requires a collection type, {} provided",
-                            atomic_type.get_id(Some(&statements_analyzer.interner))
+                            atomic_type.get_id(Some(&analysis_data.scoped_interner))
                         ),
                         statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
@@ -188,7 +188,7 @@ fn get_unpacked_type(
                         IssueKind::InvalidArgument,
                         format!(
                             "Unpacking requires a collection type, {} provided",
-                            arg_value_type.get_id(Some(&statements_analyzer.interner))
+                            arg_value_type.get_id(Some(&analysis_data.scoped_interner))
                         ),
                         statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
@@ -245,8 +245,8 @@ pub(crate) fn verify_type(
                 format!(
                     "Argument {} of {} expects {}, nothing type provided",
                     (argument_offset + 1),
-                    functionlike_id.to_string(&statements_analyzer.interner),
-                    param_type.get_id(Some(&statements_analyzer.interner)),
+                    functionlike_id.to_string(&analysis_data.scoped_interner.parent()),
+                    param_type.get_id(Some(&analysis_data.scoped_interner)),
                 ),
                 statements_analyzer.get_hpos(input_expr.pos()),
                 &context.function_context.calling_functionlike_id,
@@ -305,8 +305,8 @@ pub(crate) fn verify_type(
                 IssueKind::UpcastAwaitable,
                 format!(
                     "{} contains Awaitable but was passed into a more general type {}",
-                    input_type.get_id(Some(&statements_analyzer.interner)),
-                    param_type.get_id(Some(&statements_analyzer.interner)),
+                    input_type.get_id(Some(&analysis_data.scoped_interner)),
+                    param_type.get_id(Some(&analysis_data.scoped_interner)),
                 ),
                 statements_analyzer.get_hpos(input_expr.pos()),
                 &context.function_context.calling_functionlike_id,
@@ -337,9 +337,9 @@ pub(crate) fn verify_type(
                         format!(
                             "Argument {} of {} expects {}, {} provided",
                             (argument_offset + 1),
-                            functionlike_id.to_string(&statements_analyzer.interner),
-                            param_type.get_id(Some(&statements_analyzer.interner)),
-                            input_type.get_id(Some(&statements_analyzer.interner)),
+                            functionlike_id.to_string(&analysis_data.scoped_interner.parent()),
+                            param_type.get_id(Some(&analysis_data.scoped_interner)),
+                            input_type.get_id(Some(&analysis_data.scoped_interner)),
                         ),
                         statements_analyzer.get_hpos(input_expr.pos()),
                         &context.function_context.calling_functionlike_id,
@@ -363,9 +363,9 @@ pub(crate) fn verify_type(
                         format!(
                             "Argument {} of {} expects {}, parent type {} provided",
                             (argument_offset + 1),
-                            functionlike_id.to_string(&statements_analyzer.interner),
-                            param_type.get_id(Some(&statements_analyzer.interner)),
-                            input_type.get_id(Some(&statements_analyzer.interner)),
+                            functionlike_id.to_string(&analysis_data.scoped_interner.parent()),
+                            param_type.get_id(Some(&analysis_data.scoped_interner)),
+                            input_type.get_id(Some(&analysis_data.scoped_interner)),
                         ),
                         statements_analyzer.get_hpos(input_expr.pos()),
                         &context.function_context.calling_functionlike_id,
@@ -383,9 +383,9 @@ pub(crate) fn verify_type(
                         format!(
                             "Argument {} of {} expects {}, parent type {} provided",
                             (argument_offset + 1),
-                            functionlike_id.to_string(&statements_analyzer.interner),
-                            param_type.get_id(Some(&statements_analyzer.interner)),
-                            input_type.get_id(Some(&statements_analyzer.interner)),
+                            functionlike_id.to_string(&analysis_data.scoped_interner.parent()),
+                            param_type.get_id(Some(&analysis_data.scoped_interner)),
+                            input_type.get_id(Some(&analysis_data.scoped_interner)),
                         ),
                         statements_analyzer.get_hpos(input_expr.pos()),
                         &context.function_context.calling_functionlike_id,
@@ -400,9 +400,9 @@ pub(crate) fn verify_type(
                         format!(
                             "Argument {} of {} expects {}, parent type {} provided",
                             (argument_offset + 1),
-                            functionlike_id.to_string(&statements_analyzer.interner),
-                            param_type.get_id(Some(&statements_analyzer.interner)),
-                            input_type.get_id(Some(&statements_analyzer.interner)),
+                            functionlike_id.to_string(&analysis_data.scoped_interner.parent()),
+                            param_type.get_id(Some(&analysis_data.scoped_interner)),
+                            input_type.get_id(Some(&analysis_data.scoped_interner)),
                         ),
                         statements_analyzer.get_hpos(input_expr.pos()),
                         &context.function_context.calling_functionlike_id,
@@ -425,9 +425,9 @@ pub(crate) fn verify_type(
                         format!(
                             "Argument {} of {} expects {}, possibly different type {} provided{}",
                             (argument_offset + 1),
-                            functionlike_id.to_string(&statements_analyzer.interner),
-                            param_type.get_id(Some(&statements_analyzer.interner)),
-                            input_type.get_id(Some(&statements_analyzer.interner)),
+                            functionlike_id.to_string(&analysis_data.scoped_interner.parent()),
+                            param_type.get_id(Some(&analysis_data.scoped_interner)),
+                            input_type.get_id(Some(&analysis_data.scoped_interner)),
                             if let Some(type_mismatch_parent_nodes) =
                                 union_comparison_result.type_mismatch_parents
                             {
@@ -439,7 +439,7 @@ pub(crate) fn verify_type(
                                             pos.start_column,
                                             type_mismatch_parent_nodes
                                                 .1
-                                                .get_id(Some(&statements_analyzer.interner))
+                                                .get_id(Some(&analysis_data.scoped_interner))
                                         )
                                     } else {
                                         "".to_string()
@@ -464,9 +464,9 @@ pub(crate) fn verify_type(
                         format!(
                             "Argument {} of {} expects {}, different type {} provided",
                             (argument_offset + 1),
-                            functionlike_id.to_string(&statements_analyzer.interner),
-                            param_type.get_id(Some(&statements_analyzer.interner)),
-                            input_type.get_id(Some(&statements_analyzer.interner)),
+                            functionlike_id.to_string(&analysis_data.scoped_interner.parent()),
+                            param_type.get_id(Some(&analysis_data.scoped_interner)),
+                            input_type.get_id(Some(&analysis_data.scoped_interner)),
                         ),
                         statements_analyzer.get_hpos(input_expr.pos()),
                         &context.function_context.calling_functionlike_id,
@@ -538,7 +538,7 @@ fn add_dataflow(
         let mut taints = get_argument_taints(
             functionlike_id,
             argument_offset,
-            &statements_analyzer.interner,
+            &analysis_data.scoped_interner,
         );
 
         if let Some(sinks) = &function_param.taint_sinks {
@@ -601,7 +601,7 @@ fn add_dataflow(
                     .all_classlike_descendants
                     .get(&method_call_info.classlike_storage.name)
                 {
-                    if method_name != &statements_analyzer.interner.get("__construct").unwrap() {
+                    if method_name != &analysis_data.scoped_interner.get("__construct").unwrap() {
                         for dependent_classlike in dependent_classlikes {
                             if codebase.declaring_method_exists(dependent_classlike, method_name) {
                                 let new_sink = DataFlowNode::get_for_method_argument(

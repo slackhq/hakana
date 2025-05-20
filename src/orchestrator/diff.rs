@@ -5,7 +5,7 @@ use hakana_code_info::diff::CodebaseDiff;
 use hakana_code_info::issue::Issue;
 use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_logger::Logger;
-use hakana_str::Interner;
+use hakana_str::ReflectionInterner;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
@@ -25,7 +25,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
     logger: &Logger,
     codebase_diff: CodebaseDiff,
     codebase: &CodebaseInfo,
-    interner: &mut Interner,
+    interner: &mut ReflectionInterner,
     invalid_scanned_files: FxHashSet<FilePath>,
     files_to_analyze: &mut Vec<String>,
     issues_path: &Option<String>,

@@ -3,7 +3,7 @@ use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::{
     codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo, t_union::TUnion,
 };
-use hakana_str::{Interner, StrId};
+use hakana_str::{Interner, ReflectionInterner, StrId};
 use oxidized::{aast, ast_defs::Pos};
 use rustc_hash::FxHashMap;
 
@@ -38,7 +38,6 @@ pub struct FunctionLikeParamData<'a> {
     pub param_type: &'a TUnion,
     pub param_node: &'a aast::FunParam<(), ()>,
     pub codebase: &'a CodebaseInfo,
-    pub interner: &'a Interner,
     pub in_migratable_function: bool,
 }
 
@@ -134,7 +133,7 @@ pub trait InternalHook {
     fn get_candidates(
         &self,
         codebase: &CodebaseInfo,
-        interner: &Interner,
+        interner: &ReflectionInterner,
         analysis_result: &AnalysisResult,
     ) -> Vec<String> {
         vec![]
@@ -152,7 +151,13 @@ pub trait InternalHook {
     }
 
     #[allow(unused_variables)]
-    fn after_populate(&self, codebase: &CodebaseInfo, interner: &Interner, config: &Config) {}
+    fn after_populate(
+        &self,
+        codebase: &CodebaseInfo,
+        interner: &ReflectionInterner,
+        config: &Config,
+    ) {
+    }
 }
 
 pub trait CustomHook: InternalHook + Send + Sync + core::fmt::Debug {}

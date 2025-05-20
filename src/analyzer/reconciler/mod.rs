@@ -26,7 +26,7 @@ use hakana_code_info::{
     var_name::VarName,
     VarId,
 };
-use hakana_str::{Interner, StrId};
+use hakana_str::StrId;
 use lazy_static::lazy_static;
 use oxidized::ast_defs::Pos;
 use regex::Regex;
@@ -152,7 +152,6 @@ pub(crate) fn reconcile_keyed_types(
         } else {
             get_value_for_key(
                 codebase,
-                &statements_analyzer.interner,
                 key.clone(),
                 context,
                 &mut added_var_ids,
@@ -692,7 +691,6 @@ fn break_up_path_into_parts(path: &str) -> Vec<String> {
 
 fn get_value_for_key(
     codebase: &CodebaseInfo,
-    interner: &Interner,
     key: VarName,
     context: &mut BlockContext,
     added_var_ids: &mut FxHashSet<VarName>,
@@ -735,22 +733,26 @@ fn get_value_for_key(
             let fq_class_name = base_key_parts[0].to_string();
             let const_name = base_key_parts[1].to_string();
 
-            let fq_class_name = &interner.get(fq_class_name.as_str()).unwrap();
+            let fq_class_name = &analysis_data
+                .scoped_interner
+                .get(fq_class_name.as_str())
+                .unwrap();
 
             if !codebase.class_or_interface_exists(fq_class_name) {
                 return None;
             }
 
-            let class_constant = if let Some(const_name) = interner.get(&const_name) {
-                codebase.get_class_constant_type(
-                    fq_class_name,
-                    false,
-                    &const_name,
-                    FxHashSet::default(),
-                )
-            } else {
-                None
-            };
+            let class_constant =
+                if let Some(const_name) = analysis_data.scoped_interner.get(&const_name) {
+                    codebase.get_class_constant_type(
+                        fq_class_name,
+                        false,
+                        &const_name,
+                        FxHashSet::default(),
+                    )
+                } else {
+                    None
+                };
 
             if let Some(class_constant) = class_constant {
                 context
@@ -994,9 +996,8 @@ fn get_value_for_key(
                         } else {
                             let maybe_class_property_type = get_property_type(
                                 codebase,
-                                interner,
                                 &fq_class_name,
-                                &interner.get(&property_name)?,
+                                &analysis_data.scoped_interner.get(&property_name)?,
                                 analysis_data,
                             );
 
@@ -1039,7 +1040,6 @@ fn get_value_for_key(
 
 fn get_property_type(
     codebase: &CodebaseInfo,
-    interner: &Interner,
     classlike_name: &StrId,
     property_name: &StrId,
     analysis_data: &mut FunctionAnalysisData,
@@ -1058,7 +1058,7 @@ fn get_property_type(
     if let Some(mut class_property_type) = class_property_type {
         type_expander::expand_union(
             codebase,
-            &Some(interner),
+            &Some(&analysis_data.scoped_interner),
             &mut class_property_type,
             &TypeExpansionOptions {
                 self_class: Some(declaring_property_class),
@@ -1085,7 +1085,7 @@ pub(crate) fn trigger_issue_for_impossible(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     _suppressed_issues: &FxHashMap<String, usize>,
 ) {
-    let mut assertion_string = assertion.to_string(Some(&statements_analyzer.interner));
+    let mut assertion_string = assertion.to_string(Some(&analysis_data.scoped_interner));
     let mut not_operator = assertion_string.starts_with('!');
 
     if not_operator {
@@ -1117,6 +1117,7 @@ pub(crate) fn trigger_issue_for_impossible(
                     &assertion_string,
                     key,
                     statements_analyzer,
+                    analysis_data,
                     pos,
                     calling_functionlike_id,
                     old_var_type_string,
@@ -1127,6 +1128,7 @@ pub(crate) fn trigger_issue_for_impossible(
                     &assertion_string,
                     key,
                     statements_analyzer,
+                    analysis_data,
                     pos,
                     calling_functionlike_id,
                     old_var_type_string,
@@ -1143,6 +1145,7 @@ pub(crate) fn trigger_issue_for_impossible(
                     &assertion_string,
                     key,
                     statements_analyzer,
+                    analysis_data,
                     pos,
                     calling_functionlike_id,
                     old_var_type_string,
@@ -1153,6 +1156,7 @@ pub(crate) fn trigger_issue_for_impossible(
                     &assertion_string,
                     key,
                     statements_analyzer,
+                    analysis_data,
                     pos,
                     calling_functionlike_id,
                     old_var_type_string,
@@ -1169,6 +1173,7 @@ fn get_impossible_issue(
     assertion_string: &String,
     key: &VarName,
     statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &FunctionAnalysisData,
     pos: &Pos,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     old_var_type_string: &String,
@@ -1201,7 +1206,7 @@ fn get_impossible_issue(
             format!(
                 "Type {}never has key {}",
                 old_var_type_string,
-                key.to_string(Some(&statements_analyzer.interner))
+                key.to_string(Some(&analysis_data.scoped_interner))
             ),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,
@@ -1211,7 +1216,7 @@ fn get_impossible_issue(
             format!(
                 "Type {}does not have a nonnull entry for {}",
                 old_var_type_string,
-                dict_key.to_string(Some(&statements_analyzer.interner))
+                dict_key.to_string(Some(&analysis_data.scoped_interner))
             ),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,
@@ -1230,6 +1235,7 @@ fn get_redundant_issue(
     assertion_string: &String,
     key: &VarName,
     statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &FunctionAnalysisData,
     pos: &Pos,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     old_var_type_string: &String,
@@ -1262,7 +1268,7 @@ fn get_redundant_issue(
             format!(
                 "Type {}always has entry {}",
                 old_var_type_string,
-                key.to_string(Some(&statements_analyzer.interner))
+                key.to_string(Some(&analysis_data.scoped_interner))
             ),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,
@@ -1272,7 +1278,7 @@ fn get_redundant_issue(
             format!(
                 "Type {}always has entry {}",
                 old_var_type_string,
-                key.to_string(Some(&statements_analyzer.interner))
+                key.to_string(Some(&analysis_data.scoped_interner))
             ),
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,

@@ -10,7 +10,7 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_code_info::FileSource;
 use hakana_logger::Logger;
-use hakana_str::{Interner, StrId};
+use hakana_str::{ReflectionInterner, StrId};
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
@@ -154,7 +154,7 @@ fn analyze_file(
     str_path: &String,
     last_hash_and_time: Option<&(u64, u64)>,
     codebase: &CodebaseInfo,
-    interner: &Arc<Interner>,
+    interner: &Arc<ReflectionInterner>,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<u32, StrId>,
@@ -268,7 +268,7 @@ fn analyze_loaded_ast(
     aast: &(aast::Program<(), ()>, ScouredComments),
     resolved_names: &FxHashMap<u32, StrId>,
     codebase: &CodebaseInfo,
-    interner: &Arc<Interner>,
+    interner: &Arc<ReflectionInterner>,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
 ) {

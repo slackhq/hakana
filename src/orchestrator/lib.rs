@@ -14,7 +14,7 @@ use hakana_code_info::file_info::ParserError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_logger::Logger;
-use hakana_str::{Interner, StrId};
+use hakana_str::{ReflectionInterner, StrId};
 use indicatif::ProgressBar;
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
@@ -58,7 +58,7 @@ struct HslAsset;
 #[derive(Clone, Debug)]
 pub struct SuccessfulScanData {
     pub codebase: CodebaseInfo,
-    pub interner: Interner,
+    pub interner: ReflectionInterner,
     pub file_system: VirtualFileSystem,
     pub resolved_names: FxHashMap<FilePath, FxHashMap<u32, StrId>>,
 }
@@ -67,7 +67,7 @@ impl Default for SuccessfulScanData {
     fn default() -> Self {
         SuccessfulScanData {
             codebase: CodebaseInfo::new(),
-            interner: Interner::default(),
+            interner: ReflectionInterner::default(),
             file_system: VirtualFileSystem::default(),
             resolved_names: FxHashMap::default(),
         }
@@ -82,7 +82,7 @@ pub async fn scan_and_analyze_async(
     threads: u8,
     lsp_client: &Client,
     header: &str,
-    interner: Arc<Interner>,
+    interner: Arc<ReflectionInterner>,
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
@@ -212,7 +212,7 @@ pub fn scan_and_analyze<F: FnOnce()>(
     threads: u8,
     logger: Arc<Logger>,
     header: &str,
-    interner: Interner,
+    interner: ReflectionInterner,
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
@@ -277,7 +277,7 @@ pub fn scan_and_analyze<F: FnOnce()>(
             &get_issues_path(cache_dir),
             &get_references_path(cache_dir),
             previous_analysis_result,
-            config.max_changes_allowed
+            config.max_changes_allowed,
         )
     } else {
         CachedAnalysis::default()
@@ -396,7 +396,7 @@ pub fn scan_and_analyze<F: FnOnce()>(
 fn get_analysis_ready(
     config: &Arc<Config>,
     codebase: CodebaseInfo,
-    interner: Interner,
+    interner: ReflectionInterner,
     file_system: VirtualFileSystem,
     resolved_names: FxHashMap<FilePath, FxHashMap<u32, StrId>>,
     symbol_references: SymbolReferences,

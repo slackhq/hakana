@@ -151,7 +151,8 @@ pub(crate) fn analyze(
                 expr,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.file_analyzer.resolved_names,
-                Some((statements_analyzer.codebase, &statements_analyzer.interner)),
+                statements_analyzer.codebase,
+                &analysis_data.scoped_interner,
             );
 
             array_fetch_analyzer::analyze(
@@ -828,7 +829,7 @@ fn analyze_function_pointer(
     if let Some(closure) = get_closure_from_id(
         &id,
         codebase,
-        &Some(&statements_analyzer.interner),
+        &Some(&analysis_data.scoped_interner),
         &mut analysis_data.data_flow_graph,
     ) {
         analysis_data.expr_types.insert(

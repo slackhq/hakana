@@ -51,7 +51,13 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
     }
 
     let e1_var_id = if context.inside_loop {
-        expression_identifier::get_var_id(left, None, &FxHashMap::default(), None)
+        expression_identifier::get_var_id(
+            left,
+            None,
+            &FxHashMap::default(),
+            statements_analyzer.codebase,
+            &analysis_data.scoped_interner,
+        )
     } else {
         None
     };
@@ -75,7 +81,13 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
     }
 
     let e2_var_id = if context.inside_loop {
-        expression_identifier::get_var_id(right, None, &FxHashMap::default(), None)
+        expression_identifier::get_var_id(
+            right,
+            None,
+            &FxHashMap::default(),
+            statements_analyzer.codebase,
+            &analysis_data.scoped_interner,
+        )
     } else {
         None
     };

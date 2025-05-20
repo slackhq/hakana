@@ -1,13 +1,16 @@
 use hakana_analyzer::config::Config;
-use hakana_logger::Logger;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::file_info::ParserError;
-use hakana_str::{Interner, ThreadedInterner};
+use hakana_logger::Logger;
 use hakana_orchestrator::scanner::get_filesystem;
+use hakana_str::{ReflectionInterner, ThreadedInterner};
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast::{Def, Expr_, Stmt_};
 use oxidized::ast::Pos;
-use oxidized::{aast, aast_visitor::{visit, AstParams, Node, Visitor}};
+use oxidized::{
+    aast,
+    aast_visitor::{visit, AstParams, Node, Visitor},
+};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -31,7 +34,7 @@ pub fn scan_files(
 
     let mut files_to_scan = vec![];
     let mut files_to_analyze = vec![];
-    let mut interner = Interner::default();
+    let mut interner = ReflectionInterner::default();
     let existing_file_system = None;
 
     get_filesystem(
@@ -122,7 +125,10 @@ pub fn scan_files(
         }
     }
 
-    Ok(Arc::try_unwrap(executable_lines).unwrap().into_inner().unwrap())
+    Ok(Arc::try_unwrap(executable_lines)
+        .unwrap()
+        .into_inner()
+        .unwrap())
 }
 
 fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
@@ -137,19 +143,14 @@ pub(crate) fn scan_file(
     file_path: FilePath,
     logger: &Logger,
 ) -> ExecutableLines {
-    let interner = interner
-        .parent
-        .lock()
-        .unwrap();
-    let str_path = interner
-        .lookup(&file_path.0)
-        .to_string();
+    let interner = interner.parent.lock().unwrap();
+    let str_path = interner.lookup(&file_path.0).to_string();
 
     logger.log_debug_sync(&format!("scanning {}", str_path));
     let aast = hakana_orchestrator::get_aast_for_path(file_path, &str_path);
     let aast = match aast {
         Ok(aast) => aast,
-        Err(_) => panic!("invalid file: {}", str_path)
+        Err(_) => panic!("invalid file: {}", str_path),
     };
     let mut checker = Scanner {};
     let mut context = BTreeSet::new();
@@ -158,7 +159,7 @@ pub(crate) fn scan_file(
             path: file_path.get_relative_path(&interner, root_dir),
             executable_lines: to_ranges(context.clone()),
         },
-        Err(_) => panic!("invalid file: {}", str_path)
+        Err(_) => panic!("invalid file: {}", str_path),
     }
 }
 
@@ -167,11 +168,15 @@ struct Scanner {}
 impl<'ast> Visitor<'ast> for Scanner {
     type Params = AstParams<BTreeSet<u64>, ParserError>;
 
-    fn object(&mut self) -> &mut dyn Visitor<'ast, Params=Self::Params> {
+    fn object(&mut self) -> &mut dyn Visitor<'ast, Params = Self::Params> {
         self
     }
 
-    fn visit_program(&mut self, c: &mut BTreeSet<u64>, p: &aast::Program<(), ()>) -> Result<(), ParserError> {
+    fn visit_program(
+        &mut self,
+        c: &mut BTreeSet<u64>,
+        p: &aast::Program<(), ()>,
+    ) -> Result<(), ParserError> {
         for def in &p.0 {
             match &def {
                 Def::Namespace(boxed) => {
@@ -187,9 +192,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                                 }
                                 ()
                             }
-                            _ => {
-                                ()
-                            }
+                            _ => (),
                         }
                     }
                     ()
@@ -204,15 +207,17 @@ impl<'ast> Visitor<'ast> for Scanner {
                     }
                     ()
                 }
-                _ => {
-                    ()
-                }
+                _ => (),
             }
         }
         Ok(())
     }
 
-    fn visit_stmt(&mut self, c: &mut BTreeSet<u64>, p: &aast::Stmt<(), ()>) -> Result<(), ParserError> {
+    fn visit_stmt(
+        &mut self,
+        c: &mut BTreeSet<u64>,
+        p: &aast::Stmt<(), ()>,
+    ) -> Result<(), ParserError> {
         match &p.1 {
             Stmt_::For(boxed) => {
                 push_start(&p.0, c); // The line where for loop is declared is coverable
@@ -223,35 +228,29 @@ impl<'ast> Visitor<'ast> for Scanner {
                 boxed.2.recurse(c, self)
             }
             Stmt_::Do(boxed) => {
-                push_pos(&boxed.1.1, c);
+                push_pos(&boxed.1 .1, c);
                 boxed.0.recurse(c, self)
             }
             Stmt_::While(boxed) => {
-                push_pos(&boxed.0.1, c);
+                push_pos(&boxed.0 .1, c);
                 boxed.1.recurse(c, self)
             }
             Stmt_::If(boxed) => {
-                push_pos(&boxed.0.1, c); // if expression
+                push_pos(&boxed.0 .1, c); // if expression
                 boxed.1.recurse(c, self)?;
                 boxed.2.recurse(c, self)
             }
             Stmt_::Switch(boxed) => {
                 push_start(&p.0, c);
                 for case_stmt in &boxed.1 {
-                    push_pos(&case_stmt.0.1, c);
+                    push_pos(&case_stmt.0 .1, c);
                     case_stmt.recurse(c, self)?;
                 }
                 boxed.2.recurse(c, self)
             }
-            Stmt_::Block(boxed) => {
-                boxed.recurse(c, self)
-            }
-            Stmt_::Expr(boxed) => {
-                self.visit_expr(c, &boxed)
-            }
-            Stmt_::Try(boxed) => {
-                self.visit_block(c, &boxed.0)
-            }
+            Stmt_::Block(boxed) => boxed.recurse(c, self),
+            Stmt_::Expr(boxed) => self.visit_expr(c, &boxed),
+            Stmt_::Try(boxed) => self.visit_block(c, &boxed.0),
             Stmt_::Concurrent(boxed) => {
                 push_start(&p.0, c); // The line where concurrent block is declared is coverable
                 self.visit_block(c, boxed)
@@ -264,7 +263,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 }
                 match **boxed {
                     None => Ok(()),
-                    Some(ref expr) => self.visit_expr(c, &expr)
+                    Some(ref expr) => self.visit_expr(c, &expr),
                 }
             }
             _ => {
@@ -275,24 +274,20 @@ impl<'ast> Visitor<'ast> for Scanner {
         }
     }
 
-    fn visit_expr(&mut self, c: &mut BTreeSet<u64>, p: &aast::Expr<(), ()>) -> Result<(), ParserError> {
+    fn visit_expr(
+        &mut self,
+        c: &mut BTreeSet<u64>,
+        p: &aast::Expr<(), ()>,
+    ) -> Result<(), ParserError> {
         match &p.2 {
-            Expr_::Efun(boxed) => {
-                self.visit_block(c, &boxed.fun.body.fb_ast)
-            }
-            Expr_::Lfun(boxed) => {
-                self.visit_block(c, &boxed.0.body.fb_ast)
-            }
-            Expr_::Await(boxed) => {
-                self.visit_expr(c, boxed)
-            }
-            Expr_::As(boxed) => {
-                self.visit_expr(c, &boxed.expr)
-            }
+            Expr_::Efun(boxed) => self.visit_block(c, &boxed.fun.body.fb_ast),
+            Expr_::Lfun(boxed) => self.visit_block(c, &boxed.0.body.fb_ast),
+            Expr_::Await(boxed) => self.visit_expr(c, boxed),
+            Expr_::As(boxed) => self.visit_expr(c, &boxed.expr),
             Expr_::Assign(boxed) => {
                 // a single-line assignment is always coverable
-                if is_single_line(&boxed.2.1) {
-                    push_pos(&boxed.2.1, c);
+                if is_single_line(&boxed.2 .1) {
+                    push_pos(&boxed.2 .1, c);
                     return Ok(());
                 }
                 self.visit_expr(c, &boxed.2)?;
@@ -301,8 +296,8 @@ impl<'ast> Visitor<'ast> for Scanner {
             Expr_::Shape(vec) => {
                 for tuple in vec {
                     // a single-line shape field is always coverable
-                    if is_single_line(&tuple.1.1) {
-                        push_pos(&tuple.1.1, c);
+                    if is_single_line(&tuple.1 .1) {
+                        push_pos(&tuple.1 .1, c);
                     }
                 }
                 push_end(&p.1, c);
@@ -349,17 +344,27 @@ impl<'ast> Visitor<'ast> for Scanner {
                 self.visit_expr(c, &boxed.2)?;
                 Ok(())
             }
-            Expr_::Null | Expr_::True | Expr_::False | Expr_::Int(_) | Expr_::Float(_) | Expr_::String(_) | Expr_::String2(_) | Expr_::PrefixedString(_) | Expr_::Lvar(_) => {
+            Expr_::Null
+            | Expr_::True
+            | Expr_::False
+            | Expr_::Int(_)
+            | Expr_::Float(_)
+            | Expr_::String(_)
+            | Expr_::String2(_)
+            | Expr_::PrefixedString(_)
+            | Expr_::Lvar(_) => {
                 push_pos(&p.1, c);
                 Ok(())
             }
-            _ => {
-                Ok(())
-            }
+            _ => Ok(()),
         }
     }
 
-    fn visit_block(&mut self, c: &mut BTreeSet<u64>, p: &aast::Block<(), ()>) -> Result<(), ParserError> {
+    fn visit_block(
+        &mut self,
+        c: &mut BTreeSet<u64>,
+        p: &aast::Block<(), ()>,
+    ) -> Result<(), ParserError> {
         for stmt in &p.0 {
             self.visit_stmt(c, stmt)?;
         }
@@ -376,7 +381,7 @@ fn push_pos(p: &Pos, res: &mut BTreeSet<u64>) {
     let start = p.to_raw_span().start.line();
     let end = p.to_raw_span().end.line();
     if start != 0 && end != 0 {
-        for line in start..(end+1) {
+        for line in start..(end + 1) {
             res.insert(line);
         }
     }

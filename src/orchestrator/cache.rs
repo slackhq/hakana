@@ -1,9 +1,9 @@
-use hakana_logger::Logger;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::issue::Issue;
 use hakana_code_info::symbol_references::SymbolReferences;
-use hakana_str::Interner;
+use hakana_logger::Logger;
+use hakana_str::ReflectionInterner;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 use std::fs;
@@ -32,12 +32,12 @@ pub(crate) fn load_cached_interner(
     symbols_path: &String,
     use_codebase_cache: bool,
     logger: &Logger,
-) -> Option<Interner> {
+) -> Option<ReflectionInterner> {
     if Path::new(symbols_path).exists() && use_codebase_cache {
         logger.log_sync("Deserializing stored symbol cache");
         let serialized = fs::read(symbols_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &symbols_path));
-        if let Ok(d) = bincode::deserialize::<Interner>(&serialized) {
+        if let Ok(d) = bincode::deserialize::<ReflectionInterner>(&serialized) {
             return Some(d);
         }
     }
