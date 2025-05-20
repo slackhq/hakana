@@ -91,7 +91,7 @@ pub(crate) fn analyze(
                     } else {
                         println!(
                             "surprising union type {}",
-                            constant_type.get_id(Some(statements_analyzer.interner))
+                            constant_type.get_id(Some(&statements_analyzer.interner))
                         );
                         panic!();
                     }

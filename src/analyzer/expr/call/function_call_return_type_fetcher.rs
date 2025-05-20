@@ -103,7 +103,7 @@ pub(crate) fn fetch(
         if !template_result.lower_bounds.is_empty() && !function_storage.template_types.is_empty() {
             type_expander::expand_union(
                 codebase,
-                &Some(statements_analyzer.interner),
+                &Some(&statements_analyzer.interner),
                 &mut function_return_type,
                 &TypeExpansionOptions {
                     expand_templates: false,
@@ -121,7 +121,7 @@ pub(crate) fn fetch(
 
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.interner),
+            &Some(&statements_analyzer.interner),
             &mut function_return_type,
             &TypeExpansionOptions {
                 expand_templates: false,
@@ -889,7 +889,7 @@ fn add_dataflow(
         };
 
     let added_removed_taints = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        get_special_added_removed_taints(functionlike_id, statements_analyzer.interner)
+        get_special_added_removed_taints(functionlike_id, &statements_analyzer.interner)
     } else {
         FxHashMap::default()
     };

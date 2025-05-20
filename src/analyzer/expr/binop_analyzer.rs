@@ -101,7 +101,7 @@ pub(crate) fn analyze(
             let lhs_type = analysis_data.get_rc_expr_type(expr.1.pos());
             let rhs_type = analysis_data.get_rc_expr_type(expr.2.pos());
 
-            let interner = statements_analyzer.interner;
+            let interner = &statements_analyzer.interner;
 
             if let (Some(lhs_type), Some(rhs_type)) = (lhs_type, rhs_type) {
                 if is_resolvable(expr.1)
@@ -119,8 +119,8 @@ pub(crate) fn analyze(
                             IssueKind::ImpossibleTypeComparison,
                             format!(
                                 "Type {} cannot be compared to {}",
-                                lhs_type.get_id(Some(interner)),
-                                rhs_type.get_id(Some(interner)),
+                                lhs_type.get_id(Some(&interner)),
+                                rhs_type.get_id(Some(&interner)),
                             ),
                             statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,
@@ -140,7 +140,7 @@ pub(crate) fn analyze(
                             IssueKind::StrictObjectEquality,
                             format!(
                                 "Strict equality compares {} objects by reference rather than value",
-                                lhs_type.get_id(Some(interner)),
+                                lhs_type.get_id(Some(&interner)),
                             ),
                             statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,

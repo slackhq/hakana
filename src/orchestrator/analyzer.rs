@@ -2,7 +2,6 @@ use crate::file::get_file_contents_hash;
 use crate::{get_aast_for_path, update_progressbar, SuccessfulScanData};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
-use hakana_logger::Logger;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::{FilePath, HPos};
 use hakana_code_info::codebase_info::CodebaseInfo;
@@ -10,6 +9,7 @@ use hakana_code_info::file_info::ParserError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_code_info::FileSource;
+use hakana_logger::Logger;
 use hakana_str::{Interner, StrId};
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast;
@@ -94,7 +94,7 @@ pub fn analyze_files(
 
         let handle = std::thread::spawn(move || {
             let codebase = &scan_data.codebase;
-            let interner = &scan_data.interner;
+            let interner = Arc::new(scan_data.interner.clone());
             let resolved_names = &scan_data.resolved_names;
 
             let mut file_analysis_time = Duration::default();
@@ -111,7 +111,7 @@ pub fn analyze_files(
                         str_path,
                         scan_data.file_system.file_hashes_and_times.get(&file_path),
                         codebase,
-                        interner,
+                        &interner,
                         &analysis_config,
                         &mut new_analysis_result,
                         resolved_names,
@@ -154,7 +154,7 @@ fn analyze_file(
     str_path: &String,
     last_hash_and_time: Option<&(u64, u64)>,
     codebase: &CodebaseInfo,
-    interner: &Interner,
+    interner: &Arc<Interner>,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<u32, StrId>,
@@ -175,7 +175,9 @@ fn analyze_file(
                 && get_file_contents_hash(&str_path).unwrap_or(0) != *file_hash
             {
                 analysis_result.has_invalid_hack_files = true;
-                analysis_result.changed_during_analysis_files.insert(file_path);
+                analysis_result
+                    .changed_during_analysis_files
+                    .insert(file_path);
                 analysis_result.emitted_issues.insert(
                     file_path,
                     vec![Issue::new(
@@ -266,7 +268,7 @@ fn analyze_loaded_ast(
     aast: &(aast::Program<(), ()>, ScouredComments),
     resolved_names: &FxHashMap<u32, StrId>,
     codebase: &CodebaseInfo,
-    interner: &Interner,
+    interner: &Arc<Interner>,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
 ) {
@@ -285,8 +287,13 @@ fn analyze_loaded_ast(
             "".to_string()
         },
     };
-    let mut file_analyzer =
-        file_analyzer::FileAnalyzer::new(file_source, resolved_names, codebase, interner, config);
+    let mut file_analyzer = file_analyzer::FileAnalyzer::new(
+        file_source,
+        resolved_names,
+        codebase,
+        interner.clone(),
+        config,
+    );
 
     match file_analyzer.analyze(&aast.0, analysis_result) {
         Ok(()) => {}

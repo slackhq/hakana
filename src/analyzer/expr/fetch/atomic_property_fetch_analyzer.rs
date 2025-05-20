@@ -225,18 +225,13 @@ fn get_class_property_type(
         let parent_class = declaring_class_storage.direct_parent_class;
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.interner),
+            &Some(&statements_analyzer.interner),
             &mut class_property_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),
                 static_class_type: StaticClassType::Object(&lhs_type_part),
                 parent_class: parent_class.as_ref(),
-                file_path: Some(
-                    &statements_analyzer
-                        .file_analyzer
-                        .file_source
-                        .file_path,
-                ),
+                file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -327,15 +322,12 @@ fn update_template_types(
 
                             type_expander::expand_union(
                                 statements_analyzer.codebase,
-                                &Some(statements_analyzer.interner),
+                                &Some(&statements_analyzer.interner),
                                 &mut lhs_param_type,
                                 &TypeExpansionOptions {
                                     parent_class: None,
                                     file_path: Some(
-                                        &statements_analyzer
-                                            .file_analyzer
-                                            .file_source
-                                            .file_path,
+                                        &statements_analyzer.file_analyzer.file_source.file_path,
                                     ),
                                     ..Default::default()
                                 },

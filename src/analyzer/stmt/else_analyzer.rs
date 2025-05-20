@@ -97,7 +97,7 @@ pub(crate) fn analyze(
     let final_actions = if !stmts.is_empty() {
         control_analyzer::get_control_actions(
             statements_analyzer.codebase,
-            statements_analyzer.interner,
+            &statements_analyzer.interner,
             statements_analyzer.file_analyzer.resolved_names,
             &stmts.0,
             analysis_data,

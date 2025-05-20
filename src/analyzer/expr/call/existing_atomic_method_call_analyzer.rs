@@ -187,7 +187,7 @@ pub(crate) fn analyze(
                     where_type,
                     &mut template_result,
                     statements_analyzer.codebase,
-                    statements_analyzer.interner,
+                    &statements_analyzer.interner,
                     &Some(template_type),
                     None,
                     None,
@@ -296,7 +296,7 @@ fn handle_shapes_static_method(
                     &call_expr.1[0].to_expr_ref(),
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.file_analyzer.resolved_names,
-                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
+                    Some((statements_analyzer.codebase, &statements_analyzer.interner)),
                 );
 
                 let dim_var_id = expression_identifier::get_dim_id(
@@ -336,7 +336,7 @@ fn handle_shapes_static_method(
                     &call_expr.1[0].to_expr_ref(),
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.file_analyzer.resolved_names,
-                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
+                    Some((statements_analyzer.codebase, &statements_analyzer.interner)),
                 );
                 let dim_var_id = expression_identifier::get_dim_id(
                     &call_expr.1[1].to_expr_ref(),
@@ -607,7 +607,7 @@ fn handle_defined_shape_idx(
         &call_expr.1[0].to_expr_ref(),
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((statements_analyzer.codebase, statements_analyzer.interner)),
+        Some((statements_analyzer.codebase, &statements_analyzer.interner)),
     );
 
     let dim_var_id = expression_identifier::get_dim_id(

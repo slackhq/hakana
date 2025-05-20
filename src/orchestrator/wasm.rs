@@ -64,6 +64,8 @@ pub fn scan_and_analyze_single_file(
         &analysis_config,
     );
 
+    let interner = Arc::new(interner);
+
     let mut analysis_result = analyze_single_file(
         file_name.clone(),
         file_contents.clone(),
@@ -90,7 +92,7 @@ pub fn scan_and_analyze_single_file(
         }
     }
 
-    Ok((analysis_result, interner))
+    Ok((analysis_result, (*interner).clone()))
 }
 
 pub fn get_single_file_codebase(
@@ -229,7 +231,7 @@ pub fn analyze_single_file(
     path: String,
     file_contents: String,
     codebase: &CodebaseInfo,
-    interner: &Interner,
+    interner: &Arc<Interner>,
     resolved_names: &FxHashMap<u32, StrId>,
     analysis_config: &Config,
 ) -> std::result::Result<AnalysisResult, String> {
@@ -269,7 +271,7 @@ pub fn analyze_single_file(
         file_source,
         resolved_names,
         codebase,
-        interner,
+        interner.clone(),
         analysis_config,
     );
 

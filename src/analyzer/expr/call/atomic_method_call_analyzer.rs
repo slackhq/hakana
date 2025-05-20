@@ -109,12 +109,12 @@ pub(crate) fn analyze(
                             format!(
                                 "Cannot call method on {} with type {}",
                                 lhs_var_id,
-                                lhs_type_part.get_id(Some(statements_analyzer.interner))
+                                lhs_type_part.get_id(Some(&statements_analyzer.interner))
                             )
                         } else {
                             format!(
                                 "Cannot call method on type {}",
-                                lhs_type_part.get_id(Some(statements_analyzer.interner))
+                                lhs_type_part.get_id(Some(&statements_analyzer.interner))
                             )
                         },
                         statements_analyzer.get_hpos(&expr.0 .1),
@@ -138,12 +138,12 @@ pub(crate) fn analyze(
                         format!(
                             "Cannot call method on {} with type {}",
                             lhs_var_id,
-                            lhs_type_part.get_id(Some(statements_analyzer.interner))
+                            lhs_type_part.get_id(Some(&statements_analyzer.interner))
                         )
                     } else {
                         format!(
                             "Cannot call method on type {}",
-                            lhs_type_part.get_id(Some(statements_analyzer.interner))
+                            lhs_type_part.get_id(Some(&statements_analyzer.interner))
                         )
                     },
                     statements_analyzer.get_hpos(&expr.0 .1),

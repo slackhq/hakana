@@ -232,7 +232,7 @@ pub(crate) fn analyze(
         let mut inserted_type = property_type.clone();
         type_expander::expand_union(
             codebase,
-            &Some(statements_analyzer.interner),
+            &Some(&statements_analyzer.interner),
             &mut inserted_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),
