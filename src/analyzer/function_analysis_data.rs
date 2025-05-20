@@ -11,10 +11,8 @@ use hakana_code_info::{
     symbol_references::SymbolReferences,
     t_union::TUnion,
 };
-use hakana_str::{Interner, ScopedStringInterner};
 use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::sync::Arc;
 use std::{collections::BTreeMap, rc::Rc};
 
 pub struct FunctionAnalysisData {
@@ -49,10 +47,9 @@ pub struct FunctionAnalysisData {
     pub after_expr_hook_called: FxHashSet<(u32, u32)>,
     pub after_arg_hook_called: FxHashSet<(u32, u32)>,
     pub inside_await: bool,
-    pub scoped_interner: ScopedStringInterner,
 }
 
-impl<'a> FunctionAnalysisData {
+impl FunctionAnalysisData {
     pub(crate) fn new(
         data_flow_graph: DataFlowGraph,
         file_source: &FileSource,
@@ -63,7 +60,6 @@ impl<'a> FunctionAnalysisData {
         hakana_fixme_or_ignores: Option<
             BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>>,
         >,
-        string_interner: Arc<Interner>,
     ) -> Self {
         Self {
             expr_types: FxHashMap::default(),
@@ -98,7 +94,6 @@ impl<'a> FunctionAnalysisData {
             after_expr_hook_called: FxHashSet::default(),
             inside_await: false,
             previously_used_fixme_positions: FxHashMap::default(),
-            scoped_interner: ScopedStringInterner::new(string_interner),
         }
     }
 

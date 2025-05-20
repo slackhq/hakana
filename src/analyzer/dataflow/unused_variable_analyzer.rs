@@ -265,8 +265,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     let expression_effects = analysis_data
                         .expr_effects
                         .get(&(
-                            boxed.2 .1.start_offset() as u32,
-                            boxed.2 .1.end_offset() as u32,
+                            boxed.2.1.start_offset() as u32,
+                            boxed.2.1.end_offset() as u32,
                         ))
                         .unwrap_or(&0);
 
@@ -288,13 +288,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         analysis_data.add_replacement(
                             (
                                 stmt.0.start_offset() as u32,
-                                boxed.2 .1.start_offset() as u32,
+                                boxed.2.1.start_offset() as u32,
                             ),
                             Replacement::Remove,
                         );
 
                         // remove trailing array fetches
-                        if let aast::Expr_::ArrayGet(array_get) = &boxed.2 .2 {
+                        if let aast::Expr_::ArrayGet(array_get) = &boxed.2.2 {
                             if let Some(array_offset_expr) = &array_get.1 {
                                 let array_offset_effects = analysis_data
                                     .expr_effects

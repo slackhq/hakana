@@ -53,7 +53,7 @@ pub(crate) fn analyze(
         expr.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.file_analyzer.resolved_names,
-        Some((statements_analyzer.codebase, &statements_analyzer.interner)),
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
     let var_id = if let Some(stmt_var_id) = stmt_var_id.clone() {

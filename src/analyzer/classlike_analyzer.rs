@@ -90,7 +90,6 @@ impl<'a> ClassLikeAnalyzer<'a> {
             None,
             classlike_storage.meta_start.start_offset,
             None,
-            statements_analyzer.interner.clone(),
         );
 
         if let Some(issue_filter) = &statements_analyzer.get_config().allowed_issues {

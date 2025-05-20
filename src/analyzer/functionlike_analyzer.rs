@@ -40,18 +40,17 @@ use oxidized::ast_defs::Pos;
 use oxidized::{aast, tast};
 
 use std::rc::Rc;
-use std::sync::Arc;
 
 pub(crate) struct FunctionLikeAnalyzer<'a> {
     file_analyzer: &'a FileAnalyzer<'a>,
-    interner: Arc<Interner>,
+    interner: &'a Interner,
 }
 
 impl<'a> FunctionLikeAnalyzer<'a> {
     pub fn new(file_analyzer: &'a FileAnalyzer) -> Self {
         Self {
             file_analyzer,
-            interner: file_analyzer.interner.clone(),
+            interner: file_analyzer.interner,
         }
     }
 
@@ -393,7 +392,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                 type_expander::expand_union(
                     self.file_analyzer.codebase,
-                    &Some(&self.interner),
+                    &Some(self.interner),
                     &mut property_type,
                     &TypeExpansionOptions {
                         self_class: Some(calling_class),
@@ -444,7 +443,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         .get_config()
                         .migration_symbols
                         .contains_key(
-                            &calling_functionlike_id.to_string(&self.file_analyzer.interner),
+                            &calling_functionlike_id.to_string(self.file_analyzer.interner),
                         )
                 } else {
                     false
@@ -467,7 +466,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             parent_analysis_data
                 .as_ref()
                 .map(|parent_analysis_data| parent_analysis_data.hakana_fixme_or_ignores.clone()),
-            self.interner.clone(),
         );
 
         if let Some(parent_analysis_data) = &parent_analysis_data {
@@ -556,7 +554,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         functionlike_storage,
                         &mut context,
                         &mut analysis_data,
-                        &self.interner,
+                        self.interner,
                     );
                 }
             }
@@ -653,7 +651,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             let mut expected_return_type = expected_return_type.clone();
             type_expander::expand_union(
                 statements_analyzer.codebase,
-                &Some(&statements_analyzer.interner),
+                &Some(statements_analyzer.interner),
                 &mut expected_return_type,
                 &TypeExpansionOptions {
                     self_class: context.function_context.calling_class.as_ref(),
@@ -930,7 +928,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                     type_expander::expand_union(
                         self.file_analyzer.codebase,
-                        &Some(&statements_analyzer.interner),
+                        &Some(statements_analyzer.interner),
                         &mut param_type,
                         &TypeExpansionOptions {
                             self_class: calling_class,
@@ -1090,7 +1088,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         param_type: &param_type,
                         param_node,
                         codebase: statements_analyzer.codebase,
-                        interner: &statements_analyzer.interner,
+                        interner: statements_analyzer.interner,
                         in_migratable_function: statements_analyzer.in_migratable_function,
                     },
                 );
@@ -1207,23 +1205,21 @@ fn add_symbol_references(
     }
 }
 
-fn report_unused_expressions<'a>(
-    analysis_data: &'a mut FunctionAnalysisData,
+fn report_unused_expressions(
+    analysis_data: &mut FunctionAnalysisData,
     config: &Config,
     fb_ast: &Vec<aast::Stmt<(), ()>>,
-    statements_analyzer: &'a StatementsAnalyzer,
+    statements_analyzer: &StatementsAnalyzer,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    let unused_source_nodes = check_variables_used(
-        &analysis_data.data_flow_graph,
-        &statements_analyzer.interner,
-    );
+    let unused_source_nodes =
+        check_variables_used(&analysis_data.data_flow_graph, statements_analyzer.interner);
     analysis_data.current_stmt_offset = None;
 
     let mut unused_variable_nodes = vec![];
 
-    let interner = &statements_analyzer.interner;
+    let interner = statements_analyzer.interner;
 
     for node in &unused_source_nodes.0 {
         match &node.kind {
@@ -1299,7 +1295,7 @@ fn report_unused_expressions<'a>(
                         analysis_data.maybe_add_issue(
                             Issue::new(
                                 IssueKind::UnusedParameter,
-                                "Unused param ".to_string() + &node.id.to_label(&interner),
+                                "Unused param ".to_string() + &node.id.to_label(interner),
                                 pos,
                                 calling_functionlike_id,
                             ),
@@ -1324,7 +1320,7 @@ fn report_unused_expressions<'a>(
                                 Issue::new(
                                     IssueKind::UnusedClosureParameter,
                                     "Unused closure param ".to_string()
-                                        + &node.id.to_label(&interner),
+                                        + &node.id.to_label(interner),
                                     *pos,
                                     calling_functionlike_id,
                                 ),
@@ -1431,9 +1427,9 @@ fn handle_unused_assignment(
         {
             unused_variable_nodes.push(node.clone());
         } else {
-            let interner = &statements_analyzer.interner;
+            let interner = statements_analyzer.interner;
             analysis_data.maybe_add_issue(
-                if node.id.to_label(&interner) == "$$" {
+                if node.id.to_label(interner) == "$$" {
                     Issue::new(
                         IssueKind::UnusedPipeVariable,
                         "The pipe data in this expression is not used anywhere".to_string(),
@@ -1445,7 +1441,7 @@ fn handle_unused_assignment(
                         IssueKind::UnusedInoutAssignment,
                         format!(
                             "Assignment to {} from inout argument is unused",
-                            node.id.to_label(&interner),
+                            node.id.to_label(interner),
                         ),
                         *pos,
                         calling_functionlike_id,
@@ -1455,7 +1451,7 @@ fn handle_unused_assignment(
                         IssueKind::UnusedAssignmentInClosure,
                         format!(
                             "Assignment to {} is unused in this closure ",
-                            node.id.to_label(&interner),
+                            node.id.to_label(interner),
                         ),
                         *pos,
                         calling_functionlike_id,
@@ -1465,7 +1461,7 @@ fn handle_unused_assignment(
                         IssueKind::UnusedAssignmentStatement,
                         format!(
                             "Assignment to {} is unused, and this expression has no effect",
-                            node.id.to_label(&interner),
+                            node.id.to_label(interner),
                         ),
                         *pos,
                         calling_functionlike_id,
@@ -1475,7 +1471,7 @@ fn handle_unused_assignment(
                         IssueKind::UnusedAwaitable,
                         format!(
                             "Assignment to awaitable {} is unused",
-                            node.id.to_label(&interner)
+                            node.id.to_label(interner)
                         ),
                         *pos,
                         calling_functionlike_id,
@@ -1483,7 +1479,7 @@ fn handle_unused_assignment(
                 } else {
                     Issue::new(
                         IssueKind::UnusedAssignment,
-                        format!("Assignment to {} is unused", node.id.to_label(&interner),),
+                        format!("Assignment to {} is unused", node.id.to_label(interner),),
                         *pos,
                         calling_functionlike_id,
                     )

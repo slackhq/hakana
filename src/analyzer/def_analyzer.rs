@@ -26,7 +26,7 @@ pub(crate) fn analyze(
     if statements_analyzer.get_config().in_codegen
         && !statements_analyzer.get_config().hooks.iter().any(|hook| {
             hook.can_codegen_def(
-                &statements_analyzer.interner,
+                statements_analyzer.interner,
                 statements_analyzer.codebase,
                 statements_analyzer.file_analyzer.resolved_names,
                 def,

@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
 use crate::config::Config;
 use crate::def_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::update_analysis_result_with_tast;
-use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::HPos;
@@ -26,7 +24,7 @@ pub struct FileAnalyzer<'a> {
     namespace_name: Option<String>,
     pub resolved_names: &'a FxHashMap<u32, StrId>,
     pub codebase: &'a CodebaseInfo,
-    pub interner: Arc<Interner>,
+    pub interner: &'a Interner,
     pub analysis_config: &'a Config,
 }
 
@@ -35,7 +33,7 @@ impl<'a> FileAnalyzer<'a> {
         file_source: FileSource<'a>,
         resolved_names: &'a FxHashMap<u32, StrId>,
         codebase: &'a CodebaseInfo,
-        interner: Arc<Interner>,
+        interner: &'a Interner,
         analysis_config: &'a Config,
     ) -> Self {
         Self {
@@ -61,7 +59,6 @@ impl<'a> FileAnalyzer<'a> {
             None,
             0,
             None,
-            self.interner.clone(),
         );
 
         if let Some(issue_filter) = &self.get_config().allowed_issues {
@@ -114,7 +111,10 @@ impl<'a> FileAnalyzer<'a> {
         update_analysis_result_with_tast(
             analysis_data,
             analysis_result,
-            &statements_analyzer.file_analyzer.file_source.file_path,
+            &statements_analyzer
+                .file_analyzer
+                .file_source
+                .file_path,
             false,
         );
 

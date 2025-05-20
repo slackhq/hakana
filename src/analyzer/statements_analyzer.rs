@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::config::Config;
 use crate::file_analyzer::FileAnalyzer;
 use crate::formula_generator::AssertionContext;
@@ -26,7 +24,7 @@ pub struct StatementsAnalyzer<'a> {
     pub comments: Vec<&'a (Pos, Comment)>,
     type_resolution_context: &'a TypeResolutionContext,
     pub in_migratable_function: bool,
-    pub interner: Arc<Interner>,
+    pub interner: &'a Interner,
     pub codebase: &'a CodebaseInfo,
 }
 
@@ -42,7 +40,7 @@ impl<'a> StatementsAnalyzer<'a> {
             comments,
             type_resolution_context,
             in_migratable_function: false,
-            interner: file_analyzer.interner.clone(),
+            interner: file_analyzer.interner,
             codebase: &file_analyzer.codebase,
         }
     }
@@ -119,14 +117,14 @@ impl<'a> StatementsAnalyzer<'a> {
 
     #[inline]
     pub(crate) fn get_assertion_context(
-        &'a self,
+        &self,
         this_class_name: Option<&'a StrId>,
         calling_functionlike_id: Option<&'a FunctionLikeIdentifier>,
-    ) -> AssertionContext<'a, 'a> {
+    ) -> AssertionContext<'a> {
         AssertionContext {
             file_source: &self.file_analyzer.file_source,
             resolved_names: self.file_analyzer.resolved_names,
-            codebase: Some((self.codebase, &self.interner)),
+            codebase: Some((self.codebase, self.interner)),
             this_class_name,
             type_resolution_context: self.type_resolution_context,
             reference_source: match calling_functionlike_id {

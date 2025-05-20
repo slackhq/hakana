@@ -5,14 +5,14 @@ use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::ast::get_id_name;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::{t_atomic::TAtomic, t_union::TUnion};
+use hakana_str::StrId;
 use hakana_code_info::ttype::type_expander::{StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
     type_expander::{self},
     wrap_atomic,
 };
-use hakana_code_info::{t_atomic::TAtomic, t_union::TUnion};
-use hakana_str::StrId;
 use oxidized::{
     aast::{self, ClassId},
     ast_defs::Pos,
@@ -94,7 +94,9 @@ pub(crate) fn analyze(
                                         IssueKind::NonExistentClasslike,
                                         format!(
                                             "Unknown classlike {}",
-                                            statements_analyzer.interner.lookup(classlike_name)
+                                            statements_analyzer
+                                                .interner
+                                                .lookup(classlike_name)
                                         ),
                                         statements_analyzer.get_hpos(pos),
                                         &context.function_context.calling_functionlike_id,
@@ -278,7 +280,7 @@ fn analyse_known_class_constant(
         };
         type_expander::expand_union(
             codebase,
-            &Some(&statements_analyzer.interner),
+            &Some(statements_analyzer.interner),
             class_constant_type,
             &TypeExpansionOptions {
                 evaluate_conditional_types: true,
@@ -286,7 +288,12 @@ fn analyse_known_class_constant(
                 self_class: Some(classlike_name),
                 static_class_type: StaticClassType::Object(&this_class),
                 parent_class: None,
-                file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
+                file_path: Some(
+                    &statements_analyzer
+                        .file_analyzer
+                        .file_source
+                        .file_path,
+                ),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,

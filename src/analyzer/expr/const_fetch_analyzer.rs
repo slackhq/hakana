@@ -79,7 +79,7 @@ pub(crate) fn analyze(
 
     type_expander::expand_union(
         codebase,
-        &Some(&statements_analyzer.interner),
+        &Some(statements_analyzer.interner),
         &mut stmt_type,
         &TypeExpansionOptions {
             ..Default::default()

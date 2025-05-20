@@ -156,7 +156,7 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
     pos: HPos,
 ) {
     let codebase = statements_analyzer.codebase;
-    let interner = &statements_analyzer.interner;
+    let interner = statements_analyzer.interner;
 
     let relevant_lower_bounds = get_relevant_bounds(lower_bounds);
 
@@ -184,8 +184,8 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
                         IssueKind::IncompatibleTypeParameters,
                         format!(
                             "Type {} should be a subtype of {}",
-                            relevant_lower_bound.bound_type.get_id(Some(&interner)),
-                            upper_bound.bound_type.get_id(Some(&interner))
+                            relevant_lower_bound.bound_type.get_id(Some(interner)),
+                            upper_bound.bound_type.get_id(Some(interner))
                         ),
                         relevant_lower_bound
                             .pos
@@ -211,7 +211,7 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
 
         let equality_strings = bounds_with_equality
             .iter()
-            .map(|bound| bound.bound_type.get_id(Some(&interner)))
+            .map(|bound| bound.bound_type.get_id(Some(interner)))
             .unique()
             .collect::<Vec<_>>();
 
@@ -255,7 +255,7 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
                             format!(
                                 "Incompatible types found for {} ({} is not in {})",
                                 "type variable",
-                                lower_bound.bound_type.get_id(Some(&interner)),
+                                lower_bound.bound_type.get_id(Some(interner)),
                                 equality_strings.join(", "),
                             ),
                             pos,
@@ -298,8 +298,8 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
                             format!(
                                 "Incompatible types found for {} ({} is not in {})",
                                 "type variable",
-                                upper_bound.bound_type.get_id(Some(&interner)),
-                                upper_bound_with_equality.bound_type.get_id(Some(&interner)),
+                                upper_bound.bound_type.get_id(Some(interner)),
+                                upper_bound_with_equality.bound_type.get_id(Some(interner)),
                             ),
                             pos,
                             &None,
@@ -416,7 +416,7 @@ pub(crate) fn check_method_args(
                 IssueKind::TestOnlyCall,
                 format!(
                     "Cannot call test-only function {} from non-test context",
-                    method_id.to_string(&statements_analyzer.interner),
+                    method_id.to_string(statements_analyzer.interner),
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,

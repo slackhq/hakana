@@ -304,7 +304,7 @@ fn detect_unused_statement_expressions(
         aast::Expr_::Call(boxed_call) => {
             let functionlike_id = get_static_functionlike_id_from_call(
                 boxed_call,
-                &statements_analyzer.interner,
+                statements_analyzer.interner,
                 statements_analyzer.file_analyzer.resolved_names,
             );
 
@@ -331,7 +331,7 @@ fn detect_unused_statement_expressions(
                                             format!(
                                                 "The value {} returned from {} should be consumed",
                                                 expr_type
-                                                    .get_id(Some(&statements_analyzer.interner)),
+                                                    .get_id(Some(statements_analyzer.interner)),
                                                 function_name
                                             ),
                                             statements_analyzer.get_hpos(&stmt.0),
@@ -392,7 +392,7 @@ fn has_unused_must_use(
         aast::Expr_::Call(boxed_call) => {
             let functionlike_id_from_call = get_functionlike_id_from_call(
                 boxed_call,
-                &statements_analyzer.interner,
+                statements_analyzer.interner,
                 statements_analyzer.file_analyzer.resolved_names,
                 &analysis_data.expr_types,
             );

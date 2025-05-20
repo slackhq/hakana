@@ -59,10 +59,6 @@ impl Interner {
             .map(|(k, v)| (v.clone(), StrId(k as u32)))
             .collect()
     }
-
-    pub fn get_size(&self) -> usize {
-        self.map.len()
-    }
 }
 
 #[derive(Debug)]
@@ -117,66 +113,5 @@ impl ThreadedInterner {
         } else {
             panic!()
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct ScopedStringInterner {
-    parent: Arc<Interner>,
-    local_strings: Vec<String>,
-    local_map: FxHashMap<String, StrId>,
-    next_local_id: u32,
-}
-
-impl ScopedStringInterner {
-    pub fn new(parent: Arc<Interner>) -> Self {
-        Self {
-            next_local_id: parent.get_size() as u32,
-            parent,
-            local_strings: Vec::new(),
-            local_map: FxHashMap::default(),
-        }
-    }
-
-    pub fn intern(&mut self, string: String) -> StrId {
-        if let Some(id) = self.local_map.get(&string) {
-            return *id;
-        }
-        if let Some(id) = self.parent.get(&string) {
-            return id;
-        }
-
-        let id = StrId(self.next_local_id);
-        self.next_local_id += 1;
-        self.local_map.insert(string.clone(), id);
-        self.local_strings.push(string);
-        id
-    }
-
-    pub fn intern_str(&mut self, string: &str) -> StrId {
-        if let Some(id) = self.local_map.get(string) {
-            return *id;
-        }
-        if let Some(id) = self.parent.get(string) {
-            return id;
-        }
-
-        let id = StrId(self.next_local_id);
-        self.next_local_id += 1;
-        self.local_map.insert(string.to_string(), id);
-        self.local_strings.push(string.to_string());
-        id
-    }
-
-    pub fn lookup(&self, id: StrId) -> &str {
-        // Check if it's a local ID
-        if id.0 >= 1_000_000_000 {
-            let local_index = (id.0 - 1_000_000_000) as usize;
-            if local_index < self.local_strings.len() {
-                return &self.local_strings[local_index];
-            }
-        }
-        // Otherwise, assume it's a parent ID
-        self.parent.lookup(&id)
     }
 }
