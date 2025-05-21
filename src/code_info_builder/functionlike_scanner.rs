@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
 use hakana_code_info::attribute_info::AttributeInfo;
@@ -334,19 +333,21 @@ pub(crate) fn get_functionlike(
         });
 
         match attribute_name {
+            StrId::HAKANA_CALLS_SERVICE => {
+                functionlike_info.service_calls = get_spread_params_from_attribute(user_attribute);
+            }
+            StrId::HAKANA_INDIRECTLY_CALLS_SERVICE => {
+                functionlike_info.transitive_service_calls =
+                    get_spread_params_from_attribute(user_attribute);
+            }
             StrId::HAKANA_SECURITY_ANALYSIS_SOURCE => {
+                let string_values = get_spread_params_from_attribute(user_attribute);
+
                 let mut source_types = vec![];
 
-                for attribute_param_expr in &user_attribute.params {
-                    let attribute_param_type =
-                        simple_type_inferer::infer(attribute_param_expr, resolved_names);
-
-                    if let Some(attribute_param_type) = attribute_param_type {
-                        if let TAtomic::TLiteralString { value: str } = attribute_param_type {
-                            if let Some(source_type) = string_to_source_types(str) {
-                                source_types.push(source_type);
-                            }
-                        }
+                for str in string_values {
+                    if let Some(source_type) = string_to_source_types(str) {
+                        source_types.push(source_type);
                     }
                 }
 
@@ -386,16 +387,12 @@ pub(crate) fn get_functionlike(
                 functionlike_info.ignore_taints_if_true = true;
             }
             StrId::HAKANA_SECURITY_ANALYSIS_SANITIZE | StrId::HAKANA_FIND_PATHS_SANITIZE => {
+                let string_values = get_spread_params_from_attribute(user_attribute);
+
                 let mut removed_types = vec![];
 
-                for attribute_param_expr in &user_attribute.params {
-                    let attribute_param_type =
-                        simple_type_inferer::infer(attribute_param_expr, resolved_names);
-                    if let Some(attribute_param_type) = attribute_param_type {
-                        if let TAtomic::TLiteralString { value } = attribute_param_type {
-                            removed_types.extend(string_to_sink_types(value));
-                        }
-                    }
+                for str in string_values {
+                    removed_types.extend(string_to_sink_types(str));
                 }
 
                 functionlike_info.removed_taints = removed_types;
@@ -700,35 +697,23 @@ fn convert_param_nodes(
 
                 match *name {
                     StrId::HAKANA_SECURITY_ANALYSIS_SINK => {
+                        let string_values = get_spread_params_from_attribute(user_attribute);
+
                         let mut sink_types = vec![];
 
-                        for attribute_param_expr in &user_attribute.params {
-                            let attribute_param_type =
-                                simple_type_inferer::infer(attribute_param_expr, resolved_names);
-
-                            if let Some(attribute_param_type) = attribute_param_type {
-                                if let TAtomic::TLiteralString { value: str } = attribute_param_type
-                                {
-                                    sink_types.extend(string_to_sink_types(str));
-                                }
-                            }
+                        for str in string_values {
+                            sink_types.extend(string_to_sink_types(str));
                         }
 
                         param.taint_sinks = Some(sink_types);
                     }
                     StrId::HAKANA_SECURITY_ANALYSIS_REMOVE_TAINTS_WHEN_RETURNING_TRUE => {
+                        let string_values = get_spread_params_from_attribute(user_attribute);
+
                         let mut removed_taints = vec![];
 
-                        for attribute_param_expr in &user_attribute.params {
-                            let attribute_param_type =
-                                simple_type_inferer::infer(attribute_param_expr, resolved_names);
-
-                            if let Some(attribute_param_type) = attribute_param_type {
-                                if let TAtomic::TLiteralString { value: str } = attribute_param_type
-                                {
-                                    removed_taints.extend(string_to_sink_types(str));
-                                }
-                            }
+                        for str in string_values {
+                            removed_taints.extend(string_to_sink_types(str));
                         }
 
                         param.removed_taints_when_returning_true = Some(removed_taints);
@@ -745,4 +730,18 @@ fn convert_param_nodes(
             param
         })
         .collect()
+}
+
+fn get_spread_params_from_attribute(user_attribute: &aast::UserAttribute<(), ()>) -> Vec<String> {
+    user_attribute
+        .params
+        .iter()
+        .filter_map(|attribute_param_expr| {
+            if let aast::Expr_::String(str) = &attribute_param_expr.2 {
+                Some(str.to_string())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
 }

@@ -25,7 +25,7 @@ pub(crate) fn find_unused_definitions(
     ignored_paths: &Option<FxHashSet<String>>,
     file_system: &mut VirtualFileSystem,
 ) {
-    // don’t show unused definitions if we have any invalid Hack files
+    // don't show unused definitions if we have any invalid Hack files
     if analysis_result.has_invalid_hack_files {
         for file_path in &analysis_result.changed_during_analysis_files {
             if let Some(file_system_info) = file_system.file_hashes_and_times.get_mut(file_path) {
@@ -59,7 +59,7 @@ pub(crate) fn find_unused_definitions(
             .unwrap_or(&0)
             > &0;
 
-    // don’t show unused definitions if there are undefined symbols
+    // don't show unused definitions if there are undefined symbols
     if has_undefined_symbols {
         return;
     }
@@ -89,10 +89,15 @@ pub(crate) fn find_unused_definitions(
 
     if config
         .issues_to_fix
-        .contains(&IssueKind::MissingCallsDbAsioJoinAttribute)
+        .contains(&IssueKind::MissingIndirectServiceCallsAttribute)
         && !config.add_fixmes
     {
-        add_calls_db_asio_attributes(analysis_result, codebase, &referenced_symbols_and_members);
+        add_service_calls_attributes(
+            analysis_result,
+            codebase,
+            &referenced_symbols_and_members,
+            config,
+        );
     }
 
     let referenced_symbols_and_members = referenced_symbols_and_members
@@ -646,93 +651,131 @@ pub(crate) fn find_unused_definitions(
     }
 }
 
-fn add_calls_db_asio_attributes(
+fn add_service_calls_attributes(
     analysis_result: &mut AnalysisResult,
     codebase: &CodebaseInfo,
     referenced_symbols_and_members: &FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
+    config: &Arc<Config>,
 ) {
-    let calls_db_asio_join_fns = codebase
-        .functionlike_infos
-        .iter()
-        .filter(|(_, c)| c.user_defined && c.is_production_code && c.calls_db_asio_join)
-        .map(|(k, _)| *k)
-        .collect::<FxHashSet<_>>();
+    // Get all services that are referenced in CallsService and IndirectlyCallsService attributes
+    let mut all_services = FxHashSet::default();
 
-    let request_handler_fns = codebase
-        .functionlike_infos
-        .iter()
-        .filter(|(_, c)| c.is_request_handler)
-        .map(|(k, _)| *k)
-        .collect::<FxHashSet<_>>();
-
-    let mut all_calls_db_asio_join_fns = calls_db_asio_join_fns.clone();
-    let mut next_new_caller_ids = calls_db_asio_join_fns.into_iter().collect::<Vec<_>>();
-
-    for _ in 0..4 {
-        let mut new_caller_ids = next_new_caller_ids;
-        next_new_caller_ids = vec![];
-        while let Some(new_caller_id) = new_caller_ids.pop() {
-            let Some(back_refs) = referenced_symbols_and_members.get(&new_caller_id) else {
-                continue;
-            };
-            let back_refs = back_refs
-                .iter()
-                .filter(|k| {
-                    !all_calls_db_asio_join_fns.contains(&k)
-                        && match codebase.functionlike_infos.get(&k) {
-                            Some(functionlike_info) => {
-                                if functionlike_info.is_production_code
-                                    && !functionlike_info.is_request_handler
-                                    && !functionlike_info.generated
-                                {
-                                    if k.1 == StrId::EMPTY {
-                                        true
-                                    } else {
-                                        match codebase.classlike_infos.get(&k.0) {
-                                            Some(classlike_info) => {
-                                                if let Some(parent_classes) =
-                                                    classlike_info.overridden_method_ids.get(&k.1)
-                                                {
-                                                    !parent_classes.iter().any(|parent_class| {
-                                                        request_handler_fns
-                                                            .contains(&(*parent_class, k.1))
-                                                    })
-                                                } else {
-                                                    true
-                                                }
-                                            }
-                                            _ => false,
-                                        }
-                                    }
-                                } else {
-                                    false
-                                }
-                            }
-                            None => false,
-                        }
-                })
-                .map(|k| *k)
-                .collect::<FxHashSet<_>>();
-            next_new_caller_ids.extend(back_refs.clone());
-            all_calls_db_asio_join_fns.extend(back_refs);
+    for (_, functionlike_info) in &codebase.functionlike_infos {
+        for service in &functionlike_info.service_calls {
+            all_services.insert(service.clone());
+        }
+        for service in &functionlike_info.transitive_service_calls {
+            all_services.insert(service.clone());
         }
     }
 
-    for k in all_calls_db_asio_join_fns {
-        if let Some(functionlike_info) = codebase.functionlike_infos.get(&k) {
-            if !functionlike_info.calls_db_asio_join {
-                let def_pos = functionlike_info.def_location;
-                analysis_result
-                    .replacements
-                    .entry(def_pos.file_path)
-                    .or_default()
-                    .insert(
-                        (def_pos.start_offset, def_pos.start_offset),
-                        Replacement::Substitute(format!(
-                            "<<\\Hakana\\CallsDbAsioJoin>>\n{}",
-                            &"\t".repeat((def_pos.start_column as usize) - 1)
-                        )),
-                    );
+    // For each service, identify functions that need to have IndirectlyCallsService attributes
+    for service in all_services {
+        // Find functions that directly call the service
+        let direct_callers = codebase
+            .functionlike_infos
+            .iter()
+            .filter(|(_, c)| {
+                c.user_defined && c.is_production_code && c.service_calls.contains(&service)
+            })
+            .map(|(k, _)| *k)
+            .collect::<FxHashSet<_>>();
+
+        // Also include functions with request handler attribute as they can call any service
+        let request_handler_fns = codebase
+            .functionlike_infos
+            .iter()
+            .filter(|(_, c)| c.is_request_handler)
+            .map(|(k, _)| *k)
+            .collect::<FxHashSet<_>>();
+
+        // Start with direct callers
+        let mut all_service_callers = direct_callers.clone();
+        let mut next_new_caller_ids = direct_callers.into_iter().collect::<Vec<_>>();
+
+        // Find functions that transitively call the service (up to 4 levels deep)
+        for _ in 0..4 {
+            let mut new_caller_ids = next_new_caller_ids;
+            next_new_caller_ids = vec![];
+            while let Some(new_caller_id) = new_caller_ids.pop() {
+                let Some(back_refs) = referenced_symbols_and_members.get(&new_caller_id) else {
+                    continue;
+                };
+                let back_refs = back_refs
+                    .iter()
+                    .filter(|k| {
+                        !all_service_callers.contains(&k)
+                            && match codebase.functionlike_infos.get(&k) {
+                                Some(functionlike_info) => {
+                                    if functionlike_info.is_production_code
+                                        && !functionlike_info.is_request_handler
+                                        && !functionlike_info.generated
+                                    {
+                                        if k.1 == StrId::EMPTY {
+                                            true
+                                        } else {
+                                            match codebase.classlike_infos.get(&k.0) {
+                                                Some(classlike_info) => {
+                                                    if let Some(parent_classes) = classlike_info
+                                                        .overridden_method_ids
+                                                        .get(&k.1)
+                                                    {
+                                                        !parent_classes.iter().any(|parent_class| {
+                                                            request_handler_fns
+                                                                .contains(&(*parent_class, k.1))
+                                                        })
+                                                    } else {
+                                                        true
+                                                    }
+                                                }
+                                                _ => false,
+                                            }
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                }
+                                None => false,
+                            }
+                    })
+                    .map(|k| *k)
+                    .collect::<FxHashSet<_>>();
+                next_new_caller_ids.extend(back_refs.clone());
+                all_service_callers.extend(back_refs);
+            }
+        }
+
+        // Add IndirectlyCallsService attributes to functions that need them
+        for k in all_service_callers {
+            if let Some(functionlike_info) = codebase.functionlike_infos.get(&k) {
+                // Skip if function already has the necessary attribute
+                if !functionlike_info
+                    .transitive_service_calls
+                    .contains(&service)
+                    && !functionlike_info.service_calls.contains(&service)
+                {
+                    let def_pos = functionlike_info.def_location;
+
+                    // Only apply fixes if the issue type is in issues_to_fix
+                    if config
+                        .issues_to_fix
+                        .contains(&IssueKind::MissingIndirectServiceCallsAttribute)
+                        && !config.add_fixmes
+                    {
+                        analysis_result
+                            .replacements
+                            .entry(def_pos.file_path)
+                            .or_default()
+                            .insert(
+                                (def_pos.start_offset, def_pos.start_offset),
+                                Replacement::Substitute(format!(
+                                    "<<\\Hakana\\IndirectlyCallsService('{}')>>\n{}",
+                                    service,
+                                    &"\t".repeat((def_pos.start_column as usize) - 1)
+                                )),
+                            );
+                    }
+                }
             }
         }
     }

@@ -144,6 +144,11 @@ pub struct FunctionLikeInfo {
 
     pub method_info: Option<Box<MethodInfo>>,
 
+    /// Identifiers matching <<Hakana\Calls(<id>, <id2>)>> attributes
+    pub service_calls: Vec<String>,
+
+    pub transitive_service_calls: Vec<String>,
+
     /// used for dead-code analysis
     pub user_defined: bool,
 
@@ -219,6 +224,8 @@ impl FunctionLikeInfo {
             overriding: false,
             banned_function_message: None,
             ignore_noreturn_calls: false,
+            transitive_service_calls: vec![],
+            service_calls: vec![],
         }
     }
 

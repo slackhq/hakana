@@ -4,7 +4,7 @@ use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{get_arrayish_params, get_void};
-use hakana_code_info::{VarId, EFFECT_IMPURE_DB, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
+use hakana_code_info::{VarId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
 use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
@@ -229,24 +229,51 @@ pub(crate) fn analyze(
         )
     }
 
-    if function_storage.calls_db_asio_join
+    // Check service calls
+    if function_storage.is_production_code
         && function_storage.user_defined
         && context.function_context.is_production(codebase)
-        && !context.function_context.can_call_db_asio_join(codebase)
     {
-        analysis_data.maybe_add_issue(
-            Issue::new(
-                IssueKind::MissingCallsDbAsioJoinAttribute,
-                format!(
-                    "This function calls a DB-joining function {} but lacks the <<Hakana\\CallsDbAsioJoin>> attribute",
-                    statements_analyzer.interner.lookup(&name)
-                ),
-                statements_analyzer.get_hpos(pos),
-                &context.function_context.calling_functionlike_id,
-            ),
-            statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual(),
-        );
+        // Check for direct service calls
+        for service in &function_storage.service_calls {
+            if !context.function_context.can_call_service(codebase, service) {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MissingServiceCallsAttribute,
+                        format!(
+                            "This function calls service '{}' but lacks the <<Hakana\\Calls('{}')>> attribute",
+                            service, service
+                        ),
+                        statements_analyzer.get_hpos(pos),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+
+        // Check for transitive service calls
+        for service in &function_storage.transitive_service_calls {
+            if !context
+                .function_context
+                .can_transitively_call_service(codebase, service)
+            {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MissingIndirectServiceCallsAttribute,
+                        format!(
+                            "This function transitively calls service '{}' but lacks the <<Hakana\\IndirectlyCallsService('{}')>> attribute",
+                            service, service
+                        ),
+                        statements_analyzer.get_hpos(pos),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
     }
 
     let stmt_type = function_call_return_type_fetcher::fetch(
@@ -527,50 +554,6 @@ pub(crate) fn analyze(
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
                     );
-                }
-            } else if let Some(first_arg) = expr.2.get(0) {
-                let first_arg_pos = &first_arg.to_expr_ref().1;
-                if let Some(effects) = analysis_data.expr_effects.get(&(
-                    first_arg_pos.start_offset() as u32,
-                    first_arg_pos.end_offset() as u32,
-                )) {
-                    if effects == &EFFECT_IMPURE_DB
-                        && context.function_context.is_production(codebase)
-                        && !context.function_context.is_request_handler(codebase)
-                    {
-                        let config = statements_analyzer.get_config();
-                        if config
-                            .issues_to_fix
-                            .contains(&IssueKind::MissingHasDbAsioJoinAttribute)
-                            && !config.add_fixmes
-                        {
-                            let def_pos = context
-                                .function_context
-                                .get_functionlike_info(codebase)
-                                .unwrap()
-                                .def_location;
-                            analysis_data.replacements.insert(
-                                (def_pos.start_offset, def_pos.start_offset),
-                                Replacement::Substitute(format!(
-                                    "<<\\Hakana\\HasDbAsioJoin>>\n{}",
-                                    &"\t".repeat((def_pos.start_column as usize) - 1)
-                                )),
-                            );
-                        } else {
-                            analysis_data.maybe_add_issue(
-                                Issue::new(
-                                    IssueKind::MissingHasDbAsioJoinAttribute,
-                                    format!(
-                                        "This function joins on a DB function but lacks the <<Hakana\\HasDbAsioJoin>> attribute"
-                                    ),
-                                    statements_analyzer.get_hpos(pos),
-                                    &context.function_context.calling_functionlike_id,
-                                ),
-                                statements_analyzer.get_config(),
-                                statements_analyzer.get_file_path_actual(),
-                            );
-                        }
-                    }
                 }
             }
         }
