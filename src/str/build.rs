@@ -247,6 +247,7 @@ fn main() -> Result<()> {
         "HH\\varray",
         "HH\\vec",
         "Hakana\\BannedFunction",
+        "Hakana\\BannedNamespace",
         "Hakana\\CallsDbAsioJoin",
         "Hakana\\FindPaths\\Sanitize",
         "Hakana\\HasDbAsioJoin",
