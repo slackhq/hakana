@@ -38,6 +38,7 @@ use hakana_str::{Interner, StrId};
 use itertools::Itertools;
 use oxidized::ast_defs::Pos;
 use oxidized::{aast, tast};
+use rustc_hash::FxHashSet;
 
 use std::rc::Rc;
 
@@ -630,6 +631,29 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             );
         }
 
+        // Check for unnecessary service call attributes
+        if completed_analysis && parent_analysis_data.is_none() {
+            let mut all_expected_service_calls = functionlike_storage
+                .transitive_service_calls
+                .iter()
+                .collect::<FxHashSet<_>>();
+
+            all_expected_service_calls.retain(|c| !analysis_data.actual_service_calls.contains(*c));
+
+            if !all_expected_service_calls.is_empty() {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UnnecessaryServiceCallsAttribute,
+                        format!("This function expects to call services ({}) but no associated calls can be found", all_expected_service_calls.iter().join(", ")),
+                        functionlike_storage.name_location.unwrap_or(functionlike_storage.def_location),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+
         if config.remove_fixmes && parent_analysis_data.is_none() {
             for unused_fixme_position in analysis_data.get_unused_hakana_fixme_positions() {
                 analysis_data.add_replacement(
@@ -832,6 +856,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             parent_analysis_data
                 .expr_effects
                 .extend(analysis_data.expr_effects);
+
+            // Copy service calls from child analysis to parent
+            parent_analysis_data
+                .actual_service_calls
+                .extend(analysis_data.actual_service_calls);
 
             for (kind, count) in analysis_data.issue_counts {
                 *parent_analysis_data.issue_counts.entry(kind).or_insert(0) += count;

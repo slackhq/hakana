@@ -53,7 +53,6 @@ pub enum IssueKind {
     LessSpecificNestedReturnStatement,
     LessSpecificReturnStatement,
     MethodCallOnNull,
-    MissingServiceCallsAttribute,
     MissingIndirectServiceCallsAttribute,
     MissingInoutToken,
     MissingRequiredXhpAttribute,
@@ -152,6 +151,7 @@ pub enum IssueKind {
     UnusedTrait,
     UnusedTypeDefinition,
     UnusedXhpAttribute,
+    UnnecessaryServiceCallsAttribute,
     UpcastAwaitable,
     UselessControlFlow,
 }
@@ -221,8 +221,6 @@ impl IssueKind {
                 | Self::UnusedXhpAttribute
                 | Self::UnusedTrait
                 | Self::OnlyUsedInTests
-                | Self::MissingServiceCallsAttribute
-                | Self::MissingIndirectServiceCallsAttribute
         )
     }
 

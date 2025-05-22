@@ -36,6 +36,7 @@ pub struct FunctionAnalysisData {
     pub issue_filter: Option<FxHashSet<IssueKind>>,
     pub expr_effects: FxHashMap<(u32, u32), u8>,
     pub issue_counts: FxHashMap<IssueKind, usize>,
+    pub actual_service_calls: FxHashSet<String>,
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
@@ -94,6 +95,7 @@ impl FunctionAnalysisData {
             after_expr_hook_called: FxHashSet::default(),
             inside_await: false,
             previously_used_fixme_positions: FxHashMap::default(),
+            actual_service_calls: FxHashSet::default(),
         }
     }
 

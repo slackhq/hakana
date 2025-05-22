@@ -1,5 +1,6 @@
 use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::codebase_info::CodebaseInfo;
+use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::union_type_comparator;
@@ -229,52 +230,14 @@ pub(crate) fn analyze(
         )
     }
 
-    // Check service calls
-    if function_storage.is_production_code
-        && function_storage.user_defined
-        && context.function_context.is_production(codebase)
-    {
-        // Check for direct service calls
-        for service in &function_storage.service_calls {
-            if !context.function_context.can_call_service(codebase, service) {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::MissingServiceCallsAttribute,
-                        format!(
-                            "This function calls service '{}' but lacks the <<Hakana\\Calls('{}')>> attribute",
-                            service, service
-                        ),
-                        statements_analyzer.get_hpos(pos),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-            }
-        }
-
-        // Check for transitive service calls
-        for service in &function_storage.transitive_service_calls {
-            if !context
-                .function_context
-                .can_transitively_call_service(codebase, service)
-            {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::MissingIndirectServiceCallsAttribute,
-                        format!(
-                            "This function transitively calls service '{}' but lacks the <<Hakana\\IndirectlyCallsService('{}')>> attribute",
-                            service, service
-                        ),
-                        statements_analyzer.get_hpos(pos),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-            }
-        }
-    }
+    check_service_calls(
+        statements_analyzer,
+        pos,
+        analysis_data,
+        context,
+        codebase,
+        function_storage,
+    );
 
     let stmt_type = function_call_return_type_fetcher::fetch(
         statements_analyzer,
@@ -561,6 +524,48 @@ pub(crate) fn analyze(
     }
 
     Ok(())
+}
+
+pub(crate) fn check_service_calls(
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    pos: &Pos,
+    analysis_data: &mut FunctionAnalysisData,
+    context: &mut BlockContext,
+    codebase: &CodebaseInfo,
+    function_storage: &FunctionLikeInfo,
+) {
+    // Check service calls
+    if function_storage.is_production_code
+        && function_storage.user_defined
+        && context.function_context.is_production(codebase)
+    {
+        let mut expected_service_calls = function_storage.service_calls.iter().collect::<Vec<_>>();
+        expected_service_calls.extend(function_storage.transitive_service_calls.iter());
+
+        for service in expected_service_calls {
+            // Add each transitive service call to the actual_service_calls set
+            analysis_data.actual_service_calls.insert(service.clone());
+
+            if !context
+                .function_context
+                .can_transitively_call_service(codebase, service)
+            {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MissingIndirectServiceCallsAttribute,
+                        format!(
+                            "This function transitively calls service '{}' but lacks the <<Hakana\\IndirectlyCallsService('{}')>> attribute",
+                            service, service
+                        ),
+                        statements_analyzer.get_hpos(pos),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+    }
 }
 
 fn process_invariant(

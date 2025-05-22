@@ -37,6 +37,7 @@ use crate::{
     statements_analyzer::StatementsAnalyzer,
 };
 
+use super::function_call_analyzer::check_service_calls;
 use super::{class_template_param_collector, method_call_return_type_fetcher};
 
 pub(crate) fn analyze(
@@ -213,6 +214,15 @@ pub(crate) fn analyze(
         pos,
         method_name_pos,
     )?;
+
+    check_service_calls(
+        statements_analyzer,
+        pos,
+        analysis_data,
+        context,
+        codebase,
+        functionlike_storage,
+    );
 
     // .hhi for NumberFormatter was incorrect
     // or if we're calling parent::__construct, make sure we set correct write props effect
