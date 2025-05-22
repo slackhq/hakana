@@ -681,20 +681,12 @@ fn add_service_calls_attributes(
             .map(|(k, _)| *k)
             .collect::<FxHashSet<_>>();
 
-        // Also include functions with request handler attribute as they can call any service
-        let request_handler_fns = codebase
-            .functionlike_infos
-            .iter()
-            .filter(|(_, c)| c.is_request_handler)
-            .map(|(k, _)| *k)
-            .collect::<FxHashSet<_>>();
-
         // Start with direct callers
         let mut all_service_callers = direct_callers.clone();
         let mut next_new_caller_ids = direct_callers.into_iter().collect::<Vec<_>>();
 
-        // Find functions that transitively call the service (up to 4 levels deep)
-        for _ in 0..4 {
+        // Find functions that transitively call the service (exhaustively, until no new callers found)
+        while !next_new_caller_ids.is_empty() {
             let mut new_caller_ids = next_new_caller_ids;
             next_new_caller_ids = vec![];
             while let Some(new_caller_id) = new_caller_ids.pop() {
@@ -707,33 +699,8 @@ fn add_service_calls_attributes(
                         !all_service_callers.contains(&k)
                             && match codebase.functionlike_infos.get(&k) {
                                 Some(functionlike_info) => {
-                                    if functionlike_info.is_production_code
-                                        && !functionlike_info.is_request_handler
+                                    functionlike_info.is_production_code
                                         && !functionlike_info.generated
-                                    {
-                                        if k.1 == StrId::EMPTY {
-                                            true
-                                        } else {
-                                            match codebase.classlike_infos.get(&k.0) {
-                                                Some(classlike_info) => {
-                                                    if let Some(parent_classes) = classlike_info
-                                                        .overridden_method_ids
-                                                        .get(&k.1)
-                                                    {
-                                                        !parent_classes.iter().any(|parent_class| {
-                                                            request_handler_fns
-                                                                .contains(&(*parent_class, k.1))
-                                                        })
-                                                    } else {
-                                                        true
-                                                    }
-                                                }
-                                                _ => false,
-                                            }
-                                        }
-                                    } else {
-                                        false
-                                    }
                                 }
                                 None => false,
                             }
