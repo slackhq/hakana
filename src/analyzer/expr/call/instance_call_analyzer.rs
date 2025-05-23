@@ -122,11 +122,11 @@ pub(crate) fn analyze(
                     if let Some((expanded_types, _)) =
                         hakana_code_info::ttype::type_expander::expand_type_alias_on_demand(
                             statements_analyzer.codebase,
-                            statements_analyzer.interner,
+                            Some(statements_analyzer.interner),
                             &mut analysis_data.data_flow_graph,
                             type_name,
                             type_params,
-                            Some(&statements_analyzer.file_analyzer.file_source.file_path),
+                            &statements_analyzer.file_analyzer.file_source.file_path,
                         )
                     {
                         class_types.extend(expanded_types);

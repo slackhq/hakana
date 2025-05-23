@@ -1,8 +1,12 @@
+use std::borrow::Cow;
+
 use crate::code_location::FilePath;
+use crate::data_flow::graph::DataFlowGraph;
 use crate::ttype::{template::TemplateBound, wrap_atomic};
 use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
 
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
+use crate::ttype::type_expander::expand_type_alias_on_demand;
 
 /// Configuration for type comparison operations
 #[derive(Debug, Clone, Copy)]
@@ -47,27 +51,30 @@ pub fn is_contained_by(
 
     let container_has_template = container_type.has_template_or_static();
 
-    let mut input_atomic_types = input_type.types.iter().collect::<Vec<_>>();
+    let mut input_atomic_types = input_type
+        .types
+        .iter()
+        .map(|t| Cow::Borrowed(t))
+        .collect::<Vec<_>>();
 
     input_atomic_types.reverse();
 
     let mut container_atomic_types = container_type.types.iter().collect::<Vec<_>>();
-
     container_atomic_types.reverse();
 
     while let Some(input_type_part) = input_atomic_types.pop() {
-        match input_type_part {
-            TAtomic::TNull { .. } => {
+        match &input_type_part {
+            Cow::Borrowed(TAtomic::TNull { .. }) | Cow::Owned(TAtomic::TNull { .. }) => {
                 if comparison_config.ignore_null {
                     continue;
                 }
             }
-            TAtomic::TFalse { .. } => {
+            Cow::Borrowed(TAtomic::TFalse { .. }) | Cow::Owned(TAtomic::TFalse { .. }) => {
                 if comparison_config.ignore_false {
                     continue;
                 }
             }
-            TAtomic::TTypeVariable { name } => {
+            Cow::Borrowed(TAtomic::TTypeVariable { name }) => {
                 if container_type.is_single() {
                     if let TAtomic::TTypeVariable {
                         name: container_name,
@@ -85,17 +92,71 @@ pub fn is_contained_by(
 
                 continue;
             }
-            TAtomic::TGenericParam {
+            Cow::Borrowed(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(crate::data_flow::graph::GraphKind::FunctionBody),
+                    name,
+                    type_params,
+                    &file_path,
+                ) {
+                    input_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                }
+                continue;
+            }
+            Cow::Owned(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(crate::data_flow::graph::GraphKind::FunctionBody),
+                    &name,
+                    &type_params,
+                    &file_path,
+                ) {
+                    input_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                }
+                continue;
+            }
+            Cow::Borrowed(TAtomic::TGenericParam {
                 extra_types: None,
                 as_type,
                 ..
-            } => {
+            }) => {
                 if !container_has_template {
-                    input_atomic_types.extend(as_type.types.iter().collect::<Vec<_>>());
+                    input_atomic_types.extend(
+                        as_type
+                            .types
+                            .iter()
+                            .map(|t| Cow::Borrowed(t))
+                            .collect::<Vec<_>>(),
+                    );
                     continue;
                 }
             }
-            TAtomic::TClassTypeConstant { .. } => continue,
+            Cow::Owned(TAtomic::TGenericParam {
+                extra_types: None,
+                as_type,
+                ..
+            }) => {
+                if !container_has_template {
+                    input_atomic_types.extend(
+                        as_type
+                            .types
+                            .clone()
+                            .into_iter()
+                            .map(|t| Cow::Owned(t))
+                            .collect::<Vec<_>>(),
+                    );
+                    continue;
+                }
+            }
+            Cow::Borrowed(TAtomic::TClassTypeConstant { .. })
+            | Cow::Owned(TAtomic::TClassTypeConstant { .. }) => continue,
             _ => (),
         }
 
@@ -103,7 +164,7 @@ pub fn is_contained_by(
             codebase,
             file_path,
             input_type,
-            input_type_part,
+            input_type_part.as_ref(),
             container_type,
             comparison_config,
             union_comparison_result,
@@ -219,7 +280,7 @@ fn check_atomic_contained_by_atomic(
     comparison_config: ComparisonConfig,
     union_comparison_result: &mut TypeComparisonResult,
     coercion_tracker: &mut CoercionTracker,
-    container_type_part: &&TAtomic,
+    container_type_part: &TAtomic,
 ) -> Option<bool> {
     if comparison_config.ignore_false
         && matches!(container_type_part, TAtomic::TFalse { .. })
@@ -243,6 +304,38 @@ fn check_atomic_contained_by_atomic(
         coercion_tracker.type_match_found = true;
 
         return None;
+    }
+
+    if let TAtomic::TTypeAlias {
+        name, type_params, ..
+    } = &container_type_part
+    {
+        if let Some((expanded_container_types, _)) = expand_type_alias_on_demand(
+            codebase,
+            None,
+            &mut DataFlowGraph::new(crate::data_flow::graph::GraphKind::FunctionBody),
+            &name,
+            &type_params,
+            &file_path,
+        ) {
+            for expanded_container_type_part in expanded_container_types {
+                if let Some(true) = check_atomic_contained_by_atomic(
+                    codebase,
+                    file_path,
+                    input_type,
+                    input_type_part,
+                    container_type,
+                    comparison_config,
+                    union_comparison_result,
+                    coercion_tracker,
+                    &expanded_container_type_part,
+                ) {
+                    return Some(true);
+                }
+            }
+
+            return None;
+        }
     }
 
     let mut atomic_comparison_result = TypeComparisonResult::new();

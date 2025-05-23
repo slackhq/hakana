@@ -110,11 +110,11 @@ pub(crate) fn analyze(
                 // Try to expand the type alias on demand
                 if let Some((expanded_types, _)) = type_expander::expand_type_alias_on_demand(
                     statements_analyzer.codebase,
-                    statements_analyzer.interner,
+                    Some(statements_analyzer.interner),
                     &mut analysis_data.data_flow_graph,
                     type_name,
                     type_params,
-                    Some(&statements_analyzer.file_analyzer.file_source.file_path),
+                    &statements_analyzer.file_analyzer.file_source.file_path,
                 ) {
                     var_atomic_types.extend(expanded_types);
                     continue;
