@@ -8,7 +8,9 @@ use hakana_code_info::symbol_references::ReferenceSource;
 use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::comparison::union_type_comparator;
-use hakana_code_info::ttype::type_expander::{self, TypeExpansionOptions};
+use hakana_code_info::ttype::type_expander::{
+    self, expand_type_alias_on_demand, TypeExpansionOptions,
+};
 use hakana_code_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind},
@@ -254,6 +256,33 @@ fn get_is_assertions(
         assertion_context.resolved_names,
         assertion_context.codebase,
     );
+
+    if let Some((codebase, _)) = assertion_context.codebase {
+        let mut is_atomic_types = is_type.types.drain(..).collect::<Vec<_>>();
+
+        is_atomic_types.reverse();
+
+        while let Some(is_atomic) = is_atomic_types.pop() {
+            if let TAtomic::TTypeAlias {
+                name, type_params, ..
+            } = is_atomic
+            {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    &name,
+                    &type_params,
+                    &assertion_context.file_source.file_path,
+                ) {
+                    is_atomic_types.extend(expanded_types.into_iter());
+                }
+                continue;
+            }
+
+            is_type.types.push(is_atomic);
+        }
+    }
 
     if let Some(var_name) = var_name {
         if_types.insert(
