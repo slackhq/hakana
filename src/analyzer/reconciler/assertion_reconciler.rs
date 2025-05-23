@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use super::{
     negated_assertion_reconciler, simple_assertion_reconciler, trigger_issue_for_impossible,
@@ -11,12 +11,13 @@ use hakana_code_info::{
     assertion::Assertion,
     code_location::FilePath,
     codebase_info::CodebaseInfo,
+    data_flow::graph::{DataFlowGraph, GraphKind},
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{TAtomic, TDict},
     t_union::TUnion,
     ttype::{
         get_bool, get_false, get_float, get_null, get_object, get_scalar, get_true,
-        template::TemplateBound,
+        template::TemplateBound, type_expander::expand_type_alias_on_demand,
     },
 };
 use hakana_code_info::{
@@ -327,11 +328,53 @@ pub(crate) fn intersect_union_with_atomic(
 ) -> Option<TUnion> {
     let mut acceptable_types = Vec::new();
 
-    for existing_atomic in &existing_var_type.types {
+    let mut existing_atomic_types = existing_var_type
+        .types
+        .iter()
+        .map(|t| Cow::Borrowed(t))
+        .collect::<Vec<_>>();
+
+    existing_atomic_types.reverse();
+
+    while let Some(existing_atomic) = existing_atomic_types.pop() {
+        match &existing_atomic {
+            Cow::Borrowed(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    statements_analyzer.codebase,
+                    None,
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    name,
+                    type_params,
+                    &statements_analyzer.get_file_path(),
+                ) {
+                    existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                }
+                continue;
+            }
+            Cow::Owned(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    statements_analyzer.codebase,
+                    None,
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    &name,
+                    &type_params,
+                    &statements_analyzer.get_file_path(),
+                ) {
+                    existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                }
+                continue;
+            }
+            _ => {}
+        }
+
         let intersected_atomic_type = intersect_atomic_with_atomic(
             statements_analyzer,
             analysis_data,
-            existing_atomic,
+            existing_atomic.as_ref(),
             new_type,
             pos,
             did_remove_type,
