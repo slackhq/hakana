@@ -20,7 +20,7 @@ use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::ttype::{extend_dataflow_uniquely, get_nothing, template, type_combiner, wrap_atomic};
+use crate::ttype::{template, type_combiner, wrap_atomic};
 
 #[derive(Debug)]
 pub enum StaticClassType<'a, 'b> {
@@ -72,7 +72,6 @@ pub fn expand_union(
     cost: &mut u32,
 ) {
     let mut overall_new_atomic_types = Vec::with_capacity(return_type.types.len());
-    let mut overall_extra_data_flow_nodes = vec![];
 
     // Take ownership of the types to process them one by one.
     let original_types = std::mem::take(&mut return_type.types);
@@ -92,7 +91,6 @@ pub fn expand_union(
             cost,
             &mut skip_this_atomic, // expand_atomic sets this to true if it wants to replace
             &mut replacements_for_current_atomic, // expand_atomic pushes replacements here
-            &mut overall_extra_data_flow_nodes, // expand_atomic can still add global extras
         );
 
         if skip_this_atomic {
@@ -110,8 +108,6 @@ pub fn expand_union(
     } else {
         return_type.types = overall_new_atomic_types;
     }
-
-    extend_dataflow_uniquely(&mut return_type.parent_nodes, overall_extra_data_flow_nodes);
 }
 
 fn expand_atomic(
@@ -124,7 +120,6 @@ fn expand_atomic(
     cost: &mut u32,
     skip_key: &mut bool,
     new_return_type_parts: &mut Vec<TAtomic>,
-    extra_data_flow_nodes: &mut Vec<DataFlowNode>,
 ) {
     *cost += 1;
 
@@ -337,7 +332,6 @@ fn expand_atomic(
             cost,
             &mut false,
             &mut atomic_return_type_parts,
-            extra_data_flow_nodes,
         );
 
         if !atomic_return_type_parts.is_empty() {
@@ -411,7 +405,6 @@ fn expand_atomic(
                 cost,
                 skip_key,
                 new_return_type_parts,
-                extra_data_flow_nodes,
             );
 
             new_return_type_parts.push(literal_value);
@@ -441,173 +434,7 @@ fn expand_atomic(
         }
 
         return;
-    } else if let TAtomic::TTypeAlias {
-        name: type_name,
-        type_params,
-        as_type,
-        ..
-    } = return_type_part
-    {
-        if !options.expand_typenames {
-            return;
-        }
-
-        let type_definition = if let Some(t) = codebase.type_definitions.get(type_name) {
-            t
-        } else {
-            *skip_key = true;
-            new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
-            return;
-        };
-
-        let can_expand_type = can_expand_type_in_file(file_path, type_definition);
-
-        if type_definition.is_literal_string && options.expand_hakana_types {
-            *skip_key = true;
-            new_return_type_parts.push(TAtomic::TStringWithFlags(false, false, true));
-            return;
-        }
-
-        if can_expand_type {
-            *skip_key = true;
-
-            let mut untemplated_type = if let Some(type_params) = type_params {
-                let mut new_template_types = IndexMap::new();
-
-                for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
-                    if i < type_params.len() {
-                        let mut h = FxHashMap::default();
-                        for (kk, _) in v {
-                            h.insert(*kk, type_params[i].clone());
-                        }
-
-                        new_template_types.insert(*k, h);
-                    }
-                }
-
-                template::inferred_type_replacer::replace(
-                    &type_definition.actual_type,
-                    &template::TemplateResult::new(IndexMap::new(), new_template_types),
-                    codebase,
-                )
-            } else {
-                type_definition.actual_type.clone()
-            };
-
-            expand_union(
-                codebase,
-                interner,
-                file_path,
-                &mut untemplated_type,
-                options,
-                data_flow_graph,
-                cost,
-            );
-
-            let expanded_types = untemplated_type
-                .types
-                .into_iter()
-                .map(|mut v| {
-                    if type_params.is_none() {
-                        if let TAtomic::TDict(TDict {
-                            known_items: Some(_),
-                            ref mut shape_name,
-                            ..
-                        }) = v
-                        {
-                            if let (Some(shape_field_taints), Some(interner)) =
-                                (&type_definition.shape_field_taints, interner)
-                            {
-                                let shape_node =
-                                    DataFlowNode::get_for_type(type_name, type_definition.location);
-
-                                for (field_name, taints) in shape_field_taints {
-                                    let field_name_str = field_name.to_string(Some(interner));
-
-                                    let field_node = DataFlowNode {
-                                        id: DataFlowNodeId::ShapeFieldAccess(
-                                            *type_name,
-                                            field_name_str,
-                                        ),
-                                        kind: DataFlowNodeKind::TaintSource {
-                                            pos: Some(taints.0),
-                                            types: taints.1.clone(),
-                                        },
-                                    };
-
-                                    data_flow_graph.add_path(
-                                        &field_node,
-                                        &shape_node,
-                                        PathKind::ArrayAssignment(
-                                            ArrayDataKind::ArrayValue,
-                                            match field_name {
-                                                DictKey::Int(i) => i.to_string(),
-                                                DictKey::String(k) => k.clone(),
-                                                DictKey::Enum(_, _) => todo!(),
-                                            },
-                                        ),
-                                        vec![],
-                                        vec![],
-                                    );
-
-                                    data_flow_graph.add_node(field_node);
-                                }
-
-                                extra_data_flow_nodes.push(shape_node.clone());
-
-                                data_flow_graph.add_node(shape_node);
-                            }
-
-                            *shape_name = Some((*type_name, None));
-                        };
-                    }
-                    v
-                })
-                .collect::<Vec<_>>();
-
-            new_return_type_parts.extend(expanded_types);
-        } else if let Some(definition_as_type) = &type_definition.as_type {
-            let mut definition_as_type = if let Some(type_params) = type_params {
-                let mut new_template_types = IndexMap::new();
-
-                for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
-                    let mut h = FxHashMap::default();
-                    for (kk, _) in v {
-                        h.insert(
-                            *kk,
-                            if let Some(t) = type_params.get(i) {
-                                t.clone()
-                            } else {
-                                get_nothing()
-                            },
-                        );
-                    }
-
-                    new_template_types.insert(*k, h);
-                }
-
-                template::inferred_type_replacer::replace(
-                    definition_as_type,
-                    &template::TemplateResult::new(IndexMap::new(), new_template_types),
-                    codebase,
-                )
-            } else {
-                definition_as_type.clone()
-            };
-
-            expand_union(
-                codebase,
-                interner,
-                file_path,
-                &mut definition_as_type,
-                options,
-                data_flow_graph,
-                cost,
-            );
-
-            *as_type = Some(Box::new(definition_as_type));
-        }
-
+    } else if let TAtomic::TTypeAlias { type_params, .. } = return_type_part {
         if let Some(type_params) = type_params {
             for param_type in type_params {
                 expand_union(
@@ -640,7 +467,6 @@ fn expand_atomic(
             cost,
             &mut false,
             &mut atomic_return_type_parts,
-            extra_data_flow_nodes,
         );
 
         if !atomic_return_type_parts.is_empty() {
@@ -754,6 +580,104 @@ pub fn can_expand_type_in_file(file_path: &FilePath, type_definition: &TypeDefin
     } else {
         true
     }
+}
+
+/// Expand a type alias on demand, returning the expanded types if expansion is allowed
+pub fn expand_type_alias_on_demand(
+    codebase: &CodebaseInfo,
+    interner: &Interner,
+    data_flow_graph: &mut DataFlowGraph,
+    type_name: &StrId,
+    type_params: &Option<Vec<TUnion>>,
+    file_path: Option<&FilePath>,
+) -> Option<(Vec<TAtomic>, Vec<DataFlowNode>)> {
+    let type_definition = codebase.type_definitions.get(type_name)?;
+
+    let can_expand_type = if let Some(file_path) = file_path {
+        can_expand_type_in_file(file_path, type_definition)
+    } else {
+        false
+    };
+
+    if !can_expand_type {
+        return None;
+    }
+
+    let untemplated_type = if let Some(type_params) = type_params {
+        let mut new_template_types = IndexMap::new();
+
+        for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
+            if i < type_params.len() {
+                let mut h = FxHashMap::default();
+                for (kk, _) in v {
+                    h.insert(*kk, type_params[i].clone());
+                }
+
+                new_template_types.insert(*k, h);
+            }
+        }
+
+        template::inferred_type_replacer::replace(
+            &type_definition.actual_type,
+            &template::TemplateResult::new(IndexMap::new(), new_template_types),
+            codebase,
+        )
+    } else {
+        type_definition.actual_type.clone()
+    };
+
+    let mut extra_data_flow_nodes = vec![];
+
+    let expanded_types = untemplated_type
+        .types
+        .into_iter()
+        .map(|mut v| {
+            if type_params.is_none() {
+                if let TAtomic::TDict(TDict {
+                    known_items: Some(_),
+                    ref mut shape_name,
+                    ..
+                }) = v
+                {
+                    if let Some(shape_field_taints) = &type_definition.shape_field_taints {
+                        let shape_node =
+                            DataFlowNode::get_for_type(type_name, type_definition.location);
+                        for (field_name, taints) in shape_field_taints {
+                            let field_name_str = field_name.to_string(Some(interner));
+                            let field_node = DataFlowNode {
+                                id: DataFlowNodeId::ShapeFieldAccess(*type_name, field_name_str),
+                                kind: DataFlowNodeKind::TaintSource {
+                                    pos: Some(taints.0),
+                                    types: taints.1.clone(),
+                                },
+                            };
+                            data_flow_graph.add_path(
+                                &field_node,
+                                &shape_node,
+                                PathKind::ArrayAssignment(
+                                    ArrayDataKind::ArrayValue,
+                                    match field_name {
+                                        DictKey::Int(i) => i.to_string(),
+                                        DictKey::String(k) => k.clone(),
+                                        DictKey::Enum(_, _) => todo!(),
+                                    },
+                                ),
+                                vec![],
+                                vec![],
+                            );
+                            data_flow_graph.add_node(field_node);
+                        }
+                        extra_data_flow_nodes.push(shape_node.clone());
+                        data_flow_graph.add_node(shape_node);
+                    }
+                    *shape_name = Some((*type_name, None));
+                };
+            }
+            v
+        })
+        .collect::<Vec<_>>();
+
+    Some((expanded_types, extra_data_flow_nodes))
 }
 
 pub fn get_closure_from_id(

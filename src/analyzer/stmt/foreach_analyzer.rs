@@ -232,7 +232,7 @@ fn check_iterator_type(
             iterator_atomic_type = as_type.get_single();
         }
 
-        match &iterator_atomic_type {
+        match iterator_atomic_type {
             TAtomic::TVec {
                 type_param,
                 known_items: None,
