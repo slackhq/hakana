@@ -264,15 +264,19 @@ impl TestRunner {
                         if test_output == *expected_output {
                             (".".to_string(), None, None)
                         } else {
-                            let expected_output_str = serde_json::to_string_pretty(&expected_output).unwrap();
-                            let test_output_str = serde_json::to_string_pretty(&test_output).unwrap();
+                            let expected_output_str =
+                                serde_json::to_string_pretty(&expected_output).unwrap();
+                            let test_output_str =
+                                serde_json::to_string_pretty(&test_output).unwrap();
                             test_diagnostics.push((
                                 dir,
                                 format!("- {}\n+ {}", expected_output_str, test_output_str),
                             ));
+                            *had_error = true;
                             ("F".to_string(), None, None)
                         }
                     } else {
+                        *had_error = true;
                         ("F".to_string(), None, None)
                     }
                 }
@@ -280,7 +284,7 @@ impl TestRunner {
                     *had_error = true;
                     ("F".to_string(), None, None)
                 }
-            }
+            };
         }
 
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
