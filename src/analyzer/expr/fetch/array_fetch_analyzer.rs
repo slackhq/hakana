@@ -332,11 +332,11 @@ pub(crate) fn get_array_access_type_given_offset(
             if let Some((expanded_types, _)) =
                 hakana_code_info::ttype::type_expander::expand_type_alias_on_demand(
                     statements_analyzer.codebase,
-                    statements_analyzer.interner,
+                    Some(statements_analyzer.interner),
                     &mut analysis_data.data_flow_graph,
                     type_name,
                     type_params,
-                    Some(&statements_analyzer.file_analyzer.file_source.file_path),
+                    &statements_analyzer.file_analyzer.file_source.file_path,
                 )
             {
                 array_atomic_types.extend(expanded_types);

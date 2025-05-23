@@ -585,21 +585,15 @@ pub fn can_expand_type_in_file(file_path: &FilePath, type_definition: &TypeDefin
 /// Expand a type alias on demand, returning the expanded types if expansion is allowed
 pub fn expand_type_alias_on_demand(
     codebase: &CodebaseInfo,
-    interner: &Interner,
+    interner: Option<&Interner>,
     data_flow_graph: &mut DataFlowGraph,
     type_name: &StrId,
     type_params: &Option<Vec<TUnion>>,
-    file_path: Option<&FilePath>,
+    file_path: &FilePath,
 ) -> Option<(Vec<TAtomic>, Vec<DataFlowNode>)> {
     let type_definition = codebase.type_definitions.get(type_name)?;
 
-    let can_expand_type = if let Some(file_path) = file_path {
-        can_expand_type_in_file(file_path, type_definition)
-    } else {
-        false
-    };
-
-    if !can_expand_type {
+    if !can_expand_type_in_file(file_path, type_definition) {
         return None;
     }
 
@@ -639,7 +633,9 @@ pub fn expand_type_alias_on_demand(
                     ..
                 }) = v
                 {
-                    if let Some(shape_field_taints) = &type_definition.shape_field_taints {
+                    if let (Some(shape_field_taints), Some(interner)) =
+                        (&type_definition.shape_field_taints, interner)
+                    {
                         let shape_node =
                             DataFlowNode::get_for_type(type_name, type_definition.location);
                         for (field_name, taints) in shape_field_taints {
