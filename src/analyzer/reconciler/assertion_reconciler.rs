@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use super::{
     negated_assertion_reconciler, simple_assertion_reconciler, trigger_issue_for_impossible,
@@ -10,9 +10,11 @@ use hakana_code_info::{
     assertion::Assertion,
     code_location::FilePath,
     codebase_info::CodebaseInfo,
+    data_flow::graph::{DataFlowGraph, GraphKind},
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{TAtomic, TDict},
     t_union::TUnion,
+    ttype::type_expander::expand_type_alias_on_demand,
 };
 use hakana_code_info::{
     ttype::{
@@ -183,9 +185,51 @@ fn intersect_union_with_atomic(
 ) -> Option<TUnion> {
     let mut acceptable_types = Vec::new();
 
-    for existing_atomic in &existing_var_type.types {
+    let mut existing_atomic_types = existing_var_type
+        .types
+        .iter()
+        .map(|t| Cow::Borrowed(t))
+        .collect::<Vec<_>>();
+
+    existing_atomic_types.reverse();
+
+    while let Some(existing_atomic) = existing_atomic_types.pop() {
+        match &existing_atomic {
+            Cow::Borrowed(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    name,
+                    type_params,
+                    &file_path,
+                ) {
+                    existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                }
+                continue;
+            }
+            Cow::Owned(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    &name,
+                    &type_params,
+                    &file_path,
+                ) {
+                    existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                }
+                continue;
+            }
+            _ => {}
+        }
+
         let intersected_atomic_type =
-            intersect_atomic_with_atomic(existing_atomic, new_type, codebase, file_path);
+            intersect_atomic_with_atomic(existing_atomic.as_ref(), new_type, codebase, file_path);
 
         if let Some(intersected_atomic_type) = intersected_atomic_type {
             acceptable_types.push(intersected_atomic_type);

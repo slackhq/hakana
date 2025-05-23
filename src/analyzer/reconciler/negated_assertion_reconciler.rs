@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::{
     assertion_reconciler::intersect_atomic_with_atomic, simple_negated_assertion_reconciler,
     trigger_issue_for_impossible,
@@ -5,7 +7,9 @@ use super::{
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_code_info::code_location::FilePath;
+use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_code_info::t_atomic::TDict;
+use hakana_code_info::ttype::type_expander::expand_type_alias_on_demand;
 use hakana_code_info::ttype::{
     comparison::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
@@ -172,10 +176,50 @@ fn subtract_complex_type(
 ) {
     let mut acceptable_types = vec![];
 
-    let existing_atomic_types = existing_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_atomic_types = existing_var_type
+        .types
+        .iter()
+        .map(|t| Cow::Borrowed(t))
+        .collect::<Vec<_>>();
 
-    for existing_atomic in existing_atomic_types {
-        if &existing_atomic == assertion_type {
+    existing_atomic_types.reverse();
+
+    while let Some(existing_atomic) = existing_atomic_types.pop() {
+        match &existing_atomic {
+            Cow::Borrowed(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    name,
+                    type_params,
+                    &file_path,
+                ) {
+                    existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                }
+                continue;
+            }
+            Cow::Owned(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    &name,
+                    &type_params,
+                    &file_path,
+                ) {
+                    existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                }
+                continue;
+            }
+            _ => {}
+        }
+
+        if existing_atomic.as_ref() == assertion_type {
             *can_be_disjunct = true;
 
             continue;
@@ -206,7 +250,7 @@ fn subtract_complex_type(
             *can_be_disjunct = true;
         }
 
-        match (&existing_atomic, assertion_type) {
+        match (existing_atomic.as_ref(), assertion_type) {
             (
                 TAtomic::TNamedObject {
                     name: existing_classlike_name,
@@ -246,21 +290,21 @@ fn subtract_complex_type(
                     *can_be_disjunct = true;
                 }
 
-                acceptable_types.push(existing_atomic);
+                acceptable_types.push(existing_atomic.into_owned());
             }
             (TAtomic::TDict(TDict { .. }), TAtomic::TDict(TDict { .. })) => {
                 *can_be_disjunct = true;
                 // todo subtract assertion dict from existing
-                acceptable_types.push(existing_atomic);
+                acceptable_types.push(existing_atomic.into_owned());
             }
             (TAtomic::TString | TAtomic::TStringWithFlags(..), TAtomic::TEnum { .. })
             | (TAtomic::TEnum { .. }, TAtomic::TString | TAtomic::TStringWithFlags(..)) => {
                 *can_be_disjunct = true;
-                acceptable_types.push(existing_atomic);
+                acceptable_types.push(existing_atomic.into_owned());
             }
             (TAtomic::TEnum { .. }, TAtomic::TEnum { .. }) => {
                 *can_be_disjunct = true;
-                acceptable_types.push(existing_atomic);
+                acceptable_types.push(existing_atomic.into_owned());
             }
             (
                 TAtomic::TTypeAlias {
@@ -275,10 +319,10 @@ fn subtract_complex_type(
                 },
             ) => {
                 *can_be_disjunct = true;
-                acceptable_types.push(existing_atomic);
+                acceptable_types.push(existing_atomic.into_owned());
             }
             _ => {
-                acceptable_types.push(existing_atomic);
+                acceptable_types.push(existing_atomic.into_owned());
             }
         }
     }
