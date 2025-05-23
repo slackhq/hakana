@@ -136,8 +136,22 @@ fn expand_atomic(
     }) = return_type_part
     {
         if let Some(params) = params {
-            expand_union(codebase, interner, &mut params.0, options, data_flow_graph, cost);
-            expand_union(codebase, interner, &mut params.1, options, data_flow_graph, cost);
+            expand_union(
+                codebase,
+                interner,
+                &mut params.0,
+                options,
+                data_flow_graph,
+                cost,
+            );
+            expand_union(
+                codebase,
+                interner,
+                &mut params.1,
+                options,
+                data_flow_graph,
+                cost,
+            );
         }
 
         if let Some(known_items) = known_items {
@@ -162,11 +176,25 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        expand_union(codebase, interner, type_param, options, data_flow_graph, cost);
+        expand_union(
+            codebase,
+            interner,
+            type_param,
+            options,
+            data_flow_graph,
+            cost,
+        );
 
         if let Some(known_items) = known_items {
             for (_, item_type) in known_items.values_mut() {
-                expand_union(codebase, interner, item_type, options, data_flow_graph, cost);
+                expand_union(
+                    codebase,
+                    interner,
+                    item_type,
+                    options,
+                    data_flow_graph,
+                    cost,
+                );
             }
         }
 
@@ -175,7 +203,14 @@ fn expand_atomic(
         ref mut type_param, ..
     } = return_type_part
     {
-        expand_union(codebase, interner, type_param, options, data_flow_graph, cost);
+        expand_union(
+            codebase,
+            interner,
+            type_param,
+            options,
+            data_flow_graph,
+            cost,
+        );
 
         return;
     } else if let TAtomic::TAwaitable { ref mut value } = return_type_part {
@@ -221,19 +256,40 @@ fn expand_atomic(
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(codebase, interner, param_type, options, data_flow_graph, cost);
+                expand_union(
+                    codebase,
+                    interner,
+                    param_type,
+                    options,
+                    data_flow_graph,
+                    cost,
+                );
             }
         }
 
         return;
     } else if let TAtomic::TClosure(ref mut closure) = return_type_part {
         if let Some(ref mut return_type) = closure.return_type {
-            expand_union(codebase, interner, return_type, options, data_flow_graph, cost);
+            expand_union(
+                codebase,
+                interner,
+                return_type,
+                options,
+                data_flow_graph,
+                cost,
+            );
         }
 
         for param in closure.params.iter_mut() {
             if let Some(ref mut param_type) = param.signature_type {
-                expand_union(codebase, interner, param_type, options, data_flow_graph, cost);
+                expand_union(
+                    codebase,
+                    interner,
+                    param_type,
+                    options,
+                    data_flow_graph,
+                    cost,
+                );
             }
         }
     } else if let TAtomic::TGenericParam {
@@ -536,7 +592,14 @@ fn expand_atomic(
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(codebase, interner, param_type, options, data_flow_graph, cost);
+                expand_union(
+                    codebase,
+                    interner,
+                    param_type,
+                    options,
+                    data_flow_graph,
+                    cost,
+                );
             }
         }
 
@@ -609,7 +672,14 @@ fn expand_atomic(
                 match (is_this, type_constant) {
                     (_, ClassConstantType::Concrete(mut type_))
                     | (false, ClassConstantType::Abstract(Some(mut type_))) => {
-                        expand_union(codebase, interner, &mut type_, options, data_flow_graph, cost);
+                        expand_union(
+                            codebase,
+                            interner,
+                            &mut type_,
+                            options,
+                            data_flow_graph,
+                            cost,
+                        );
 
                         *skip_key = true;
                         new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
@@ -625,7 +695,14 @@ fn expand_atomic(
                         }));
                     }
                     (true, ClassConstantType::Abstract(Some(mut type_))) => {
-                        expand_union(codebase, interner, &mut type_, options, data_flow_graph, cost);
+                        expand_union(
+                            codebase,
+                            interner,
+                            &mut type_,
+                            options,
+                            data_flow_graph,
+                            cost,
+                        );
 
                         *as_type = Box::new(type_);
                     }
