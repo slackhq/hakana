@@ -7,6 +7,7 @@ use crate::{
 };
 use hakana_code_info::{
     assertion::Assertion,
+    code_location::FilePath,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic, TDict},
@@ -1177,6 +1178,7 @@ fn intersect_string(
             } => {
                 if let Some(value) = intersect_enum_or_enum_case(
                     codebase,
+                    statements_analyzer.get_file_path(),
                     &mut acceptable_types,
                     &mut did_remove_type,
                     atomic,
@@ -1244,6 +1246,7 @@ fn intersect_string(
             _ => {
                 if atomic_type_comparator::is_contained_by(
                     codebase,
+                    statements_analyzer.get_file_path(),
                     atomic,
                     &TAtomic::TString,
                     false,
@@ -1365,6 +1368,7 @@ fn intersect_int(
             } => {
                 if let Some(value) = intersect_enum_or_enum_case(
                     codebase,
+                    statements_analyzer.get_file_path(),
                     &mut acceptable_types,
                     &mut did_remove_type,
                     atomic,
@@ -1379,6 +1383,7 @@ fn intersect_int(
             _ => {
                 if atomic_type_comparator::is_contained_by(
                     codebase,
+                    statements_analyzer.get_file_path(),
                     atomic,
                     &TAtomic::TInt,
                     false,
@@ -1420,6 +1425,7 @@ fn intersect_int(
 
 fn intersect_enum_or_enum_case(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     acceptable_types: &mut Vec<TAtomic>,
     did_remove_type: &mut bool,
     atomic: &TAtomic,
@@ -1431,6 +1437,7 @@ fn intersect_enum_or_enum_case(
     if let Some(as_type) = as_type {
         if atomic_type_comparator::is_contained_by(
             codebase,
+            file_path,
             as_type,
             &intersection_type,
             true,
@@ -1462,6 +1469,7 @@ fn intersect_enum_or_enum_case(
     } else {
         if atomic_type_comparator::is_contained_by(
             codebase,
+            file_path,
             underlying_type,
             &intersection_type,
             false,
@@ -2031,6 +2039,7 @@ fn reconcile_has_array_key(
 
                     if union_type_comparator::can_expression_types_be_identical(
                         statements_analyzer.codebase,
+                        statements_analyzer.get_file_path(),
                         &wrap_atomic(match key_name {
                             DictKey::Int(_) => TAtomic::TInt,
                             DictKey::String(_) => TAtomic::TString,
@@ -2242,6 +2251,7 @@ fn reconcile_has_nonnull_entry_for_key(
 
                     if union_type_comparator::can_expression_types_be_identical(
                         statements_analyzer.codebase,
+                        statements_analyzer.get_file_path(),
                         &wrap_atomic(match key_name {
                             DictKey::Int(_) => TAtomic::TInt,
                             DictKey::String(_) => TAtomic::TString,

@@ -262,6 +262,7 @@ pub(crate) fn verify_type(
 
     let type_match_found = union_type_comparator::is_contained_by(
         codebase,
+        statements_analyzer.get_file_path(),
         input_type,
         param_type,
         false,
@@ -415,7 +416,11 @@ pub(crate) fn verify_type(
 
         if !union_comparison_result.type_coerced.unwrap_or(false) {
             let types_can_be_identical = union_type_comparator::can_expression_types_be_identical(
-                codebase, input_type, param_type, false,
+                codebase,
+                statements_analyzer.get_file_path(),
+                input_type,
+                param_type,
+                false,
             );
 
             if types_can_be_identical {

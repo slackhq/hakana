@@ -1,3 +1,4 @@
+use crate::code_location::FilePath;
 use crate::t_atomic::TDict;
 use crate::ttype::{get_arrayish_params, get_arraykey, get_mixed};
 use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
@@ -9,6 +10,7 @@ use super::{
 
 pub(crate) fn is_contained_by(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
     inside_assertion: bool,
@@ -44,6 +46,7 @@ pub(crate) fn is_contained_by(
 
                             if !union_type_comparator::is_contained_by(
                                 codebase,
+                                file_path,
                                 input_property_type,
                                 container_property_type,
                                 false,
@@ -81,6 +84,7 @@ pub(crate) fn is_contained_by(
                             (Some(input_params), Some(container_params)) => {
                                 if !union_type_comparator::is_contained_by(
                                     codebase,
+                                    file_path,
                                     &input_params.0,
                                     &container_params.0,
                                     false,
@@ -93,6 +97,7 @@ pub(crate) fn is_contained_by(
 
                                 if !union_type_comparator::is_contained_by(
                                     codebase,
+                                    file_path,
                                     &input_params.1,
                                     &container_params.1,
                                     false,
@@ -144,6 +149,7 @@ pub(crate) fn is_contained_by(
 
                 if !union_type_comparator::is_contained_by(
                     codebase,
+                    file_path,
                     &input_params.0,
                     &container_params.0,
                     false,
@@ -163,6 +169,7 @@ pub(crate) fn is_contained_by(
 
                 if !union_type_comparator::is_contained_by(
                     codebase,
+                    file_path,
                     &input_params.1,
                     &container_params.1,
                     false,

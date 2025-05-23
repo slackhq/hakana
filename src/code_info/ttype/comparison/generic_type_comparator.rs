@@ -1,8 +1,4 @@
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
-use crate::ttype::{
-    get_mixed_any, template,
-    type_expander::{self, TypeExpansionOptions},
-};
 use crate::{
     classlike_info::Variance,
     codebase_info::CodebaseInfo,
@@ -10,10 +6,18 @@ use crate::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use crate::{
+    code_location::FilePath,
+    ttype::{
+        get_mixed_any, template,
+        type_expander::{self, TypeExpansionOptions},
+    },
+};
 use hakana_str::StrId;
 
 pub(crate) fn is_contained_by(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
     inside_assertion: bool,
@@ -82,6 +86,7 @@ pub(crate) fn is_contained_by(
                                 type_expander::expand_union(
                                     codebase,
                                     &None,
+                                    file_path,
                                     &mut v,
                                     &TypeExpansionOptions {
                                         ..Default::default()
@@ -104,6 +109,7 @@ pub(crate) fn is_contained_by(
 
             return self::is_contained_by(
                 codebase,
+                file_path,
                 &input_type_part,
                 container_type_part,
                 inside_assertion,
@@ -117,6 +123,7 @@ pub(crate) fn is_contained_by(
     let input_type_params = template::standin_type_replacer::get_mapped_generic_type_params(
         codebase,
         &None,
+        file_path,
         input_type_part,
         container_name,
         *container_remapped_params,
@@ -134,6 +141,7 @@ pub(crate) fn is_contained_by(
         if let Some(container_param) = container_type_params.get(i) {
             compare_generic_params(
                 codebase,
+                file_path,
                 input_type_part,
                 input_name,
                 &input_param.1,
@@ -159,6 +167,7 @@ pub(crate) fn is_contained_by(
 
 pub(crate) fn compare_generic_params(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type_part: &TAtomic,
     input_name: &StrId,
     input_param: &TUnion,
@@ -209,6 +218,7 @@ pub(crate) fn compare_generic_params(
 
     if !union_type_comparator::is_contained_by(
         codebase,
+        file_path,
         input_param,
         container_param,
         false,
@@ -219,6 +229,7 @@ pub(crate) fn compare_generic_params(
         if let Some(Variance::Contravariant) = container_type_param_variance {
             if union_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 container_param,
                 input_param,
                 false,
@@ -276,6 +287,7 @@ pub(crate) fn compare_generic_params(
 
             if (!union_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 container_param,
                 input_param,
                 false,

@@ -8,6 +8,7 @@ use crate::{
 };
 use hakana_code_info::{
     assertion::Assertion,
+    code_location::FilePath,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{TAtomic, TDict},
@@ -133,6 +134,7 @@ pub fn reconcile(
         type_expander::expand_union(
             codebase,
             &Some(statements_analyzer.interner),
+            statements_analyzer.get_file_path(),
             &mut refined_type,
             &TypeExpansionOptions {
                 expand_generic: true,
@@ -155,7 +157,12 @@ pub(crate) fn refine_atomic_with_union(
 ) -> TUnion {
     let codebase = statements_analyzer.codebase;
 
-    let intersection_type = intersect_union_with_atomic(codebase, existing_var_type, new_type);
+    let intersection_type = intersect_union_with_atomic(
+        codebase,
+        statements_analyzer.get_file_path(),
+        existing_var_type,
+        new_type,
+    );
 
     if let Some(mut intersection_type) = intersection_type {
         for intersection_atomic_type in intersection_type.types.iter_mut() {
@@ -170,6 +177,7 @@ pub(crate) fn refine_atomic_with_union(
 
 fn intersect_union_with_atomic(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     existing_var_type: &TUnion,
     new_type: &TAtomic,
 ) -> Option<TUnion> {
@@ -177,7 +185,7 @@ fn intersect_union_with_atomic(
 
     for existing_atomic in &existing_var_type.types {
         let intersected_atomic_type =
-            intersect_atomic_with_atomic(existing_atomic, new_type, codebase);
+            intersect_atomic_with_atomic(existing_atomic, new_type, codebase, file_path);
 
         if let Some(intersected_atomic_type) = intersected_atomic_type {
             acceptable_types.push(intersected_atomic_type);
@@ -198,11 +206,13 @@ pub(crate) fn intersect_atomic_with_atomic(
     type_1_atomic: &TAtomic,
     type_2_atomic: &TAtomic,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
 ) -> Option<TAtomic> {
     let mut atomic_comparison_results = TypeComparisonResult::new();
 
     if atomic_type_comparator::is_contained_by(
         codebase,
+        file_path,
         type_2_atomic,
         type_1_atomic,
         true,
@@ -226,6 +236,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             type_1_atomic,
             &type_2_atomic,
             codebase,
+            file_path,
             atomic_comparison_results.type_coerced.unwrap_or(false),
         );
     }
@@ -234,6 +245,7 @@ pub(crate) fn intersect_atomic_with_atomic(
 
     if atomic_type_comparator::is_contained_by(
         codebase,
+        file_path,
         type_1_atomic,
         type_2_atomic,
         false,
@@ -250,6 +262,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             type_2_atomic,
             &type_1_atomic,
             codebase,
+            file_path,
             atomic_comparison_results.type_coerced.unwrap_or(false),
         );
     }
@@ -433,6 +446,7 @@ pub(crate) fn intersect_atomic_with_atomic(
         ) => {
             return intersect_enum_with_int_or_string(
                 codebase,
+                file_path,
                 type_1_name,
                 &underlying_type,
                 type_2_atomic.clone(),
@@ -448,6 +462,7 @@ pub(crate) fn intersect_atomic_with_atomic(
         ) => {
             return intersect_enum_with_int_or_string(
                 codebase,
+                file_path,
                 type_2_name,
                 &underlying_type,
                 type_1_atomic.clone(),
@@ -461,7 +476,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             },
             _,
         ) => {
-            return intersect_union_with_atomic(codebase, type_1_as, type_2_atomic).map(
+            return intersect_union_with_atomic(codebase, file_path, type_1_as, type_2_atomic).map(
                 |intersected| TAtomic::TTypeAlias {
                     name: *name,
                     type_params: type_params.clone(),
@@ -477,7 +492,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_params,
             },
         ) => {
-            return intersect_union_with_atomic(codebase, type_2_as, type_1_atomic).map(
+            return intersect_union_with_atomic(codebase, file_path, type_2_as, type_1_atomic).map(
                 |intersected| TAtomic::TTypeAlias {
                     name: *name,
                     type_params: type_params.clone(),
@@ -536,7 +551,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (TAtomic::TDict(type_1_dict), TAtomic::TDict(type_2_dict)) => {
-            return intersect_dicts(type_1_dict, type_2_dict, codebase)
+            return intersect_dicts(type_1_dict, type_2_dict, codebase, file_path)
         }
         (
             TAtomic::TVec {
@@ -556,6 +571,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_1_known_items,
                 type_2_known_items,
                 codebase,
+                file_path,
             );
         }
         (
@@ -605,7 +621,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             }));
         }
         (TAtomic::TGenericParam { as_type, .. }, TAtomic::TNamedObject { .. }) => {
-            let new_as = intersect_union_with_atomic(codebase, as_type, type_2_atomic);
+            let new_as = intersect_union_with_atomic(codebase, file_path, as_type, type_2_atomic);
 
             if let Some(new_as) = new_as {
                 let mut type_1_atomic = type_1_atomic.clone();
@@ -621,7 +637,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (TAtomic::TNamedObject { .. }, TAtomic::TGenericParam { as_type, .. }) => {
-            let new_as = intersect_union_with_atomic(codebase, as_type, type_1_atomic);
+            let new_as = intersect_union_with_atomic(codebase, file_path, as_type, type_1_atomic);
 
             if let Some(new_as) = new_as {
                 let mut type_2_atomic = type_2_atomic.clone();
@@ -652,8 +668,9 @@ fn intersect_vecs(
     type_1_known_items: &Option<BTreeMap<usize, (bool, TUnion)>>,
     type_2_known_items: &Option<BTreeMap<usize, (bool, TUnion)>>,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
 ) -> Option<TAtomic> {
-    let type_param = intersect_union_with_union(type_1_param, type_2_param, codebase);
+    let type_param = intersect_union_with_union(type_1_param, type_2_param, codebase, file_path);
 
     match (type_1_known_items, type_2_known_items) {
         (Some(type_1_known_items), Some(type_2_known_items)) => {
@@ -662,11 +679,19 @@ fn intersect_vecs(
             for (type_2_key, type_2_value) in type_2_known_items.iter_mut() {
                 if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
                     type_2_value.0 = type_2_value.0 && type_1_value.0;
-                    type_2_value.1 =
-                        intersect_union_with_union(&type_1_value.1, &type_2_value.1, codebase)?
+                    type_2_value.1 = intersect_union_with_union(
+                        &type_1_value.1,
+                        &type_2_value.1,
+                        codebase,
+                        file_path,
+                    )?
                 } else if !type_1_param.is_nothing() {
-                    type_2_value.1 =
-                        intersect_union_with_union(type_1_param, &type_2_value.1, codebase)?
+                    type_2_value.1 = intersect_union_with_union(
+                        type_1_param,
+                        &type_2_value.1,
+                        codebase,
+                        file_path,
+                    )?
                 } else {
                     // if the type_2 key is always defined, the intersection is impossible
                     if !type_2_value.0 {
@@ -691,7 +716,7 @@ fn intersect_vecs(
 
             for (_, type_2_value) in type_2_known_items.iter_mut() {
                 type_2_value.1 =
-                    intersect_union_with_union(&type_2_value.1, type_1_param, codebase)?
+                    intersect_union_with_union(&type_2_value.1, type_1_param, codebase, file_path)?
             }
 
             if let Some(type_param) = type_param {
@@ -710,7 +735,7 @@ fn intersect_vecs(
 
             for (_, type_1_value) in type_1_known_items.iter_mut() {
                 type_1_value.1 =
-                    intersect_union_with_union(&type_1_value.1, type_2_param, codebase)?
+                    intersect_union_with_union(&type_1_value.1, type_2_param, codebase, file_path)?
             }
 
             if let Some(type_param) = type_param {
@@ -743,11 +768,14 @@ fn intersect_dicts(
     type_1_dict: &TDict,
     type_2_dict: &TDict,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
 ) -> Option<TAtomic> {
     let params = match (&type_1_dict.params, &type_2_dict.params) {
         (Some(type_1_params), Some(type_2_params)) => {
-            let key = intersect_union_with_union(&type_1_params.0, &type_2_params.0, codebase);
-            let value = intersect_union_with_union(&type_1_params.1, &type_2_params.1, codebase);
+            let key =
+                intersect_union_with_union(&type_1_params.0, &type_2_params.0, codebase, file_path);
+            let value =
+                intersect_union_with_union(&type_1_params.1, &type_2_params.1, codebase, file_path);
 
             if let (Some(key), Some(value)) = (key, value) {
                 Some((Box::new(key), Box::new(value)))
@@ -772,6 +800,7 @@ fn intersect_dicts(
                                 &type_1_value.1,
                                 &type_2_value.1,
                                 codebase,
+                                file_path,
                             ) {
                                 Arc::new(t)
                             } else {
@@ -788,6 +817,7 @@ fn intersect_dicts(
                                 &type_1_params.1,
                                 &type_2_value.1,
                                 codebase,
+                                file_path,
                             ) {
                                 Arc::new(t)
                             } else {
@@ -812,9 +842,12 @@ fn intersect_dicts(
 
             for (_, type_2_value) in type_2_known_items.iter_mut() {
                 if let Some(type_1_params) = &type_1_dict.params {
-                    type_2_value.1 = if let Some(t) =
-                        intersect_union_with_union(&type_2_value.1, &type_1_params.1, codebase)
-                    {
+                    type_2_value.1 = if let Some(t) = intersect_union_with_union(
+                        &type_2_value.1,
+                        &type_1_params.1,
+                        codebase,
+                        file_path,
+                    ) {
                         Arc::new(t)
                     } else {
                         return None;
@@ -836,9 +869,12 @@ fn intersect_dicts(
 
             for (_, type_1_value) in type_1_known_items.iter_mut() {
                 if let Some(type_2_params) = &type_2_dict.params {
-                    type_1_value.1 = if let Some(t) =
-                        intersect_union_with_union(&type_1_value.1, &type_2_params.1, codebase)
-                    {
+                    type_1_value.1 = if let Some(t) = intersect_union_with_union(
+                        &type_1_value.1,
+                        &type_2_params.1,
+                        codebase,
+                        file_path,
+                    ) {
                         Arc::new(t)
                     } else {
                         return None;
@@ -868,20 +904,28 @@ pub(crate) fn intersect_union_with_union(
     type_1_param: &TUnion,
     type_2_param: &TUnion,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
 ) -> Option<TUnion> {
     let type_param = match (type_1_param.is_single(), type_2_param.is_single()) {
         (true, true) => intersect_atomic_with_atomic(
             type_1_param.get_single(),
             type_2_param.get_single(),
             codebase,
+            file_path,
         )
         .map(wrap_atomic),
-        (false, true) => {
-            intersect_union_with_atomic(codebase, type_1_param, type_2_param.get_single())
-        }
-        (true, false) => {
-            intersect_union_with_atomic(codebase, type_2_param, type_1_param.get_single())
-        }
+        (false, true) => intersect_union_with_atomic(
+            codebase,
+            file_path,
+            type_1_param,
+            type_2_param.get_single(),
+        ),
+        (true, false) => intersect_union_with_atomic(
+            codebase,
+            file_path,
+            type_2_param,
+            type_1_param.get_single(),
+        ),
         (false, false) => {
             if type_1_param == type_2_param {
                 Some(type_1_param.clone())
@@ -890,7 +934,7 @@ pub(crate) fn intersect_union_with_union(
                     .types
                     .iter()
                     .flat_map(|t| {
-                        intersect_union_with_atomic(codebase, type_1_param, t)
+                        intersect_union_with_atomic(codebase, file_path, type_1_param, t)
                             .unwrap_or(get_nothing())
                             .types
                     })
@@ -956,6 +1000,7 @@ fn intersect_enum_case_with_int(
 
 fn intersect_enum_with_int_or_string(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     enum_name: &StrId,
     underlying_type: &Arc<TAtomic>,
     int_or_string: TAtomic,
@@ -964,6 +1009,7 @@ fn intersect_enum_with_int_or_string(
 
     if atomic_type_comparator::is_contained_by(
         codebase,
+        file_path,
         &int_or_string,
         underlying_type,
         true,
@@ -1015,6 +1061,7 @@ fn intersect_contained_atomic_with_another(
     super_atomic: &TAtomic,
     sub_atomic: &TAtomic,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     generic_coercion: bool,
 ) -> Option<TAtomic> {
     if generic_coercion {
@@ -1051,7 +1098,8 @@ fn intersect_contained_atomic_with_another(
         } = type_1_atomic
         {
             if type_1_as_type.has_object_type() {
-                let type_1_as = intersect_union_with_atomic(codebase, type_1_as_type, sub_atomic);
+                let type_1_as =
+                    intersect_union_with_atomic(codebase, file_path, type_1_as_type, sub_atomic);
 
                 if let Some(type_1_as) = type_1_as {
                     *type_1_as_type = Box::new(type_1_as);

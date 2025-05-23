@@ -13,6 +13,7 @@ use crate::{
     functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic, TClosure, TDict},
     t_union::TUnion,
+    type_definition_info::TypeDefinitionInfo,
 };
 use crate::{functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier};
 use hakana_str::{Interner, StrId};
@@ -33,7 +34,6 @@ pub struct TypeExpansionOptions<'a> {
     pub self_class: Option<&'a StrId>,
     pub static_class_type: StaticClassType<'a, 'a>,
     pub parent_class: Option<&'a StrId>,
-    pub file_path: Option<&'a FilePath>,
 
     pub evaluate_class_constants: bool,
     pub evaluate_conditional_types: bool,
@@ -42,13 +42,11 @@ pub struct TypeExpansionOptions<'a> {
     pub expand_templates: bool,
     pub expand_hakana_types: bool,
     pub expand_typenames: bool,
-    pub expand_all_type_aliases: bool,
 }
 
 impl Default for TypeExpansionOptions<'_> {
     fn default() -> Self {
         Self {
-            file_path: None,
             self_class: None,
             static_class_type: StaticClassType::None,
             parent_class: None,
@@ -59,7 +57,6 @@ impl Default for TypeExpansionOptions<'_> {
             expand_templates: true,
             expand_typenames: true,
             expand_hakana_types: true,
-            expand_all_type_aliases: false,
         }
     }
 }
@@ -68,6 +65,7 @@ pub fn expand_union(
     codebase: &CodebaseInfo,
     // interner is only used for data_flow_graph addition, so it's optional
     interner: &Option<&Interner>,
+    file_path: &FilePath,
     return_type: &mut TUnion,
     options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
@@ -88,6 +86,7 @@ pub fn expand_union(
             &mut current_atomic_being_processed, // Modified in-place if not skipped
             codebase,
             interner,
+            file_path,
             options,
             data_flow_graph,
             cost,
@@ -119,6 +118,7 @@ fn expand_atomic(
     return_type_part: &mut TAtomic,
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
+    file_path: &FilePath,
     options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
     cost: &mut u32,
@@ -131,7 +131,6 @@ fn expand_atomic(
     if let TAtomic::TDict(TDict {
         ref mut known_items,
         ref mut params,
-        ref mut shape_name,
         ..
     }) = return_type_part
     {
@@ -139,6 +138,7 @@ fn expand_atomic(
             expand_union(
                 codebase,
                 interner,
+                file_path,
                 &mut params.0,
                 options,
                 data_flow_graph,
@@ -147,6 +147,7 @@ fn expand_atomic(
             expand_union(
                 codebase,
                 interner,
+                file_path,
                 &mut params.1,
                 options,
                 data_flow_graph,
@@ -159,16 +160,13 @@ fn expand_atomic(
                 expand_union(
                     codebase,
                     interner,
+                    file_path,
                     Arc::make_mut(item_type),
                     options,
                     data_flow_graph,
                     cost,
                 );
             }
-        }
-
-        if options.expand_all_type_aliases {
-            *shape_name = None;
         }
     } else if let TAtomic::TVec {
         ref mut known_items,
@@ -179,6 +177,7 @@ fn expand_atomic(
         expand_union(
             codebase,
             interner,
+            file_path,
             type_param,
             options,
             data_flow_graph,
@@ -190,6 +189,7 @@ fn expand_atomic(
                 expand_union(
                     codebase,
                     interner,
+                    file_path,
                     item_type,
                     options,
                     data_flow_graph,
@@ -206,6 +206,7 @@ fn expand_atomic(
         expand_union(
             codebase,
             interner,
+            file_path,
             type_param,
             options,
             data_flow_graph,
@@ -214,7 +215,15 @@ fn expand_atomic(
 
         return;
     } else if let TAtomic::TAwaitable { ref mut value } = return_type_part {
-        expand_union(codebase, interner, value, options, data_flow_graph, cost);
+        expand_union(
+            codebase,
+            interner,
+            file_path,
+            value,
+            options,
+            data_flow_graph,
+            cost,
+        );
 
         return;
     } else if let TAtomic::TNamedObject {
@@ -259,6 +268,7 @@ fn expand_atomic(
                 expand_union(
                     codebase,
                     interner,
+                    file_path,
                     param_type,
                     options,
                     data_flow_graph,
@@ -273,6 +283,7 @@ fn expand_atomic(
             expand_union(
                 codebase,
                 interner,
+                file_path,
                 return_type,
                 options,
                 data_flow_graph,
@@ -285,6 +296,7 @@ fn expand_atomic(
                 expand_union(
                     codebase,
                     interner,
+                    file_path,
                     param_type,
                     options,
                     data_flow_graph,
@@ -296,7 +308,15 @@ fn expand_atomic(
         ref mut as_type, ..
     } = return_type_part
     {
-        expand_union(codebase, interner, as_type, options, data_flow_graph, cost);
+        expand_union(
+            codebase,
+            interner,
+            file_path,
+            as_type,
+            options,
+            data_flow_graph,
+            cost,
+        );
 
         return;
     } else if let TAtomic::TClassname {
@@ -311,6 +331,7 @@ fn expand_atomic(
             as_type,
             codebase,
             interner,
+            file_path,
             options,
             data_flow_graph,
             cost,
@@ -343,6 +364,7 @@ fn expand_atomic(
                 expand_union(
                     codebase,
                     interner,
+                    file_path,
                     &mut as_type_union,
                     options,
                     data_flow_graph,
@@ -356,6 +378,7 @@ fn expand_atomic(
                 expand_union(
                     codebase,
                     interner,
+                    file_path,
                     &mut underlying_type_union,
                     options,
                     data_flow_graph,
@@ -382,6 +405,7 @@ fn expand_atomic(
                 &mut literal_value,
                 codebase,
                 interner,
+                file_path,
                 options,
                 data_flow_graph,
                 cost,
@@ -403,6 +427,7 @@ fn expand_atomic(
                 expand_union(
                     codebase,
                     interner,
+                    file_path,
                     &mut const_type,
                     options,
                     data_flow_graph,
@@ -434,15 +459,7 @@ fn expand_atomic(
             return;
         };
 
-        let can_expand_type = if let Some(type_file_path) = &type_definition.newtype_file {
-            if let Some(expanding_file_path) = options.file_path {
-                expanding_file_path == type_file_path
-            } else {
-                options.expand_all_type_aliases
-            }
-        } else {
-            true
-        };
+        let can_expand_type = can_expand_type_in_file(file_path, type_definition);
 
         if type_definition.is_literal_string && options.expand_hakana_types {
             *skip_key = true;
@@ -479,6 +496,7 @@ fn expand_atomic(
             expand_union(
                 codebase,
                 interner,
+                file_path,
                 &mut untemplated_type,
                 options,
                 data_flow_graph,
@@ -539,9 +557,7 @@ fn expand_atomic(
                                 data_flow_graph.add_node(shape_node);
                             }
 
-                            if !options.expand_all_type_aliases {
-                                *shape_name = Some((*type_name, None));
-                            }
+                            *shape_name = Some((*type_name, None));
                         };
                     }
                     v
@@ -581,6 +597,7 @@ fn expand_atomic(
             expand_union(
                 codebase,
                 interner,
+                file_path,
                 &mut definition_as_type,
                 options,
                 data_flow_graph,
@@ -595,6 +612,7 @@ fn expand_atomic(
                 expand_union(
                     codebase,
                     interner,
+                    file_path,
                     param_type,
                     options,
                     data_flow_graph,
@@ -615,6 +633,7 @@ fn expand_atomic(
             class_type,
             codebase,
             interner,
+            file_path,
             options,
             data_flow_graph,
             cost,
@@ -675,6 +694,7 @@ fn expand_atomic(
                         expand_union(
                             codebase,
                             interner,
+                            file_path,
                             &mut type_,
                             options,
                             data_flow_graph,
@@ -698,6 +718,7 @@ fn expand_atomic(
                         expand_union(
                             codebase,
                             interner,
+                            file_path,
                             &mut type_,
                             options,
                             data_flow_graph,
@@ -716,7 +737,9 @@ fn expand_atomic(
             }
         };
     } else if let TAtomic::TClosureAlias { id, .. } = &return_type_part {
-        if let Some(value) = get_closure_from_id(id, codebase, interner, data_flow_graph, cost) {
+        if let Some(value) =
+            get_closure_from_id(id, codebase, interner, file_path, data_flow_graph, cost)
+        {
             *skip_key = true;
             new_return_type_parts.push(value);
             return;
@@ -724,10 +747,19 @@ fn expand_atomic(
     }
 }
 
+pub fn can_expand_type_in_file(file_path: &FilePath, type_definition: &TypeDefinitionInfo) -> bool {
+    if let Some(type_file_path) = &type_definition.newtype_file {
+        file_path == type_file_path
+    } else {
+        true
+    }
+}
+
 pub fn get_closure_from_id(
     id: &FunctionLikeIdentifier,
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
+    file_path: &FilePath,
     data_flow_graph: &mut DataFlowGraph,
     cost: &mut u32,
 ) -> Option<TAtomic> {
@@ -739,6 +771,7 @@ pub fn get_closure_from_id(
                     functionlike_info,
                     codebase,
                     interner,
+                    file_path,
                     data_flow_graph,
                     &TypeExpansionOptions::default(),
                     cost,
@@ -754,6 +787,7 @@ pub fn get_closure_from_id(
                     functionlike_info,
                     codebase,
                     interner,
+                    file_path,
                     data_flow_graph,
                     &TypeExpansionOptions {
                         self_class: Some(classlike_name),
@@ -775,6 +809,7 @@ fn get_expanded_closure(
     functionlike_info: &FunctionLikeInfo,
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
+    file_path: &FilePath,
     data_flow_graph: &mut DataFlowGraph,
     options: &TypeExpansionOptions,
     cost: &mut u32,
@@ -786,7 +821,15 @@ fn get_expanded_closure(
             .map(|param| FnParameter {
                 signature_type: if let Some(t) = &param.signature_type {
                     let mut t = t.clone();
-                    expand_union(codebase, interner, &mut t, options, data_flow_graph, cost);
+                    expand_union(
+                        codebase,
+                        interner,
+                        file_path,
+                        &mut t,
+                        options,
+                        data_flow_graph,
+                        cost,
+                    );
                     Some(Box::new(t))
                 } else {
                     None
@@ -801,6 +844,7 @@ fn get_expanded_closure(
             expand_union(
                 codebase,
                 interner,
+                file_path,
                 &mut return_type,
                 options,
                 data_flow_graph,

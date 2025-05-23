@@ -394,6 +394,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 type_expander::expand_union(
                     self.file_analyzer.codebase,
                     &Some(self.interner),
+                    &self.file_analyzer.file_source.file_path,
                     &mut property_type,
                     &TypeExpansionOptions {
                         self_class: Some(calling_class),
@@ -405,7 +406,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             false
                         },
                         expand_generic: true,
-                        file_path: Some(&self.file_analyzer.file_source.file_path),
 
                         ..Default::default()
                     },
@@ -676,6 +676,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             type_expander::expand_union(
                 statements_analyzer.codebase,
                 &Some(statements_analyzer.interner),
+                statements_analyzer.get_file_path(),
                 &mut expected_return_type,
                 &TypeExpansionOptions {
                     self_class: context.function_context.calling_class.as_ref(),
@@ -692,7 +693,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     } else {
                         false
                     },
-                    file_path: Some(statements_analyzer.get_file_path()),
 
                     ..Default::default()
                 },
@@ -720,6 +720,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     for callsite_return_type in &analysis_data.inferred_return_types {
                         if comparison::union_type_comparator::is_contained_by(
                             codebase,
+                            statements_analyzer.get_file_path(),
                             callsite_return_type,
                             &expected_return_type,
                             false,
@@ -958,6 +959,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     type_expander::expand_union(
                         self.file_analyzer.codebase,
                         &Some(statements_analyzer.interner),
+                        statements_analyzer.get_file_path(),
                         &mut param_type,
                         &TypeExpansionOptions {
                             self_class: calling_class,
@@ -977,7 +979,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             },
                             expand_generic: true,
                             expand_templates: true,
-                            file_path: Some(statements_analyzer.get_file_path()),
 
                             ..Default::default()
                         },

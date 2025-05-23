@@ -659,6 +659,7 @@ fn check_array_key_or_value_type(
                     let offset_type_contained_by_expected =
                         union_type_comparator::can_expression_types_be_identical(
                             codebase,
+                            statements_analyzer.get_file_path(),
                             arg_type,
                             &param.clone(),
                             true,

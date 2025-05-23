@@ -10,11 +10,6 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_code_info::ttype::{
-    add_union_type, get_mixed_any, get_null, get_value_param,
-    type_expander::{self, StaticClassType, TypeExpansionOptions},
-    wrap_atomic,
-};
 use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
@@ -25,6 +20,14 @@ use hakana_code_info::{
     t_union::TUnion,
     var_name::VarName,
     VarId,
+};
+use hakana_code_info::{
+    code_location::FilePath,
+    ttype::{
+        add_union_type, get_mixed_any, get_null, get_value_param,
+        type_expander::{self, StaticClassType, TypeExpansionOptions},
+        wrap_atomic,
+    },
 };
 use hakana_str::{Interner, StrId};
 use lazy_static::lazy_static;
@@ -153,6 +156,7 @@ pub(crate) fn reconcile_keyed_types(
             get_value_for_key(
                 codebase,
                 statements_analyzer.interner,
+                statements_analyzer.get_file_path(),
                 key.clone(),
                 context,
                 &mut added_var_ids,
@@ -693,6 +697,7 @@ fn break_up_path_into_parts(path: &str) -> Vec<String> {
 fn get_value_for_key(
     codebase: &CodebaseInfo,
     interner: &Interner,
+    file_path: &FilePath,
     key: VarName,
     context: &mut BlockContext,
     added_var_ids: &mut FxHashSet<VarName>,
@@ -995,6 +1000,7 @@ fn get_value_for_key(
                             let maybe_class_property_type = get_property_type(
                                 codebase,
                                 interner,
+                                file_path,
                                 &fq_class_name,
                                 &interner.get(&property_name)?,
                                 analysis_data,
@@ -1040,6 +1046,7 @@ fn get_value_for_key(
 fn get_property_type(
     codebase: &CodebaseInfo,
     interner: &Interner,
+    file_path: &FilePath,
     classlike_name: &StrId,
     property_name: &StrId,
     analysis_data: &mut FunctionAnalysisData,
@@ -1059,6 +1066,7 @@ fn get_property_type(
         type_expander::expand_union(
             codebase,
             &Some(interner),
+            file_path,
             &mut class_property_type,
             &TypeExpansionOptions {
                 self_class: Some(declaring_property_class),

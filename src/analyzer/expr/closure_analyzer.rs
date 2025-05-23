@@ -45,6 +45,7 @@ pub(crate) fn analyze(
             type_expander::expand_union(
                 statements_analyzer.codebase,
                 &Some(statements_analyzer.interner),
+                statements_analyzer.get_file_path(),
                 param_type,
                 &TypeExpansionOptions {
                     evaluate_conditional_types: true,

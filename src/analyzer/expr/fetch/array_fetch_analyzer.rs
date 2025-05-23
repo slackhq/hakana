@@ -564,6 +564,7 @@ pub(crate) fn handle_array_access_on_vec(
     let mut union_comparison_result = TypeComparisonResult::new();
     let offset_type_contained_by_expected = union_type_comparator::is_contained_by(
         codebase,
+        statements_analyzer.get_file_path(),
         &dim_type,
         &get_int(),
         false,
@@ -684,6 +685,7 @@ pub(crate) fn handle_array_access_on_dict(
     let mut union_comparison_result = TypeComparisonResult::new();
     let offset_type_contained_by_expected = union_type_comparator::is_contained_by(
         codebase,
+        statements_analyzer.get_file_path(),
         dim_type,
         &key_param,
         false,
@@ -801,6 +803,7 @@ pub(crate) fn handle_array_access_on_dict(
 
         let is_contained = union_type_comparator::is_contained_by(
             codebase,
+            statements_analyzer.get_file_path(),
             &key_param,
             if dim_type.is_mixed() {
                 &array_key
@@ -894,6 +897,7 @@ pub(crate) fn handle_array_access_on_string(
 
     if !union_type_comparator::is_contained_by(
         codebase,
+        statements_analyzer.get_file_path(),
         &dim_type,
         &valid_offset_type,
         false,

@@ -236,6 +236,7 @@ fn get_is_assertions(
         type_expander::expand_union(
             codebase,
             &None,
+            &assertion_context.file_source.file_path,
             &mut is_type,
             &TypeExpansionOptions {
                 self_class: assertion_context.this_class_name,
@@ -282,7 +283,11 @@ fn get_is_assertions(
             assertion_context.codebase,
         ) {
             if !union_type_comparator::can_expression_types_be_identical(
-                codebase, lhs_type, &is_type, true,
+                codebase,
+                &assertion_context.file_source.file_path,
+                lhs_type,
+                &is_type,
+                true,
             ) {
                 analysis_data.maybe_add_issue(
                     Issue::new(
@@ -307,6 +312,7 @@ fn get_is_assertions(
                 );
             } else if union_type_comparator::is_contained_by(
                 codebase,
+                &assertion_context.file_source.file_path,
                 lhs_type,
                 &is_type,
                 false,

@@ -233,12 +233,12 @@ pub(crate) fn analyze(
         type_expander::expand_union(
             codebase,
             &Some(statements_analyzer.interner),
+            statements_analyzer.get_file_path(),
             &mut inserted_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),
                 static_class_type: StaticClassType::Name(&declaring_class_storage.name),
                 parent_class: parent_class.as_ref(),
-                file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,

@@ -109,6 +109,7 @@ pub(crate) fn analyze(
                     && (!lhs_type.is_single() || !rhs_type.is_single())
                     && !union_type_comparator::can_expression_types_be_identical(
                         statements_analyzer.codebase,
+                        statements_analyzer.get_file_path(),
                         lhs_type,
                         rhs_type,
                         true,

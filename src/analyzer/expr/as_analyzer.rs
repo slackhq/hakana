@@ -160,6 +160,7 @@ pub(crate) fn analyze<'expr>(
             type_expander::expand_union(
                 codebase,
                 &Some(statements_analyzer.interner),
+                statements_analyzer.get_file_path(),
                 &mut hint_type,
                 &TypeExpansionOptions {
                     self_class: context.function_context.calling_class.as_ref(),

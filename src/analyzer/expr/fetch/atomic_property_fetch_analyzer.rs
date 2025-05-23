@@ -226,17 +226,12 @@ fn get_class_property_type(
         type_expander::expand_union(
             codebase,
             &Some(statements_analyzer.interner),
+            &statements_analyzer.file_analyzer.file_source.file_path,
             &mut class_property_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),
                 static_class_type: StaticClassType::Object(&lhs_type_part),
                 parent_class: parent_class.as_ref(),
-                file_path: Some(
-                    &statements_analyzer
-                        .file_analyzer
-                        .file_source
-                        .file_path,
-                ),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -281,6 +276,7 @@ pub(crate) fn localize_property_type(
     let mut template_types = get_template_types_for_class_member(
         statements_analyzer.codebase,
         analysis_data,
+        statements_analyzer.get_file_path(),
         Some(property_declaring_class_storage),
         Some(&property_declaring_class_storage.name),
         Some(property_class_storage),
@@ -329,15 +325,10 @@ fn update_template_types(
                             type_expander::expand_union(
                                 statements_analyzer.codebase,
                                 &Some(statements_analyzer.interner),
+                                &statements_analyzer.file_analyzer.file_source.file_path,
                                 &mut lhs_param_type,
                                 &TypeExpansionOptions {
                                     parent_class: None,
-                                    file_path: Some(
-                                        &statements_analyzer
-                                            .file_analyzer
-                                            .file_source
-                                            .file_path,
-                                    ),
                                     ..Default::default()
                                 },
                                 &mut analysis_data.data_flow_graph,

@@ -1,8 +1,9 @@
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
-use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
+use crate::{code_location::FilePath, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 pub fn is_contained_by(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
     inside_assertion: bool,
@@ -184,6 +185,7 @@ pub fn is_contained_by(
         if let TAtomic::TStringWithFlags(..) = container_type_part {
             return is_contained_by(
                 codebase,
+                file_path,
                 input_as_type,
                 &TAtomic::TString,
                 inside_assertion,
@@ -193,6 +195,7 @@ pub fn is_contained_by(
 
         return atomic_type_comparator::is_contained_by(
             codebase,
+            file_path,
             input_as_type,
             container_type_part,
             inside_assertion,
@@ -226,6 +229,7 @@ pub fn is_contained_by(
 
         return atomic_type_comparator::is_contained_by(
             codebase,
+            file_path,
             if let Some(enum_as_type) = &as_type {
                 enum_as_type
             } else {
@@ -393,6 +397,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_name,
                 container_name,
                 inside_assertion,
@@ -411,6 +416,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_as_type,
                 container_name,
                 inside_assertion,
@@ -431,6 +437,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_name,
                 container_name,
                 inside_assertion,
@@ -449,6 +456,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_as_type,
                 container_name,
                 inside_assertion,
@@ -506,6 +514,7 @@ pub fn is_contained_by(
 
             return atomic_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 &input_type,
                 container_name,
                 inside_assertion,
@@ -520,6 +529,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_as_type,
                 container_name,
                 inside_assertion,
@@ -552,6 +562,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_as_type,
                 container_name,
                 inside_assertion,
@@ -583,6 +594,7 @@ pub fn is_contained_by(
         {
             if atomic_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 &TAtomic::TNamedObject {
                     name: *container_name,
                     type_params: None,

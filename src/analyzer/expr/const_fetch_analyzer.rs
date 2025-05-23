@@ -80,6 +80,7 @@ pub(crate) fn analyze(
     type_expander::expand_union(
         codebase,
         &Some(statements_analyzer.interner),
+        statements_analyzer.get_file_path(),
         &mut stmt_type,
         &TypeExpansionOptions {
             ..Default::default()

@@ -476,12 +476,10 @@ fn analyze_named_constructor(
                     type_expander::expand_union(
                         statements_analyzer.codebase,
                         &Some(statements_analyzer.interner),
+                        statements_analyzer.get_file_path(),
                         &mut param_type,
                         &TypeExpansionOptions {
                             parent_class: None,
-                            file_path: Some(
-                                &statements_analyzer.file_analyzer.file_source.file_path,
-                            ),
                             ..Default::default()
                         },
                         &mut analysis_data.data_flow_graph,
@@ -592,12 +590,10 @@ fn analyze_named_constructor(
                         type_expander::expand_union(
                             statements_analyzer.codebase,
                             &Some(statements_analyzer.interner),
+                            statements_analyzer.get_file_path(),
                             &mut param_type,
                             &TypeExpansionOptions {
                                 parent_class: None,
-                                file_path: Some(
-                                    &statements_analyzer.file_analyzer.file_source.file_path,
-                                ),
                                 ..Default::default()
                             },
                             &mut analysis_data.data_flow_graph,

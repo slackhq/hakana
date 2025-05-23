@@ -1,9 +1,12 @@
-use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, ttype::get_mixed_any};
+use crate::{
+    code_location::FilePath, codebase_info::CodebaseInfo, t_atomic::TAtomic, ttype::get_mixed_any,
+};
 
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
 
 pub(crate) fn is_contained_by(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
     atomic_comparison_result: &mut TypeComparisonResult,
@@ -36,6 +39,7 @@ pub(crate) fn is_contained_by(
                         if !container_param_type.is_mixed()
                             && !union_type_comparator::is_contained_by(
                                 codebase,
+                                file_path,
                                 container_param_type,
                                 &input_param
                                     .signature_type
@@ -76,6 +80,7 @@ pub(crate) fn is_contained_by(
                     if !container_return_type.is_void()
                         && !union_type_comparator::is_contained_by(
                             codebase,
+                            file_path,
                             input_return_type,
                             container_return_type,
                             false,

@@ -1824,6 +1824,7 @@ fn reconcile_no_array_key(
                     } else if let Some((key_param, _)) = params {
                         if union_type_comparator::can_expression_types_be_identical(
                             statements_analyzer.codebase,
+                            statements_analyzer.get_file_path(),
                             &wrap_atomic(match key_name {
                                 DictKey::Int(_) => TAtomic::TInt,
                                 DictKey::String(_) => TAtomic::TString,
@@ -1843,6 +1844,7 @@ fn reconcile_no_array_key(
                 } else if let Some((key_param, _)) = params {
                     if union_type_comparator::can_expression_types_be_identical(
                         statements_analyzer.codebase,
+                        statements_analyzer.get_file_path(),
                         &wrap_atomic(match key_name {
                             DictKey::Int(_) => TAtomic::TInt,
                             DictKey::String(_) => TAtomic::TString,

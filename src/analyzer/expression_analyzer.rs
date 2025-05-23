@@ -829,6 +829,7 @@ fn analyze_function_pointer(
         &id,
         codebase,
         &Some(statements_analyzer.interner),
+        statements_analyzer.get_file_path(),
         &mut analysis_data.data_flow_graph,
         &mut 0,
     ) {

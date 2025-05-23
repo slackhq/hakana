@@ -171,6 +171,7 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
         for upper_bound in upper_bounds {
             if !union_type_comparator::is_contained_by(
                 codebase,
+                statements_analyzer.get_file_path(),
                 &relevant_lower_bound.bound_type,
                 &upper_bound.bound_type,
                 false,
@@ -237,6 +238,7 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
                     for bound_with_equality in &bounds_with_equality {
                         if union_type_comparator::is_contained_by(
                             codebase,
+                            statements_analyzer.get_file_path(),
                             &lower_bound.bound_type,
                             &bound_with_equality.bound_type,
                             false,
@@ -288,6 +290,7 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
 
                 if !union_type_comparator::can_expression_types_be_identical(
                     codebase,
+                    statements_analyzer.get_file_path(),
                     &upper_bound_with_equality.bound_type,
                     &upper_bound.bound_type,
                     false,

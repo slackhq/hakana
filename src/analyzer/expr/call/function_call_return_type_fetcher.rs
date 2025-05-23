@@ -104,6 +104,7 @@ pub(crate) fn fetch(
             type_expander::expand_union(
                 codebase,
                 &Some(statements_analyzer.interner),
+                statements_analyzer.get_file_path(),
                 &mut function_return_type,
                 &TypeExpansionOptions {
                     expand_templates: false,
@@ -123,11 +124,11 @@ pub(crate) fn fetch(
         type_expander::expand_union(
             codebase,
             &Some(statements_analyzer.interner),
+            statements_analyzer.get_file_path(),
             &mut function_return_type,
             &TypeExpansionOptions {
                 expand_templates: false,
                 expand_generic: true,
-                file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -339,6 +340,7 @@ fn handle_special_functions(
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if union_type_comparator::is_contained_by(
                         codebase,
+                        statements_analyzer.get_file_path(),
                         expr_type,
                         &get_string(),
                         false,
@@ -364,6 +366,7 @@ fn handle_special_functions(
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if union_type_comparator::is_contained_by(
                         codebase,
+                        statements_analyzer.get_file_path(),
                         expr_type,
                         &get_string(),
                         false,

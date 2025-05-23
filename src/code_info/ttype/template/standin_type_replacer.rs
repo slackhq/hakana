@@ -1,6 +1,6 @@
 use crate::{
     classlike_info::Variance,
-    code_location::HPos,
+    code_location::{FilePath, HPos},
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
@@ -51,6 +51,7 @@ pub fn replace<'a>(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Interner,
+    file_path: &FilePath,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
@@ -106,6 +107,7 @@ pub fn replace<'a>(
             template_result,
             codebase,
             interner,
+            file_path,
             &input_type.as_ref(),
             input_arg_offset,
             input_arg_pos,
@@ -139,6 +141,7 @@ fn handle_atomic_standin<'a>(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Interner,
+    file_path: &FilePath,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
@@ -172,6 +175,7 @@ fn handle_atomic_standin<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 input_type,
                 input_arg_offset,
                 input_arg_pos,
@@ -199,6 +203,7 @@ fn handle_atomic_standin<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 input_type,
                 input_arg_offset,
                 input_arg_pos,
@@ -226,6 +231,7 @@ fn handle_atomic_standin<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 input_type,
                 input_arg_offset,
                 input_arg_pos,
@@ -259,6 +265,7 @@ fn handle_atomic_standin<'a>(
             template_result,
             codebase,
             interner,
+            file_path,
             None,
             input_arg_offset,
             input_arg_pos,
@@ -279,6 +286,7 @@ fn handle_atomic_standin<'a>(
             template_result,
             codebase,
             interner,
+            file_path,
             Some(matching_input_type),
             input_arg_offset,
             input_arg_pos,
@@ -297,6 +305,7 @@ fn replace_atomic<'a>(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Interner,
+    file_path: &FilePath,
     input_type: Option<TAtomic>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
@@ -331,6 +340,7 @@ fn replace_atomic<'a>(
                         template_result,
                         codebase,
                         interner,
+                        file_path,
                         &input_type_param.as_ref(),
                         input_arg_offset,
                         input_arg_pos,
@@ -356,6 +366,7 @@ fn replace_atomic<'a>(
                     template_result,
                     codebase,
                     interner,
+                    file_path,
                     &if let Some(input_params) = &input_params {
                         Some(&input_params.0)
                     } else {
@@ -374,6 +385,7 @@ fn replace_atomic<'a>(
                     template_result,
                     codebase,
                     interner,
+                    file_path,
                     &if let Some(input_params) = &input_params {
                         Some(&input_params.1)
                     } else {
@@ -416,6 +428,7 @@ fn replace_atomic<'a>(
                         template_result,
                         codebase,
                         interner,
+                        file_path,
                         &input_type_param,
                         input_arg_offset,
                         input_arg_pos,
@@ -437,6 +450,7 @@ fn replace_atomic<'a>(
                     template_result,
                     codebase,
                     interner,
+                    file_path,
                     &if let Some(input_param) = &input_param {
                         Some(input_param)
                     } else {
@@ -461,6 +475,7 @@ fn replace_atomic<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 &if let Some(TAtomic::TKeyset {
                     type_param: input_param,
                 }) = &input_type
@@ -485,6 +500,7 @@ fn replace_atomic<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 &if let Some(TAtomic::TAwaitable {
                     value: input_param, ..
                 }) = &input_type
@@ -518,6 +534,7 @@ fn replace_atomic<'a>(
                     Some(get_mapped_generic_type_params(
                         codebase,
                         &Some(interner),
+                        file_path,
                         &input_type.clone().unwrap(),
                         name,
                         remapped_params,
@@ -575,6 +592,7 @@ fn replace_atomic<'a>(
                         template_result,
                         codebase,
                         interner,
+                        file_path,
                         &if let Some(mapped_type_params) = &mapped_type_params {
                             if let Some(matched) = mapped_type_params.get(offset) {
                                 Some(&matched.1)
@@ -625,6 +643,7 @@ fn replace_atomic<'a>(
                         template_result,
                         codebase,
                         interner,
+                        file_path,
                         &if let Some(mapped_type_params) = &mapped_type_params {
                             mapped_type_params.get(offset)
                         } else {
@@ -660,6 +679,7 @@ fn replace_atomic<'a>(
                         template_result,
                         codebase,
                         interner,
+                        file_path,
                         &if let Some(input_type_param) = input_type_param {
                             Some(input_type_param)
                         } else {
@@ -681,6 +701,7 @@ fn replace_atomic<'a>(
                     template_result,
                     codebase,
                     interner,
+                    file_path,
                     &if let Some(TAtomic::TClosure(input_closure)) = &input_type {
                         input_closure.return_type.as_ref()
                     } else {
@@ -703,6 +724,7 @@ fn replace_atomic<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 if let Some(TAtomic::TClassname {
                     as_type: input_as_type,
                 }) = input_type
@@ -724,6 +746,7 @@ fn replace_atomic<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 if let Some(TAtomic::TTypename {
                     as_type: input_as_type,
                 }) = input_type
@@ -752,6 +775,7 @@ fn handle_template_param_standin<'a>(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Interner,
+    file_path: &FilePath,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
@@ -794,6 +818,7 @@ fn handle_template_param_standin<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 input_type,
                 input_arg_offset,
                 input_arg_pos,
@@ -827,6 +852,7 @@ fn handle_template_param_standin<'a>(
         type_expander::expand_union(
             codebase,
             &Some(interner),
+            file_path,
             &mut replacement_type,
             &TypeExpansionOptions {
                 self_class: opts.calling_class,
@@ -850,6 +876,7 @@ fn handle_template_param_standin<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 input_type,
                 input_arg_offset,
                 input_arg_pos,
@@ -906,6 +933,7 @@ fn handle_template_param_standin<'a>(
     type_expander::expand_union(
         codebase,
         &Some(interner),
+        file_path,
         &mut as_type,
         &TypeExpansionOptions {
             self_class: opts.calling_class,
@@ -928,6 +956,7 @@ fn handle_template_param_standin<'a>(
         template_result,
         codebase,
         interner,
+        file_path,
         input_type,
         input_arg_offset,
         input_arg_pos,
@@ -942,6 +971,7 @@ fn handle_template_param_standin<'a>(
             && (as_type.is_mixed()
                 || union_type_comparator::can_be_contained_by(
                     codebase,
+                    file_path,
                     input_type,
                     &as_type,
                     false,
@@ -1074,6 +1104,7 @@ fn handle_template_param_class_standin<'a>(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Interner,
+    file_path: &FilePath,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
@@ -1153,6 +1184,7 @@ fn handle_template_param_class_standin<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 &generic_param.as_ref(),
                 input_arg_offset,
                 input_arg_pos,
@@ -1254,6 +1286,7 @@ fn handle_template_param_type_standin<'a>(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Interner,
+    file_path: &FilePath,
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
@@ -1324,6 +1357,7 @@ fn handle_template_param_type_standin<'a>(
                 template_result,
                 codebase,
                 interner,
+                file_path,
                 &generic_param.as_ref(),
                 input_arg_offset,
                 input_arg_pos,
@@ -1759,6 +1793,7 @@ fn is_array_container(name: &StrId) -> bool {
 pub fn get_mapped_generic_type_params(
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
+    file_path: &FilePath,
     input_type_part: &TAtomic,
     container_name: &StrId,
     container_remapped_params: bool,
@@ -1892,6 +1927,7 @@ pub fn get_mapped_generic_type_params(
                 type_expander::expand_union(
                     codebase,
                     interner,
+                    file_path,
                     &mut v.1,
                     &TypeExpansionOptions {
                         ..Default::default()

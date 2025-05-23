@@ -4,6 +4,7 @@ use super::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::statements_analyzer::StatementsAnalyzer;
+use hakana_code_info::code_location::FilePath;
 use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::ttype::{
     comparison::{
@@ -84,6 +85,7 @@ pub(crate) fn reconcile(
                 subtract_complex_type(
                     assertion_type,
                     codebase,
+                    statements_analyzer.get_file_path(),
                     &mut existing_var_type,
                     &mut has_changes,
                 );
@@ -111,6 +113,7 @@ pub(crate) fn reconcile(
             if let Some(pos) = pos {
                 if !union_type_comparator::can_expression_types_be_identical(
                     codebase,
+                    statements_analyzer.get_file_path(),
                     &existing_var_type,
                     &wrap_atomic(assertion_type.clone()),
                     true,
@@ -163,6 +166,7 @@ pub(crate) fn reconcile(
 fn subtract_complex_type(
     assertion_type: &TAtomic,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     existing_var_type: &mut TUnion,
     can_be_disjunct: &mut bool,
 ) {
@@ -179,6 +183,7 @@ fn subtract_complex_type(
 
         if atomic_type_comparator::is_contained_by(
             codebase,
+            file_path,
             &existing_atomic,
             assertion_type,
             true,
@@ -192,6 +197,7 @@ fn subtract_complex_type(
 
         if atomic_type_comparator::is_contained_by(
             codebase,
+            file_path,
             assertion_type,
             &existing_atomic,
             true,
@@ -222,6 +228,7 @@ fn subtract_complex_type(
                                 &existing_atomic,
                                 assertion_classlike_name,
                                 codebase,
+                                file_path,
                                 &mut acceptable_types,
                             );
 
@@ -290,6 +297,7 @@ fn handle_negated_class(
     existing_atomic: &TAtomic,
     assertion_classlike_name: &StrId,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     acceptable_types: &mut Vec<TAtomic>,
 ) {
     for child_classlike in child_classlikes {
@@ -319,7 +327,7 @@ fn handle_negated_class(
             };
 
             if let Some(acceptable_alternate_class) =
-                intersect_atomic_with_atomic(existing_atomic, &alternate_class, codebase)
+                intersect_atomic_with_atomic(existing_atomic, &alternate_class, codebase, file_path)
             {
                 acceptable_types.push(acceptable_alternate_class);
             }

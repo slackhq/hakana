@@ -1,3 +1,4 @@
+use crate::code_location::FilePath;
 use crate::t_atomic::TDict;
 use crate::ttype::{get_arrayish_params, get_value_param, wrap_atomic};
 use crate::{class_constant_info::ConstantInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic};
@@ -14,6 +15,7 @@ use super::{
 
 pub fn is_contained_by(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
     inside_assertion: bool,
@@ -37,6 +39,7 @@ pub fn is_contained_by(
         {
             return object_type_comparator::is_shallowly_contained_by(
                 codebase,
+                file_path,
                 input_type_part,
                 container_type_part,
                 inside_assertion,
@@ -108,6 +111,7 @@ pub fn is_contained_by(
             if let Some(arrayish_params) = arrayish_params {
                 return union_type_comparator::is_contained_by(
                     codebase,
+                    file_path,
                     &arrayish_params.1,
                     &wrap_atomic(container_type_part.clone()),
                     false,
@@ -137,6 +141,7 @@ pub fn is_contained_by(
         if container_type_part.is_some_scalar() {
             return scalar_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_type_part,
                 container_type_part,
                 inside_assertion,
@@ -159,6 +164,7 @@ pub fn is_contained_by(
             if let Some(arrayish_params) = arrayish_params {
                 return union_type_comparator::is_contained_by(
                     codebase,
+                    file_path,
                     &arrayish_params.0,
                     &type_params[0],
                     false,
@@ -167,6 +173,7 @@ pub fn is_contained_by(
                     atomic_comparison_result,
                 ) && union_type_comparator::is_contained_by(
                     codebase,
+                    file_path,
                     &arrayish_params.1,
                     &type_params[1],
                     false,
@@ -182,6 +189,7 @@ pub fn is_contained_by(
     if let TAtomic::TEnumLiteralCase { as_type, .. } = input_type_part {
         return is_contained_by(
             codebase,
+            file_path,
             if let Some(enum_type) = &as_type {
                 enum_type
             } else {
@@ -197,6 +205,7 @@ pub fn is_contained_by(
         if let TAtomic::TClosure(_) = input_type_part {
             return closure_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_type_part,
                 container_type_part,
                 atomic_comparison_result,
@@ -216,6 +225,7 @@ pub fn is_contained_by(
                 if let Some(arrayish_params) = get_arrayish_params(container_type_part, codebase) {
                     return self::is_contained_by(
                         codebase,
+                        file_path,
                         input_type_part,
                         &TAtomic::TDict(TDict {
                             params: Some((
@@ -235,6 +245,7 @@ pub fn is_contained_by(
                 if let Some(value_param) = get_value_param(container_type_part, codebase) {
                     return self::is_contained_by(
                         codebase,
+                        file_path,
                         input_type_part,
                         &TAtomic::TVec {
                             type_param: Box::new(value_param),
@@ -251,6 +262,7 @@ pub fn is_contained_by(
                 if let Some(arrayish_params) = get_arrayish_params(container_type_part, codebase) {
                     return self::is_contained_by(
                         codebase,
+                        file_path,
                         input_type_part,
                         &TAtomic::TKeyset {
                             type_param: Box::new(arrayish_params.0),
@@ -271,6 +283,7 @@ pub fn is_contained_by(
         if let TAtomic::TDict(TDict { .. }) = input_type_part {
             return dict_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_type_part,
                 container_type_part,
                 inside_assertion,
@@ -283,6 +296,7 @@ pub fn is_contained_by(
         if let TAtomic::TVec { .. } = input_type_part {
             return vec_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_type_part,
                 container_type_part,
                 inside_assertion,
@@ -301,6 +315,7 @@ pub fn is_contained_by(
         {
             return union_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_type_param,
                 container_type_param,
                 false,
@@ -341,6 +356,7 @@ pub fn is_contained_by(
 
         return union_type_comparator::is_contained_by(
             codebase,
+            file_path,
             input_value,
             container_value,
             false,
@@ -359,6 +375,7 @@ pub fn is_contained_by(
     {
         if object_type_comparator::is_shallowly_contained_by(
             codebase,
+            file_path,
             input_type_part,
             container_type_part,
             inside_assertion,
@@ -373,6 +390,7 @@ pub fn is_contained_by(
             ) {
                 return generic_type_comparator::is_contained_by(
                     codebase,
+                    file_path,
                     input_type_part,
                     container_type_part,
                     inside_assertion,
@@ -404,6 +422,7 @@ pub fn is_contained_by(
         {
             return union_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_type_extends,
                 container_type_extends,
                 false,
@@ -417,6 +436,7 @@ pub fn is_contained_by(
             if inside_assertion
                 && is_contained_by(
                     codebase,
+                    file_path,
                     input_type_part,
                     container_extends_type_part,
                     inside_assertion,
@@ -442,6 +462,7 @@ pub fn is_contained_by(
             for input_extra_type in input_extra_types {
                 if is_contained_by(
                     codebase,
+                    file_path,
                     input_extra_type,
                     container_type_part,
                     inside_assertion,
@@ -461,6 +482,7 @@ pub fn is_contained_by(
 
             if is_contained_by(
                 codebase,
+                file_path,
                 input_extends_type_part,
                 container_type_part,
                 inside_assertion,
@@ -509,6 +531,7 @@ pub fn is_contained_by(
                     if let Some(container_value_param) = container_type_params.first() {
                         if !union_type_comparator::is_contained_by(
                             codebase,
+                            file_path,
                             &input_type_params.1,
                             container_value_param,
                             false,
@@ -534,6 +557,7 @@ pub fn is_contained_by(
                     if let Some(container_key_param) = container_type_params.first() {
                         if !union_type_comparator::is_contained_by(
                             codebase,
+                            file_path,
                             &input_type_params.0,
                             container_key_param,
                             false,
@@ -561,6 +585,7 @@ pub fn is_contained_by(
                     if let Some(container_value_param) = container_type_params.get(1) {
                         if !union_type_comparator::is_contained_by(
                             codebase,
+                            file_path,
                             &input_type_params.1,
                             container_value_param,
                             false,
@@ -612,6 +637,7 @@ pub fn is_contained_by(
                     if let Some(input_value_param) = input_type_params.first() {
                         union_type_comparator::is_contained_by(
                             codebase,
+                            file_path,
                             input_value_param,
                             &container_arrayish_params.1,
                             false,
@@ -624,6 +650,7 @@ pub fn is_contained_by(
                     if let Some(input_key_param) = input_type_params.first() {
                         union_type_comparator::is_contained_by(
                             codebase,
+                            file_path,
                             input_key_param,
                             &container_arrayish_params.0,
                             false,
@@ -638,6 +665,7 @@ pub fn is_contained_by(
                     if let Some(input_value_param) = input_type_params.get(1) {
                         union_type_comparator::is_contained_by(
                             codebase,
+                            file_path,
                             input_value_param,
                             &container_arrayish_params.1,
                             false,
@@ -694,6 +722,7 @@ pub fn is_contained_by(
                             if let Some(container_param) = container_type_params.get(i) {
                                 compare_generic_params(
                                     codebase,
+                                    file_path,
                                     input_type_part,
                                     input_name,
                                     input_param,
@@ -778,6 +807,7 @@ pub fn is_contained_by(
         if let Some(as_type) = as_type {
             return is_contained_by(
                 codebase,
+                file_path,
                 as_type.get_single(),
                 container_type_part,
                 inside_assertion,
@@ -791,6 +821,7 @@ pub fn is_contained_by(
 
 pub(crate) fn can_be_identical<'a>(
     codebase: &'a CodebaseInfo,
+    file_path: &FilePath,
     mut type1_part: &'a TAtomic,
     mut type2_part: &'a TAtomic,
     inside_assertion: bool,
@@ -1048,6 +1079,7 @@ pub(crate) fn can_be_identical<'a>(
     {
         return union_type_comparator::can_expression_types_be_identical(
             codebase,
+            file_path,
             type1_part.get_vec_param().unwrap(),
             type2_part.get_vec_param().unwrap(),
             inside_assertion,
@@ -1055,7 +1087,13 @@ pub(crate) fn can_be_identical<'a>(
     }
 
     if let (TAtomic::TDict(type_1_dict), TAtomic::TDict(type_2_dict)) = (type1_part, type2_part) {
-        return dicts_can_be_identical(type_1_dict, type_2_dict, codebase, inside_assertion);
+        return dicts_can_be_identical(
+            type_1_dict,
+            type_2_dict,
+            codebase,
+            file_path,
+            inside_assertion,
+        );
     }
 
     let mut first_comparison_result = TypeComparisonResult::new();
@@ -1063,12 +1101,14 @@ pub(crate) fn can_be_identical<'a>(
 
     is_contained_by(
         codebase,
+        file_path,
         type1_part,
         type2_part,
         inside_assertion,
         &mut first_comparison_result,
     ) || is_contained_by(
         codebase,
+        file_path,
         type2_part,
         type1_part,
         inside_assertion,
@@ -1103,6 +1143,7 @@ fn dicts_can_be_identical(
     type_1_dict: &TDict,
     type_2_dict: &TDict,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     inside_assertion: bool,
 ) -> bool {
     if type_1_dict.non_empty || type_2_dict.non_empty {
@@ -1111,11 +1152,13 @@ fn dicts_can_be_identical(
             (Some(type_1_dict_params), Some(type_2_dict_params)) => {
                 union_type_comparator::can_expression_types_be_identical(
                     codebase,
+                    file_path,
                     &type_1_dict_params.0,
                     &type_2_dict_params.0,
                     inside_assertion,
                 ) && union_type_comparator::can_expression_types_be_identical(
                     codebase,
+                    file_path,
                     &type_1_dict_params.1,
                     &type_2_dict_params.1,
                     inside_assertion,
@@ -1134,6 +1177,7 @@ fn dicts_can_be_identical(
                     (Some(type_1_entry), Some(type_2_entry)) => {
                         if !union_type_comparator::can_expression_types_be_identical(
                             codebase,
+                            file_path,
                             &type_1_entry.1,
                             &type_2_entry.1,
                             inside_assertion,
@@ -1145,6 +1189,7 @@ fn dicts_can_be_identical(
                         if let Some(type_2_dict_params) = &type_2_dict.params {
                             if !union_type_comparator::can_expression_types_be_identical(
                                 codebase,
+                                file_path,
                                 &type_1_entry.1,
                                 &type_2_dict_params.1,
                                 inside_assertion,
@@ -1159,6 +1204,7 @@ fn dicts_can_be_identical(
                         if let Some(type_1_dict_params) = &type_1_dict.params {
                             if !union_type_comparator::can_expression_types_be_identical(
                                 codebase,
+                                file_path,
                                 &type_1_dict_params.1,
                                 &type_2_entry.1,
                                 inside_assertion,
@@ -1180,6 +1226,7 @@ fn dicts_can_be_identical(
                 if let Some(type_2_dict_params) = &type_2_dict.params {
                     if !union_type_comparator::can_expression_types_be_identical(
                         codebase,
+                        file_path,
                         &type_1_entry.1,
                         &type_2_dict_params.1,
                         inside_assertion,
@@ -1196,6 +1243,7 @@ fn dicts_can_be_identical(
                 if let Some(type_1_dict_params) = &type_1_dict.params {
                     if !union_type_comparator::can_expression_types_be_identical(
                         codebase,
+                        file_path,
                         &type_1_dict_params.1,
                         &type_2_entry.1,
                         inside_assertion,
@@ -1215,11 +1263,13 @@ fn dicts_can_be_identical(
         (Some(type_1_dict_params), Some(type_2_dict_params)) => {
             union_type_comparator::can_expression_types_be_identical(
                 codebase,
+                file_path,
                 &type_1_dict_params.0,
                 &type_2_dict_params.0,
                 inside_assertion,
             ) && union_type_comparator::can_expression_types_be_identical(
                 codebase,
+                file_path,
                 &type_1_dict_params.1,
                 &type_2_dict_params.1,
                 inside_assertion,

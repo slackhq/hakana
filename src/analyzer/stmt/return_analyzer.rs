@@ -108,6 +108,7 @@ pub(crate) fn analyze(
     type_expander::expand_union(
         codebase,
         &Some(statements_analyzer.interner),
+        statements_analyzer.get_file_path(),
         &mut inferred_return_type,
         &TypeExpansionOptions {
             self_class: context.function_context.calling_class.as_ref(),
@@ -149,6 +150,7 @@ pub(crate) fn analyze(
         type_expander::expand_union(
             codebase,
             &Some(statements_analyzer.interner),
+            &statements_analyzer.file_analyzer.file_source.file_path,
             &mut expected_type,
             &TypeExpansionOptions {
                 self_class: context.function_context.calling_class.as_ref(),
@@ -164,12 +166,6 @@ pub(crate) fn analyze(
                 } else {
                     false
                 },
-                file_path: Some(
-                    &statements_analyzer
-                        .file_analyzer
-                        .file_source
-                        .file_path,
-                ),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -289,6 +285,7 @@ pub(crate) fn analyze(
 
             let is_contained_by = union_type_comparator::is_contained_by(
                 codebase,
+                statements_analyzer.get_file_path(),
                 &inferred_return_type,
                 &expected_return_type,
                 true,

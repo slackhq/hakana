@@ -189,6 +189,7 @@ pub(crate) fn analyze(
                     &mut template_result,
                     statements_analyzer.codebase,
                     statements_analyzer.interner,
+                    statements_analyzer.get_file_path(),
                     &Some(template_type),
                     None,
                     None,

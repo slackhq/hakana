@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_code_info::assertion::Assertion;
-use hakana_code_info::code_location::StmtStart;
+use hakana_code_info::code_location::{FilePath, StmtStart};
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::ttype::template::standin_type_replacer::StandinOpts;
@@ -101,6 +101,7 @@ pub(crate) fn check_arguments_match(
             type_expander::expand_union(
                 statements_analyzer.codebase,
                 &Some(statements_analyzer.interner),
+                &statements_analyzer.file_analyzer.file_source.file_path,
                 &mut param_type,
                 &TypeExpansionOptions {
                     parent_class: None,
@@ -111,7 +112,7 @@ pub(crate) fn check_arguments_match(
                     } else {
                         false
                     },
-                    file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
+
                     expand_typenames: false,
                     ..Default::default()
                 },
@@ -230,6 +231,7 @@ pub(crate) fn check_arguments_match(
         template_result,
         codebase,
         analysis_data,
+        statements_analyzer.get_file_path(),
         &method_call_info,
         class_storage,
         calling_classlike_storage,
@@ -335,6 +337,7 @@ pub(crate) fn check_arguments_match(
             &class_generic_params,
             &mut param_type,
             codebase,
+            statements_analyzer.get_file_path(),
             arg_value_type,
             argument_offset,
             arg_expr.pos(),
@@ -383,6 +386,7 @@ pub(crate) fn check_arguments_match(
             &class_generic_params,
             &mut param_type,
             codebase,
+            statements_analyzer.get_file_path(),
             arg_value_type,
             reordered_args.len(),
             unpacked_arg.pos(),
@@ -630,6 +634,7 @@ fn adjust_param_type(
     class_generic_params: &IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     mut arg_value_type: TUnion,
     argument_offset: usize,
     arg_pos: &Pos,
@@ -650,6 +655,7 @@ fn adjust_param_type(
             param_type,
             codebase,
             statements_analyzer.interner,
+            file_path,
             &mut arg_value_type,
             argument_offset,
             context,
@@ -665,6 +671,7 @@ fn adjust_param_type(
                 template_result,
                 statements_analyzer.codebase,
                 statements_analyzer.interner,
+                statements_analyzer.get_file_path(),
                 &Some(&arg_value_type),
                 Some(argument_offset),
                 Some(statements_analyzer.get_hpos(arg_pos)),
@@ -752,6 +759,7 @@ fn get_param_type(
             type_expander::expand_union(
                 codebase,
                 &Some(statements_analyzer.interner),
+                &statements_analyzer.file_analyzer.file_source.file_path,
                 &mut param_type,
                 &TypeExpansionOptions {
                     self_class: if let Some(classlike_storage) = class_storage {
@@ -778,7 +786,6 @@ fn get_param_type(
                     } else {
                         false
                     },
-                    file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
@@ -836,6 +843,7 @@ fn handle_closure_arg(
         &mut replace_template_result,
         codebase,
         statements_analyzer.interner,
+        statements_analyzer.get_file_path(),
         &None,
         None,
         None,
@@ -942,6 +950,7 @@ fn map_class_generic_params(
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
     interner: &Interner,
+    file_path: &FilePath,
     arg_value_type: &mut TUnion,
     argument_offset: usize,
     context: &mut BlockContext,
@@ -971,6 +980,7 @@ fn map_class_generic_params(
         &mut readonly_template_result,
         codebase,
         interner,
+        file_path,
         &Some(arg_value_type),
         Some(argument_offset),
         None,
@@ -987,6 +997,7 @@ fn map_class_generic_params(
             template_result,
             codebase,
             interner,
+            file_path,
             &Some(arg_value_type),
             Some(argument_offset),
             None,
@@ -1093,6 +1104,7 @@ fn handle_possibly_matching_inout_param(
             template_result,
             codebase,
             statements_analyzer.interner,
+            statements_analyzer.get_file_path(),
             &if let Some(arg_type) = &arg_type {
                 Some(arg_type)
             } else {
@@ -1121,6 +1133,7 @@ fn handle_possibly_matching_inout_param(
     type_expander::expand_union(
         codebase,
         &Some(statements_analyzer.interner),
+        &statements_analyzer.file_analyzer.file_source.file_path,
         &mut inout_type,
         &TypeExpansionOptions {
             self_class: if let Some(classlike_storage) = classlike_storage {
@@ -1139,7 +1152,6 @@ fn handle_possibly_matching_inout_param(
             } else {
                 false
             },
-            file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
             ..Default::default()
         },
         &mut analysis_data.data_flow_graph,
@@ -1261,6 +1273,7 @@ fn refine_template_result_for_functionlike(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
+    file_path: &FilePath,
     method_call_info: &Option<MethodCallInfo>,
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
@@ -1270,6 +1283,7 @@ fn refine_template_result_for_functionlike(
     let template_types = get_template_types_for_class_member(
         codebase,
         analysis_data,
+        file_path,
         classlike_storage,
         if let Some(method_call_info) = method_call_info {
             Some(&method_call_info.self_fq_classlike_name)
@@ -1296,6 +1310,7 @@ fn refine_template_result_for_functionlike(
 pub(crate) fn get_template_types_for_class_member(
     codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
+    file_path: &FilePath,
     declaring_classlike_storage: Option<&ClassLikeInfo>,
     appearing_class_name: Option<&StrId>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
@@ -1404,6 +1419,7 @@ pub(crate) fn get_template_types_for_class_member(
                         type_expander::expand_union(
                             codebase,
                             &None,
+                            file_path,
                             &mut v,
                             &TypeExpansionOptions {
                                 self_class: appearing_class_name,

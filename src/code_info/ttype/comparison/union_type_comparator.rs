@@ -1,3 +1,4 @@
+use crate::code_location::FilePath;
 use crate::ttype::{template::TemplateBound, wrap_atomic};
 use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
 
@@ -26,6 +27,7 @@ struct CoercionTracker {
 
 pub fn is_contained_by(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type: &TUnion,
     container_type: &TUnion,
     ignore_null: bool,
@@ -99,6 +101,7 @@ pub fn is_contained_by(
 
         if let Some(atomic_union_check_result) = check_atomic_contained_by_union(
             codebase,
+            file_path,
             input_type,
             input_type_part,
             container_type,
@@ -137,6 +140,7 @@ pub fn is_contained_by(
 
 fn check_atomic_contained_by_union(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type: &TUnion,
     input_type_part: &TAtomic,
     container_type: &TUnion,
@@ -163,6 +167,7 @@ fn check_atomic_contained_by_union(
     for container_type_part in container_atomic_types {
         if let Some(true) = check_atomic_contained_by_atomic(
             codebase,
+            file_path,
             input_type,
             input_type_part,
             container_type,
@@ -207,6 +212,7 @@ fn check_atomic_contained_by_union(
 
 fn check_atomic_contained_by_atomic(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type: &TUnion,
     input_type_part: &TAtomic,
     container_type: &TUnion,
@@ -242,6 +248,7 @@ fn check_atomic_contained_by_atomic(
     let mut atomic_comparison_result = TypeComparisonResult::new();
     let is_atomic_contained_by = atomic_type_comparator::is_contained_by(
         codebase,
+        file_path,
         input_type_part,
         container_type_part,
         comparison_config.inside_assertion,
@@ -351,6 +358,7 @@ fn check_atomic_contained_by_atomic(
 
 pub(crate) fn can_be_contained_by(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type: &TUnion,
     container_type: &TUnion,
     ignore_null: bool,
@@ -379,6 +387,7 @@ pub(crate) fn can_be_contained_by(
 
             let is_atomic_contained_by = atomic_type_comparator::is_contained_by(
                 codebase,
+                file_path,
                 input_type_part,
                 container_type_part,
                 false,
@@ -400,6 +409,7 @@ pub(crate) fn can_be_contained_by(
 
 pub fn can_expression_types_be_identical(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     type1: &TUnion,
     type2: &TUnion,
     inside_assertion: bool,
@@ -416,6 +426,7 @@ pub fn can_expression_types_be_identical(
         for type2_part in &type2.types {
             if atomic_type_comparator::can_be_identical(
                 codebase,
+                file_path,
                 type1_part,
                 type2_part,
                 inside_assertion,

@@ -1,3 +1,4 @@
+use crate::code_location::FilePath;
 use crate::ttype::wrap_atomic;
 use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, GenericParent};
 
@@ -5,6 +6,7 @@ use super::{type_comparison_result::TypeComparisonResult, union_type_comparator}
 
 pub(crate) fn is_shallowly_contained_by(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
     inside_assertion: bool,
@@ -24,6 +26,7 @@ pub(crate) fn is_shallowly_contained_by(
         for intersection_input_type in intersection_input_types.0.iter() {
             if is_intersection_shallowly_contained_by(
                 codebase,
+                file_path,
                 intersection_input_type,
                 intersection_container_type,
                 inside_assertion,
@@ -41,6 +44,7 @@ pub(crate) fn is_shallowly_contained_by(
 
 fn is_intersection_shallowly_contained_by(
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     intersection_input_type: &TAtomic,
     intersection_container_type: &TAtomic,
     inside_assertion: bool,
@@ -125,6 +129,7 @@ fn is_intersection_shallowly_contained_by(
 
         return union_type_comparator::is_contained_by(
             codebase,
+            file_path,
             input_extends,
             &wrap_atomic(intersection_container_type),
             false,

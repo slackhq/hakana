@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
     classlike_info::Variance,
+    code_location::FilePath,
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
@@ -946,6 +947,7 @@ fn scrape_type_properties(
                 if extra_types.is_some() || existing_extra_types.is_some() {
                     if object_type_comparator::is_shallowly_contained_by(
                         codebase,
+                        &FilePath(StrId::EMPTY),
                         existing_type,
                         &atomic,
                         false,
@@ -957,6 +959,7 @@ fn scrape_type_properties(
 
                     if object_type_comparator::is_shallowly_contained_by(
                         codebase,
+                        &FilePath(StrId::EMPTY),
                         &atomic,
                         existing_type,
                         false,

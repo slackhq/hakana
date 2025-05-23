@@ -180,12 +180,12 @@ pub(crate) fn analyze(
                 type_expander::expand_union(
                     codebase,
                     &Some(statements_analyzer.interner),
+                    &statements_analyzer.file_analyzer.file_source.file_path,
                     &mut class_property_type,
                     &TypeExpansionOptions {
                         self_class: Some(&declaring_class_storage.name),
                         static_class_type: StaticClassType::Name(&declaring_class_storage.name),
                         parent_class: declaring_class_storage.direct_parent_class.as_ref(),
-                        file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
                         ..Default::default()
                     },
                     &mut analysis_data.data_flow_graph,
@@ -197,6 +197,7 @@ pub(crate) fn analyze(
 
             let type_match_found = union_type_comparator::is_contained_by(
                 codebase,
+                statements_analyzer.get_file_path(),
                 assign_value_type,
                 &class_property_type,
                 false,

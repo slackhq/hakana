@@ -86,6 +86,7 @@ pub(crate) fn fetch(
         type_expander::expand_union(
             codebase,
             &Some(statements_analyzer.interner),
+            statements_analyzer.get_file_path(),
             &mut return_type_candidate,
             &TypeExpansionOptions {
                 self_class: Some(&method_id.0),
@@ -108,6 +109,7 @@ pub(crate) fn fetch(
     type_expander::expand_union(
         codebase,
         &Some(statements_analyzer.interner),
+        &statements_analyzer.file_analyzer.file_source.file_path,
         &mut return_type_candidate,
         &TypeExpansionOptions {
             self_class: Some(&method_id.0),
@@ -123,7 +125,6 @@ pub(crate) fn fetch(
             parent_class: classlike_storage.direct_parent_class.as_ref(),
             function_is_final: method_storage.is_final,
             expand_generic: true,
-            file_path: Some(&statements_analyzer.file_analyzer.file_source.file_path),
             ..Default::default()
         },
         &mut analysis_data.data_flow_graph,
