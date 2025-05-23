@@ -78,12 +78,12 @@ pub(crate) fn analyze(
             }
         }
 
-        let mut class_types = class_type.types.iter().collect::<Vec<_>>();
+        let mut class_types = class_type.types.iter().cloned().collect::<Vec<_>>();
 
         let type_variable_bounds = analysis_data.type_variable_bounds.clone();
 
         while let Some(lhs_atomic_type) = class_types.pop() {
-            match lhs_atomic_type {
+            match &lhs_atomic_type {
                 TAtomic::TNull => {
                     if nullsafe {
                         has_nullsafe_null = true;
@@ -109,20 +109,37 @@ pub(crate) fn analyze(
                 }
                 TAtomic::TGenericParam { as_type, .. }
                 | TAtomic::TClassTypeConstant { as_type, .. } => {
-                    class_types.extend(&as_type.types);
+                    class_types.extend(as_type.types.iter().cloned());
                     continue;
                 }
                 TAtomic::TTypeAlias {
-                    as_type: Some(as_type),
+                    name: type_name,
+                    type_params,
+                    as_type,
                     ..
                 } => {
-                    class_types.extend(&as_type.types);
-                    continue;
+                    // Try to expand the type alias on demand
+                    if let Some((expanded_types, _)) =
+                        hakana_code_info::ttype::type_expander::expand_type_alias_on_demand(
+                            statements_analyzer.codebase,
+                            statements_analyzer.interner,
+                            &mut analysis_data.data_flow_graph,
+                            type_name,
+                            type_params,
+                            Some(&statements_analyzer.file_analyzer.file_source.file_path),
+                        )
+                    {
+                        class_types.extend(expanded_types);
+                        continue;
+                    } else if let Some(as_type) = as_type {
+                        class_types.extend(as_type.types.iter().cloned());
+                        continue;
+                    }
                 }
                 TAtomic::TTypeVariable { name } => {
                     if let Some(bounds) = type_variable_bounds.get(name) {
                         for lower_bound_info in &bounds.0 {
-                            class_types.extend(&lower_bound_info.bound_type.types);
+                            class_types.extend(lower_bound_info.bound_type.types.iter().cloned());
                         }
                     }
                     continue;
@@ -136,7 +153,7 @@ pub(crate) fn analyze(
                 pos,
                 analysis_data,
                 context,
-                lhs_atomic_type,
+                &lhs_atomic_type,
                 &lhs_var_id,
                 &mut analysis_result,
             )?;

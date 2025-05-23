@@ -310,21 +310,49 @@ pub(crate) fn get_array_access_type_given_offset(
         );
     }
 
-    let mut array_atomic_types = array_type.types.iter().collect::<Vec<_>>();
+    let mut array_atomic_types = array_type.types.iter().cloned().collect::<Vec<_>>();
 
     let mut stmt_type = None;
 
     while let Some(atomic_var_type) = array_atomic_types.pop() {
         if let TAtomic::TGenericParam { as_type, .. }
-        | TAtomic::TClassTypeConstant { as_type, .. }
-        | TAtomic::TTypeAlias {
-            as_type: Some(as_type),
-            ..
-        } = atomic_var_type
+        | TAtomic::TClassTypeConstant { as_type, .. } = &atomic_var_type
         {
-            array_atomic_types.extend(&as_type.types);
+            array_atomic_types.extend(as_type.types.iter().cloned());
             continue;
         }
+
+        if let TAtomic::TTypeAlias {
+            name: type_name,
+            type_params,
+            ..
+        } = &atomic_var_type
+        {
+            // Try to expand the type alias on demand
+            if let Some((expanded_types, _)) =
+                hakana_code_info::ttype::type_expander::expand_type_alias_on_demand(
+                    statements_analyzer.codebase,
+                    statements_analyzer.interner,
+                    &mut analysis_data.data_flow_graph,
+                    type_name,
+                    type_params,
+                    Some(&statements_analyzer.file_analyzer.file_source.file_path),
+                )
+            {
+                array_atomic_types.extend(expanded_types);
+                continue;
+            }
+        }
+
+        let atomic_var_type = if let TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        } = &atomic_var_type
+        {
+            as_type.get_single()
+        } else {
+            &atomic_var_type
+        };
 
         match atomic_var_type {
             TAtomic::TKeyset { .. } | TAtomic::TVec { .. } => {
@@ -543,7 +571,7 @@ pub(crate) fn get_array_access_type_given_offset(
     if let Some(array_access_type) = array_access_type {
         array_access_type
     } else {
-        // shouldn’t happen, but don’t crash
+        // shouldn't happen, but don't crash
         get_mixed_any()
     }
 }

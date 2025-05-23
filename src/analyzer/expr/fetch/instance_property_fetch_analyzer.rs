@@ -5,10 +5,9 @@ use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
+use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null, type_expander};
 use hakana_code_info::var_name::VarName;
 use hakana_code_info::EFFECT_READ_PROPS;
-use itertools::Itertools;
 use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
@@ -93,21 +92,41 @@ pub(crate) fn analyze(
     let mut has_nullsafe_null = false;
 
     if let Some(prop_name) = prop_name {
-        let mut var_atomic_types = stmt_var_type.types.iter().collect_vec();
+        let mut var_atomic_types: Vec<TAtomic> = stmt_var_type.types.iter().cloned().collect();
         while let Some(mut var_atomic_type) = var_atomic_types.pop() {
             if let TAtomic::TGenericParam { as_type, .. }
-            | TAtomic::TClassTypeConstant { as_type, .. } = var_atomic_type
+            | TAtomic::TClassTypeConstant { as_type, .. } = &var_atomic_type
             {
-                var_atomic_types.extend(&as_type.types);
+                var_atomic_types.extend(as_type.types.iter().cloned());
                 continue;
+            }
+
+            if let TAtomic::TTypeAlias {
+                name: type_name,
+                type_params,
+                ..
+            } = &var_atomic_type
+            {
+                // Try to expand the type alias on demand
+                if let Some((expanded_types, _)) = type_expander::expand_type_alias_on_demand(
+                    statements_analyzer.codebase,
+                    statements_analyzer.interner,
+                    &mut analysis_data.data_flow_graph,
+                    type_name,
+                    type_params,
+                    Some(&statements_analyzer.file_analyzer.file_source.file_path),
+                ) {
+                    var_atomic_types.extend(expanded_types);
+                    continue;
+                }
             }
 
             if let TAtomic::TTypeAlias {
                 as_type: Some(as_type),
                 ..
-            } = var_atomic_type
+            } = &var_atomic_type
             {
-                var_atomic_type = as_type.get_single();
+                var_atomic_type = as_type.get_single().clone();
             }
 
             if let TAtomic::TNull = var_atomic_type {
@@ -138,7 +157,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 in_assignment,
-                var_atomic_type.clone(),
+                var_atomic_type,
                 &prop_name,
                 &stmt_var_id,
             )?;
