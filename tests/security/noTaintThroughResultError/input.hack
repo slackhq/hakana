@@ -1,7 +1,7 @@
-<<__Sealed(ResultSuccess::class, ResultError::class)>>
+<<__Sealed(ResultOk::class, ResultError::class)>>
 abstract class Result<+T, +TErr> {}
 
-final class ResultSuccess<+T> extends Result<T, nothing> {
+final class ResultOk<+T> extends Result<T, nothing> {
 	public function __construct(private T $t) {}
 	public function get(): T {
 		return $this->t;
@@ -23,12 +23,12 @@ function foo(): Result<string, string> {
     if ($a is ResultError<_>) {
         return $a;
     }
-    return new ResultSuccess("cool");
+    return new ResultOk("cool");
 }
 
 function bar(): void {
     $b = foo();
-    if ($b is ResultSuccess<_>) {
+    if ($b is ResultOk<_>) {
         echo $b->get();
     }
 }
@@ -37,5 +37,5 @@ function get_a_result(): Result<string, string> {
     if (rand(0, 1)) {
         return new ResultError("bad");
     }
-    return new ResultSuccess(HH\global_get('_GET')['arr']);
+    return new ResultOk(HH\global_get('_GET')['arr']);
 }

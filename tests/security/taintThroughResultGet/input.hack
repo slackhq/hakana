@@ -3,7 +3,7 @@ abstract class Result<+T, +TErr> {
 	abstract public function get(): T;
 }
 
-final class ResultSuccess<+T> extends Result<T, nothing> {
+final class ResultOk<+T> extends Result<T, nothing> {
 	public function __construct(private T $t) {
 		parent::__construct(null);
 	}
@@ -27,11 +27,11 @@ function bar(): void {
 
 function foo(shape('a' => string) $args): void {
     $a = get_a_result($args);
-    if ($a is ResultSuccess<_>) {
+    if ($a is ResultOk<_>) {
         echo $a->get();
     }
 }
 
 function get_a_result(shape('a' => string) $args): Result<string, nothing> {
-    return new ResultSuccess($args['a']);
+    return new ResultOk($args['a']);
 }

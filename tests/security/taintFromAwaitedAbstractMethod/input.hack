@@ -11,7 +11,7 @@ abstract class Result<+T, +TErr> {
 	abstract public function get(): T;
 }
 
-final class ResultSuccess<+T> extends Result<T, nothing> {
+final class ResultOk<+T> extends Result<T, nothing> {
 	public function __construct(private T $t) {}
 	public function get(): T {
 		return $this->t;
@@ -36,7 +36,7 @@ abstract class InputHandler<TArgs> {
 
     public async function handleResult(TArgs $args): Awaitable<Result<mixed>> {
         $a = await $this->getResult($args);
-        if ($a is ResultSuccess<_>) {
+        if ($a is ResultOk<_>) {
             echo $a->get();
         }
         return $a;
@@ -51,6 +51,6 @@ abstract class BHandler extends InputHandler<my_args_t> {}
 
 final class MyHandler extends BHandler {
     public async function getResult(my_args_t $args): Awaitable<Result<string>> {
-        return new ResultSuccess($args['a']);
+        return new ResultOk($args['a']);
     }
 }

@@ -1,7 +1,7 @@
-<<__Sealed(ResultSuccess::class, ResultError::class)>>
+<<__Sealed(ResultOk::class, ResultError::class)>>
 abstract class Result<+T, +TErr> {}
 
-final class ResultSuccess<+T> extends Result<T, nothing> {
+final class ResultOk<+T> extends Result<T, nothing> {
 	public function __construct(private T $t) {}
 	public function get(): T {
 		return $this->t;
@@ -23,7 +23,7 @@ function foo(): Result<string, string> {
     if ($a is ResultError<_>) {
         return $a;
     }
-    return new ResultSuccess("cool");
+    return new ResultOk("cool");
 }
 
 function bar(): void {
@@ -38,5 +38,5 @@ function get_a_result(): Result<string, string> {
         /* HAKANA_IGNORE[PossiblyUndefinedStringArrayOffset] */
         return new ResultError((string)(HH\global_get('_GET') as dict<_, _>)['bad']);
     }
-    return new ResultSuccess("good");
+    return new ResultOk("good");
 }

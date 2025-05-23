@@ -1,6 +1,6 @@
 abstract class Result<+T> {
 	public function getOrNull(): ?T {
-		if ($this is ResultSuccess<_>) {
+		if ($this is ResultOk<_>) {
 			return $this->get();
 		}
 
@@ -9,7 +9,7 @@ abstract class Result<+T> {
 	abstract public function get(): T;
 }
 
-final class ResultSuccess<+T> extends Result<T> {
+final class ResultOk<+T> extends Result<T> {
 	public function __construct(private T $t) {}
 
 	public function get(): T {
@@ -18,11 +18,11 @@ final class ResultSuccess<+T> extends Result<T> {
 }
 
 function handleUnsafe(): void {
-    $res = new ResultSuccess(HH\global_get('_GET')['a']);
+    $res = new ResultOk(HH\global_get('_GET')['a']);
     $res->getOrNull();
 }
 
 function safe(string $a): void {
-    $res = new ResultSuccess($a);
+    $res = new ResultOk($a);
     echo $res->getOrNull();
 }

@@ -1,9 +1,9 @@
-<<__Sealed(ResultSuccess::class, ResultError::class)>>
+<<__Sealed(ResultOk::class, ResultError::class)>>
 abstract class Result<+T, +TErr> {
 	abstract public function get(): T;
 }
 
-final class ResultSuccess<+T> extends Result<T, nothing> {
+final class ResultOk<+T> extends Result<T, nothing> {
 	public function __construct(private T $t) {}
 	public function get(): T {
 		return $this->t;
@@ -17,7 +17,7 @@ final class ResultError extends Result<nothing, string> {
 	}
 }
 
-function foo(vec<Result<string>> $arr, ResultSuccess<int> $b): void {
+function foo(vec<Result<string>> $arr, ResultOk<int> $b): void {
     $arr[] = $b;
 
     $i = 0;

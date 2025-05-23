@@ -1,22 +1,21 @@
-<<__Sealed(ResultOk::class, ResultError::class)>>
-abstract class Result<+T, +TErr> {}
+abstract class ResultBase<+T, +TErr> {}
 
-final class ResultOk<+T> extends Result<T, nothing> {
+final class ResultOk<+T> extends ResultBase<T, nothing> {
 	public function __construct(private T $t) {}
 	public function get(): T {
 		return $this->t;
 	}
 }
 
-final class ResultError<+T> extends Result<nothing, T> {
+final class ResultError<+T> extends ResultBase<nothing, T> {
 	public function __construct(private T $message) {}
-    public function get(): nothing {
-		throw new \Exception('bad');
-	}
     public function getError(): T {
 		return $this->message;
 	}
 }
+
+<<file: __EnableUnstableFeatures('case_types')>>
+case type Result<+T, +TErr> = ResultOk<T> | ResultError<TErr>;
 
 function foo<T as arraykey>(Result<T, int> $a): void {
     if ($a is ResultError<_>) {
