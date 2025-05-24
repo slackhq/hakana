@@ -236,6 +236,7 @@ fn scrape_type_properties(
             combination.falsy_mixed = Some(false);
             combination.truthy_mixed = Some(false);
             combination.mixed_from_loop_isset = Some(false);
+            combination.nonnull_mixed = Some(false);
             combination.vanilla_mixed = true;
             combination.has_mixed = true;
 
