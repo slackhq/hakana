@@ -434,7 +434,12 @@ fn expand_atomic(
         }
 
         return;
-    } else if let TAtomic::TTypeAlias { type_params, .. } = return_type_part {
+    } else if let TAtomic::TTypeAlias {
+        as_type,
+        type_params,
+        ..
+    } = return_type_part
+    {
         if let Some(type_params) = type_params {
             for param_type in type_params {
                 expand_union(
@@ -447,6 +452,18 @@ fn expand_atomic(
                     cost,
                 );
             }
+        }
+
+        if let Some(as_type) = as_type {
+            expand_union(
+                codebase,
+                interner,
+                file_path,
+                as_type,
+                options,
+                data_flow_graph,
+                cost,
+            );
         }
 
         return;
