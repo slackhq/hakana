@@ -629,6 +629,10 @@ fn handle_literal_negated_equality(
                 did_remove_type = true;
                 acceptable_types.push(existing_atomic_type);
             }
+            TAtomic::TMixed {} | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset => {
+                did_remove_type = true;
+                acceptable_types.push(existing_atomic_type);
+            }
             _ => {
                 acceptable_types.push(existing_atomic_type);
             }
