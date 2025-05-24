@@ -563,7 +563,7 @@ fn invalidate_changed_codebase_elements(
         for ast_node in &file_storage.ast_nodes {
             match codebase.symbols.all.remove(&ast_node.name) {
                 Some(kind) => {
-                    if let SymbolKind::TypeDefinition = kind {
+                    if let SymbolKind::TypeDefinition | SymbolKind::NewtypeDefinition = kind {
                         codebase.type_definitions.remove(&ast_node.name);
                     } else if let Some(classlike_info) =
                         codebase.classlike_infos.remove(&ast_node.name)

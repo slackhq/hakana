@@ -455,7 +455,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             type_definition.shape_field_taints = Some(shape_sources);
         }
 
-        self.codebase.symbols.add_typedef_name(type_name);
+        self.codebase.symbols.add_typedef_name(type_name, source_file.is_some());
         self.codebase
             .type_definitions
             .insert(type_name, type_definition);

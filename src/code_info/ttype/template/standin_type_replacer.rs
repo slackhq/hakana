@@ -1462,6 +1462,7 @@ pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Ve
                     .as_type
                     .as_ref()
                     .map(|t| Box::new(t.clone())),
+                newtype: true,
             }]
         } else {
             typedefinition_info
@@ -1741,6 +1742,7 @@ fn find_matching_atomic_types_for_template(
                                         type_params[1].clone(),
                                     ]),
                                     as_type: None,
+                                    newtype: true,
                                 });
                             }
                         }

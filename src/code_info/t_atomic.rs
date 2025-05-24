@@ -157,6 +157,7 @@ pub enum TAtomic {
     TTrue,
     TTypeAlias {
         name: StrId,
+        newtype: bool,
         type_params: Option<Vec<TUnion>>,
         as_type: Option<Box<TUnion>>,
     },
@@ -515,12 +516,19 @@ impl TAtomic {
                 }
             }
             TAtomic::TTypeAlias {
-                name, type_params, ..
+                name,
+                type_params,
+                newtype,
+                ..
             } => {
                 refs.push(*name);
+                let mut str = String::new();
+                if *newtype {
+                    str += "new";
+                }
+                str += "type-alias(";
                 match type_params {
                     None => {
-                        let mut str = "type-alias(".to_string();
                         if let Some(interner) = interner {
                             str += interner.lookup(name);
                         } else {
@@ -530,8 +538,6 @@ impl TAtomic {
                         str
                     }
                     Some(type_params) => {
-                        let mut str = String::new();
-                        str += "type-alias(";
                         if let Some(interner) = interner {
                             str += interner.lookup(name);
                         } else {
@@ -1437,6 +1443,7 @@ impl TAtomic {
                 name,
                 as_type: Some(as_type),
                 type_params: Some(_),
+                ..
             } => {
                 if name == &StrId::LIB_REGEX_PATTERN {
                     if let TAtomic::TLiteralString { value, .. } = as_type.get_single() {
@@ -1851,6 +1858,15 @@ pub fn populate_atomic_type(
                             name: *name,
                             type_params: type_params.clone(),
                             as_type: None,
+                            newtype: false,
+                        };
+                    }
+                    SymbolKind::NewtypeDefinition => {
+                        *t_atomic = TAtomic::TTypeAlias {
+                            name: *name,
+                            type_params: type_params.clone(),
+                            as_type: None,
+                            newtype: true,
                         };
                     }
                     _ => {

@@ -333,6 +333,7 @@ pub(crate) fn scan(
                             wrap_atomic(underlying_enum_type.clone()),
                         ]),
                         as_type: None,
+                        newtype: true,
                     }))],
                 );
             }

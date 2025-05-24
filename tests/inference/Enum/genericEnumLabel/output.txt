@@ -1,1 +1,1 @@
-ERROR: InvalidArgument - input.hack:22:13 - Argument 1 of SomeTableWB::eq expects type-alias(HH\EnumClass\Label<SomeTableColumnType, Column<any>>), different type #nome provided
+ERROR: InvalidArgument - input.hack:22:13 - Argument 1 of SomeTableWB::eq expects newtype-alias(HH\EnumClass\Label<SomeTableColumnType, Column<any>>), different type #nome provided

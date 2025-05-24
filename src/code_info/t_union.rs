@@ -620,6 +620,7 @@ impl TUnion {
                     name,
                     as_type: Some(as_type),
                     type_params: Some(_),
+                    ..
                 } => {
                     if name == &StrId::LIB_REGEX_PATTERN {
                         if let TAtomic::TLiteralString { value, .. } = as_type.get_single() {

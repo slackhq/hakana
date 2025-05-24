@@ -445,6 +445,7 @@ fn expand_atomic(
         name: type_name,
         type_params,
         as_type,
+        ..
     } = return_type_part
     {
         if !options.expand_typenames {

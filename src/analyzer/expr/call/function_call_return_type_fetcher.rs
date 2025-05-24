@@ -822,6 +822,7 @@ fn get_type_structure_type(
                             _ => get_mixed_any(),
                         }]),
                         as_type: None,
+                        newtype: true,
                     }));
                 }
             }

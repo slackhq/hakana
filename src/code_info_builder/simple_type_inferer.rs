@@ -302,6 +302,7 @@ pub fn get_atomic_for_prefix_regex_string(mut inner_text: String) -> TAtomic {
         as_type: Some(Box::new(wrap_atomic(TAtomic::TLiteralString {
             value: inner_text,
         }))),
+        newtype: true,
     }
 }
 

@@ -473,6 +473,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 as_type: Some(type_1_as),
                 name,
                 type_params,
+                newtype,
             },
             _,
         ) => {
@@ -481,6 +482,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     name: *name,
                     type_params: type_params.clone(),
                     as_type: Some(Box::new(intersected)),
+                    newtype: *newtype,
                 },
             )
         }
@@ -490,6 +492,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 as_type: Some(type_2_as),
                 name,
                 type_params,
+                newtype,
             },
         ) => {
             return intersect_union_with_atomic(codebase, file_path, type_2_as, type_1_atomic).map(
@@ -497,6 +500,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     name: *name,
                     type_params: type_params.clone(),
                     as_type: Some(Box::new(intersected)),
+                    newtype: *newtype,
                 },
             )
         }

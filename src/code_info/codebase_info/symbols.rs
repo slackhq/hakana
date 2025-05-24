@@ -10,6 +10,7 @@ pub enum SymbolKind {
     Trait,
     Interface,
     TypeDefinition,
+    NewtypeDefinition,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -50,7 +51,12 @@ impl Symbols {
         self.all.insert(*fq_class_name, SymbolKind::Enum);
     }
 
-    pub fn add_typedef_name(&mut self, fq_class_name: StrId) {
-        self.all.insert(fq_class_name, SymbolKind::TypeDefinition);
+    pub fn add_typedef_name(&mut self, fq_class_name: StrId, is_newtype: bool) {
+        if is_newtype {
+            self.all
+                .insert(fq_class_name, SymbolKind::NewtypeDefinition);
+        } else {
+            self.all.insert(fq_class_name, SymbolKind::TypeDefinition);
+        }
     }
 }

@@ -130,7 +130,9 @@ pub fn replace(
                                 as_type: Box::new(TAtomic::TObject),
                             });
                         } else if let TAtomic::TTypeAlias {
-                            name: type_name, ..
+                            name: type_name,
+                            newtype: type_newtype,
+                            ..
                         } = template_type_part
                         {
                             class_template_type = Some(TAtomic::TTypename {
@@ -138,6 +140,7 @@ pub fn replace(
                                     name: *type_name,
                                     type_params: None,
                                     as_type: None,
+                                    newtype: *type_newtype,
                                 }),
                             });
                         } else if let TAtomic::TGenericParam {

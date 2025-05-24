@@ -135,7 +135,7 @@ impl CodebaseInfo {
     pub fn typedef_exists(&self, fq_alias_name: &StrId) -> bool {
         matches!(
             self.symbols.all.get(fq_alias_name),
-            Some(SymbolKind::TypeDefinition)
+            Some(SymbolKind::TypeDefinition | SymbolKind::NewtypeDefinition)
         )
     }
 

@@ -1,1 +1,1 @@
-ERROR: ImpossibleTypeComparison - input.hack:4:9 - Type vec<type-alias(my_id_t)> is never =tuple(int(0))
+ERROR: ImpossibleTypeComparison - input.hack:4:9 - Type vec<newtype-alias(my_id_t)> is never =tuple(int(0))

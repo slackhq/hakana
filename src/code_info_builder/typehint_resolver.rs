@@ -436,6 +436,7 @@ fn get_reference_type(
             name: StrId::MEMBER_OF,
             type_params: Some(type_params),
             as_type: None,
+            newtype: true,
         };
     }
 
@@ -804,7 +805,7 @@ pub fn get_type_from_hint(
                 resolved_names,
                 file_path,
                 hint.0.start_offset() as u32,
-            )
+            );
         }
         Hint_::Hwildcard => TAtomic::TPlaceholder,
         Hint_::HclassPtr(_, hint) => get_classname_type_from_hint(
