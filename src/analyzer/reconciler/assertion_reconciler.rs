@@ -473,7 +473,9 @@ pub(crate) fn intersect_atomic_with_atomic(
             return None;
         }
         (type_1_atomic, TAtomic::TArraykey { .. }) => {
-            if type_1_atomic.is_int()
+            if type_1_atomic.is_mixed() {
+                return Some(TAtomic::TArraykey { from_any: false });
+            } else if type_1_atomic.is_int()
                 || type_1_atomic.is_string()
                 || matches!(type_1_atomic, TAtomic::TArraykey { .. })
             {
@@ -488,7 +490,9 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (type_1_atomic, TAtomic::TNum) => {
-            if type_1_atomic.is_int() || matches!(type_1_atomic, TAtomic::TFloat { .. }) {
+            if type_1_atomic.is_mixed() {
+                return Some(TAtomic::TNum);
+            } else if type_1_atomic.is_int() || matches!(type_1_atomic, TAtomic::TFloat { .. }) {
                 return Some(type_1_atomic.clone());
             } else if let TAtomic::TClassTypeConstant { .. } = type_1_atomic {
                 *did_remove_type = true;
@@ -930,7 +934,10 @@ pub(crate) fn intersect_atomic_with_atomic(
             TAtomic::TNamedObject {
                 name: StrId::XHP_CHILD,
                 ..
-            },
+            }
+            | TAtomic::TMixed
+            | TAtomic::TMixedWithFlags(..)
+            | TAtomic::TMixedFromLoopIsset,
             TAtomic::TDict(..),
         ) => {
             let mut type_2_atomic = type_2_atomic.clone();
