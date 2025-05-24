@@ -932,6 +932,45 @@ pub(crate) fn intersect_atomic_with_atomic(
         }
         (
             TAtomic::TNamedObject {
+                name: type_1_name,
+                type_params: Some(type_1_params),
+                ..
+            },
+            TAtomic::TKeyset {
+                type_param: type_2_param,
+            },
+        ) => {
+            if type_2_param.is_placeholder() {
+                if type_1_name == &StrId::CONTAINER {
+                    return intersect_union_with_atomic(
+                        statements_analyzer,
+                        analysis_data,
+                        &type_1_params[0],
+                        &TAtomic::TArraykey { from_any: true },
+                        pos,
+                    )
+                    .map(|intersected| TAtomic::TKeyset {
+                        type_param: Box::new(intersected),
+                    });
+                } else if type_1_name == &StrId::KEYED_CONTAINER || type_1_name == &StrId::ANY_ARRAY
+                {
+                    return intersect_union_with_atomic(
+                        statements_analyzer,
+                        analysis_data,
+                        &type_1_params[1],
+                        &TAtomic::TArraykey { from_any: true },
+                        pos,
+                    )
+                    .map(|intersected| TAtomic::TKeyset {
+                        type_param: Box::new(intersected),
+                    });
+                } else {
+                    return None;
+                };
+            }
+        }
+        (
+            TAtomic::TNamedObject {
                 name: StrId::XHP_CHILD,
                 ..
             }
@@ -1175,7 +1214,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 enum_underlying_type,
                 enum_as_type,
                 type_2_atomic,
-            )
+            );
         }
         (
             TAtomic::TEnum {
@@ -1335,6 +1374,27 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_2_known_items,
                 pos,
             );
+        }
+        (
+            TAtomic::TKeyset {
+                type_param: type_1_param,
+                ..
+            },
+            TAtomic::TKeyset {
+                type_param: type_2_param,
+                ..
+            },
+        ) => {
+            return intersect_union_with_union(
+                statements_analyzer,
+                analysis_data,
+                &type_1_param,
+                &type_2_param,
+                pos,
+            )
+            .map(|intersected| TAtomic::TKeyset {
+                type_param: Box::new(intersected),
+            });
         }
         (
             TAtomic::TNamedObject {
