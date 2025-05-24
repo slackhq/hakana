@@ -708,6 +708,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             | TAtomic::TMixedFromLoopIsset,
             TAtomic::TInt,
         ) => {
+            *did_remove_type = true;
             return Some(TAtomic::TInt);
         }
         (
@@ -1812,6 +1813,10 @@ pub(crate) fn intersect_union_with_union(
     pos: Option<&Pos>,
     did_remove_type: &mut bool,
 ) -> Option<TUnion> {
+    if type_1_param == type_2_param {
+        return Some(type_1_param.clone());
+    }
+
     let type_param = match (type_1_param.is_single(), type_2_param.is_single()) {
         (true, true) => intersect_atomic_with_atomic(
             statements_analyzer,
@@ -1839,37 +1844,33 @@ pub(crate) fn intersect_union_with_union(
             did_remove_type,
         ),
         (false, false) => {
-            if type_1_param == type_2_param {
-                Some(type_1_param.clone())
-            } else {
-                let new_types = type_2_param
+            let new_types = type_2_param
+                .types
+                .iter()
+                .flat_map(|t| {
+                    intersect_union_with_atomic(
+                        statements_analyzer,
+                        analysis_data,
+                        type_1_param,
+                        t,
+                        pos,
+                        did_remove_type,
+                    )
+                    .unwrap_or(get_nothing())
                     .types
-                    .iter()
-                    .flat_map(|t| {
-                        intersect_union_with_atomic(
-                            statements_analyzer,
-                            analysis_data,
-                            type_1_param,
-                            t,
-                            pos,
-                            did_remove_type,
-                        )
-                        .unwrap_or(get_nothing())
-                        .types
-                    })
-                    .collect::<Vec<_>>();
+                })
+                .collect::<Vec<_>>();
 
-                let combined_union = TUnion::new(type_combiner::combine(
-                    new_types,
-                    statements_analyzer.codebase,
-                    false,
-                ));
+            let combined_union = TUnion::new(type_combiner::combine(
+                new_types,
+                statements_analyzer.codebase,
+                false,
+            ));
 
-                if combined_union.is_nothing() {
-                    None
-                } else {
-                    Some(combined_union)
-                }
+            if combined_union.is_nothing() {
+                None
+            } else {
+                Some(combined_union)
             }
         }
     };
