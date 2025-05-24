@@ -168,6 +168,19 @@ pub fn is_contained_by(
                     }
                 }
             }
+        } else if let TAtomic::TLiteralInt { value: input_value } = input_type_part {
+            if let Some(c) = codebase.classlike_infos.get(container_name) {
+                for (_, const_storage) in &c.constants {
+                    if let Some(TAtomic::TLiteralInt {
+                        value: inferred_value,
+                    }) = &const_storage.inferred_type
+                    {
+                        if inferred_value == input_value {
+                            return true;
+                        }
+                    }
+                }
+            }
         }
 
         return false;
@@ -251,6 +264,17 @@ pub fn is_contained_by(
         if let TAtomic::TLiteralString { value: input_value } = input_type_part {
             if let Some(c) = codebase.classlike_infos.get(container_name) {
                 if let Some(TAtomic::TLiteralString {
+                    value: inferred_value,
+                }) = &c.constants.get(member_name).unwrap().inferred_type
+                {
+                    if inferred_value == input_value {
+                        return true;
+                    }
+                }
+            }
+        } else if let TAtomic::TLiteralInt { value: input_value } = input_type_part {
+            if let Some(c) = codebase.classlike_infos.get(container_name) {
+                if let Some(TAtomic::TLiteralInt {
                     value: inferred_value,
                 }) = &c.constants.get(member_name).unwrap().inferred_type
                 {
