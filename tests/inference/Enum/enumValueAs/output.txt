@@ -1,1 +1,3 @@
-ERROR: LessSpecificArgument - input.hack:9:17 - Argument 1 of takesString expects string, parent type Foo::A provided
+ERROR: LessSpecificArgument - input.hack:19:17 - Argument 1 of takesString expects string, parent type Foo::A provided
+ERROR: RedundantTypeComparison - input.hack:21:10 - Type Bar::A is always string
+ERROR: RedundantTypeComparison - input.hack:22:10 - Type BarInt::A is always int

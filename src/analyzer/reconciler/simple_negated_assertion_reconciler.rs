@@ -1,4 +1,5 @@
-use super::simple_assertion_reconciler::{get_acceptable_type, intersect_null};
+use super::assertion_reconciler::intersect_union_with_atomic;
+use super::simple_assertion_reconciler::get_acceptable_type;
 use crate::{
     function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
     statements_analyzer::StatementsAnalyzer,
@@ -196,17 +197,17 @@ pub(crate) fn reconcile(
                 ));
             }
             TAtomic::TMixedWithFlags(_, _, _, true) => {
-                return Some(intersect_null(
-                    assertion,
-                    existing_var_type,
-                    key,
-                    negated,
-                    analysis_data,
-                    statements_analyzer,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                ));
+                return Some(
+                    intersect_union_with_atomic(
+                        statements_analyzer,
+                        analysis_data,
+                        existing_var_type,
+                        &TAtomic::TNull,
+                        pos,
+                        &mut false,
+                    )
+                    .unwrap_or(get_nothing()),
+                );
             }
             TAtomic::TFalse { .. } => {
                 return Some(subtract_false(

@@ -36,7 +36,7 @@ impl DictKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
 /// Corresponds to the `dict` type and also the `shape` type.
 pub struct TDict {
