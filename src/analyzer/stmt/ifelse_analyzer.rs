@@ -1,15 +1,13 @@
 use crate::{
     scope::{
-        control_action::ControlAction, if_scope::IfScope, loop_scope::LoopScope, var_has_root,
-        BlockContext,
+        control_action::ControlAction, if_scope::IfScope, loop_scope::LoopScope, BlockContext,
     },
     stmt_analyzer::AnalysisError,
 };
-use hakana_algebra::{clause::ClauseKey, Clause};
 use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
 use hakana_code_info::{
-    analysis_result::Replacement, issue::IssueKind, var_name::VarName, EFFECT_PURE,
-    EFFECT_READ_GLOBALS, EFFECT_READ_PROPS,
+    analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS,
+    EFFECT_READ_PROPS,
 };
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};

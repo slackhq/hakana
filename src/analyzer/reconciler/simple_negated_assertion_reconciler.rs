@@ -204,6 +204,7 @@ pub(crate) fn reconcile(
                         existing_var_type,
                         &TAtomic::TNull,
                         pos,
+                        &mut false,
                     )
                     .unwrap_or(get_nothing()),
                 );

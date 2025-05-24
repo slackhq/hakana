@@ -220,19 +220,25 @@ pub fn reconcile(
             _ => {}
         }
 
+        let mut did_remove_type = false;
+
         let mut refined_type = refine_atomic_with_union(
             statements_analyzer,
             analysis_data,
             assertion_type,
             existing_var_type,
             pos,
+            &mut did_remove_type,
         );
 
         if let Some(key) = key {
             if let Some(pos) = pos {
                 if can_report_issues {
                     if existing_var_type.types == refined_type.types {
-                        if !assertion.has_equality() && !assertion_type.is_mixed() {
+                        if !assertion.has_equality()
+                            && !assertion_type.is_mixed()
+                            && !did_remove_type
+                        {
                             trigger_issue_for_impossible(
                                 analysis_data,
                                 statements_analyzer,
@@ -289,6 +295,7 @@ fn refine_atomic_with_union(
     new_type: &TAtomic,
     existing_var_type: &TUnion,
     pos: Option<&Pos>,
+    did_remove_type: &mut bool,
 ) -> TUnion {
     let intersection_type = intersect_union_with_atomic(
         statements_analyzer,
@@ -296,6 +303,7 @@ fn refine_atomic_with_union(
         existing_var_type,
         new_type,
         pos,
+        did_remove_type,
     );
 
     if let Some(mut intersection_type) = intersection_type {
@@ -315,6 +323,7 @@ pub(crate) fn intersect_union_with_atomic(
     existing_var_type: &TUnion,
     new_type: &TAtomic,
     pos: Option<&Pos>,
+    did_remove_type: &mut bool,
 ) -> Option<TUnion> {
     let mut acceptable_types = Vec::new();
 
@@ -325,7 +334,7 @@ pub(crate) fn intersect_union_with_atomic(
             existing_atomic,
             new_type,
             pos,
-            &mut false,
+            did_remove_type,
         );
 
         if let Some(intersected_atomic_type) = intersected_atomic_type {
@@ -380,6 +389,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                         as_type,
                         type_2_atomic,
                         pos,
+                        did_remove_type,
                     )
                     .unwrap_or(get_nothing()),
                 );
@@ -460,6 +470,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                         as_type,
                         type_2_atomic,
                         pos,
+                        did_remove_type,
                     )
                     .unwrap_or(get_nothing()),
                 );
@@ -543,7 +554,6 @@ pub(crate) fn intersect_atomic_with_atomic(
                     true,
                     &mut TypeComparisonResult::new(),
                 ) {
-                    *did_remove_type = true;
                     return Some(TAtomic::TEnumLiteralCase {
                         enum_name: *enum_name,
                         member_name: *member_name,
@@ -637,6 +647,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                         as_type,
                         type_2_atomic,
                         pos,
+                        did_remove_type,
                     )
                     .unwrap_or(get_nothing()),
                 )
@@ -715,6 +726,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                         as_type,
                         type_2_atomic,
                         pos,
+                        did_remove_type,
                     )
                     .unwrap_or(get_nothing()),
                 );
@@ -752,7 +764,6 @@ pub(crate) fn intersect_atomic_with_atomic(
                     true,
                     &mut TypeComparisonResult::new(),
                 ) {
-                    *did_remove_type = true;
                     return Some(TAtomic::TEnumLiteralCase {
                         enum_name: *enum_name,
                         member_name: *member_name,
@@ -857,6 +868,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     as_type,
                     type_2_atomic,
                     pos,
+                    did_remove_type,
                 )
                 .unwrap_or(get_nothing()),
             );
@@ -948,6 +960,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                         &type_1_params[0],
                         &TAtomic::TArraykey { from_any: true },
                         pos,
+                        did_remove_type,
                     )
                     .map(|intersected| TAtomic::TKeyset {
                         type_param: Box::new(intersected),
@@ -960,6 +973,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                         &type_1_params[1],
                         &TAtomic::TArraykey { from_any: true },
                         pos,
+                        did_remove_type,
                     )
                     .map(|intersected| TAtomic::TKeyset {
                         type_param: Box::new(intersected),
@@ -1015,6 +1029,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             &type_2_atomic,
             atomic_comparison_results.type_coerced.unwrap_or(false),
             pos,
+            did_remove_type,
         );
     }
 
@@ -1042,6 +1057,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             &type_1_atomic,
             atomic_comparison_results.type_coerced.unwrap_or(false),
             pos,
+            did_remove_type,
         );
     }
 
@@ -1263,6 +1279,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_1_as,
                 type_2_atomic,
                 pos,
+                did_remove_type,
             )
             .map(|intersected| TAtomic::TTypeAlias {
                 name: *name,
@@ -1286,6 +1303,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_2_as,
                 type_1_atomic,
                 pos,
+                did_remove_type,
             )
             .map(|intersected| TAtomic::TTypeAlias {
                 name: *name,
@@ -1351,6 +1369,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_1_dict,
                 type_2_dict,
                 pos,
+                did_remove_type,
             )
         }
         (
@@ -1373,6 +1392,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_1_known_items,
                 type_2_known_items,
                 pos,
+                did_remove_type,
             );
         }
         (
@@ -1391,6 +1411,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 &type_1_param,
                 &type_2_param,
                 pos,
+                did_remove_type,
             )
             .map(|intersected| TAtomic::TKeyset {
                 type_param: Box::new(intersected),
@@ -1449,6 +1470,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 as_type,
                 type_2_atomic,
                 pos,
+                did_remove_type,
             );
 
             if let Some(new_as) = new_as {
@@ -1471,6 +1493,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 as_type,
                 type_1_atomic,
                 pos,
+                did_remove_type,
             );
 
             if let Some(new_as) = new_as {
@@ -1504,6 +1527,7 @@ fn intersect_vecs(
     type_1_known_items: &Option<BTreeMap<usize, (bool, TUnion)>>,
     type_2_known_items: &Option<BTreeMap<usize, (bool, TUnion)>>,
     pos: Option<&Pos>,
+    did_remove_type: &mut bool,
 ) -> Option<TAtomic> {
     let type_param = intersect_union_with_union(
         statements_analyzer,
@@ -1511,6 +1535,7 @@ fn intersect_vecs(
         type_1_param,
         type_2_param,
         pos,
+        did_remove_type,
     );
 
     match (type_1_known_items, type_2_known_items) {
@@ -1526,6 +1551,7 @@ fn intersect_vecs(
                         &type_1_value.1,
                         &type_2_value.1,
                         pos,
+                        did_remove_type,
                     )?
                 } else if !type_1_param.is_nothing() {
                     type_2_value.1 = intersect_union_with_union(
@@ -1534,6 +1560,7 @@ fn intersect_vecs(
                         type_1_param,
                         &type_2_value.1,
                         pos,
+                        did_remove_type,
                     )?
                 } else {
                     // if the type_2 key is always defined, the intersection is impossible
@@ -1564,6 +1591,7 @@ fn intersect_vecs(
                     &type_2_value.1,
                     type_1_param,
                     pos,
+                    did_remove_type,
                 )?
             }
 
@@ -1588,6 +1616,7 @@ fn intersect_vecs(
                     &type_1_value.1,
                     type_2_param,
                     pos,
+                    did_remove_type,
                 )?
             }
 
@@ -1623,6 +1652,7 @@ fn intersect_dicts(
     type_1_dict: &TDict,
     type_2_dict: &TDict,
     pos: Option<&Pos>,
+    did_remove_type: &mut bool,
 ) -> Option<TAtomic> {
     let params = match (&type_1_dict.params, &type_2_dict.params) {
         (Some(type_1_params), Some(type_2_params)) => {
@@ -1632,6 +1662,7 @@ fn intersect_dicts(
                 &type_1_params.0,
                 &type_2_params.0,
                 pos,
+                did_remove_type,
             );
             let value = intersect_union_with_union(
                 statements_analyzer,
@@ -1639,6 +1670,7 @@ fn intersect_dicts(
                 &type_1_params.1,
                 &type_2_params.1,
                 pos,
+                did_remove_type,
             );
 
             if let (Some(key), Some(value)) = (key, value) {
@@ -1666,6 +1698,7 @@ fn intersect_dicts(
                                 &type_1_value.1,
                                 &type_2_value.1,
                                 pos,
+                                did_remove_type,
                             ) {
                                 Arc::new(t)
                             } else {
@@ -1684,6 +1717,7 @@ fn intersect_dicts(
                                 &type_1_params.1,
                                 &type_2_value.1,
                                 pos,
+                                did_remove_type,
                             ) {
                                 Arc::new(t)
                             } else {
@@ -1714,6 +1748,7 @@ fn intersect_dicts(
                         &type_2_value.1,
                         &type_1_params.1,
                         pos,
+                        did_remove_type,
                     ) {
                         Arc::new(t)
                     } else {
@@ -1742,6 +1777,7 @@ fn intersect_dicts(
                         &type_1_value.1,
                         &type_2_params.1,
                         pos,
+                        did_remove_type,
                     ) {
                         Arc::new(t)
                     } else {
@@ -1774,6 +1810,7 @@ pub(crate) fn intersect_union_with_union(
     type_1_param: &TUnion,
     type_2_param: &TUnion,
     pos: Option<&Pos>,
+    did_remove_type: &mut bool,
 ) -> Option<TUnion> {
     let type_param = match (type_1_param.is_single(), type_2_param.is_single()) {
         (true, true) => intersect_atomic_with_atomic(
@@ -1791,6 +1828,7 @@ pub(crate) fn intersect_union_with_union(
             type_1_param,
             type_2_param.get_single(),
             pos,
+            did_remove_type,
         ),
         (true, false) => intersect_union_with_atomic(
             statements_analyzer,
@@ -1798,6 +1836,7 @@ pub(crate) fn intersect_union_with_union(
             type_2_param,
             type_1_param.get_single(),
             pos,
+            did_remove_type,
         ),
         (false, false) => {
             if type_1_param == type_2_param {
@@ -1813,6 +1852,7 @@ pub(crate) fn intersect_union_with_union(
                             type_1_param,
                             t,
                             pos,
+                            did_remove_type,
                         )
                         .unwrap_or(get_nothing())
                         .types
@@ -1946,6 +1986,7 @@ fn intersect_contained_atomic_with_another(
     sub_atomic: &TAtomic,
     generic_coercion: bool,
     pos: Option<&Pos>,
+    did_remove_type: &mut bool,
 ) -> Option<TAtomic> {
     if generic_coercion {
         if let TAtomic::TNamedObject {
@@ -1987,6 +2028,7 @@ fn intersect_contained_atomic_with_another(
                     type_1_as_type,
                     sub_atomic,
                     pos,
+                    did_remove_type,
                 );
 
                 if let Some(type_1_as) = type_1_as {
