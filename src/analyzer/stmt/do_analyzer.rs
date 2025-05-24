@@ -13,10 +13,7 @@ use crate::{
     stmt_analyzer::AnalysisError,
 };
 
-use super::{
-    control_analyzer::BreakContext, ifelse_analyzer::remove_clauses_with_mixed_vars, loop_analyzer,
-    while_analyzer::get_and_expressions,
-};
+use super::{control_analyzer::BreakContext, loop_analyzer, while_analyzer::get_and_expressions};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -59,8 +56,6 @@ pub(crate) fn analyze(
         false,
     )
     .unwrap_or_default();
-
-    while_clauses = remove_clauses_with_mixed_vars(while_clauses, mixed_var_ids, cond_id);
 
     if while_clauses.is_empty() {
         while_clauses.push(Clause::new(

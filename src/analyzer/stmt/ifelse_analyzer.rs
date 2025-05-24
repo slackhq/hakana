@@ -111,8 +111,6 @@ pub(crate) fn analyze(
         if_clauses = Vec::new();
     }
 
-    if_clauses = remove_clauses_with_mixed_vars(if_clauses, mixed_var_ids, cond_object_id);
-
     let entry_clauses = context
         .clauses
         .iter()
@@ -402,47 +400,4 @@ pub(crate) fn analyze(
     }
 
     Ok(())
-}
-
-pub(crate) fn remove_clauses_with_mixed_vars(
-    if_clauses: Vec<Clause>,
-    mut mixed_var_ids: Vec<&VarName>,
-    cond_object_id: (u32, u32),
-) -> Vec<Clause> {
-    if_clauses
-        .into_iter()
-        .map(|c| {
-            let mut keys = vec![];
-            for k in c.possibilities.keys() {
-                if let ClauseKey::Name(var_name) = k {
-                    keys.push(var_name);
-                }
-            }
-
-            let mut new_mixed_var_ids = vec![];
-            for i in &mixed_var_ids {
-                if !keys.contains(i) {
-                    new_mixed_var_ids.push(*i);
-                }
-            }
-            mixed_var_ids = new_mixed_var_ids;
-
-            for key in keys {
-                for mixed_var_id in &mixed_var_ids {
-                    if var_has_root(key, mixed_var_id) {
-                        return Clause::new(
-                            BTreeMap::new(),
-                            cond_object_id,
-                            cond_object_id,
-                            Some(true),
-                            None,
-                            None,
-                        );
-                    }
-                }
-            }
-
-            c
-        })
-        .collect::<Vec<Clause>>()
 }
