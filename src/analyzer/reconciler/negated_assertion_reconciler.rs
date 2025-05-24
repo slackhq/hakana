@@ -4,7 +4,6 @@ use super::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::statements_analyzer::StatementsAnalyzer;
-use hakana_code_info::code_location::FilePath;
 use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::ttype::{
     comparison::{
@@ -15,8 +14,8 @@ use hakana_code_info::ttype::{
 use hakana_code_info::ttype::{get_nothing, get_placeholder, wrap_atomic};
 use hakana_code_info::var_name::VarName;
 use hakana_code_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo,
-    functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion,
+    assertion::Assertion, functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic,
+    t_union::TUnion,
 };
 use hakana_str::StrId;
 use oxidized::ast_defs::Pos;
@@ -83,11 +82,12 @@ pub(crate) fn reconcile(
             if let Some(assertion_type) = assertion.get_type() {
                 let mut has_changes = false;
                 subtract_complex_type(
+                    statements_analyzer,
+                    analysis_data,
                     assertion_type,
-                    codebase,
-                    statements_analyzer.get_file_path(),
                     &mut existing_var_type,
                     &mut has_changes,
+                    pos,
                 );
 
                 if !has_changes || existing_var_type.is_nothing() {
@@ -164,11 +164,12 @@ pub(crate) fn reconcile(
 }
 
 fn subtract_complex_type(
+    statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &mut FunctionAnalysisData,
     assertion_type: &TAtomic,
-    codebase: &CodebaseInfo,
-    file_path: &FilePath,
     existing_var_type: &mut TUnion,
     can_be_disjunct: &mut bool,
+    pos: Option<&Pos>,
 ) {
     let mut acceptable_types = vec![];
 
@@ -182,8 +183,8 @@ fn subtract_complex_type(
         }
 
         if atomic_type_comparator::is_contained_by(
-            codebase,
-            file_path,
+            statements_analyzer.codebase,
+            statements_analyzer.get_file_path(),
             &existing_atomic,
             assertion_type,
             true,
@@ -196,8 +197,8 @@ fn subtract_complex_type(
         }
 
         if atomic_type_comparator::is_contained_by(
-            codebase,
-            file_path,
+            statements_analyzer.codebase,
+            statements_analyzer.get_file_path(),
             assertion_type,
             &existing_atomic,
             true,
@@ -217,19 +218,22 @@ fn subtract_complex_type(
                     ..
                 },
             ) => {
-                if let Some(classlike_storage) =
-                    codebase.classlike_infos.get(existing_classlike_name)
+                if let Some(classlike_storage) = statements_analyzer
+                    .codebase
+                    .classlike_infos
+                    .get(existing_classlike_name)
                 {
                     // handle __Sealed classes, negating where possible
                     if let Some(child_classlikes) = &classlike_storage.child_classlikes {
                         if child_classlikes.contains(assertion_classlike_name) {
                             handle_negated_class(
+                                statements_analyzer,
+                                analysis_data,
                                 child_classlikes,
                                 &existing_atomic,
                                 assertion_classlike_name,
-                                codebase,
-                                file_path,
                                 &mut acceptable_types,
+                                pos,
                             );
 
                             *can_be_disjunct = true;
@@ -239,8 +243,12 @@ fn subtract_complex_type(
                     }
                 }
 
-                if (codebase.interface_exists(assertion_classlike_name)
-                    || codebase.interface_exists(existing_classlike_name))
+                if (statements_analyzer
+                    .codebase
+                    .interface_exists(assertion_classlike_name)
+                    || statements_analyzer
+                        .codebase
+                        .interface_exists(existing_classlike_name))
                     && assertion_classlike_name != existing_classlike_name
                 {
                     *can_be_disjunct = true;
@@ -286,26 +294,30 @@ fn subtract_complex_type(
     if acceptable_types.is_empty() {
         acceptable_types.push(TAtomic::TNothing);
     } else if acceptable_types.len() > 1 && *can_be_disjunct {
-        acceptable_types = type_combiner::combine(acceptable_types, codebase, false);
+        acceptable_types =
+            type_combiner::combine(acceptable_types, statements_analyzer.codebase, false);
     }
 
     existing_var_type.types = acceptable_types;
 }
 
 fn handle_negated_class(
+    statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &mut FunctionAnalysisData,
     child_classlikes: &FxHashSet<StrId>,
     existing_atomic: &TAtomic,
     assertion_classlike_name: &StrId,
-    codebase: &CodebaseInfo,
-    file_path: &FilePath,
     acceptable_types: &mut Vec<TAtomic>,
+    pos: Option<&Pos>,
 ) {
     for child_classlike in child_classlikes {
         if child_classlike != assertion_classlike_name {
             let alternate_class = TAtomic::TNamedObject {
                 name: *child_classlike,
-                type_params: if let Some(child_classlike_info) =
-                    codebase.classlike_infos.get(child_classlike)
+                type_params: if let Some(child_classlike_info) = statements_analyzer
+                    .codebase
+                    .classlike_infos
+                    .get(child_classlike)
                 {
                     let placeholder_params = child_classlike_info
                         .template_types
@@ -326,9 +338,14 @@ fn handle_negated_class(
                 remapped_params: false,
             };
 
-            if let Some(acceptable_alternate_class) =
-                intersect_atomic_with_atomic(existing_atomic, &alternate_class, codebase, file_path)
-            {
+            if let Some(acceptable_alternate_class) = intersect_atomic_with_atomic(
+                statements_analyzer,
+                analysis_data,
+                existing_atomic,
+                &alternate_class,
+                pos,
+                &mut false,
+            ) {
                 acceptable_types.push(acceptable_alternate_class);
             }
         }

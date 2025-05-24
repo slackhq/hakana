@@ -23,7 +23,7 @@ macro_rules! intersect_simple {
                 if matches!(atomic, $( $subtype_pattern )|+ $( if $subtype_guard )?) {
                     acceptable_types.push(atomic.clone());
                 } else if matches!(atomic, $( $supertype_pattern )|+ $( if $supertype_guard )?) {
-                    return Some($max_type);
+                    return $max_type;
                 } else if let TAtomic::TTypeVariable { name } = atomic {
                     if let Some(pos) = $pos {
                         if let Some((lower_bounds, _)) = $analysis_data.type_variable_bounds.get_mut(name) {
@@ -63,10 +63,10 @@ macro_rules! intersect_simple {
             }
 
             if !acceptable_types.is_empty() {
-                return Some(TUnion::new(acceptable_types));
+                return TUnion::new(acceptable_types);
             }
 
-            Some(get_nothing())
+            get_nothing()
         }
     }
 }
