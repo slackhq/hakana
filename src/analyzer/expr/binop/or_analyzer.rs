@@ -204,19 +204,19 @@ pub(crate) fn analyze<'expr>(
         .collect();
 
     if !changed_var_ids.is_empty() {
-        let partiioned_clauses =
+        let right_partitioned_clauses =
             BlockContext::remove_reconciled_clause_refs(&right_context.clauses, &changed_var_ids);
-        right_context.clauses = partiioned_clauses.0;
+        right_context.clauses = right_partitioned_clauses.0;
         right_context
             .reconciled_expression_clauses
-            .extend(partiioned_clauses.1);
+            .extend(right_partitioned_clauses.1);
 
-        let partiioned_clauses =
+        let left_partitioned_clauses =
             BlockContext::remove_reconciled_clause_refs(&context.clauses, &changed_var_ids);
-        context.clauses = partiioned_clauses.0;
+        context.clauses = left_partitioned_clauses.0;
         context
             .reconciled_expression_clauses
-            .extend(partiioned_clauses.1);
+            .extend(left_partitioned_clauses.1);
     }
 
     let pre_referenced_var_ids = right_context.cond_referenced_var_ids.clone();
