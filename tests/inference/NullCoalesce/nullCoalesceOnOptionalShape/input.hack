@@ -11,7 +11,7 @@ function givesTeam(): ?team_t {
 
 function uses(): void {
   $team = givesTeam();
-  $name = rand(0, 1) ? givesTeam()["name"] ?? null : null;
+  $name = givesTeam()["name"] ?? null;
 
   if ($name is null) {}
   if ($name is string) {}

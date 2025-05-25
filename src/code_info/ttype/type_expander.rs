@@ -22,6 +22,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::ttype::{template, type_combiner, wrap_atomic};
 
+use super::get_nothing;
+
 #[derive(Debug)]
 pub enum StaticClassType<'a, 'b> {
     None,
@@ -42,6 +44,7 @@ pub struct TypeExpansionOptions<'a> {
     pub expand_templates: bool,
     pub expand_hakana_types: bool,
     pub expand_typenames: bool,
+    pub expand_type_aliases: bool,
 }
 
 impl Default for TypeExpansionOptions<'_> {
@@ -57,6 +60,7 @@ impl Default for TypeExpansionOptions<'_> {
             expand_templates: true,
             expand_typenames: true,
             expand_hakana_types: true,
+            expand_type_aliases: false,
         }
     }
 }
@@ -435,11 +439,111 @@ fn expand_atomic(
 
         return;
     } else if let TAtomic::TTypeAlias {
+        name: type_name,
         as_type,
         type_params,
         ..
     } = return_type_part
     {
+        let Some(type_definition) = codebase.type_definitions.get(type_name) else {
+            *skip_key = true;
+            new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
+            return;
+        };
+
+        if type_definition.is_literal_string && options.expand_hakana_types {
+            *skip_key = true;
+            new_return_type_parts.push(TAtomic::TStringWithFlags(false, false, true));
+            return;
+        }
+
+        if options.expand_type_aliases {
+            *skip_key = true;
+            let mut untemplated_type = if let Some(type_params) = type_params {
+                let mut new_template_types = IndexMap::new();
+                for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
+                    if i < type_params.len() {
+                        let mut h = FxHashMap::default();
+                        for (kk, _) in v {
+                            h.insert(*kk, type_params[i].clone());
+                        }
+                        new_template_types.insert(*k, h);
+                    }
+                }
+                template::inferred_type_replacer::replace(
+                    &type_definition.actual_type,
+                    &template::TemplateResult::new(IndexMap::new(), new_template_types),
+                    codebase,
+                )
+            } else {
+                type_definition.actual_type.clone()
+            };
+            expand_union(
+                codebase,
+                interner,
+                file_path,
+                &mut untemplated_type,
+                options,
+                data_flow_graph,
+                cost,
+            );
+            let expanded_types = untemplated_type
+                .types
+                .into_iter()
+                .map(|mut v| {
+                    if type_params.is_none() {
+                        if let TAtomic::TDict(TDict {
+                            known_items: Some(_),
+                            ref mut shape_name,
+                            ..
+                        }) = v
+                        {
+                            *shape_name = Some((*type_name, None));
+                        };
+                    }
+                    v
+                })
+                .collect::<Vec<_>>();
+            new_return_type_parts.extend(expanded_types);
+        }
+
+        if let Some(definition_as_type) = &type_definition.as_type {
+            let mut definition_as_type = if let Some(type_params) = type_params {
+                let mut new_template_types = IndexMap::new();
+                for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
+                    let mut h = FxHashMap::default();
+                    for (kk, _) in v {
+                        h.insert(
+                            *kk,
+                            if let Some(t) = type_params.get(i) {
+                                t.clone()
+                            } else {
+                                get_nothing()
+                            },
+                        );
+                    }
+                    new_template_types.insert(*k, h);
+                }
+                template::inferred_type_replacer::replace(
+                    definition_as_type,
+                    &template::TemplateResult::new(IndexMap::new(), new_template_types),
+                    codebase,
+                )
+            } else {
+                definition_as_type.clone()
+            };
+            expand_union(
+                codebase,
+                interner,
+                file_path,
+                &mut definition_as_type,
+                options,
+                data_flow_graph,
+                cost,
+            );
+            *as_type = Some(Box::new(definition_as_type));
+        }
+
         if let Some(type_params) = type_params {
             for param_type in type_params {
                 expand_union(

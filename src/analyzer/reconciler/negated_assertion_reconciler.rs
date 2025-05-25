@@ -199,8 +199,8 @@ fn subtract_complex_type(
                     statements_analyzer.get_file_path(),
                 ) {
                     existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                    continue;
                 }
-                continue;
             }
             Cow::Owned(TAtomic::TTypeAlias {
                 name, type_params, ..
@@ -214,8 +214,8 @@ fn subtract_complex_type(
                     statements_analyzer.get_file_path(),
                 ) {
                     existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                    continue;
                 }
-                continue;
             }
             _ => {}
         }

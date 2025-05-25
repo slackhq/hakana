@@ -350,8 +350,8 @@ pub(crate) fn intersect_union_with_atomic(
                     &statements_analyzer.get_file_path(),
                 ) {
                     existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                    continue;
                 }
-                continue;
             }
             Cow::Owned(TAtomic::TTypeAlias {
                 name, type_params, ..
@@ -365,8 +365,8 @@ pub(crate) fn intersect_union_with_atomic(
                     &statements_analyzer.get_file_path(),
                 ) {
                     existing_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                    continue;
                 }
-                continue;
             }
             _ => {}
         }
@@ -1972,6 +1972,40 @@ fn intersect_enum_with_int_or_string(
     int_or_string: TAtomic,
 ) -> Option<TAtomic> {
     let mut atomic_comparison_results = TypeComparisonResult::new();
+
+    if let TAtomic::TTypeAlias {
+        name,
+        type_params,
+        newtype: false,
+        ..
+    } = &**underlying_type
+    {
+        if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+            codebase,
+            None,
+            &mut DataFlowGraph::new(GraphKind::FunctionBody),
+            name,
+            type_params,
+            file_path,
+        ) {
+            for underlying_type in expanded_types {
+                if atomic_type_comparator::is_contained_by(
+                    codebase,
+                    file_path,
+                    &int_or_string,
+                    &underlying_type,
+                    true,
+                    &mut atomic_comparison_results,
+                ) {
+                    return Some(TAtomic::TEnum {
+                        name: *enum_name,
+                        as_type: Some(Arc::new(int_or_string)),
+                        underlying_type: Some(Arc::new(underlying_type)),
+                    });
+                }
+            }
+        }
+    }
 
     if atomic_type_comparator::is_contained_by(
         codebase,

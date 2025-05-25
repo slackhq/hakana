@@ -24,3 +24,11 @@ function foo<T as arraykey>(Result<T, int> $a): void {
 		echo $a->get();
 	}
 }
+
+function bar(): Result<string> {
+    return new ResultOk('hello');
+}
+
+function baz(): void {
+    if (bar() is ResultError<_>) {}
+}

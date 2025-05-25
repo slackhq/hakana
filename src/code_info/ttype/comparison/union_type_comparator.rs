@@ -104,8 +104,8 @@ pub fn is_contained_by(
                     &file_path,
                 ) {
                     input_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                    continue;
                 }
-                continue;
             }
             Cow::Owned(TAtomic::TTypeAlias {
                 name, type_params, ..
@@ -119,8 +119,8 @@ pub fn is_contained_by(
                     &file_path,
                 ) {
                     input_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                    continue;
                 }
-                continue;
             }
             Cow::Borrowed(TAtomic::TGenericParam {
                 extra_types: None,
@@ -515,8 +515,11 @@ pub fn can_expression_types_be_identical(
         return true;
     }
 
-    for type1_part in &type1.types {
-        for type2_part in &type2.types {
+    let type1_types = get_expanded_types(codebase, file_path, type1);
+    let type2_types = get_expanded_types(codebase, file_path, type2);
+
+    for type1_part in &type1_types {
+        for type2_part in &type2_types {
             if atomic_type_comparator::can_be_identical(
                 codebase,
                 file_path,
@@ -530,4 +533,60 @@ pub fn can_expression_types_be_identical(
     }
 
     false
+}
+
+fn get_expanded_types<'a>(
+    codebase: &'a CodebaseInfo,
+    file_path: &FilePath,
+    type_to_expand: &'a TUnion,
+) -> Vec<Cow<'a, TAtomic>> {
+    let mut type1_atomic_types = type_to_expand
+        .types
+        .iter()
+        .map(|t| Cow::Borrowed(t))
+        .collect::<Vec<_>>();
+    type1_atomic_types.reverse();
+
+    let mut type_1_deduped_types = vec![];
+
+    while let Some(type1_part) = type1_atomic_types.pop() {
+        match &type1_part {
+            Cow::Borrowed(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(crate::data_flow::graph::GraphKind::FunctionBody),
+                    name,
+                    type_params,
+                    &file_path,
+                ) {
+                    type1_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                    continue;
+                }
+            }
+            Cow::Owned(TAtomic::TTypeAlias {
+                name, type_params, ..
+            }) => {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(crate::data_flow::graph::GraphKind::FunctionBody),
+                    &name,
+                    &type_params,
+                    &file_path,
+                ) {
+                    type1_atomic_types.extend(expanded_types.into_iter().map(|t| Cow::Owned(t)));
+                    continue;
+                }
+            }
+
+            _ => (),
+        }
+
+        type_1_deduped_types.push(type1_part);
+    }
+
+    type_1_deduped_types
 }

@@ -265,7 +265,7 @@ fn get_is_assertions(
         while let Some(is_atomic) = is_atomic_types.pop() {
             if let TAtomic::TTypeAlias {
                 name, type_params, ..
-            } = is_atomic
+            } = &is_atomic
             {
                 if let Some((expanded_types, _)) = expand_type_alias_on_demand(
                     codebase,
@@ -276,8 +276,8 @@ fn get_is_assertions(
                     &assertion_context.file_source.file_path,
                 ) {
                     is_atomic_types.extend(expanded_types.into_iter());
+                    continue;
                 }
-                continue;
             }
 
             is_type.types.push(is_atomic);

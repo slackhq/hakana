@@ -4,6 +4,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
     statements_analyzer::StatementsAnalyzer,
 };
+use hakana_code_info::ttype::template::standin_type_replacer::expand_type_aliases_conditionally;
 use hakana_code_info::ttype::{
     comparison::union_type_comparator, get_mixed_any, get_nothing, get_null, intersect_union_types,
     wrap_atomic,
@@ -338,7 +339,13 @@ fn subtract_object(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -414,7 +421,13 @@ fn subtract_vec(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -489,7 +502,13 @@ fn subtract_keyset(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -564,7 +583,13 @@ fn subtract_dict(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -639,7 +664,13 @@ fn subtract_string(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -737,7 +768,13 @@ fn subtract_int(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -852,7 +889,13 @@ fn subtract_float(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -952,17 +995,23 @@ fn subtract_num(
 
     let mut did_remove_type = false;
 
-    let existing_var_types = &existing_var_type.types;
     let mut existing_var_type = existing_var_type.clone();
+    let mut existing_var_types = existing_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. }
-        | TAtomic::TClassTypeConstant { as_type, .. } = atomic
+        | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
                 let atomic = atomic.replace_template_extends(subtract_num(
                     assertion,
-                    as_type,
+                    &as_type,
                     None,
                     false,
                     analysis_data,
@@ -973,14 +1022,14 @@ fn subtract_num(
                     suppressed_issues,
                 ));
 
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.types.push(atomic);
+            } else {
                 existing_var_type.types.push(atomic);
             }
 
             did_remove_type = true;
         } else if let TAtomic::TScalar = atomic {
             if !is_equality {
-                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TString);
                 existing_var_type.types.push(TAtomic::TBool);
             }
@@ -988,7 +1037,6 @@ fn subtract_num(
             did_remove_type = true;
         } else if let TAtomic::TArraykey { .. } = atomic {
             if !is_equality {
-                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TString);
             }
 
@@ -997,8 +1045,8 @@ fn subtract_num(
         {
             did_remove_type = true;
 
-            if !is_equality {
-                existing_var_type.remove_type(atomic);
+            if is_equality {
+                existing_var_type.types.push(atomic);
             }
         }
     }
@@ -1049,17 +1097,23 @@ fn subtract_arraykey(
 
     let mut did_remove_type = false;
 
-    let existing_var_types = &existing_var_type.types;
     let mut existing_var_type = existing_var_type.clone();
+    let mut existing_var_types = existing_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. }
-        | TAtomic::TClassTypeConstant { as_type, .. } = atomic
+        | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
                 let atomic = atomic.replace_template_extends(subtract_arraykey(
                     assertion,
-                    as_type,
+                    &as_type,
                     None,
                     false,
                     analysis_data,
@@ -1070,23 +1124,25 @@ fn subtract_arraykey(
                     suppressed_issues,
                 ));
 
-                existing_var_type.remove_type(&atomic);
                 existing_var_type.types.push(atomic);
             } else {
+                existing_var_type.types.push(atomic);
                 did_remove_type = true;
             }
         } else if let TAtomic::TScalar = atomic {
             if !is_equality {
-                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TFloat);
                 existing_var_type.types.push(TAtomic::TBool);
+            } else {
+                existing_var_type.types.push(atomic);
             }
 
             did_remove_type = true;
         } else if let TAtomic::TNum = atomic {
             if !is_equality {
-                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TFloat);
+            } else {
+                existing_var_type.types.push(atomic);
             }
 
             did_remove_type = true;
@@ -1096,8 +1152,8 @@ fn subtract_arraykey(
         {
             did_remove_type = true;
 
-            if !is_equality {
-                existing_var_type.remove_type(atomic);
+            if is_equality {
+                existing_var_type.types.push(atomic);
             }
         }
     }
@@ -1148,12 +1204,18 @@ fn subtract_bool(
 
     let mut did_remove_type = false;
 
-    let existing_var_types = &existing_var_type.types;
     let mut existing_var_type = existing_var_type.clone();
+    let mut existing_var_types = existing_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. }
-        | TAtomic::TClassTypeConstant { as_type, .. } = atomic
+        | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
                 let atomic = atomic.replace_template_extends(subtract_bool(
@@ -1169,25 +1231,28 @@ fn subtract_bool(
                     suppressed_issues,
                 ));
 
-                existing_var_type.remove_type(&atomic);
                 existing_var_type.types.push(atomic);
             } else {
+                existing_var_type.types.push(atomic);
                 did_remove_type = true;
             }
         } else if let TAtomic::TScalar = atomic {
             if !is_equality {
-                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TString);
                 existing_var_type.types.push(TAtomic::TInt);
                 existing_var_type.types.push(TAtomic::TFloat);
+            } else {
+                existing_var_type.types.push(atomic);
             }
 
             did_remove_type = true;
-        } else if atomic.is_bool() {
+        } else if let TAtomic::TFalse { .. } | TAtomic::TTrue { .. } | TAtomic::TBool { .. } =
+            atomic
+        {
             did_remove_type = true;
 
-            if !is_equality {
-                existing_var_type.remove_type(atomic);
+            if is_equality {
+                existing_var_type.types.push(atomic);
             }
         }
     }
@@ -1233,7 +1298,13 @@ pub(crate) fn subtract_null(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -1490,7 +1561,13 @@ fn reconcile_falsy(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 

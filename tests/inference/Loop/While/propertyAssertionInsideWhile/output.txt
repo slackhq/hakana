@@ -1,0 +1,3 @@
+ERROR: MixedPropertyTypeCoercion - input.hack:54:13 - $this->a expects vec<mixed>, parent type type-alias(HH\FIXME\MISSING_PARAM_TYPE) provided
+ERROR: MixedPropertyTypeCoercion - input.hack:58:13 - $this->b expects vec<mixed>, parent type type-alias(HH\FIXME\MISSING_PARAM_TYPE) provided
+ERROR: MixedPropertyTypeCoercion - input.hack:62:13 - $this->c expects vec<mixed>, parent type type-alias(HH\FIXME\MISSING_PARAM_TYPE) provided

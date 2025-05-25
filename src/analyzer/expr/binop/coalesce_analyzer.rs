@@ -6,7 +6,10 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
+use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
+use hakana_code_info::ttype::type_expander::expand_type_alias_on_demand;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use hakana_code_info::var_name::VarName;
 use oxidized::aast::{self, CallExpr};
@@ -194,6 +197,39 @@ fn get_left_expr(
             .cloned()
             .unwrap_or(Rc::new(get_mixed_any()))
     };
+
+    if condition_type
+        .types
+        .iter()
+        .any(|t| matches!(t, TAtomic::TTypeAlias { .. }))
+    {
+        let mut condition_type_inner = (*condition_type).clone();
+        let mut new_atomic_types = condition_type_inner.types.drain(..).collect::<Vec<_>>();
+        new_atomic_types.reverse();
+
+        while let Some(new_atomic_type) = new_atomic_types.pop() {
+            if let TAtomic::TTypeAlias {
+                name, type_params, ..
+            } = &new_atomic_type
+            {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    statements_analyzer.codebase,
+                    None,
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    &name,
+                    &type_params,
+                    &statements_analyzer.get_file_path(),
+                ) {
+                    new_atomic_types.extend(expanded_types);
+                    continue;
+                }
+            }
+
+            condition_type_inner.types.push(new_atomic_type);
+        }
+
+        condition_type = Rc::new(condition_type_inner);
+    }
 
     let root_expr_var_id = format!("$tmp_coalesce_var {}", left.pos().start_offset());
 

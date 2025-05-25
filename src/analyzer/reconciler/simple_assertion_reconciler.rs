@@ -10,6 +10,7 @@ use hakana_code_info::{
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
+    ttype::template::standin_type_replacer::expand_type_aliases_conditionally,
 };
 use hakana_code_info::{
     ttype::{
@@ -197,7 +198,13 @@ fn reconcile_truthy(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -309,7 +316,13 @@ fn reconcile_isset(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -385,7 +398,13 @@ fn reconcile_non_empty_countable(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -688,7 +707,13 @@ fn reconcile_has_array_key(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 
@@ -875,7 +900,13 @@ fn reconcile_has_nonnull_entry_for_key(
 
     let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+    let mut existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    expand_type_aliases_conditionally(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        &mut existing_var_types,
+    );
 
     let mut acceptable_types = vec![];
 

@@ -700,6 +700,61 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TTypeAlias {
+        name: StrId::FORMAT_STRING,
+        ..
+    } = container_type_part
+    {
+        if let TAtomic::TString { .. }
+        | TAtomic::TLiteralString { .. }
+        | TAtomic::TStringWithFlags { .. } = input_type_part
+        {
+            // todo maybe more specific checks for the type of format string
+            return true;
+        }
+    }
+
+    if let TAtomic::TTypeAlias {
+        name: StrId::ENUM_CLASS_LABEL,
+        type_params: container_type_params,
+        ..
+    } = container_type_part
+    {
+        if let TAtomic::TEnumClassLabel {
+            class_name: input_class_name,
+            member_name: input_member_name,
+        } = input_type_part
+        {
+            if let Some(container_type_params) = container_type_params {
+                if let (Some(container_enum_param), Some(_)) =
+                    (container_type_params.first(), container_type_params.get(1))
+                {
+                    let container_enum_param = container_enum_param.get_single();
+
+                    if let TAtomic::TNamedObject {
+                        name: container_enum_name,
+                        ..
+                    } = container_enum_param
+                    {
+                        if let Some(input_class_name) = input_class_name {
+                            return input_class_name == container_enum_name;
+                        } else if let Some(classlike_info) =
+                            codebase.classlike_infos.get(container_enum_name)
+                        {
+                            return classlike_info.constants.contains_key(input_member_name);
+                        }
+                    } else {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+    }
+
+    if let TAtomic::TTypeAlias {
         name: container_name,
         type_params: container_type_params,
         ..
@@ -744,75 +799,48 @@ pub fn is_contained_by(
                 }
             }
         }
+    }
 
-        if *container_name == StrId::FORMAT_STRING {
-            if let TAtomic::TString { .. }
-            | TAtomic::TLiteralString { .. }
-            | TAtomic::TStringWithFlags { .. } = input_type_part
-            {
-                // todo maybe more specific checks for the type of format string
-                return true;
-            }
-        }
-
-        if *container_name == StrId::ENUM_CLASS_LABEL {
-            if let TAtomic::TEnumClassLabel {
-                class_name: input_class_name,
-                member_name: input_member_name,
-            } = input_type_part
-            {
-                if let Some(container_type_params) = container_type_params {
-                    if let (Some(container_enum_param), Some(_)) =
-                        (container_type_params.first(), container_type_params.get(1))
-                    {
-                        let container_enum_param = container_enum_param.get_single();
-
-                        if let TAtomic::TNamedObject {
-                            name: container_enum_name,
-                            ..
-                        } = container_enum_param
-                        {
-                            if let Some(input_class_name) = input_class_name {
-                                return input_class_name == container_enum_name;
-                            } else if let Some(classlike_info) =
-                                codebase.classlike_infos.get(container_enum_name)
-                            {
-                                return classlike_info.constants.contains_key(input_member_name);
-                            }
-                        } else {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            }
+    if let TAtomic::TTypeAlias {
+        name: StrId::FORMAT_STRING,
+        ..
+    } = input_type_part
+    {
+        if let TAtomic::TString { .. } = container_type_part {
+            return true;
         }
     }
 
     if let TAtomic::TTypeAlias {
-        name: input_name,
-        as_type,
+        as_type: Some(as_type),
         ..
     } = input_type_part
     {
-        if *input_name == StrId::FORMAT_STRING {
-            if let TAtomic::TString { .. } = container_type_part {
-                return true;
-            }
-        }
+        return is_contained_by(
+            codebase,
+            file_path,
+            as_type.get_single(),
+            container_type_part,
+            inside_assertion,
+            atomic_comparison_result,
+        );
+    }
 
-        if let Some(as_type) = as_type {
-            return is_contained_by(
-                codebase,
-                file_path,
-                as_type.get_single(),
-                container_type_part,
-                inside_assertion,
-                atomic_comparison_result,
-            );
+    if let TAtomic::TTypeAlias {
+        as_type: Some(as_type),
+        ..
+    } = container_type_part
+    {
+        if is_contained_by(
+            codebase,
+            file_path,
+            input_type_part,
+            as_type.get_single(),
+            inside_assertion,
+            atomic_comparison_result,
+        ) {
+            atomic_comparison_result.type_coerced = Some(true);
+            return false;
         }
     }
 

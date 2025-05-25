@@ -1,6 +1,8 @@
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
+use hakana_code_info::data_flow::graph::DataFlowGraph;
 use hakana_code_info::data_flow::node::VariableSourceKind;
+use hakana_code_info::ttype::type_expander::expand_type_alias_on_demand;
 use hakana_code_info::ttype::{
     combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
     template::TemplateBound, type_combiner, wrap_atomic,
@@ -189,20 +191,36 @@ pub(crate) fn update_type_with_key_values(
     let mut has_matching_item = false;
     let codebase = statements_analyzer.codebase;
 
-    new_type.types = new_type
-        .types
-        .into_iter()
-        .map(|atomic_type| {
-            update_atomic_given_key(
-                atomic_type,
-                key_values,
-                key_type.clone(),
-                &mut has_matching_item,
-                &current_type,
-                codebase,
-            )
-        })
-        .collect();
+    let mut new_atomic_types = new_type.types.drain(..).collect::<Vec<_>>();
+    new_atomic_types.reverse();
+
+    while let Some(new_atomic_type) = new_atomic_types.pop() {
+        if let TAtomic::TTypeAlias {
+            name, type_params, ..
+        } = &new_atomic_type
+        {
+            if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                statements_analyzer.codebase,
+                None,
+                &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                &name,
+                &type_params,
+                &statements_analyzer.get_file_path(),
+            ) {
+                new_atomic_types.extend(expanded_types);
+                continue;
+            }
+        }
+
+        new_type.types.push(update_atomic_given_key(
+            new_atomic_type,
+            key_values,
+            key_type.clone(),
+            &mut has_matching_item,
+            &current_type,
+            codebase,
+        ));
+    }
 
     new_type
 }

@@ -5,6 +5,7 @@ use crate::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
+    ttype::type_expander::expand_type_alias_on_demand,
 };
 use crate::{function_context::FunctionLikeIdentifier, GenericParent};
 use crate::{
@@ -61,7 +62,13 @@ pub fn replace<'a>(
 
     let mut original_atomic_types = union_type.types.clone();
 
+    expand_type_aliases_conditionally(codebase, file_path, &mut original_atomic_types);
+
     let mut input_type = input_type.cloned();
+
+    if let Some(ref mut input_type) = input_type {
+        expand_type_aliases_conditionally(codebase, file_path, &mut input_type.types);
+    }
 
     if let Some(ref mut input_type) = input_type {
         if original_atomic_types.len() > 1
@@ -134,6 +141,41 @@ pub fn replace<'a>(
     }
 
     return new_union_type;
+}
+
+pub fn expand_type_aliases_conditionally(
+    codebase: &CodebaseInfo,
+    file_path: &FilePath,
+    input_atomic_types: &mut Vec<TAtomic>,
+) {
+    if input_atomic_types
+        .iter()
+        .any(|t| matches!(t, TAtomic::TTypeAlias { .. }))
+    {
+        let mut new_atomic_types = input_atomic_types.drain(..).collect::<Vec<_>>();
+        new_atomic_types.reverse();
+
+        while let Some(new_atomic_type) = new_atomic_types.pop() {
+            if let TAtomic::TTypeAlias {
+                name, type_params, ..
+            } = &new_atomic_type
+            {
+                if let Some((expanded_types, _)) = expand_type_alias_on_demand(
+                    codebase,
+                    None,
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                    &name,
+                    &type_params,
+                    &file_path,
+                ) {
+                    new_atomic_types.extend(expanded_types);
+                    continue;
+                }
+            }
+
+            input_atomic_types.push(new_atomic_type);
+        }
+    }
 }
 
 fn handle_atomic_standin<'a>(
