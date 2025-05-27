@@ -459,7 +459,7 @@ fn expand_atomic(
 
         if options.expand_type_aliases {
             *skip_key = true;
-            let mut untemplated_type = if let Some(type_params) = type_params {
+            let mut actual_type = if let Some(type_params) = type_params {
                 let mut new_template_types = IndexMap::new();
                 for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
                     if i < type_params.len() {
@@ -482,12 +482,12 @@ fn expand_atomic(
                 codebase,
                 interner,
                 file_path,
-                &mut untemplated_type,
+                &mut actual_type,
                 options,
                 data_flow_graph,
                 cost,
             );
-            let expanded_types = untemplated_type
+            let expanded_types = actual_type
                 .types
                 .into_iter()
                 .map(|mut v| {
@@ -718,7 +718,7 @@ pub fn expand_type_alias_on_demand(
         return None;
     }
 
-    let untemplated_type = if let Some(type_params) = type_params {
+    let actual_type = if let Some(type_params) = type_params {
         let mut new_template_types = IndexMap::new();
 
         for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
@@ -743,7 +743,7 @@ pub fn expand_type_alias_on_demand(
 
     let mut extra_data_flow_nodes = vec![];
 
-    let expanded_types = untemplated_type
+    let expanded_types = actual_type
         .types
         .into_iter()
         .map(|mut v| {
@@ -787,6 +787,7 @@ pub fn expand_type_alias_on_demand(
                         extra_data_flow_nodes.push(shape_node.clone());
                         data_flow_graph.add_node(shape_node);
                     }
+
                     *shape_name = Some((*type_name, None));
                 };
             }

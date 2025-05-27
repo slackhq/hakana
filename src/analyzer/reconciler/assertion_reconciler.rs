@@ -298,6 +298,10 @@ fn refine_atomic_with_union(
     pos: Option<&Pos>,
     did_remove_type: &mut bool,
 ) -> TUnion {
+    if existing_var_type.types.len() == 1 && &existing_var_type.types[0] == new_type {
+        return existing_var_type.clone();
+    }
+
     let intersection_type = intersect_union_with_atomic(
         statements_analyzer,
         analysis_data,
