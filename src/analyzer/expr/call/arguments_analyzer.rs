@@ -112,8 +112,6 @@ pub(crate) fn check_arguments_match(
                     } else {
                         false
                     },
-
-                    expand_typenames: false,
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,

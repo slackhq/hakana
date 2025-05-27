@@ -41,7 +41,7 @@ pub struct TypeExpansionOptions<'a> {
     pub expand_generic: bool,
     pub expand_templates: bool,
     pub expand_hakana_types: bool,
-    pub expand_typenames: bool,
+    pub force_alias_expansion: bool,
 }
 
 impl Default for TypeExpansionOptions<'_> {
@@ -55,8 +55,8 @@ impl Default for TypeExpansionOptions<'_> {
             function_is_final: false,
             expand_generic: false,
             expand_templates: true,
-            expand_typenames: true,
             expand_hakana_types: true,
+            force_alias_expansion: false,
         }
     }
 }
@@ -131,6 +131,7 @@ fn expand_atomic(
     if let TAtomic::TDict(TDict {
         ref mut known_items,
         ref mut params,
+        ref mut shape_name,
         ..
     }) = return_type_part
     {
@@ -167,6 +168,10 @@ fn expand_atomic(
                     cost,
                 );
             }
+        }
+
+        if options.force_alias_expansion {
+            *shape_name = None;
         }
     } else if let TAtomic::TVec {
         ref mut known_items,
@@ -448,10 +453,6 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        if !options.expand_typenames {
-            return;
-        }
-
         let type_definition = if let Some(t) = codebase.type_definitions.get(type_name) {
             t
         } else {
@@ -460,7 +461,8 @@ fn expand_atomic(
             return;
         };
 
-        let can_expand_type = can_expand_type_in_file(file_path, type_definition);
+        let can_expand_type =
+            options.force_alias_expansion || can_expand_type_in_file(file_path, type_definition);
 
         if type_definition.is_literal_string && options.expand_hakana_types {
             *skip_key = true;
@@ -471,7 +473,7 @@ fn expand_atomic(
         if can_expand_type {
             *skip_key = true;
 
-            let mut untemplated_type = if let Some(type_params) = type_params {
+            let mut actual_type = if let Some(type_params) = type_params {
                 let mut new_template_types = IndexMap::new();
 
                 for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
@@ -498,13 +500,13 @@ fn expand_atomic(
                 codebase,
                 interner,
                 file_path,
-                &mut untemplated_type,
+                &mut actual_type,
                 options,
                 data_flow_graph,
                 cost,
             );
 
-            let expanded_types = untemplated_type
+            let expanded_types = actual_type
                 .types
                 .into_iter()
                 .map(|mut v| {

@@ -1,0 +1,5 @@
+third-party/hhvm/hphp/hhvm/
+third-party/hhvm/hphp/test/
+third-party/hhvm/hphp/hack/test/
+third-party/hhvm/hphp/runtime/server/
+third-party/hhvm/third-party/
