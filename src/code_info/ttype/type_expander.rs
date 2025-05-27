@@ -566,7 +566,9 @@ fn expand_atomic(
                                 data_flow_graph.add_node(shape_node);
                             }
 
-                            *shape_name = Some((*type_name, None));
+                            if !options.force_alias_expansion {
+                                *shape_name = Some((*type_name, None));
+                            }
                         };
                     }
                     v
@@ -718,7 +720,9 @@ fn expand_atomic(
                                 ..
                             }) = v
                             {
-                                *shape_name = Some((*class_name, Some(*member_name)));
+                                if !options.force_alias_expansion {
+                                    *shape_name = Some((*class_name, Some(*member_name)));
+                                }
                             };
                             v
                         }));
