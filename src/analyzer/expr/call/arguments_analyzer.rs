@@ -112,6 +112,7 @@ pub(crate) fn check_arguments_match(
                     } else {
                         false
                     },
+                    expand_type_aliases: false,
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
