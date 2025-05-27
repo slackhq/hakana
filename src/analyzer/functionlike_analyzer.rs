@@ -333,6 +333,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         analysis_data: &mut FunctionAnalysisData,
         function_storage: &FunctionLikeInfo,
         context: &mut BlockContext,
+        cost: &mut u32,
     ) -> Result<(), InternalError> {
         let interner = &self.interner;
         for (property_name, declaring_class) in &classlike_storage.declaring_property_ids {
@@ -410,7 +411,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         ..Default::default()
                     },
                     &mut analysis_data.data_flow_graph,
-                    &mut 0,
+                    cost,
                 );
 
                 context
@@ -485,12 +486,15 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let mut completed_analysis = false;
 
+        let mut cost = 0;
+
         match self.add_param_types_to_context(
             params,
             functionlike_storage,
             &mut analysis_data,
             &mut context,
             statements_analyzer,
+            &mut cost,
         ) {
             Err(AnalysisError::InternalError(error, pos)) => {
                 return Err(AnalysisError::InternalError(error, pos));
@@ -508,6 +512,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             &mut analysis_data,
                             functionlike_storage,
                             &mut context,
+                            &mut cost,
                         ) {
                             return Err(AnalysisError::InternalError(error.0, error.1));
                         }
@@ -697,7 +702,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
-                &mut 0,
+                &mut cost,
             );
 
             let config = statements_analyzer.get_config();
@@ -814,6 +819,21 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if let FnEffect::Unknown = functionlike_storage.effects {
             for effect in analysis_data.expr_effects.values() {
                 effects |= effect;
+            }
+        }
+
+        if let Some(name_location) = functionlike_storage.name_location {
+            if cost > 50_000 {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::LargeTypeExpansion,
+                        format!("Very large type used — {} elements loaded", cost),
+                        name_location,
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
             }
         }
 
@@ -941,6 +961,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         analysis_data: &mut FunctionAnalysisData,
         context: &mut BlockContext,
         statements_analyzer: &mut StatementsAnalyzer,
+        cost: &mut u32,
     ) -> Result<(), AnalysisError> {
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {
@@ -983,7 +1004,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             ..Default::default()
                         },
                         &mut analysis_data.data_flow_graph,
-                        &mut 0,
+                        cost,
                     );
 
                     for type_node in param_type.get_all_child_nodes() {

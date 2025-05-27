@@ -46,6 +46,7 @@ pub enum IssueKind {
     InvalidReturnStatement,
     InvalidReturnType,
     InvalidReturnValue,
+    LargeTypeExpansion,
     LessSpecificArgument,
     LessSpecificNestedAnyArgumentType,
     LessSpecificNestedAnyReturnStatement,
