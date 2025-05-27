@@ -211,6 +211,21 @@ pub(crate) fn analyze(
         );
     }
 
+    if let Some(interned_id) = function_storage.banned_namespace_message {
+        let original_message = statements_analyzer.interner.lookup(&interned_id).to_string();
+    
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::BannedNamespace,
+                original_message,
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+    }
+
     if !function_storage.is_production_code
         && function_storage.user_defined
         && context.function_context.is_production(codebase)
