@@ -1156,7 +1156,16 @@ fn do_codegen(
         let mut updated_count = 0;
         let mut verified_count = 0;
 
+        let mut already_written_files = FxHashSet::default();
+
         for (name, info) in result.0.codegen {
+            if already_written_files.contains(&name) {
+                errors.push((name.clone(), "File already written".to_string()));
+                continue;
+            }
+
+            already_written_files.insert(name.clone());
+
             let path = Path::new(&name);
             if !path.exists() {
                 if check_codegen {

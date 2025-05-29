@@ -30,7 +30,7 @@ pub struct AnalysisResult {
     pub emitted_definition_issues: FxHashMap<FilePath, Vec<Issue>>,
     pub replacements: FxHashMap<FilePath, BTreeMap<(u32, u32), Replacement>>,
     pub insertions: FxHashMap<FilePath, BTreeMap<u32, Vec<String>>>,
-    pub codegen: BTreeMap<String, Result<String, String>>,
+    pub codegen: Vec<(String, Result<String, String>)>,
     pub mixed_source_counts: FxHashMap<DataFlowNodeId, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
@@ -57,7 +57,7 @@ impl AnalysisResult {
             symbol_references,
             time_in_analysis: Duration::default(),
             functions_to_migrate: FxHashMap::default(),
-            codegen: BTreeMap::default(),
+            codegen: Vec::new(),
             has_invalid_hack_files: false,
             changed_during_analysis_files: FxHashSet::default(),
         }

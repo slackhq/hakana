@@ -484,11 +484,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             analysis_data.issue_filter = Some(issue_filter.clone());
         }
 
-        let mut completed_analysis = false;
-
         let mut cost = 0;
 
-        match self.add_param_types_to_context(
+        if let Err(AnalysisError::InternalError(error, pos)) = self.add_param_types_to_context(
             params,
             functionlike_storage,
             &mut analysis_data,
@@ -496,74 +494,94 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             statements_analyzer,
             &mut cost,
         ) {
-            Err(AnalysisError::InternalError(error, pos)) => {
-                return Err(AnalysisError::InternalError(error, pos));
+            return Err(AnalysisError::InternalError(error, pos));
+        }
+
+        if let Some(name_location) = functionlike_storage.name_location {
+            if cost > 50_000 {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::LargeTypeExpansion,
+                        format!("Very large param types used — {} elements loaded", cost),
+                        name_location,
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
             }
-            _ => {
-                if let Some(calling_class) = &context.function_context.calling_class {
-                    if let Some(classlike_storage) = self
-                        .file_analyzer
-                        .codebase
-                        .classlike_infos
-                        .get(calling_class)
-                    {
-                        if let Err(error) = self.add_properties_to_context(
-                            classlike_storage,
-                            &mut analysis_data,
-                            functionlike_storage,
-                            &mut context,
-                            &mut cost,
-                        ) {
-                            return Err(AnalysisError::InternalError(error.0, error.1));
-                        }
-                    }
-                }
+        }
 
-                //let start_t = std::time::Instant::now();
+        if let Some(calling_class) = &context.function_context.calling_class {
+            if let Some(classlike_storage) = self
+                .file_analyzer
+                .codebase
+                .classlike_infos
+                .get(calling_class)
+            {
+                cost = 0;
 
-                match statements_analyzer.analyze(
-                    fb_ast,
+                if let Err(error) = self.add_properties_to_context(
+                    classlike_storage,
                     &mut analysis_data,
+                    functionlike_storage,
                     &mut context,
-                    &mut None,
+                    &mut cost,
                 ) {
-                    Ok(_) => {
-                        completed_analysis = true;
+                    return Err(AnalysisError::InternalError(error.0, error.1));
+                }
+
+                if let Some(name_location) = functionlike_storage.name_location {
+                    if cost > 50_000 {
+                        analysis_data.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::LargeTypeExpansion,
+                                format!("Very large property types used — {} elements loaded", cost),
+                                name_location,
+                                &context.function_context.calling_functionlike_id,
+                            ),
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
+                        );
                     }
-                    Err(AnalysisError::InternalError(error, pos)) => {
-                        return Err(AnalysisError::InternalError(error, pos))
-                    }
-                    _ => {}
-                };
-
-                // let end_t = start_t.elapsed();
-
-                // if let Some(functionlike_id) = &context.function_context.calling_functionlike_id {
-                //     if fb_ast.len() > 1 {
-                //         let first_line = fb_ast[0].0.line() as u64;
-
-                //         let last_line = fb_ast.last().unwrap().0.to_raw_span().end.line();
-
-                //         if last_line - first_line > 10 && last_line - first_line < 100000 {
-                //             println!(
-                //                 "{}\t{}\t{}",
-                //                 functionlike_id.to_string(statements_analyzer.interner),
-                //                 last_line - first_line,
-                //                 end_t.as_micros() as u64 / (last_line - first_line)
-                //             );
-                //         }
-                //     }
-                // }
-
-                if !context.has_returned {
-                    handle_inout_at_return(
-                        functionlike_storage,
-                        &mut context,
-                        &mut analysis_data,
-                        self.interner,
-                    );
                 }
             }
+        }
+
+        //let start_t = std::time::Instant::now();
+
+        if let Err(AnalysisError::InternalError(error, pos)) =
+            statements_analyzer.analyze(fb_ast, &mut analysis_data, &mut context, &mut None)
+        {
+            return Err(AnalysisError::InternalError(error, pos));
+        }
+
+        // let end_t = start_t.elapsed();
+
+        // if let Some(functionlike_id) = &context.function_context.calling_functionlike_id {
+        //     if fb_ast.len() > 1 {
+        //         let first_line = fb_ast[0].0.line() as u64;
+
+        //         let last_line = fb_ast.last().unwrap().0.to_raw_span().end.line();
+
+        //         if last_line - first_line > 10 && last_line - first_line < 100000 {
+        //             println!(
+        //                 "{}\t{}\t{}",
+        //                 functionlike_id.to_string(statements_analyzer.interner),
+        //                 last_line - first_line,
+        //                 end_t.as_micros() as u64 / (last_line - first_line)
+        //             );
+        //         }
+        //     }
+        // }
+
+        if !context.has_returned {
+            handle_inout_at_return(
+                functionlike_storage,
+                &mut context,
+                &mut analysis_data,
+                self.interner,
+            );
         }
 
         if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
@@ -602,8 +620,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let config = statements_analyzer.get_config();
 
-        if completed_analysis
-            && config.find_unused_expressions
+        if config.find_unused_expressions
             && parent_analysis_data.is_none()
             && analysis_data
                 .issue_counts
@@ -637,7 +654,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         }
 
         // Check for unnecessary service call attributes
-        if completed_analysis && parent_analysis_data.is_none() {
+        if parent_analysis_data.is_none() {
             let mut all_expected_service_calls = functionlike_storage
                 .transitive_service_calls
                 .iter()
@@ -705,13 +722,28 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 &mut cost,
             );
 
+            if let Some(name_location) = functionlike_storage.name_location {
+                if cost > 50_000 {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::LargeTypeExpansion,
+                            format!("Very large return type used — {} elements loaded", cost),
+                            name_location,
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+            }
+
             let config = statements_analyzer.get_config();
 
             let return_result_handled = config.hooks.iter().any(|hook| {
                 hook.after_functionlike_analysis(
                     &mut context,
                     functionlike_storage,
-                    completed_analysis,
+                    true,
                     &mut analysis_data,
                     &mut inferred_return_type,
                     codebase,
@@ -784,7 +816,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 hook.after_functionlike_analysis(
                     &mut context,
                     functionlike_storage,
-                    completed_analysis,
+                    true,
                     &mut analysis_data,
                     &mut inferred_return_type,
                     codebase,
@@ -819,21 +851,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if let FnEffect::Unknown = functionlike_storage.effects {
             for effect in analysis_data.expr_effects.values() {
                 effects |= effect;
-            }
-        }
-
-        if let Some(name_location) = functionlike_storage.name_location {
-            if cost > 50_000 {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::LargeTypeExpansion,
-                        format!("Very large type used — {} elements loaded", cost),
-                        name_location,
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
             }
         }
 
