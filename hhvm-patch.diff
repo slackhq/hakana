@@ -1404,3 +1404,30 @@ index b0c24a4c9f5..5e2c65f7532 100644
          let span = PosSpanTiny::make(&start, &end).unwrap();
  
          // Though the span fits nicely into 63-bits, the resulting value is > 2^62 -
+diff --git a/hphp/hack/src/utils/rust/relative_path.rs b/hphp/hack/src/utils/rust/relative_path.rs
+index d4123d7822f..5183d71e2fb 100644
+--- a/hphp/hack/src/utils/rust/relative_path.rs
++++ b/hphp/hack/src/utils/rust/relative_path.rs
+@@ -222,7 +222,7 @@ impl ToOcamlRep for RelativePath {
+     fn to_ocamlrep<'a, A: ocamlrep::Allocator>(&'a self, alloc: &'a A) -> ocamlrep::Value<'a> {
+         let mut block = alloc.block_with_size(2);
+         alloc.set_field(&mut block, 0, alloc.add(&self.prefix));
+-        alloc.set_field(&mut block, 1, alloc.add(self.path()));
++        alloc.set_field(&mut block, 1, alloc.add(self.path_str()));
+         block.build()
+     }
+ }
+@@ -231,7 +231,12 @@ impl FromOcamlRep for RelativePath {
+     fn from_ocamlrep(value: ocamlrep::Value<'_>) -> Result<Self, ocamlrep::FromError> {
+         let block = ocamlrep::from::expect_tuple(value, 2)?;
+         let prefix = ocamlrep::from::field(block, 0)?;
+-        let path: PathBuf = ocamlrep::from::field(block, 1)?;
++        let path_str: String = ocamlrep::from::field(block, 1)?;
++        let path = if path_str.is_empty() {
++            PathBuf::new()
++        } else {
++            PathBuf::from(path_str)
++        };
+         Ok(Self::make(prefix, path))
+     }
+ }
