@@ -1,0 +1,102 @@
+name: Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ "main" ]
+    paths: ['src/js_interop/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+# Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Build job
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # Initialize submodules and apply patches if needed
+      - name: Initialize dependencies
+        run: |
+          # Initialize and update submodules
+          git submodule init
+          git submodule update
+          
+          # Apply patch if not already applied
+          cd third-party/hhvm
+          if ! git diff --quiet; then
+            echo "Patch already applied or changes present"
+          else
+            git apply ../../hhvm-patch.diff || echo "Patch may already be applied"
+          fi
+
+      # Setup Node.js after dependencies are initialized
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # Setup Rust nightly toolchain for WebAssembly build
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: wasm32-unknown-unknown
+          override: true
+
+      # Install wasm-pack for WebAssembly builds
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      # Build WebAssembly package
+      - name: Build WebAssembly package
+        working-directory: src/js_interop
+        run: wasm-pack build
+
+      # Build web assets (using the WebAssembly artifacts from above)
+      - name: Build web assets
+        working-directory: src/js_interop/www
+        run: |
+          # Install npm dependencies
+          npm install
+          
+          # Build the web assets (will use WebAssembly from ../pkg)
+          npm run build
+
+      # Setup Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      # Upload artifact
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: src/js_interop/www/dist
+
+  # Deploy job
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 
