@@ -1,13 +1,13 @@
 use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict};
 use hakana_code_info::t_union::TUnion;
-use hakana_code_info::ttype::{get_nothing, wrap_atomic};
+use hakana_code_info::ttype::{get_nothing, get_string, wrap_atomic};
 use hakana_str::StrId;
 use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, num::ParseIntError, sync::Arc};
 
 pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) -> Option<TAtomic> {
-    return match &expr.2 {
+    match &expr.2 {
         aast::Expr_::ArrayGet(_) => None,
         aast::Expr_::ClassConst(boxed) => match &boxed.0 .2 {
             aast::ClassId_::CIexpr(lhs_expr) => {
@@ -261,7 +261,7 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
                 panic!()
             }
         },
-    };
+    }
 }
 
 pub fn int_from_string(value: &str) -> Result<i64, ParseIntError> {
@@ -308,8 +308,6 @@ pub fn get_atomic_for_prefix_regex_string(mut inner_text: String) -> TAtomic {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn get_shape_fields_from_regex(inner_text: &str) -> BTreeMap<DictKey, (bool, Arc<TUnion>)> {
-    use hakana_code_info::ttype::get_string;
-
     let regex = pcre2::bytes::RegexBuilder::new()
         .utf(true)
         .build(inner_text);
