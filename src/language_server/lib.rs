@@ -8,7 +8,10 @@ use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_str::Interner;
 use hakana_orchestrator::file::FileStatus;
+#[cfg(not(target_arch = "wasm32"))]
 use hakana_orchestrator::{scan_and_analyze_async, SuccessfulScanData};
+#[cfg(target_arch = "wasm32")]
+use hakana_orchestrator::SuccessfulScanData;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::sync::RwLock;
 use tokio::time::sleep;
@@ -188,6 +191,7 @@ impl LanguageServer for Backend {
 }
 
 impl Backend {
+    #[cfg(not(target_arch = "wasm32"))]
     async fn do_analysis(&self) {
         let mut previous_scan_data_guard = self.previous_scan_data.write().await;
         let mut previous_analysis_result_guard = self.previous_analysis_result.write().await;
@@ -290,6 +294,11 @@ impl Backend {
                     .await;
             }
         }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn do_analysis(&self) {
+        // WASM version doesn't support async analysis
     }
 
     async fn emit_issues(&self) {

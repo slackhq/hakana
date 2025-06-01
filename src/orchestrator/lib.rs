@@ -26,7 +26,9 @@ use std::fs;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+#[cfg(not(target_arch = "wasm32"))]
 use tower_lsp::lsp_types::MessageType;
+#[cfg(not(target_arch = "wasm32"))]
 use tower_lsp::Client;
 use unused_symbols::find_unused_definitions;
 
@@ -74,6 +76,7 @@ impl Default for SuccessfulScanData {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn scan_and_analyze_async(
     stubs_dirs: Vec<String>,
     filter: Option<String>,
