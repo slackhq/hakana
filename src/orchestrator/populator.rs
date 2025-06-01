@@ -690,36 +690,6 @@ fn inherit_methods_from_parent(
                 *appearing_classlike
             },
         );
-
-        if codebase
-            .functionlike_infos
-            .contains_key(&(*classlike_name, *method_name))
-        {
-            storage
-                .potential_declaring_method_ids
-                .insert(*method_name, {
-                    let mut h = FxHashSet::default();
-                    h.insert(*classlike_name);
-                    h
-                });
-        } else {
-            if let Some(parent_potential_method_ids) = parent_storage
-                .potential_declaring_method_ids
-                .get(method_name)
-            {
-                storage
-                    .potential_declaring_method_ids
-                    .insert(*method_name, parent_potential_method_ids.clone());
-            }
-
-            let entry = storage
-                .potential_declaring_method_ids
-                .entry(*method_name)
-                .or_default();
-
-            entry.insert(*classlike_name);
-            entry.insert(parent_storage.name);
-        }
     }
 
     for (method_name, declaring_class) in &parent_storage.inheritable_method_ids {

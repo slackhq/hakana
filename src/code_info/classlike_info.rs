@@ -104,8 +104,6 @@ pub struct ClassLikeInfo {
 
     pub inheritable_method_ids: FxHashMap<StrId, StrId>,
 
-    pub potential_declaring_method_ids: FxHashMap<StrId, FxHashSet<StrId>>,
-
     pub properties: FxHashMap<StrId, PropertyInfo>,
 
     pub appearing_property_ids: FxHashMap<StrId, StrId>,
@@ -247,7 +245,6 @@ impl ClassLikeInfo {
             methods: vec![],
             overridden_method_ids: FxHashMap::default(),
             overridden_property_ids: FxHashMap::default(),
-            potential_declaring_method_ids: FxHashMap::default(),
             properties: FxHashMap::default(),
             generic_variance: FxHashMap::default(),
             template_extended_count: 0,
