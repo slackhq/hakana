@@ -142,6 +142,40 @@ index ab6789911ec..4ce9b155a3e 100644
  impl rusqlite::ToSql for NameType {
      fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
          Ok(rusqlite::types::ToSqlOutput::from(*self as i64))
+diff --git a/hphp/hack/src/hackc/utils/string_utils.rs b/hphp/hack/src/hackc/utils/string_utils.rs
+index 17625632d1d..31135eda1d3 100644
+--- a/hphp/hack/src/hackc/utils/string_utils.rs
++++ b/hphp/hack/src/hackc/utils/string_utils.rs
+@@ -249,6 +249,7 @@ pub mod integer {
+ }
+ 
+ pub mod float {
++    #[cfg(not(target_arch = "wasm32"))]
+     fn sprintf(f: f64) -> Option<String> {
+         const BUF_SIZE: usize = 256;
+ 
+@@ -269,6 +270,21 @@ pub mod float {
+         }
+     }
+ 
++    #[cfg(target_arch = "wasm32")]
++    fn sprintf(f: f64) -> Option<String> {
++        // For WASM, use Rust's native formatting which closely matches %.17g
++        // but may have slight differences in edge cases
++        let result = format!("{:.17}", f);
++        
++        // Remove trailing zeros after decimal point, similar to %g behavior
++        if result.contains('.') {
++            let trimmed = result.trim_end_matches('0').trim_end_matches('.');
++            Some(trimmed.to_string())
++        } else {
++            Some(result)
++        }
++    }
++
+     pub fn to_string(f: impl Into<f64>) -> String {
+         let f = f.into();
+         // or_else should not happen, but just in case it does fall back
 diff --git a/hphp/hack/src/naming/names_rust/Cargo.toml b/hphp/hack/src/naming/names_rust/Cargo.toml
 index 12ed44356c2..3c41bd0a979 100644
 --- a/hphp/hack/src/naming/names_rust/Cargo.toml
