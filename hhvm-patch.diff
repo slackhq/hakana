@@ -1482,3 +1482,59 @@ index d4123d7822f..17c26b837bb 100644
      }
  }
  
+diff --git a/hphp/hack/src/utils/stack_limit/Cargo.toml b/hphp/hack/src/utils/stack_limit/Cargo.toml
+index 27156e6f13f..c7885ffaa45 100644
+--- a/hphp/hack/src/utils/stack_limit/Cargo.toml
++++ b/hphp/hack/src/utils/stack_limit/Cargo.toml
+@@ -10,6 +10,6 @@ license = "MIT"
+ [lib]
+ path = "lib.rs"
+ 
+-[dependencies]
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ psm = "0.1.17"
+ stacker = "0.1.14"
+diff --git a/hphp/hack/src/utils/stack_limit/lib.rs b/hphp/hack/src/utils/stack_limit/lib.rs
+index 6f5ce499098..a466576bd54 100644
+--- a/hphp/hack/src/utils/stack_limit/lib.rs
++++ b/hphp/hack/src/utils/stack_limit/lib.rs
+@@ -34,6 +34,7 @@ const STACK_SIZE: usize = 16 * RED_ZONE; // 2MiB
+ /// when the stack is grown.
+ /// ```
+ 
++#[cfg(not(target_arch = "wasm32"))]
+ pub fn maybe_grow<T>(f: impl FnOnce() -> T) -> T {
+     let sp = psm::stack_pointer();
+     match stacker::remaining_stack() {
+@@ -82,6 +83,11 @@ pub fn maybe_grow<T>(f: impl FnOnce() -> T) -> T {
+     f()
+ }
+ 
++#[cfg(target_arch = "wasm32")]
++pub fn maybe_grow<T>(f: impl FnOnce() -> T) -> T {
++    f()
++}
++
+ #[derive(Debug, Clone, Copy)]
+ struct Tracker {
+     /// Highest address in current stack segment.
+@@ -110,6 +116,8 @@ impl Tracker {
+     }
+ }
+ 
++
++#[cfg(not(target_arch = "wasm32"))]
+ pub fn reset() {
+     let base = psm::stack_pointer();
+     TRACKER.with(|t| {
+@@ -120,6 +128,10 @@ pub fn reset() {
+     });
+ }
+ 
++#[cfg(target_arch = "wasm32")]
++pub fn reset() {
++}
++
+ pub fn peak() -> usize {
+     TRACKER.with(|t| t.get().peak)
+ }
