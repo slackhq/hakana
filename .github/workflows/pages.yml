@@ -3,7 +3,7 @@ name: Build and Deploy to GitHub Pages
 on:
   push:
     branches: [ "main" ]
-    paths: ['src/js_interop/**', '.github/workflows/pages.yml']
+    paths: ['src/**', 'third-party/**', 'Cargo.toml', 'build.rs', 'init.sh', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
