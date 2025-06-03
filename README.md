@@ -13,36 +13,6 @@ Good type inference allows Hakana to do several other valuable things:
  - Detection of potential logic bugs
  - Discovery and removal of dead code
 
-## WebAssembly Playground
-
-Hakana includes a WebAssembly-powered playground that runs entirely in the browser. You can try it online or build it locally.
-
-### Online Playground
-
-The playground is automatically deployed to GitHub Pages whenever changes are made to `src/js_interop/`. 
-
-You can access it at: `https://[username].github.io/hakana`
-
-### Building the Playground Locally
-
-To build and serve the WebAssembly playground locally:
-
-```bash
-# Navigate to the web directory
-cd src/js_interop/www
-
-# Install dependencies
-npm install
-
-# Build the assets
-npm run build
-
-# Serve locally (optional)
-cd dist && python3 -m http.server 8080
-```
-
-The playground will be available at `http://localhost:8080`
-
 ## Non-goals
 
 This is not intended to replace Hack's default typechecker, which supports extra features (e.g. contexts and capabilities) that aren't immediately relevant to type inference.
