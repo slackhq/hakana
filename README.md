@@ -2,6 +2,8 @@
 
 Hakana is a typechecker for Hack, built by Slack.
 
+[Online Playground](https://hakana.dev)
+
 It complements the existing Hack typechecker that comes bundled with HHVM by providing additional insights beyond the scope of the official typechecker.
 
 Hakana’s primary goal is to infer accurate types in the codebase, and to do so quickly.
