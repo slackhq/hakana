@@ -215,10 +215,6 @@ pub fn combine(
     }
 
     if new_types.is_empty() {
-        if !has_nothing {
-            panic!();
-        }
-
         return vec![TAtomic::TNothing];
     }
 
