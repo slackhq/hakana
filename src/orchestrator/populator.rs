@@ -542,7 +542,7 @@ fn populate_interface_data_from_parent_interface(
 
     populate_interface_data_from_parent_or_implemented_interface(storage, parent_interface_storage);
 
-    inherit_methods_from_parent(storage, parent_interface_storage, codebase);
+    inherit_methods_from_parent(storage, parent_interface_storage);
 
     storage
         .all_parent_interfaces
@@ -580,7 +580,7 @@ fn populate_data_from_parent_classlike(
 
     extend_template_params(storage, parent_storage);
 
-    inherit_methods_from_parent(storage, parent_storage, codebase);
+    inherit_methods_from_parent(storage, parent_storage);
     inherit_properties_from_parent(storage, parent_storage);
 
     storage
@@ -663,16 +663,12 @@ fn populate_data_from_trait(
 
     extend_template_params(storage, trait_storage);
 
-    inherit_methods_from_parent(storage, trait_storage, codebase);
+    inherit_methods_from_parent(storage, trait_storage);
     inherit_properties_from_parent(storage, trait_storage);
 }
 
 #[allow(clippy::needless_borrow)]
-fn inherit_methods_from_parent(
-    storage: &mut ClassLikeInfo,
-    parent_storage: &ClassLikeInfo,
-    codebase: &CodebaseInfo,
-) {
+fn inherit_methods_from_parent(storage: &mut ClassLikeInfo, parent_storage: &ClassLikeInfo) {
     let classlike_name = &storage.name;
 
     for (method_name, appearing_classlike) in &parent_storage.appearing_method_ids {

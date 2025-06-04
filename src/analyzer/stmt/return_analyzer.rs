@@ -129,6 +129,27 @@ pub(crate) fn analyze(
         &mut 0,
     );
 
+    if let Some(return_expr) = return_expr {
+        if functionlike_storage.is_async {
+            if inferred_return_type
+                .types
+                .iter()
+                .any(|t| matches!(t, TAtomic::TAwaitable { .. }))
+            {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UnusedAwaitable,
+                        "This awaitable is not awaited in an async context".to_string(),
+                        statements_analyzer.get_hpos(&return_expr.pos()),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+    }
+
     if functionlike_storage.is_async {
         let parent_nodes = inferred_return_type.parent_nodes.clone();
         inferred_return_type = wrap_atomic(TAtomic::TAwaitable {
