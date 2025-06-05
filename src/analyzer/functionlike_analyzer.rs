@@ -16,6 +16,7 @@ use crate::{file_analyzer::FileAnalyzer, function_analysis_data::FunctionAnalysi
 use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_code_info::classlike_info::ClassLikeInfo;
 use hakana_code_info::code_location::{FilePath, HPos, StmtStart};
+use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_code_info::data_flow::node::{
     DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind,
@@ -308,7 +309,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             context
                 .locals
-                .insert(VarName::new("$this".to_string()), Rc::new(this_type));
+                .insert(VarName::new("$this"), Rc::new(this_type));
         }
 
         statements_analyzer.set_function_info(functionlike_storage);
@@ -502,7 +503,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::LargeTypeExpansion,
-                        format!("Very large param types used — {} elements loaded", cost),
+                        format!("Very large param types used — {cost} elements loaded"),
                         name_location,
                         &context.function_context.calling_functionlike_id,
                     ),
@@ -536,7 +537,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         analysis_data.maybe_add_issue(
                             Issue::new(
                                 IssueKind::LargeTypeExpansion,
-                                format!("Very large property types used — {} elements loaded", cost),
+                                format!("Very large property types used — {cost} elements loaded"),
                                 name_location,
                                 &context.function_context.calling_functionlike_id,
                             ),
@@ -727,7 +728,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::LargeTypeExpansion,
-                            format!("Very large return type used — {} elements loaded", cost),
+                            format!("Very large return type used — {cost} elements loaded"),
                             name_location,
                             &context.function_context.calling_functionlike_id,
                         ),
@@ -1089,20 +1090,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         ),
                         kind: DataFlowNodeKind::VariableUseSource {
                             pos: param.name_location,
-                            kind: if param.is_inout {
-                                VariableSourceKind::InoutParam
-                            } else if context.calling_closure_id.is_some() {
-                                VariableSourceKind::ClosureParam
-                            } else if let Some(method_storage) = &functionlike_storage.method_info {
-                                match &method_storage.visibility {
-                                    MemberVisibility::Public | MemberVisibility::Protected => {
-                                        VariableSourceKind::NonPrivateParam
-                                    }
-                                    MemberVisibility::Private => VariableSourceKind::PrivateParam,
-                                }
-                            } else {
-                                VariableSourceKind::PrivateParam
-                            },
+                            kind: get_param_source_kind(
+                                functionlike_storage,
+                                self.file_analyzer.codebase,
+                                context,
+                                param,
+                            ),
                             pure: false,
                             has_awaitable: param_type.has_awaitable_types(),
                             has_parent_nodes: true,
@@ -1163,17 +1156,51 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             context.locals.insert(
-                VarName::new(
-                    statements_analyzer
-                        .interner
-                        .lookup(&param.name.0)
-                        .to_string(),
-                ),
+                VarName::new(statements_analyzer.interner.lookup(&param.name.0)),
                 Rc::new(param_type.clone()),
             );
         }
 
         Ok(())
+    }
+}
+
+fn get_param_source_kind(
+    functionlike_storage: &FunctionLikeInfo,
+    codebase: &CodebaseInfo,
+    context: &mut BlockContext,
+    param: &hakana_code_info::functionlike_parameter::FunctionLikeParameter,
+) -> VariableSourceKind {
+    if param.is_inout {
+        VariableSourceKind::InoutParam
+    } else if context.calling_closure_id.is_some() {
+        VariableSourceKind::ClosureParam
+    } else if let Some(method_storage) = &functionlike_storage.method_info {
+        match &method_storage.visibility {
+            MemberVisibility::Public | MemberVisibility::Protected => {
+                if method_storage.is_final {
+                    if let Some(FunctionLikeIdentifier::Method(
+                        calling_class,
+                        calling_method_name,
+                    )) = context.function_context.calling_functionlike_id
+                    {
+                        if let Some(classlike_info) = codebase.classlike_infos.get(&calling_class) {
+                            if !classlike_info
+                                .overridden_method_ids
+                                .contains_key(&calling_method_name)
+                            {
+                                return VariableSourceKind::PrivateParam;
+                            }
+                        }
+                    }
+                }
+
+                VariableSourceKind::NonPrivateParam
+            }
+            MemberVisibility::Private => VariableSourceKind::PrivateParam,
+        }
+    } else {
+        VariableSourceKind::PrivateParam
     }
 }
 
@@ -1306,22 +1333,19 @@ fn report_unused_expressions(
                     }
                 }
 
-                match &kind {
-                    VariableSourceKind::Default => {
-                        handle_unused_assignment(
-                            config,
-                            statements_analyzer,
-                            pos,
-                            &mut unused_variable_nodes,
-                            node,
-                            analysis_data,
-                            calling_functionlike_id,
-                            pure,
-                            has_awaitable,
-                            false,
-                        );
-                    }
-                    _ => (),
+                if kind == &VariableSourceKind::Default {
+                    handle_unused_assignment(
+                        config,
+                        statements_analyzer,
+                        pos,
+                        &mut unused_variable_nodes,
+                        node,
+                        analysis_data,
+                        calling_functionlike_id,
+                        pure,
+                        has_awaitable,
+                        false,
+                    );
                 }
             }
             _ => {
@@ -1621,7 +1645,7 @@ pub(crate) fn update_analysis_result_with_tast(
 
 impl ScopeAnalyzer for FunctionLikeAnalyzer<'_> {
     fn get_namespace(&self) -> &Option<String> {
-        return self.file_analyzer.get_namespace();
+        self.file_analyzer.get_namespace()
     }
 
     fn get_file_analyzer(&self) -> &FileAnalyzer {

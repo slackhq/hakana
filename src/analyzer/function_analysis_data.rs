@@ -269,58 +269,58 @@ impl FunctionAnalysisData {
                 }
                 if match *hack_error {
                     // Unify error
-                    4110 => match &issue_kind {
+                    4110 => matches!(
+                        issue_kind,
                         IssueKind::FalsableReturnStatement
-                        | IssueKind::FalseArgument
-                        | IssueKind::ImpossibleAssignment
-                        | IssueKind::InvalidArgument
-                        | IssueKind::InvalidReturnStatement
-                        | IssueKind::InvalidReturnType
-                        | IssueKind::InvalidReturnValue
-                        | IssueKind::LessSpecificArgument
-                        | IssueKind::LessSpecificNestedArgumentType
-                        | IssueKind::LessSpecificNestedReturnStatement
-                        | IssueKind::LessSpecificReturnStatement
-                        | IssueKind::MixedArgument
-                        | IssueKind::MixedArrayAccess
-                        | IssueKind::MixedArrayAssignment
-                        | IssueKind::MixedMethodCall
-                        | IssueKind::MixedReturnStatement
-                        | IssueKind::MixedPropertyAssignment
-                        | IssueKind::MixedPropertyTypeCoercion
-                        | IssueKind::PropertyTypeCoercion
-                        | IssueKind::NonNullableReturnType
-                        | IssueKind::NullablePropertyAssignment
-                        | IssueKind::NullableReturnStatement
-                        | IssueKind::NullableReturnValue
-                        | IssueKind::PossiblyFalseArgument
-                        | IssueKind::PossiblyInvalidArgument
-                        | IssueKind::InvalidPropertyAssignmentValue
-                        | IssueKind::LessSpecificNestedAnyReturnStatement
-                        | IssueKind::LessSpecificNestedAnyArgumentType => true,
-                        _ => false,
-                    },
+                            | IssueKind::FalseArgument
+                            | IssueKind::ImpossibleAssignment
+                            | IssueKind::InvalidArgument
+                            | IssueKind::InvalidReturnStatement
+                            | IssueKind::InvalidReturnType
+                            | IssueKind::InvalidReturnValue
+                            | IssueKind::LessSpecificArgument
+                            | IssueKind::LessSpecificNestedArgumentType
+                            | IssueKind::LessSpecificNestedReturnStatement
+                            | IssueKind::LessSpecificReturnStatement
+                            | IssueKind::MixedArgument
+                            | IssueKind::MixedArrayAccess
+                            | IssueKind::MixedArrayAssignment
+                            | IssueKind::MixedMethodCall
+                            | IssueKind::MixedReturnStatement
+                            | IssueKind::MixedPropertyAssignment
+                            | IssueKind::MixedPropertyTypeCoercion
+                            | IssueKind::PropertyTypeCoercion
+                            | IssueKind::NonNullableReturnType
+                            | IssueKind::NullablePropertyAssignment
+                            | IssueKind::NullableReturnStatement
+                            | IssueKind::NullableReturnValue
+                            | IssueKind::PossiblyFalseArgument
+                            | IssueKind::PossiblyInvalidArgument
+                            | IssueKind::InvalidPropertyAssignmentValue
+                            | IssueKind::LessSpecificNestedAnyReturnStatement
+                            | IssueKind::LessSpecificNestedAnyArgumentType
+                    ),
                     // type inference failed
-                    4297 => match &issue_kind {
+                    4297 => matches!(
+                        issue_kind,
                         IssueKind::MixedAnyArgument
-                        | IssueKind::MixedAnyArrayAccess
-                        | IssueKind::MixedAnyArrayAssignment
-                        | IssueKind::MixedAnyArrayOffset
-                        | IssueKind::MixedAnyAssignment
-                        | IssueKind::MixedAnyMethodCall
-                        | IssueKind::MixedAnyPropertyAssignment
-                        | IssueKind::MixedAnyPropertyTypeCoercion
-                        | IssueKind::MixedAnyReturnStatement
-                        | IssueKind::MixedArgument
-                        | IssueKind::MixedArrayAccess
-                        | IssueKind::MixedArrayAssignment
-                        | IssueKind::MixedArrayOffset
-                        | IssueKind::MixedMethodCall
-                        | IssueKind::MixedPropertyAssignment
-                        | IssueKind::MixedPropertyTypeCoercion
-                        | IssueKind::MixedReturnStatement => true,
-                        _ => false,
-                    },
+                            | IssueKind::MixedAnyArrayAccess
+                            | IssueKind::MixedAnyArrayAssignment
+                            | IssueKind::MixedAnyArrayOffset
+                            | IssueKind::MixedAnyAssignment
+                            | IssueKind::MixedAnyMethodCall
+                            | IssueKind::MixedAnyPropertyAssignment
+                            | IssueKind::MixedAnyPropertyTypeCoercion
+                            | IssueKind::MixedAnyReturnStatement
+                            | IssueKind::MixedArgument
+                            | IssueKind::MixedArrayAccess
+                            | IssueKind::MixedArrayAssignment
+                            | IssueKind::MixedArrayOffset
+                            | IssueKind::MixedMethodCall
+                            | IssueKind::MixedPropertyAssignment
+                            | IssueKind::MixedPropertyTypeCoercion
+                            | IssueKind::MixedReturnStatement
+                    ),
                     // RequiredFieldIsOptional
                     4163 => match &issue_kind {
                         IssueKind::InvalidArgument

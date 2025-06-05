@@ -99,18 +99,18 @@ pub fn reconcile(
 
     if let Some(assertion_type) = assertion.get_type() {
         match assertion_type {
-            TAtomic::TScalar { .. } => {
+            TAtomic::TScalar => {
                 return intersect_simple!(
                     TAtomic::TLiteralClassname { .. }
                         | TAtomic::TLiteralInt { .. }
                         | TAtomic::TLiteralString { .. }
                         | TAtomic::TArraykey { .. }
-                        | TAtomic::TBool { .. }
+                        | TAtomic::TBool
                         | TAtomic::TClassname { .. }
                         | TAtomic::TTypename { .. }
                         | TAtomic::TFalse
                         | TAtomic::TFloat
-                        | TAtomic::TInt { .. }
+                        | TAtomic::TInt
                         | TAtomic::TStringWithFlags(..)
                         | TAtomic::TNum
                         | TAtomic::TString
