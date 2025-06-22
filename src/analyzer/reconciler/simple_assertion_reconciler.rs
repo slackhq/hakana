@@ -8,7 +8,7 @@ use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{DictKey, TAtomic, TDict},
+    t_atomic::{DictKey, TAtomic, TDict, TVec},
     t_union::TUnion,
 };
 use hakana_code_info::{
@@ -236,7 +236,7 @@ fn reconcile_truthy(
                 TAtomic::TBool { .. } => {
                     acceptable_types.push(TAtomic::TTrue);
                 }
-                TAtomic::TVec { .. } => {
+                TAtomic::TVec(TVec { .. }) => {
                     acceptable_types.push(atomic.get_non_empty_vec(None));
                 }
                 TAtomic::TDict(TDict { .. }) => {
@@ -390,11 +390,11 @@ fn reconcile_non_empty_countable(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TVec {
+        if let TAtomic::TVec(TVec {
             non_empty,
             type_param,
             ..
-        } = &atomic
+        }) = &atomic
         {
             if !non_empty {
                 if !type_param.is_nothing() {
@@ -496,12 +496,12 @@ fn reconcile_exactly_countable(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TVec {
+        if let TAtomic::TVec(TVec {
             non_empty,
             known_count,
             type_param,
             ..
-        } = atomic
+        }) = atomic
         {
             let min_under_count = if let Some(known_count) = known_count {
                 known_count < count
@@ -746,11 +746,11 @@ fn reconcile_has_array_key(
 
                 acceptable_types.push(atomic);
             }
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 ref mut known_items,
                 ref mut type_param,
                 ..
-            } => {
+            }) => {
                 if let DictKey::Int(i) = key_name {
                     if let Some(known_items) = known_items {
                         if let Some(known_item) = known_items.get_mut(&(*i as usize)) {
@@ -969,11 +969,11 @@ fn reconcile_has_nonnull_entry_for_key(
 
                 acceptable_types.push(atomic);
             }
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 ref mut known_items,
                 ref mut type_param,
                 ..
-            } => {
+            }) => {
                 if let DictKey::Int(i) = key_name {
                     if let Some(known_items) = known_items {
                         if let Some(known_item) = known_items.get_mut(&(*i as usize)) {

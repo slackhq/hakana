@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     codebase_info::CodebaseInfo,
-    t_atomic::{TAtomic, TDict},
+    t_atomic::{TAtomic, TDict, TVec},
     t_union::TUnion,
     GenericParent,
 };
@@ -267,11 +267,11 @@ fn replace_atomic(
     codebase: &CodebaseInfo,
 ) -> TAtomic {
     match atomic {
-        TAtomic::TVec {
+        TAtomic::TVec(TVec {
             ref mut type_param,
             ref mut known_items,
             ..
-        } => {
+        }) => {
             *type_param = Box::new(replace(type_param, template_result, codebase));
 
             if let Some(known_items) = known_items {

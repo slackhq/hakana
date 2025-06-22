@@ -4,6 +4,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
     statements_analyzer::StatementsAnalyzer,
 };
+use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::ttype::{
     comparison::union_type_comparator, get_mixed_any, get_nothing, get_null, intersect_union_types,
     wrap_atomic,
@@ -135,7 +136,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TVec { .. } => {
+            TAtomic::TVec(TVec { .. }) => {
                 return Some(subtract_vec(
                     assertion,
                     existing_var_type,
@@ -442,7 +443,7 @@ fn subtract_vec(
             }
 
             did_remove_type = true;
-        } else if let TAtomic::TVec { .. } = atomic {
+        } else if let TAtomic::TVec(TVec { .. }) = atomic {
             did_remove_type = true;
 
             if is_equality {
@@ -1526,13 +1527,13 @@ fn reconcile_falsy(
                 TAtomic::TBool { .. } => {
                     acceptable_types.push(TAtomic::TFalse);
                 }
-                TAtomic::TVec { .. } => {
-                    let new_atomic = TAtomic::TVec {
+                TAtomic::TVec(TVec { .. }) => {
+                    let new_atomic = TAtomic::TVec(TVec {
                         type_param: Box::new(get_nothing()),
                         known_items: None,
                         non_empty: false,
                         known_count: None,
-                    };
+                    });
                     acceptable_types.push(new_atomic);
                 }
                 TAtomic::TDict(TDict { .. }) => {
@@ -1644,18 +1645,18 @@ fn reconcile_empty_countable(
     new_var_type.possibly_undefined_from_try = false;
 
     for atomic in existing_var_types {
-        if let TAtomic::TVec { .. } = atomic {
+        if let TAtomic::TVec(TVec { .. }) = atomic {
             did_remove_type = true;
 
             if atomic.is_truthy() {
                 // don't keep
             } else {
-                let new_atomic = TAtomic::TVec {
+                let new_atomic = TAtomic::TVec(TVec {
                     type_param: Box::new(get_nothing()),
                     known_items: None,
                     non_empty: false,
                     known_count: None,
-                };
+                });
                 acceptable_types.push(new_atomic);
             }
         } else if let TAtomic::TDict(TDict { .. }) = atomic {
@@ -1716,7 +1717,7 @@ fn reconcile_not_exactly_countable(
     new_var_type.possibly_undefined_from_try = false;
 
     for atomic in existing_var_types {
-        if let TAtomic::TVec { known_count, .. } = atomic {
+        if let TAtomic::TVec(TVec { known_count, .. }) = atomic {
             if let Some(known_count) = &known_count {
                 if known_count == count {
                     did_remove_type = true;
@@ -1865,11 +1866,11 @@ fn reconcile_no_array_key(
 
                 acceptable_types.push(atomic);
             }
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 ref mut known_items,
                 ref mut type_param,
                 ..
-            } => {
+            }) => {
                 if let DictKey::Int(i) = key_name {
                     if let Some(known_items) = known_items {
                         if let Some(known_item) = known_items.get(&(*i as usize)) {

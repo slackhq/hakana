@@ -3,6 +3,7 @@ use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::data_flow::node::VariableSourceKind;
+use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::var_name::VarName;
 use hakana_code_info::VarId;
 use hakana_code_info::EFFECT_WRITE_LOCAL;
@@ -409,11 +410,11 @@ fn analyze_list_assignment(
         let mut value_type = get_nothing();
 
         for assign_value_atomic_type in &assign_value_type.types {
-            let atomic_value_type = if let TAtomic::TVec {
+            let atomic_value_type = if let TAtomic::TVec(TVec {
                 known_items,
                 type_param,
                 ..
-            } = assign_value_atomic_type
+            }) = assign_value_atomic_type
             {
                 if let Some(known_items) = known_items {
                     if let Some((possibly_undefined, value_type)) = known_items.get(&offset) {

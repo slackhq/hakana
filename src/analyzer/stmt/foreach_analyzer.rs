@@ -11,10 +11,10 @@ use crate::{
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
-use hakana_code_info::ttype::{
+use hakana_code_info::{t_atomic::TVec, ttype::{
     add_optional_union_type, add_union_type, combine_optional_union_types, get_arraykey, get_int,
     get_literal_int, get_literal_string, get_mixed_any, get_nothing,
-};
+}};
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
@@ -233,11 +233,11 @@ fn check_iterator_type(
         }
 
         match &iterator_atomic_type {
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 type_param,
                 known_items: None,
                 ..
-            } => {
+            }) => {
                 if type_param.is_nothing() {
                     always_non_empty_array = false;
                     has_valid_iterator = true;
@@ -278,11 +278,11 @@ fn check_iterator_type(
             }) => {
                 always_non_empty_array = false;
             }
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 known_items: None,
                 non_empty: false,
                 ..
-            } => {
+            }) => {
                 always_non_empty_array = false;
             }
             TAtomic::TKeyset { .. } => {
@@ -292,7 +292,7 @@ fn check_iterator_type(
         }
 
         match iterator_atomic_type {
-            TAtomic::TDict(TDict { .. }) | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => {
+            TAtomic::TDict(TDict { .. }) | TAtomic::TVec(TVec { .. }) | TAtomic::TKeyset { .. } => {
                 let (key_param, value_param) = match iterator_atomic_type {
                     TAtomic::TDict(TDict {
                         known_items,
@@ -389,11 +389,11 @@ fn check_iterator_type(
 
                         (key_param, value_param)
                     }
-                    TAtomic::TVec {
+                    TAtomic::TVec(TVec {
                         known_items,
                         type_param,
                         ..
-                    } => {
+                    }) => {
                         let mut key_param = if type_param.is_nothing() {
                             get_nothing()
                         } else {

@@ -3,6 +3,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::data_flow::graph::WholeProgramKind;
+use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::{
     data_flow::{
         graph::GraphKind,
@@ -49,7 +50,7 @@ pub(crate) fn analyze(
         known_items.insert(i, (false, value_item_type));
     }
 
-    let mut new_dict = wrap_atomic(TAtomic::TVec {
+    let mut new_dict = wrap_atomic(TAtomic::TVec(TVec {
         known_count: Some(known_items.len()),
         known_items: if !known_items.is_empty() {
             Some(known_items)
@@ -58,7 +59,7 @@ pub(crate) fn analyze(
         },
         type_param: Box::new(get_nothing()),
         non_empty: true,
-    });
+    }));
 
     new_dict.parent_nodes = parent_nodes;
 

@@ -4,7 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{
     codebase_info::CodebaseInfo,
     data_flow::node::DataFlowNode,
-    t_atomic::{DictKey, TAtomic, TDict},
+    t_atomic::{DictKey, TAtomic, TDict, TVec},
     t_union::TUnion,
     type_resolution::TypeResolutionContext,
 };
@@ -148,12 +148,12 @@ pub fn get_scalar() -> TUnion {
 }
 
 pub fn get_vec(type_param: TUnion) -> TUnion {
-    wrap_atomic(TAtomic::TVec {
+    wrap_atomic(TAtomic::TVec(TVec {
         known_items: None,
         type_param: Box::new(type_param),
         known_count: None,
         non_empty: false,
-    })
+    }))
 }
 
 pub fn get_dict(key_param: TUnion, value_param: TUnion) -> TUnion {
@@ -367,11 +367,11 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
 
             Some((key_param, value_param))
         }
-        TAtomic::TVec {
+        TAtomic::TVec(TVec {
             type_param,
             known_items,
             ..
-        } => {
+        }) => {
             let mut key_types = vec![TAtomic::TNothing];
             let mut type_param = (**type_param).clone();
 
@@ -436,11 +436,11 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
 
             Some(value_param)
         }
-        TAtomic::TVec {
+        TAtomic::TVec(TVec {
             type_param,
             known_items,
             ..
-        } => {
+        }) => {
             let mut type_param = (**type_param).clone();
 
             if let Some(known_items) = known_items {
@@ -716,11 +716,11 @@ pub fn get_atomic_syntax_type(
             defining_entity.to_string(Some(interner))
         ),
         TAtomic::TTrue { .. } => "bool".to_string(),
-        TAtomic::TVec {
+        TAtomic::TVec(TVec {
             type_param,
             known_items,
             ..
-        } => {
+        }) => {
             if type_param.is_nothing() {
                 if let Some(known_items) = known_items {
                     let mut known_item_strings = vec![];

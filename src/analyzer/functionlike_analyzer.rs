@@ -27,7 +27,7 @@ use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TVec};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
@@ -1069,12 +1069,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             if param.is_variadic {
-                param_type = wrap_atomic(TAtomic::TVec {
+                param_type = wrap_atomic(TAtomic::TVec(TVec {
                     known_items: None,
                     type_param: Box::new(param_type),
                     known_count: None,
                     non_empty: false,
-                });
+                }));
             }
 
             let new_parent_node =

@@ -1,5 +1,5 @@
 use crate::code_location::FilePath;
-use crate::t_atomic::TDict;
+use crate::t_atomic::{TDict, TVec};
 use crate::ttype::{get_arrayish_params, get_value_param, wrap_atomic};
 use crate::{class_constant_info::ConstantInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 use hakana_str::StrId;
@@ -103,7 +103,7 @@ pub fn is_contained_by(
             return true;
         }
 
-        if let TAtomic::TVec { .. } | TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } =
+        if let TAtomic::TVec(TVec { .. }) | TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } =
             input_type_part
         {
             let arrayish_params = get_arrayish_params(input_type_part, codebase);
@@ -156,7 +156,7 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if let TAtomic::TVec { .. } | TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } =
+        if let TAtomic::TVec(TVec { .. }) | TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } =
             input_type_part
         {
             let arrayish_params = get_arrayish_params(input_type_part, codebase);
@@ -241,18 +241,18 @@ pub fn is_contained_by(
                     );
                 }
             }
-            TAtomic::TVec { .. } => {
+            TAtomic::TVec(TVec { .. }) => {
                 if let Some(value_param) = get_value_param(container_type_part, codebase) {
                     return self::is_contained_by(
                         codebase,
                         file_path,
                         input_type_part,
-                        &TAtomic::TVec {
+                        &TAtomic::TVec(TVec {
                             type_param: Box::new(value_param),
                             known_items: None,
                             non_empty: false,
                             known_count: None,
-                        },
+                        }),
                         inside_assertion,
                         atomic_comparison_result,
                     );
@@ -292,8 +292,8 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TVec { .. } = container_type_part {
-        if let TAtomic::TVec { .. } = input_type_part {
+    if let TAtomic::TVec(TVec { .. }) = container_type_part {
+        if let TAtomic::TVec(TVec { .. }) = input_type_part {
             return vec_type_comparator::is_contained_by(
                 codebase,
                 file_path,
@@ -625,7 +625,7 @@ pub fn is_contained_by(
             *input_name,
             StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY
         ) {
-            if let TAtomic::TKeyset { .. } | TAtomic::TVec { .. } | TAtomic::TDict(TDict { .. }) =
+            if let TAtomic::TKeyset { .. } | TAtomic::TVec(TVec { .. }) | TAtomic::TDict(TDict { .. }) =
                 container_type_part
             {
                 atomic_comparison_result.type_coerced = Some(true);

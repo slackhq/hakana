@@ -3,7 +3,7 @@ use crate::{
     code_location::{FilePath, HPos},
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
-    t_atomic::TAtomic,
+    t_atomic::{TAtomic, TVec},
     t_union::TUnion,
 };
 use crate::{function_context::FunctionLikeIdentifier, GenericParent};
@@ -402,17 +402,17 @@ fn replace_atomic<'a>(
 
             return atomic_type;
         }
-        TAtomic::TVec {
+        TAtomic::TVec(TVec {
             ref mut known_items,
             ref mut type_param,
             ..
-        } => {
+        }) => {
             if let Some(known_items) = known_items {
                 for (offset, (_, property)) in known_items {
-                    let input_type_param = if let Some(TAtomic::TVec {
+                    let input_type_param = if let Some(TAtomic::TVec(TVec {
                         known_items: Some(ref input_known_items),
                         ..
-                    }) = input_type
+                    })) = input_type
                     {
                         if let Some((_, t)) = input_known_items.get(offset) {
                             Some(t)
@@ -439,7 +439,7 @@ fn replace_atomic<'a>(
                     );
                 }
             } else {
-                let input_param = if let Some(TAtomic::TVec { .. }) = &input_type {
+                let input_param = if let Some(TAtomic::TVec(TVec { .. })) = &input_type {
                     get_value_param(&input_type.unwrap(), codebase)
                 } else {
                     None
@@ -551,7 +551,7 @@ fn replace_atomic<'a>(
                                 ..
                             } => input_type_parts.get(offset).cloned(),
                             TAtomic::TDict(TDict { .. })
-                            | TAtomic::TVec { .. }
+                            | TAtomic::TVec(TVec { .. })
                             | TAtomic::TKeyset { .. } => {
                                 let (key_param, value_param) =
                                     get_arrayish_params(input_inner, codebase).unwrap();
@@ -1536,7 +1536,7 @@ fn find_matching_atomic_types_for_template(
                 continue;
             }
             (
-                TAtomic::TDict(TDict { .. }) | TAtomic::TVec { .. } | TAtomic::TKeyset { .. },
+                TAtomic::TDict(TDict { .. }) | TAtomic::TVec(TVec { .. }) | TAtomic::TKeyset { .. },
                 TAtomic::TNamedObject { name, .. },
             ) => {
                 if is_array_container(name) {

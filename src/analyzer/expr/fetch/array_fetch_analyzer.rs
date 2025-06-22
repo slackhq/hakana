@@ -7,7 +7,7 @@ use hakana_code_info::{
         path::{ArrayDataKind, PathKind},
     },
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic, TDict},
+    t_atomic::{DictKey, TAtomic, TDict, TVec},
     t_union::TUnion,
 };
 use hakana_code_info::{
@@ -327,7 +327,7 @@ pub(crate) fn get_array_access_type_given_offset(
         }
 
         match atomic_var_type {
-            TAtomic::TKeyset { .. } | TAtomic::TVec { .. } => {
+            TAtomic::TKeyset { .. } | TAtomic::TVec(TVec { .. }) => {
                 let new_type = handle_array_access_on_vec(
                     statements_analyzer,
                     stmt.2,
@@ -577,11 +577,11 @@ pub(crate) fn handle_array_access_on_vec(
         *has_valid_expected_offset = true;
     }
 
-    if let TAtomic::TVec {
+    if let TAtomic::TVec(TVec {
         known_items: Some(known_items),
         type_param,
         ..
-    } = vec.clone()
+    }) = vec.clone()
     {
         let type_param = *type_param;
         if let Some(val) = dim_type.get_single_literal_int_value() {
@@ -645,7 +645,7 @@ pub(crate) fn handle_array_access_on_vec(
         }
 
         return type_param;
-    } else if let TAtomic::TVec { type_param, .. } = vec {
+    } else if let TAtomic::TVec(TVec { type_param, .. }) = vec {
         return *type_param;
     } else if let TAtomic::TKeyset { type_param, .. } = vec {
         return *type_param;

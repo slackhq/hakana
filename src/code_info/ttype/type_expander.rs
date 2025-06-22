@@ -11,7 +11,7 @@ use crate::{
     },
     functionlike_info::FunctionLikeInfo,
     functionlike_parameter::FnParameter,
-    t_atomic::{DictKey, TAtomic, TClosure, TDict},
+    t_atomic::{DictKey, TAtomic, TClosure, TDict, TVec},
     t_union::TUnion,
     type_definition_info::TypeDefinitionInfo,
 };
@@ -175,11 +175,11 @@ fn expand_atomic(
         if options.force_alias_expansion {
             *shape_name = None;
         }
-    } else if let TAtomic::TVec {
+    } else if let TAtomic::TVec(TVec {
         ref mut known_items,
         ref mut type_param,
         ..
-    } = return_type_part
+    }) = return_type_part
     {
         expand_union(
             codebase,

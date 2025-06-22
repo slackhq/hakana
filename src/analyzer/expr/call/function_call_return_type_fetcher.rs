@@ -8,7 +8,7 @@ use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_code_info::data_flow::path::{ArrayDataKind, PathKind};
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
-use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict};
+use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict, TVec};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::{SinkType, SourceType};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
@@ -217,12 +217,12 @@ fn handle_special_functions(
                         match value {
                             0 | 2 => {
                                 let mut false_or_string_vec = TUnion::new(vec![
-                                    TAtomic::TVec {
+                                    TAtomic::TVec(TVec {
                                         known_items: None,
                                         type_param: Box::new(get_string()),
                                         known_count: None,
                                         non_empty: true,
-                                    },
+                                    }),
                                     TAtomic::TFalse,
                                 ]);
                                 false_or_string_vec.ignore_falsable_issues = true;
@@ -230,12 +230,12 @@ fn handle_special_functions(
                             }
                             1 | 3 => {
                                 let mut false_or_string_vec = TUnion::new(vec![
-                                    TAtomic::TVec {
+                                    TAtomic::TVec(TVec {
                                         known_items: None,
                                         type_param: Box::new(get_string()),
                                         known_count: None,
                                         non_empty: false,
-                                    },
+                                    }),
                                     TAtomic::TFalse,
                                 ]);
                                 false_or_string_vec.ignore_falsable_issues = true;
@@ -243,9 +243,9 @@ fn handle_special_functions(
                             }
                             _ => {
                                 let mut false_or_string_vec = TUnion::new(vec![
-                                    TAtomic::TVec {
+                                    TAtomic::TVec(TVec {
                                         known_items: None,
-                                        type_param: Box::new(wrap_atomic(TAtomic::TVec {
+                                        type_param: Box::new(wrap_atomic(TAtomic::TVec(TVec {
                                             known_items: Some(BTreeMap::from([
                                                 (0, (false, get_string())),
                                                 (1, (false, get_int())),
@@ -253,10 +253,10 @@ fn handle_special_functions(
                                             type_param: Box::new(get_nothing()),
                                             known_count: None,
                                             non_empty: true,
-                                        })),
+                                        }))),
                                         known_count: None,
                                         non_empty: false,
-                                    },
+                                    }),
                                     TAtomic::TFalse,
                                 ]);
                                 false_or_string_vec.ignore_falsable_issues = true;
@@ -265,12 +265,12 @@ fn handle_special_functions(
                         }
                     } else {
                         let mut false_or_string_vec = TUnion::new(vec![
-                            TAtomic::TVec {
+                            TAtomic::TVec(TVec {
                                 known_items: None,
                                 type_param: Box::new(get_mixed()),
                                 known_count: None,
                                 non_empty: true,
-                            },
+                            }),
                             TAtomic::TFalse,
                         ]);
                         false_or_string_vec.ignore_falsable_issues = true;
@@ -279,12 +279,12 @@ fn handle_special_functions(
                 }
             } else {
                 let mut false_or_string_vec = TUnion::new(vec![
-                    TAtomic::TVec {
+                    TAtomic::TVec(TVec {
                         known_items: None,
                         type_param: Box::new(get_string()),
                         known_count: None,
                         non_empty: true,
-                    },
+                    }),
                     TAtomic::TFalse,
                 ]);
                 false_or_string_vec.ignore_falsable_issues = true;
@@ -293,7 +293,7 @@ fn handle_special_functions(
 
             None
         }
-        &StrId::DEBUG_BACKTRACE => Some(wrap_atomic(TAtomic::TVec {
+        &StrId::DEBUG_BACKTRACE => Some(wrap_atomic(TAtomic::TVec(TVec {
             known_items: None,
             type_param: Box::new(wrap_atomic(TAtomic::TDict(TDict {
                 known_items: Some(BTreeMap::from([
@@ -332,7 +332,7 @@ fn handle_special_functions(
             }))),
             known_count: None,
             non_empty: true,
-        })),
+        }))),
         &StrId::STR_REPLACE => {
             // returns string if the second arg is a string
             if let Some(arg) = args.get(1) {

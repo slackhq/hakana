@@ -4,6 +4,7 @@ use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_atomic::TClosure;
 use hakana_code_info::t_atomic::TDict;
+use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::get_arraykey;
 use hakana_code_info::ttype::get_mixed_any;
@@ -32,7 +33,7 @@ fn get_vec_type_from_hint(
     resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
-    TAtomic::TVec {
+    TAtomic::TVec(TVec {
         type_param: Box::new(
             get_type_from_hint(
                 &hint.1,
@@ -47,7 +48,7 @@ fn get_vec_type_from_hint(
         known_count: None,
         non_empty: false,
         known_items: None,
-    }
+    })
 }
 
 fn get_tuple_type_from_hints(
@@ -57,7 +58,7 @@ fn get_tuple_type_from_hints(
     resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
-    TAtomic::TVec {
+    TAtomic::TVec(TVec {
         type_param: Box::new(get_nothing()),
         known_count: Some(tuple_info.required.len()),
         non_empty: true,
@@ -84,7 +85,7 @@ fn get_tuple_type_from_hints(
 
             map
         }),
-    }
+    })
 }
 
 fn get_keyset_type_from_hint(
@@ -527,12 +528,12 @@ pub fn get_type_from_hint(
                             file_path,
                         )
                     } else {
-                        TAtomic::TVec {
+                        TAtomic::TVec(TVec {
                             type_param: Box::new(get_mixed_any()),
                             known_items: None,
                             known_count: None,
                             non_empty: false,
-                        }
+                        })
                     }
                 }
                 "dict" | "HH\\darray" | "darray" => get_dict_type_from_hints(
@@ -599,14 +600,14 @@ pub fn get_type_from_hint(
                     }
                 }
                 "vec_or_dict" | "varray_or_darray" => {
-                    types.push(TAtomic::TVec {
+                    types.push(TAtomic::TVec(TVec {
                         known_items: None,
                         type_param: Box::new(wrap_atomic(TAtomic::TMixedWithFlags(
                             true, false, false, false,
                         ))),
                         non_empty: false,
                         known_count: None,
-                    });
+                    }));
                     TAtomic::TDict(TDict {
                         known_items: None,
                         params: Some((

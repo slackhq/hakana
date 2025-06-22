@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
 use hakana_code_info::data_flow::node::VariableSourceKind;
+use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::ttype::{
     combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
     template::TemplateBound, type_combiner, wrap_atomic,
@@ -232,11 +233,11 @@ fn update_atomic_given_key(
         for key_value in key_values {
             // TODO also strings
             match atomic_type {
-                TAtomic::TVec {
+                TAtomic::TVec(TVec {
                     ref mut known_items,
                     ref mut non_empty,
                     ..
-                } => {
+                }) => {
                     if let TAtomic::TLiteralInt {
                         value: key_value, ..
                     } = key_value
@@ -317,12 +318,12 @@ fn update_atomic_given_key(
         let arrayish_params = get_arrayish_params(&atomic_type, codebase);
 
         match atomic_type {
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 ref mut known_items,
                 ref mut type_param,
                 ref mut known_count,
                 ..
-            } => {
+            }) => {
                 *type_param = Box::new(hakana_code_info::ttype::add_union_type(
                     arrayish_params.unwrap().1,
                     current_type,
@@ -512,12 +513,12 @@ fn update_array_assignment_child_type(
 
         for original_type in &root_type.types {
             match original_type {
-                TAtomic::TVec { known_items, .. } => collection_types.push(TAtomic::TVec {
+                TAtomic::TVec(TVec { known_items, .. }) => collection_types.push(TAtomic::TVec(TVec {
                     type_param: Box::new(value_type.clone()),
                     known_items: known_items.clone(),
                     known_count: None,
                     non_empty: true,
-                }),
+                })),
                 TAtomic::TDict(TDict { known_items, .. }) => {
                     collection_types.push(TAtomic::TDict(TDict {
                         params: Some((Box::new((*key_type).clone()), Box::new(value_type.clone()))),
@@ -567,12 +568,12 @@ fn update_array_assignment_child_type(
     } else {
         for original_type in &root_type.types {
             match original_type {
-                TAtomic::TVec {
+                TAtomic::TVec(TVec {
                     known_items,
                     type_param,
                     ..
-                } => collection_types.push(if !context.inside_loop && type_param.is_nothing() {
-                    TAtomic::TVec {
+                }) => collection_types.push(if !context.inside_loop && type_param.is_nothing() {
+                    TAtomic::TVec(TVec {
                         type_param: Box::new(get_nothing()),
                         known_items: Some(BTreeMap::from([(
                             if let Some(known_items) = known_items {
@@ -584,14 +585,14 @@ fn update_array_assignment_child_type(
                         )])),
                         known_count: None,
                         non_empty: true,
-                    }
+                    })
                 } else {
-                    TAtomic::TVec {
+                    TAtomic::TVec(TVec {
                         type_param: Box::new(value_type.clone()),
                         known_items: None,
                         known_count: None,
                         non_empty: true,
-                    }
+                    })
                 }),
                 TAtomic::TDict(TDict { .. }) => {
                     // should not happen, but works at runtime

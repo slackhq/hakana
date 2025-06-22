@@ -1,4 +1,5 @@
 use crate::code_location::FilePath;
+use crate::t_atomic::TVec;
 use crate::ttype::get_arrayish_params;
 use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
@@ -16,15 +17,15 @@ pub(crate) fn is_contained_by(
 
     let mut obviously_bad = false;
 
-    if let TAtomic::TVec {
+    if let TAtomic::TVec(TVec {
         known_items: Some(container_known_items),
         ..
-    } = container_type_part
+    }) = container_type_part
     {
-        if let TAtomic::TVec {
+        if let TAtomic::TVec(TVec {
             known_items: Some(input_known_items),
             ..
-        } = input_type_part
+        }) = input_type_part
         {
             for (key, (c_u, container_property_type)) in container_known_items {
                 if let Some((i_u, input_property_type)) = input_known_items.get(key) {
@@ -56,15 +57,15 @@ pub(crate) fn is_contained_by(
     }
 
     if !obviously_bad {
-        let tuples_only = if let TAtomic::TVec {
+        let tuples_only = if let TAtomic::TVec(TVec {
             type_param: container_type_param,
             ..
-        } = container_type_part
+        }) = container_type_part
         {
-            if let TAtomic::TVec {
+            if let TAtomic::TVec(TVec {
                 type_param: input_type_param,
                 ..
-            } = input_type_part
+            }) = input_type_part
             {
                 container_type_param.is_nothing() && input_type_param.is_nothing()
             } else {

@@ -57,6 +57,15 @@ pub struct TClosure {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+pub struct TVec{
+    pub known_items: Option<BTreeMap<usize, (bool, TUnion)>>,
+    pub type_param: Box<TUnion>,
+    pub known_count: Option<usize>,
+    pub non_empty: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
+#[derivative(Hash)]
 pub enum TAtomic {
     /// Corresponds to the arraykey type in Hack
     TArraykey {
@@ -164,12 +173,7 @@ pub enum TAtomic {
     TTypename {
         as_type: Box<TAtomic>,
     },
-    TVec {
-        known_items: Option<BTreeMap<usize, (bool, TUnion)>>,
-        type_param: Box<TUnion>,
-        known_count: Option<usize>,
-        non_empty: bool,
-    },
+    TVec(TVec),
     TVoid,
     TPlaceholder,
     TClassTypeConstant {
@@ -624,12 +628,12 @@ impl TAtomic {
                 str
             }
             TAtomic::TTrue { .. } => "true".to_string(),
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 type_param,
                 known_items,
                 non_empty,
                 ..
-            } => {
+            }) => {
                 if let Some(known_items) = known_items {
                     let mut str = String::new();
                     str += "tuple(";
@@ -710,7 +714,7 @@ impl TAtomic {
     pub fn get_key(&self) -> String {
         match self {
             TAtomic::TDict(TDict { .. }) => "dict".to_string(),
-            TAtomic::TVec { .. } => "vec".to_string(),
+            TAtomic::TVec(TVec { .. }) => "vec".to_string(),
             TAtomic::TKeyset { .. } => "keyset".to_string(),
             TAtomic::TClassname { as_type, .. } => {
                 let mut str = String::new();
@@ -910,14 +914,14 @@ impl TAtomic {
 
     pub fn get_vec_param(&self) -> Option<&TUnion> {
         match self {
-            TAtomic::TVec { type_param, .. } => Some(type_param),
+            TAtomic::TVec(TVec { type_param, .. }) => Some(type_param),
             _ => None,
         }
     }
 
     pub fn is_non_empty_vec(&self) -> bool {
         match self {
-            TAtomic::TVec { non_empty, .. } => *non_empty,
+            TAtomic::TVec(TVec { non_empty, .. }) => *non_empty,
             _ => false,
         }
     }
@@ -1088,18 +1092,18 @@ impl TAtomic {
     }
 
     pub fn get_non_empty_vec(&self, known_count: Option<usize>) -> TAtomic {
-        if let TAtomic::TVec {
+        if let TAtomic::TVec(TVec {
             known_items,
             type_param,
             ..
-        } = self
+        }) = self
         {
-            return TAtomic::TVec {
+            return TAtomic::TVec(TVec {
                 known_items: known_items.clone(),
                 type_param: type_param.clone(),
                 known_count,
                 non_empty: true,
-            };
+            });
         }
 
         panic!()
@@ -1168,11 +1172,11 @@ impl TAtomic {
 
                 false
             }
-            &TAtomic::TVec {
+            &TAtomic::TVec(TVec {
                 known_items,
                 non_empty,
                 ..
-            } => {
+            }) => {
                 if *non_empty {
                     return true;
                 }
@@ -1220,12 +1224,12 @@ impl TAtomic {
 
                 false
             }
-            &TAtomic::TVec {
+            &TAtomic::TVec(TVec {
                 known_items,
                 non_empty,
                 type_param,
                 ..
-            } => {
+            }) => {
                 if known_items.is_none() && type_param.is_nothing() && !non_empty {
                     return true;
                 }
@@ -1255,7 +1259,7 @@ impl TAtomic {
 
     pub fn is_array_accessible_with_int_or_string_key(&self, interner: &Interner) -> bool {
         match self {
-            TAtomic::TDict(TDict { .. }) | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => true,
+            TAtomic::TDict(TDict { .. }) | TAtomic::TVec(TVec { .. }) | TAtomic::TKeyset { .. } => true,
             TAtomic::TNamedObject { name, .. } => matches!(
                 interner.lookup(name),
                 "HH\\KeyedContainer" | "HH\\Container" | "HH\\AnyArray"
@@ -1381,7 +1385,7 @@ impl TAtomic {
                     )]));
                 }
             }
-            TAtomic::TVec { type_param, .. } => {
+            TAtomic::TVec(TVec { type_param, .. }) => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
                     *type_param = Box::new(TUnion::new(vec![TAtomic::TMixedWithFlags(
                         true, false, false, false,
@@ -1521,11 +1525,11 @@ impl TAtomic {
                 true
             }
             TAtomic::TKeyset { type_param } => type_param.is_json_compatible(banned_type_aliases),
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 known_items,
                 type_param,
                 ..
-            } => {
+            }) => {
                 if !type_param.is_json_compatible(banned_type_aliases) {
                     return false;
                 }
@@ -1608,11 +1612,11 @@ impl HasTypeNodes for TAtomic {
             TAtomic::TNamedObject {
                 type_params: None, ..
             } => vec![],
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 type_param,
                 known_items,
                 ..
-            } => {
+            }) => {
                 let mut vec = vec![TypeNode::Union(type_param)];
                 if let Some(known_items) = known_items {
                     for (_, prop_type) in known_items.values() {
@@ -1749,11 +1753,11 @@ pub fn populate_atomic_type(
                 force,
             );
         }
-        TAtomic::TVec {
+        TAtomic::TVec(TVec {
             ref mut type_param,
             ref mut known_items,
             ..
-        } => {
+        }) => {
             populate_union_type(
                 type_param,
                 codebase_symbols,

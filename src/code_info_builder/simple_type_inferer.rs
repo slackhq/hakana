@@ -1,4 +1,4 @@
-use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict};
+use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict, TVec};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{get_nothing, get_string, wrap_atomic};
 use hakana_str::StrId;
@@ -80,12 +80,12 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
             }
 
             match boxed.0 .1 {
-                oxidized::tast::VcKind::Vec => Some(TAtomic::TVec {
+                oxidized::tast::VcKind::Vec => Some(TAtomic::TVec(TVec {
                     known_count: Some(entries.len()),
                     known_items: Some(entries),
                     type_param: Box::new(get_nothing()),
                     non_empty: true,
-                }),
+                })),
                 oxidized::tast::VcKind::Keyset => None,
                 _ => panic!(),
             }
@@ -151,12 +151,12 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
                 }
             }
 
-            Some(TAtomic::TVec {
+            Some(TAtomic::TVec(TVec {
                 known_count: Some(entries.len()),
                 known_items: Some(entries),
                 type_param: Box::new(get_nothing()),
                 non_empty: true,
-            })
+            }))
         }
         aast::Expr_::Binop(boxed) => {
             if let ast_defs::Bop::Dot = boxed.bop {

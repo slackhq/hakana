@@ -12,7 +12,7 @@ use hakana_code_info::{
     code_location::FilePath,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{TAtomic, TDict},
+    t_atomic::{TAtomic, TDict, TVec},
     t_union::TUnion,
     ttype::{
         get_bool, get_false, get_float, get_null, get_object, get_scalar, get_true,
@@ -1374,16 +1374,16 @@ pub(crate) fn intersect_atomic_with_atomic(
             )
         }
         (
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 known_items: type_1_known_items,
                 type_param: type_1_param,
                 ..
-            },
-            TAtomic::TVec {
+            }),
+            TAtomic::TVec(TVec {
                 known_items: type_2_known_items,
                 type_param: type_2_param,
                 ..
-            },
+            }),
         ) => {
             return intersect_vecs(
                 statements_analyzer,
@@ -1572,12 +1572,12 @@ fn intersect_vecs(
             }
 
             if let Some(type_param) = type_param {
-                return Some(TAtomic::TVec {
+                return Some(TAtomic::TVec(TVec {
                     known_items: Some(type_2_known_items),
                     type_param: Box::new(type_param),
                     non_empty: true,
                     known_count: None,
-                });
+                }));
             }
 
             None
@@ -1597,12 +1597,12 @@ fn intersect_vecs(
             }
 
             if let Some(type_param) = type_param {
-                return Some(TAtomic::TVec {
+                return Some(TAtomic::TVec(TVec {
                     known_items: Some(type_2_known_items),
                     type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
-                });
+                }));
             }
 
             None
@@ -1622,24 +1622,24 @@ fn intersect_vecs(
             }
 
             if let Some(type_param) = type_param {
-                return Some(TAtomic::TVec {
+                return Some(TAtomic::TVec(TVec {
                     known_items: Some(type_1_known_items),
                     type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
-                });
+                }));
             }
 
             None
         }
         _ => {
             if let Some(type_param) = type_param {
-                return Some(TAtomic::TVec {
+                return Some(TAtomic::TVec(TVec {
                     known_items: None,
                     type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
-                });
+                }));
             }
 
             None

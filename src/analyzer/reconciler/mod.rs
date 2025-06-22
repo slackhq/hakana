@@ -16,7 +16,7 @@ use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic, TDict},
+    t_atomic::{DictKey, TAtomic, TDict, TVec},
     t_union::TUnion,
     var_name::VarName,
     VarId,
@@ -425,10 +425,10 @@ fn adjust_array_type(
                     )]));
                 }
             }
-            TAtomic::TVec {
+            TAtomic::TVec(TVec {
                 ref mut known_items,
                 ..
-            } => {
+            }) => {
                 if let Ok(arraykey_offset) = arraykey_offset.parse::<usize>() {
                     if let Some(known_items) = known_items {
                         known_items.insert(arraykey_offset, (false, result_type.clone()));
@@ -845,7 +845,7 @@ fn get_value_for_key(
                                 *possibly_undefined = true;
                             }
                         }
-                    } else if let TAtomic::TVec { known_items, .. } = &existing_key_type_part {
+                    } else if let TAtomic::TVec(TVec { known_items, .. }) = &existing_key_type_part {
                         let known_item = if INTEGER_REGEX.is_match(&array_key) {
                             if let Some(known_items) = known_items {
                                 let key_parts_key = array_key.parse::<usize>().unwrap();

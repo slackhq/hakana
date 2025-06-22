@@ -4,7 +4,7 @@ use crate::{
     classlike_info::Variance,
     code_location::FilePath,
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
-    t_atomic::{DictKey, TAtomic, TDict},
+    t_atomic::{DictKey, TAtomic, TDict, TVec},
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -100,7 +100,7 @@ pub fn combine(
     }
 
     if let Some(vec_type_param) = combination.vec_type_param {
-        new_types.push(TAtomic::TVec {
+        new_types.push(TAtomic::TVec(TVec {
             known_items: if combination.vec_entries.is_empty() {
                 None
             } else {
@@ -109,7 +109,7 @@ pub fn combine(
             type_param: Box::new(vec_type_param),
             non_empty: combination.vec_always_filled,
             known_count: None,
-        });
+        }));
     }
 
     if let Some(keyset_type_param) = combination.keyset_type_param {
@@ -386,13 +386,13 @@ fn scrape_type_properties(
         combination.value_types.remove("true");
     }
 
-    if let TAtomic::TVec {
+    if let TAtomic::TVec(TVec {
         ref type_param,
         non_empty,
         known_count,
         ref known_items,
         ..
-    } = atomic
+    }) = atomic
     {
         let had_previous_param = combination.vec_type_param.is_some();
 

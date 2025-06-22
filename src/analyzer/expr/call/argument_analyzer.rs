@@ -12,7 +12,7 @@ use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::t_atomic::{TAtomic, TDict};
+use hakana_code_info::t_atomic::{TAtomic, TDict, TVec};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::{string_to_sink_types, SinkType};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
@@ -123,7 +123,7 @@ fn get_unpacked_type(
                 &mut false,
                 &mut false,
             ),
-            TAtomic::TVec { .. } => handle_array_access_on_vec(
+            TAtomic::TVec(TVec { .. }) => handle_array_access_on_vec(
                 statements_analyzer,
                 pos,
                 analysis_data,

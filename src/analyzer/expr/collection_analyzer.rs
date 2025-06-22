@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::ttype::{
     get_arraykey, get_keyset, get_literal_int, get_mixed_any, get_nothing, type_combiner,
     wrap_atomic,
@@ -58,12 +59,12 @@ pub(crate) fn analyze_vals(
             VcKind::Vec => {
                 analysis_data.set_expr_type(
                     pos,
-                    wrap_atomic(TAtomic::TVec {
+                    wrap_atomic(TAtomic::TVec(TVec {
                         known_items: None,
                         type_param: Box::new(get_nothing()),
                         known_count: Some(0),
                         non_empty: false,
-                    }),
+                    })),
                 );
             }
             VcKind::Keyset => {
@@ -127,14 +128,14 @@ pub(crate) fn analyze_vals(
             }
 
             let mut new_vec = wrap_atomic(if !known_items.is_empty() {
-                TAtomic::TVec {
+                TAtomic::TVec(TVec {
                     known_items: Some(known_items),
                     type_param: Box::new(get_nothing()),
                     known_count: Some(types.len()),
                     non_empty: true,
-                }
+                })
             } else {
-                TAtomic::TVec {
+                TAtomic::TVec(TVec {
                     known_items: None,
                     type_param: Box::new(TUnion::new(type_combiner::combine(
                         array_creation_info.item_value_atomic_types.clone(),
@@ -143,7 +144,7 @@ pub(crate) fn analyze_vals(
                     ))),
                     known_count: None,
                     non_empty: true,
-                }
+                })
             });
 
             if !array_creation_info.parent_nodes.is_empty() {
