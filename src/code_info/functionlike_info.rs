@@ -176,6 +176,8 @@ pub struct FunctionLikeInfo {
 
     pub banned_function_message: Option<StrId>,
 
+    pub banned_namespace_message: Option<StrId>,
+
     pub is_closure: bool,
 
     pub overriding: bool,
@@ -223,6 +225,7 @@ impl FunctionLikeInfo {
             is_closure: false,
             overriding: false,
             banned_function_message: None,
+            banned_namespace_message: None,
             ignore_noreturn_calls: false,
             transitive_service_calls: vec![],
             service_calls: vec![],

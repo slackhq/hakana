@@ -16,6 +16,7 @@ use crate::{
 pub enum IssueKind {
     AbstractInstantiation,
     BannedFunction,
+    BannedNamespace,
     ExtendFinalClass,
     CannotInferGenericParam,
     CloneInsideLoop,
@@ -331,6 +332,10 @@ pub fn get_issue_from_comment(
         || trimmed_text.starts_with("HHAST_IGNORE_ERROR[BannedFunctions]")
     {
         return Some(Ok(IssueKind::BannedFunction));
+    } else if trimmed_text.starts_with("HHAST_FIXME[BannedNamespaces]")
+        || trimmed_text.starts_with("HHAST_IGNORE_ERROR[BannedNamespaces]")
+    {
+        return Some(Ok(IssueKind::BannedNamespace));
     }
 
     None

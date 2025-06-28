@@ -12,6 +12,8 @@ pub struct JsonConfig {
     #[serde(default)]
     pub banned_builtin_functions: FxHashMap<String, String>,
     #[serde(default)]
+    pub banned_namespaces: FxHashMap<String, JsonBannedNamespace>,
+    #[serde(default)]
     pub security_analysis: JsonSecurityConfig,
     #[serde(default)]
     pub allowed_issues: Vec<String>,
@@ -24,6 +26,11 @@ pub struct JsonSecurityConfig {
     pub ignore_files: Vec<String>,
     pub ignore_sink_files: FxHashMap<String, Vec<String>>,
     pub max_depth: Option<u8>,
+}
+#[derive(Debug, Clone, Deserialize)] 
+pub struct JsonBannedNamespace {
+    pub message: String,
+    pub allowed_namespaces: Vec<String>,
 }
 
 pub(crate) fn read_from_file(path: &Path) -> Result<JsonConfig, Box<dyn Error>> {
