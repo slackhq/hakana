@@ -274,6 +274,7 @@ fn main() -> Result<()> {
         "ReflectionFunction",
         "ReflectionTypeAlias",
         "SimpleXMLElement",
+        "Throwable",
         "XHPChild",
         "__DIR__",
         "__DynamicallyCallable",
