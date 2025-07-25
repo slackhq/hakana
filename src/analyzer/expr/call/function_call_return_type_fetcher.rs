@@ -552,13 +552,13 @@ fn handle_special_functions(
 
                 if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
                     for atomic_type in &dict_type.types {
-                        if let TAtomic::TDict(TDict { .. }) = atomic_type {
+                        if let TAtomic::TDict(dict) = atomic_type {
                             let mut expr_type_inner = handle_array_access_on_dict(
                                 statements_analyzer,
                                 pos,
                                 analysis_data,
                                 context,
-                                atomic_type,
+                                dict,
                                 &dim_type,
                                 false,
                                 &mut false,

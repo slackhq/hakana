@@ -266,6 +266,7 @@ pub fn is_contained_by(
                         input_type_part,
                         &TAtomic::TKeyset {
                             type_param: Box::new(arrayish_params.0),
+                            non_empty: false,
                         },
                         inside_assertion,
                         atomic_comparison_result,
@@ -307,10 +308,12 @@ pub fn is_contained_by(
 
     if let TAtomic::TKeyset {
         type_param: container_type_param,
+        ..
     } = container_type_part
     {
         if let TAtomic::TKeyset {
             type_param: input_type_param,
+            ..
         } = input_type_part
         {
             return union_type_comparator::is_contained_by(

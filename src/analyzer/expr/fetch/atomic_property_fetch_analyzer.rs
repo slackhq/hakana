@@ -6,6 +6,7 @@ use crate::{
 };
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::ttype::get_nothing;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
@@ -254,6 +255,31 @@ fn get_class_property_type(
                     declaring_class_storage,
                     analysis_data,
                 );
+            }
+
+            if let Some(functionlike_storage) = statements_analyzer.get_functionlike_info() {
+                if !functionlike_storage.where_constraints.is_empty() {
+                    type_expander::expand_union(
+                        codebase,
+                        &Some(statements_analyzer.interner),
+                        &statements_analyzer.file_analyzer.file_source.file_path,
+                        &mut class_property_type,
+                        &TypeExpansionOptions {
+                            self_class: Some(&declaring_class_storage.name),
+                            static_class_type: StaticClassType::Object(&lhs_type_part),
+                            parent_class: parent_class.as_ref(),
+                            where_constraints: if functionlike_storage.where_constraints.is_empty()
+                            {
+                                None
+                            } else {
+                                Some(&functionlike_storage.where_constraints)
+                            },
+                            ..Default::default()
+                        },
+                        &mut analysis_data.data_flow_graph,
+                        &mut 0,
+                    );
+                }
             }
         }
 

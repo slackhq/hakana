@@ -115,6 +115,7 @@ pub fn combine(
     if let Some(keyset_type_param) = combination.keyset_type_param {
         new_types.push(TAtomic::TKeyset {
             type_param: Box::new(keyset_type_param),
+            non_empty: combination.keyset_always_filled,
         });
     }
 
@@ -404,8 +405,6 @@ fn scrape_type_properties(
                     combination.vec_counts = None;
                 }
             }
-
-            combination.vec_sometimes_filled = true;
         } else {
             combination.vec_always_filled = false;
         }
@@ -508,7 +507,15 @@ fn scrape_type_properties(
         return;
     }
 
-    if let TAtomic::TKeyset { ref type_param, .. } = atomic {
+    if let TAtomic::TKeyset {
+        ref type_param,
+        non_empty,
+    } = atomic
+    {
+        if !non_empty {
+            combination.keyset_always_filled = false;
+        }
+
         combination.keyset_type_param =
             if let Some(ref existing_type) = combination.keyset_type_param {
                 Some(combine_union_types(
@@ -535,9 +542,7 @@ fn scrape_type_properties(
         let had_previous_dict = combination.has_dict;
         combination.has_dict = true;
 
-        if non_empty {
-            combination.dict_sometimes_filled = true;
-        } else {
+        if !non_empty {
             combination.dict_always_filled = false;
         }
 

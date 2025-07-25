@@ -1645,36 +1645,122 @@ fn reconcile_empty_countable(
     new_var_type.possibly_undefined_from_try = false;
 
     for atomic in existing_var_types {
-        if let TAtomic::TVec(TVec { .. }) = atomic {
-            did_remove_type = true;
+        match &atomic {
+            TAtomic::TDict(TDict {
+                known_items,
+                non_empty,
+                params,
+                ..
+            }) => {
+                if *non_empty {
+                    did_remove_type = true;
+                    continue;
+                }
 
-            if atomic.is_truthy() {
-                // don't keep
-            } else {
-                let new_atomic = TAtomic::TVec(TVec {
-                    type_param: Box::new(get_nothing()),
-                    known_items: None,
-                    non_empty: false,
-                    known_count: None,
-                });
-                acceptable_types.push(new_atomic);
-            }
-        } else if let TAtomic::TDict(TDict { .. }) = atomic {
-            did_remove_type = true;
+                if let Some(known_items) = &known_items {
+                    for (u, _) in known_items.values() {
+                        if !u {
+                            did_remove_type = true;
+                            continue;
+                        }
+                    }
+                }
 
-            if atomic.is_truthy() {
-                // don't keep
-            } else {
-                let new_atomic = TAtomic::TDict(TDict {
-                    params: None,
-                    known_items: None,
-                    non_empty: false,
-                    shape_name: None,
-                });
-                acceptable_types.push(new_atomic);
+                if known_items.is_none() && params.is_none() {
+                    acceptable_types.push(atomic);
+                } else {
+                    did_remove_type = true;
+                    let new_atomic = TAtomic::TDict(TDict {
+                        params: None,
+                        known_items: None,
+                        non_empty: false,
+                        shape_name: None,
+                    });
+                    acceptable_types.push(new_atomic);
+                }
             }
-        } else {
-            acceptable_types.push(atomic);
+            TAtomic::TVec(TVec {
+                known_items,
+                non_empty,
+                type_param,
+                ..
+            }) => {
+                if *non_empty {
+                    did_remove_type = true;
+                    continue;
+                }
+
+                if let Some(known_items) = &known_items {
+                    for (possibly_undefined, _) in known_items.values() {
+                        if !possibly_undefined {
+                            did_remove_type = true;
+                            continue;
+                        }
+                    }
+                }
+
+                if known_items.is_none() && type_param.is_nothing() {
+                    acceptable_types.push(atomic);
+                } else {
+                    did_remove_type = true;
+                    let new_atomic = TAtomic::TVec(TVec {
+                        type_param: Box::new(get_nothing()),
+                        known_items: None,
+                        non_empty: false,
+                        known_count: None,
+                    });
+                    acceptable_types.push(new_atomic);
+                }
+            }
+            TAtomic::TKeyset {
+                type_param,
+                non_empty,
+                ..
+            } => {
+                if *non_empty {
+                    did_remove_type = true;
+                    continue;
+                }
+
+                if type_param.is_nothing() {
+                    acceptable_types.push(atomic);
+                } else {
+                    did_remove_type = true;
+                    let new_atomic = TAtomic::TKeyset {
+                        type_param: Box::new(get_nothing()),
+                        non_empty: false,
+                    };
+                    acceptable_types.push(new_atomic);
+                }
+            }
+            TAtomic::TGenericParam { ref as_type, .. } => {
+                did_remove_type = true;
+                if !as_type.is_mixed() {
+                    let atomic = atomic.replace_template_extends(reconcile_empty_countable(
+                        assertion,
+                        as_type,
+                        None,
+                        false,
+                        analysis_data,
+                        statements_analyzer,
+                        None,
+                        calling_functionlike_id,
+                        suppressed_issues,
+                    ));
+
+                    acceptable_types.push(atomic);
+                } else {
+                    acceptable_types.push(atomic);
+                }
+            }
+            TAtomic::TTypeVariable { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            _ => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
         }
     }
 

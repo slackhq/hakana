@@ -43,6 +43,7 @@ pub struct TypeExpansionOptions<'a> {
     pub expand_hakana_types: bool,
     pub force_alias_expansion: bool,
     pub expand_type_aliases: bool,
+    pub where_constraints: Option<&'a Vec<(StrId, TUnion)>>,
 }
 
 impl Default for TypeExpansionOptions<'_> {
@@ -59,6 +60,7 @@ impl Default for TypeExpansionOptions<'_> {
             expand_hakana_types: true,
             force_alias_expansion: false,
             expand_type_aliases: true,
+            where_constraints: None,
         }
     }
 }
@@ -312,9 +314,20 @@ fn expand_atomic(
             }
         }
     } else if let TAtomic::TGenericParam {
-        ref mut as_type, ..
+        param_name,
+        ref mut as_type,
+        ..
     } = return_type_part
     {
+        if let Some(where_constraints) = options.where_constraints {
+            if let Some((_, first_constraint_type)) = where_constraints
+                .iter()
+                .filter(|(k, _)| k == param_name)
+                .next()
+            {
+                *as_type = Box::new(first_constraint_type.clone());
+            }
+        }
         expand_union(
             codebase,
             interner,

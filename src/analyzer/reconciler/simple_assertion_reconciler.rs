@@ -409,6 +409,28 @@ fn reconcile_non_empty_countable(
             } else {
                 acceptable_types.push(atomic);
             }
+        } else if let TAtomic::TKeyset {
+            non_empty,
+            type_param,
+            ..
+        } = &atomic
+        {
+            if !non_empty {
+                if !type_param.is_nothing() {
+                    let non_empty_keyset = TAtomic::TKeyset {
+                        type_param: type_param.clone(),
+                        non_empty: true,
+                    };
+
+                    acceptable_types.push(non_empty_keyset);
+                } else {
+                    acceptable_types.push(atomic);
+                }
+
+                did_remove_type = true;
+            } else {
+                acceptable_types.push(atomic);
+            }
         } else if let TAtomic::TDict(TDict {
             non_empty,
             params,
@@ -437,6 +459,7 @@ fn reconcile_non_empty_countable(
                 acceptable_types.push(atomic);
             }
         } else {
+            did_remove_type = true;
             acceptable_types.push(atomic);
         }
     }

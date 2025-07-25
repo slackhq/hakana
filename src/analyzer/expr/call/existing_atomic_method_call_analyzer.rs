@@ -420,13 +420,13 @@ fn handle_shapes_static_method(
                     let is_nullable = dict_type.is_nullable();
 
                     for atomic_type in &dict_type.types {
-                        if let TAtomic::TDict(TDict { .. }) = atomic_type {
+                        if let TAtomic::TDict(dict) = atomic_type {
                             let mut expr_type_inner = handle_array_access_on_dict(
                                 statements_analyzer,
                                 pos,
                                 analysis_data,
                                 context,
-                                atomic_type,
+                                dict,
                                 &dim_type,
                                 false,
                                 &mut has_valid_expected_offset,

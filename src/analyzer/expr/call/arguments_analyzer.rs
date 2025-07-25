@@ -413,7 +413,7 @@ pub(crate) fn check_arguments_match(
                     if param_type.has_template() {
                         let default_type =
                             if let DefaultType::NormalData(default_union) = &default_type {
-                                default_union.clone()
+                                wrap_atomic(default_union.clone())
                             } else {
                                 // todo handle unresolved constants
                                 get_mixed_any()

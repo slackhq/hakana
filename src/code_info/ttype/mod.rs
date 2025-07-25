@@ -168,6 +168,7 @@ pub fn get_dict(key_param: TUnion, value_param: TUnion) -> TUnion {
 pub fn get_keyset(type_param: TUnion) -> TUnion {
     wrap_atomic(TAtomic::TKeyset {
         type_param: Box::new(type_param),
+        non_empty: false,
     })
 }
 
@@ -182,6 +183,7 @@ pub fn get_mixed_dict() -> TUnion {
 pub fn get_mixed_keyset() -> TUnion {
     wrap_atomic(TAtomic::TKeyset {
         type_param: Box::new(get_arraykey(true)),
+        non_empty: false,
     })
 }
 

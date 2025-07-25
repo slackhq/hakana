@@ -269,6 +269,20 @@ pub(crate) fn analyze(
                 );
             }
         }
+        StrId::LIB_C_IS_EMPTY => {
+            let expr_var_id = expression_identifier::get_var_id(
+                &expr.2[0].to_expr_ref(),
+                context.function_context.calling_class.as_ref(),
+                resolved_names,
+                Some((statements_analyzer.codebase, statements_analyzer.interner)),
+            );
+            if let Some(expr_var_id) = expr_var_id {
+                analysis_data.if_true_assertions.insert(
+                    (pos.start_offset() as u32, pos.end_offset() as u32),
+                    FxHashMap::from_iter([(expr_var_id, vec![Assertion::EmptyCountable])]),
+                );
+            }
+        }
         StrId::LIB_C_CONTAINS
         | StrId::LIB_C_CONTAINS_KEY
         | StrId::LIB_DICT_CONTAINS

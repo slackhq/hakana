@@ -332,7 +332,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         &mut self,
         classlike_storage: &ClassLikeInfo,
         analysis_data: &mut FunctionAnalysisData,
-        function_storage: &FunctionLikeInfo,
+        functionlike_storage: &FunctionLikeInfo,
         context: &mut BlockContext,
         cost: &mut u32,
     ) -> Result<(), InternalError> {
@@ -401,7 +401,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     &TypeExpansionOptions {
                         self_class: Some(calling_class),
                         static_class_type: StaticClassType::Name(calling_class),
-                        function_is_final: if let Some(method_info) = &function_storage.method_info
+                        function_is_final: if let Some(method_info) =
+                            &functionlike_storage.method_info
                         {
                             method_info.is_final
                         } else {
@@ -1018,6 +1019,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             },
                             expand_generic: true,
                             expand_templates: true,
+                            where_constraints: if functionlike_storage.where_constraints.is_empty()
+                            {
+                                None
+                            } else {
+                                Some(&functionlike_storage.where_constraints)
+                            },
 
                             ..Default::default()
                         },

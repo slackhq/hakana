@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
 use hakana_code_info::attribute_info::AttributeInfo;
@@ -10,6 +11,7 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FnEffect;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::functionlike_info::MetaStart;
+use hakana_code_info::functionlike_parameter::DefaultType;
 use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::issue::get_issue_from_comment;
 use hakana_code_info::issue::IssueKind;
@@ -249,35 +251,37 @@ pub(crate) fn get_functionlike(
                 )],
             ));
         }
+    }
 
-        for where_hint in where_constraints {
-            let where_first = get_type_from_hint(
-                &where_hint.0 .1,
-                this_name,
-                type_context,
-                resolved_names,
-                file_source.file_path,
-                where_hint.0 .0.start_offset() as u32,
-            )
-            .unwrap()
-            .get_single_owned();
+    for where_hint in where_constraints {
+        let where_first = get_type_from_hint(
+            &where_hint.0 .1,
+            this_name,
+            type_context,
+            resolved_names,
+            file_source.file_path,
+            where_hint.0 .0.start_offset() as u32,
+        )
+        .unwrap()
+        .get_single_owned();
 
-            let where_second = get_type_from_hint(
-                &where_hint.2 .1,
-                this_name,
-                type_context,
-                resolved_names,
-                file_source.file_path,
-                where_hint.2 .0.start_offset() as u32,
-            )
-            .unwrap();
+        let where_second = get_type_from_hint(
+            &where_hint.2 .1,
+            this_name,
+            type_context,
+            resolved_names,
+            file_source.file_path,
+            where_hint.2 .0.start_offset() as u32,
+        )
+        .unwrap();
 
-            if let TAtomic::TGenericParam { param_name, .. } = where_first {
-                if let ast_defs::ConstraintKind::ConstraintEq = where_hint.1 {
-                    functionlike_info
-                        .where_constraints
-                        .push((param_name, where_second));
-                }
+        if let TAtomic::TGenericParam { param_name, .. } = where_first {
+            if let ast_defs::ConstraintKind::ConstraintEq | ast_defs::ConstraintKind::ConstraintAs =
+                where_hint.1
+            {
+                functionlike_info
+                    .where_constraints
+                    .push((param_name, where_second));
             }
         }
     }
@@ -723,7 +727,17 @@ fn convert_param_nodes(
             }
             param.promoted_property = param_node.visibility.is_some();
             param.is_optional = if let tast::FunParamInfo::ParamOptional(expr) = &param_node.info {
-                expr.is_some()
+                if let Some(expr) = expr {
+                    let default = simple_type_inferer::infer(expr, resolved_names);
+
+                    if let Some(default) = default {
+                        param.default_type = Some(DefaultType::NormalData(default));
+                    }
+
+                    true
+                } else {
+                    false
+                }
             } else {
                 false
             };

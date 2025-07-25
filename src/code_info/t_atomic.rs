@@ -46,6 +46,106 @@ pub struct TDict {
     pub shape_name: Option<(StrId, Option<StrId>)>,
 }
 
+impl TDict {
+    pub fn get_id(&self, interner: Option<&Interner>) -> String {
+        self.get_id_with_refs(interner, &mut vec![], None)
+    }
+
+    pub fn get_id_with_refs(
+        &self,
+        interner: Option<&Interner>,
+        refs: &mut Vec<StrId>,
+        indent: Option<usize>,
+    ) -> String {
+        if let Some(shape_name) = self.shape_name {
+            return if let Some(interner) = interner {
+                if let Some(shape_member_name) = &shape_name.1 {
+                    format!(
+                        "shape-from({}::{})",
+                        interner.lookup(&shape_name.0),
+                        interner.lookup(shape_member_name)
+                    )
+                } else {
+                    refs.push(shape_name.0);
+
+                    format!("shape-from({})", interner.lookup(&shape_name.0),)
+                }
+            } else if let Some(shape_member_name) = &shape_name.1 {
+                format!("shape-from({}::{})", shape_name.0 .0, shape_member_name.0)
+            } else {
+                refs.push(shape_name.0);
+
+                format!("shape-from({})", shape_name.0 .0)
+            };
+        }
+
+        let mut str = String::new();
+
+        if let Some(known_items) = &self.known_items {
+            str += "shape(";
+
+            if let Some(indent) = indent {
+                str += "\n";
+                str += &("\t".repeat(indent + 1));
+            }
+
+            str += known_items
+                .iter()
+                .map(|(property, (u, property_type))| {
+                    format!(
+                        "{}{} => {}",
+                        if *u { "?" } else { "" },
+                        property.to_string(interner),
+                        property_type.get_id_with_refs(
+                            interner,
+                            refs,
+                            indent.map(|indent| indent + 1)
+                        )
+                    )
+                })
+                .join(&if let Some(indent) = indent {
+                    format!("\n{}", "\t".repeat(indent + 1))
+                } else {
+                    ", ".to_string()
+                })
+                .as_str();
+
+            if let Some(params) = &self.params {
+                if let Some(indent) = indent {
+                    str += &format!("\n{}", "\t".repeat(indent + 1));
+                } else {
+                    str += ", "
+                }
+
+                str += "...dict<";
+                str += params.0.get_id_with_refs(interner, refs, indent).as_str();
+                str += ", ";
+                str += params.1.get_id_with_refs(interner, refs, indent).as_str();
+                str += ">";
+            }
+
+            if let Some(indent) = indent {
+                str += "\n";
+                str += &("\t".repeat(indent));
+            }
+
+            str += ")";
+            return str;
+        }
+
+        if let Some(params) = &self.params {
+            str += "dict<";
+            str += params.0.get_id_with_refs(interner, refs, indent).as_str();
+            str += ", ";
+            str += params.1.get_id_with_refs(interner, refs, indent).as_str();
+            str += ">";
+            str
+        } else {
+            "dict<nothing, nothing>".to_string()
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
 pub struct TClosure {
@@ -57,11 +157,60 @@ pub struct TClosure {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
-pub struct TVec{
+pub struct TVec {
     pub known_items: Option<BTreeMap<usize, (bool, TUnion)>>,
     pub type_param: Box<TUnion>,
     pub known_count: Option<usize>,
     pub non_empty: bool,
+}
+
+impl TVec {
+    pub fn get_id(&self, interner: Option<&Interner>) -> String {
+        self.get_id_with_refs(interner, &mut vec![], None)
+    }
+
+    pub fn get_id_with_refs(
+        &self,
+        interner: Option<&Interner>,
+        refs: &mut Vec<StrId>,
+        indent: Option<usize>,
+    ) -> String {
+        let mut str = String::new();
+
+        if let Some(known_items) = &self.known_items {
+            str += "tuple(";
+            str += known_items
+                .iter()
+                .map(|(_, (_, tunion))| tunion.get_id_with_refs(interner, refs, indent))
+                .join(", ")
+                .as_str();
+
+            if !self.type_param.is_nothing() {
+                str += ", ...vec<";
+                str += self
+                    .type_param
+                    .get_id_with_refs(interner, refs, indent)
+                    .as_str();
+                str += ">";
+            }
+
+            str += ")";
+            return str;
+        }
+
+        str += if self.non_empty {
+            "non-empty-vec<"
+        } else {
+            "vec<"
+        };
+        str += self
+            .type_param
+            .get_id_with_refs(interner, refs, indent)
+            .as_str();
+        str += ">";
+
+        str
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
@@ -96,6 +245,7 @@ pub enum TAtomic {
     TInt,
     TKeyset {
         type_param: Box<TUnion>,
+        non_empty: bool,
     },
     TLiteralClassname {
         name: StrId,
@@ -228,99 +378,7 @@ impl TAtomic {
                 str += ">";
                 str
             }
-            TAtomic::TDict(TDict {
-                params,
-                known_items,
-                shape_name,
-                ..
-            }) => {
-                if let Some(shape_name) = shape_name {
-                    return if let Some(interner) = interner {
-                        if let Some(shape_member_name) = &shape_name.1 {
-                            format!(
-                                "shape-from({}::{})",
-                                interner.lookup(&shape_name.0),
-                                interner.lookup(shape_member_name)
-                            )
-                        } else {
-                            refs.push(shape_name.0);
-
-                            format!("shape-from({})", interner.lookup(&shape_name.0),)
-                        }
-                    } else if let Some(shape_member_name) = &shape_name.1 {
-                        format!("shape-from({}::{})", shape_name.0 .0, shape_member_name.0)
-                    } else {
-                        refs.push(shape_name.0);
-
-                        format!("shape-from({})", shape_name.0 .0)
-                    };
-                }
-
-                let mut str = String::new();
-
-                if let Some(known_items) = known_items {
-                    str += "shape(";
-
-                    if let Some(indent) = indent {
-                        str += "\n";
-                        str += &("\t".repeat(indent + 1));
-                    }
-
-                    str += known_items
-                        .iter()
-                        .map(|(property, (u, property_type))| {
-                            format!(
-                                "{}{} => {}",
-                                if *u { "?" } else { "" },
-                                property.to_string(interner),
-                                property_type.get_id_with_refs(
-                                    interner,
-                                    refs,
-                                    indent.map(|indent| indent + 1)
-                                )
-                            )
-                        })
-                        .join(&if let Some(indent) = indent {
-                            format!("\n{}", "\t".repeat(indent + 1))
-                        } else {
-                            ", ".to_string()
-                        })
-                        .as_str();
-
-                    if let Some(params) = params {
-                        if let Some(indent) = indent {
-                            str += &format!("\n{}", "\t".repeat(indent + 1));
-                        } else {
-                            str += ", "
-                        }
-
-                        str += "...dict<";
-                        str += params.0.get_id_with_refs(interner, refs, indent).as_str();
-                        str += ", ";
-                        str += params.1.get_id_with_refs(interner, refs, indent).as_str();
-                        str += ">";
-                    }
-
-                    if let Some(indent) = indent {
-                        str += "\n";
-                        str += &("\t".repeat(indent));
-                    }
-
-                    str += ")";
-                    return str;
-                }
-
-                if let Some(params) = params {
-                    str += "dict<";
-                    str += params.0.get_id_with_refs(interner, refs, indent).as_str();
-                    str += ", ";
-                    str += params.1.get_id_with_refs(interner, refs, indent).as_str();
-                    str += ">";
-                    str
-                } else {
-                    "dict<nothing, nothing>".to_string()
-                }
-            }
+            TAtomic::TDict(dict) => dict.get_id_with_refs(interner, refs, indent),
             TAtomic::TEnum { name, .. } => {
                 refs.push(*name);
                 if let Some(interner) = interner {
@@ -628,36 +686,7 @@ impl TAtomic {
                 str
             }
             TAtomic::TTrue { .. } => "true".to_string(),
-            TAtomic::TVec(TVec {
-                type_param,
-                known_items,
-                non_empty,
-                ..
-            }) => {
-                if let Some(known_items) = known_items {
-                    let mut str = String::new();
-                    str += "tuple(";
-                    str += known_items
-                        .iter()
-                        .map(|(_, (_, tunion))| tunion.get_id_with_refs(interner, refs, indent))
-                        .join(", ")
-                        .as_str();
-
-                    if !type_param.is_nothing() {
-                        str += ", ...vec<";
-                        str += type_param.get_id_with_refs(interner, refs, indent).as_str();
-                        str += ">";
-                    }
-
-                    str += ")";
-                    return str;
-                }
-                let mut str = String::new();
-                str += if *non_empty { "non-empty-vec<" } else { "vec<" };
-                str += type_param.get_id_with_refs(interner, refs, indent).as_str();
-                str += ">";
-                str
-            }
+            TAtomic::TVec(vec) => vec.get_id_with_refs(interner, refs, indent),
             TAtomic::TVoid => "void".to_string(),
             TAtomic::TReference { name, .. } => {
                 let mut str = String::new();
@@ -850,6 +879,78 @@ impl TAtomic {
                 str
             }
             TAtomic::TPlaceholder => "_".to_string(),
+        }
+    }
+
+    pub fn get_value(&self, interner: &Interner) -> Option<String> {
+        match self {
+            TAtomic::TDict(TDict {
+                params: None,
+                known_items: Some(known_items),
+                ..
+            }) => {
+                if known_items.is_empty() {
+                    Some("dict[]".to_string())
+                } else {
+                    None
+                }
+            }
+            TAtomic::TFalse { .. } => Some("false".to_string()),
+            TAtomic::TLiteralClassname { name } => {
+                let mut str = String::new();
+                str += interner.lookup(name);
+
+                str += "::class";
+                Some(str)
+            }
+            TAtomic::TEnumLiteralCase {
+                enum_name,
+                member_name,
+                ..
+            } => {
+                let mut str = String::new();
+                str += interner.lookup(enum_name);
+
+                str += "::";
+                str += interner.lookup(member_name);
+
+                Some(str)
+            }
+            TAtomic::TMemberReference {
+                classlike_name,
+                member_name,
+                ..
+            } => {
+                let mut str = String::new();
+                str += interner.lookup(classlike_name);
+                str += "::";
+                str += interner.lookup(member_name);
+
+                Some(str)
+            }
+            TAtomic::TLiteralInt { value } => Some(value.to_string()),
+            TAtomic::TLiteralString { value } => {
+                let mut str = String::new();
+                str += "'";
+                str += value.as_str();
+                str += "'";
+                Some(str)
+            }
+
+            TAtomic::TNull { .. } => Some("null".to_string()),
+            TAtomic::TTrue { .. } => Some("true".to_string()),
+            TAtomic::TVec(TVec {
+                type_param,
+                known_items: Some(known_items),
+                ..
+            }) => {
+                if known_items.is_empty() && type_param.is_nothing() {
+                    Some("vec[]".to_string())
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 
@@ -1236,8 +1337,12 @@ impl TAtomic {
 
                 false
             }
-            &TAtomic::TKeyset { type_param, .. } => {
-                if type_param.is_nothing() {
+            &TAtomic::TKeyset {
+                type_param,
+                non_empty,
+                ..
+            } => {
+                if type_param.is_nothing() && !non_empty {
                     return true;
                 }
 
@@ -1259,7 +1364,9 @@ impl TAtomic {
 
     pub fn is_array_accessible_with_int_or_string_key(&self, interner: &Interner) -> bool {
         match self {
-            TAtomic::TDict(TDict { .. }) | TAtomic::TVec(TVec { .. }) | TAtomic::TKeyset { .. } => true,
+            TAtomic::TDict(TDict { .. }) | TAtomic::TVec(TVec { .. }) | TAtomic::TKeyset { .. } => {
+                true
+            }
             TAtomic::TNamedObject { name, .. } => matches!(
                 interner.lookup(name),
                 "HH\\KeyedContainer" | "HH\\Container" | "HH\\AnyArray"
@@ -1392,7 +1499,9 @@ impl TAtomic {
                     )]));
                 }
             }
-            TAtomic::TKeyset { ref mut type_param } => {
+            TAtomic::TKeyset {
+                ref mut type_param, ..
+            } => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
                     *type_param =
                         Box::new(TUnion::new(vec![TAtomic::TArraykey { from_any: true }]));
@@ -1524,7 +1633,9 @@ impl TAtomic {
 
                 true
             }
-            TAtomic::TKeyset { type_param } => type_param.is_json_compatible(banned_type_aliases),
+            TAtomic::TKeyset { type_param, .. } => {
+                type_param.is_json_compatible(banned_type_aliases)
+            }
             TAtomic::TVec(TVec {
                 known_items,
                 type_param,

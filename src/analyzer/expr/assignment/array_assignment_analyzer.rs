@@ -539,6 +539,7 @@ fn update_array_assignment_child_type(
                 }
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
                     type_param: Box::new(value_type.clone()),
+                    non_empty: true,
                 }),
                 TAtomic::TTypeVariable { name } => {
                     if let Some((_, upper_bounds)) =
@@ -605,6 +606,7 @@ fn update_array_assignment_child_type(
                 }
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
                     type_param: Box::new(value_type.clone()),
+                    non_empty: true,
                 }),
                 TAtomic::TMixed | TAtomic::TMixedWithFlags(..) => {
                     // todo handle illegal

@@ -22,11 +22,9 @@ pub(crate) struct TypeCombination {
 
     pub vec_counts: Option<FxHashSet<usize>>,
 
-    pub vec_sometimes_filled: bool,
     pub vec_always_filled: bool,
-
-    pub dict_sometimes_filled: bool,
     pub dict_always_filled: bool,
+    pub keyset_always_filled: bool,
 
     pub has_dict: bool,
     pub dict_entries: BTreeMap<DictKey, (bool, Arc<TUnion>)>,
@@ -62,10 +60,9 @@ impl TypeCombination {
             object_type_params: FxHashMap::default(),
             object_static: FxHashMap::default(),
             vec_counts: Some(FxHashSet::default()),
-            vec_sometimes_filled: false,
             vec_always_filled: true,
-            dict_sometimes_filled: false,
             dict_always_filled: true,
+            keyset_always_filled: true,
             has_dict: false,
             dict_entries: BTreeMap::new(),
             vec_entries: BTreeMap::new(),

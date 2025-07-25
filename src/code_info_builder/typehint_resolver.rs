@@ -107,6 +107,7 @@ fn get_keyset_type_from_hint(
             )
             .unwrap(),
         ),
+        non_empty: false,
     }
 }
 
@@ -556,6 +557,7 @@ pub fn get_type_from_hint(
                     } else {
                         TAtomic::TKeyset {
                             type_param: Box::new(get_mixed_any()),
+                            non_empty: false,
                         }
                     }
                 }

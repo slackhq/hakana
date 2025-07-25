@@ -951,6 +951,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             },
             TAtomic::TKeyset {
                 type_param: type_2_param,
+                ..
             },
         ) => {
             if type_2_param.is_placeholder() {
@@ -965,6 +966,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     )
                     .map(|intersected| TAtomic::TKeyset {
                         type_param: Box::new(intersected),
+                        non_empty: false,
                     });
                 } else if type_1_name == &StrId::KEYED_CONTAINER || type_1_name == &StrId::ANY_ARRAY
                 {
@@ -978,6 +980,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     )
                     .map(|intersected| TAtomic::TKeyset {
                         type_param: Box::new(intersected),
+                        non_empty: false,
                     });
                 } else {
                     return None;
@@ -1416,6 +1419,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             )
             .map(|intersected| TAtomic::TKeyset {
                 type_param: Box::new(intersected),
+                non_empty: false,
             });
         }
         (

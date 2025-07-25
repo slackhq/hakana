@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attribute_info::AttributeInfo, code_location::HPos, issue::IssueKind, t_union::TUnion,
-    taint::SinkType, VarId,
+    attribute_info::AttributeInfo, code_location::HPos, issue::IssueKind, t_atomic::TAtomic,
+    t_union::TUnion, taint::SinkType, VarId,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -10,7 +10,7 @@ pub struct UnresolvedConstantComponent {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum DefaultType {
-    NormalData(TUnion),
+    NormalData(TAtomic),
     Unresolved(UnresolvedConstantComponent),
 }
 

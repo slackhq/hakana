@@ -50,9 +50,12 @@ pub(crate) fn analyze(
         let was_inside_use = context.inside_general_use;
         context.inside_general_use = true;
 
+        let was_inside_unset = context.inside_unset;
         context.inside_unset = false;
 
         expression_analyzer::analyze(statements_analyzer, dim, analysis_data, context)?;
+
+        context.inside_unset = was_inside_unset;
 
         context.inside_general_use = was_inside_use;
 
@@ -85,6 +88,10 @@ pub(crate) fn analyze(
             context
                 .locals
                 .insert(keyed_array_var_id.clone(), stmt_type.clone());
+
+            if context.inside_unset {
+                unset_array_item(statements_analyzer, expr.0, context);
+            }
 
             return Ok(());
         }
@@ -271,7 +278,7 @@ pub(crate) fn get_array_access_type_given_offset(
     offset_type: &TUnion,
     in_assignment: bool,
     extended_var_id: &Option<String>,
-    context: &BlockContext,
+    context: &mut BlockContext,
 ) -> TUnion {
     let codebase = statements_analyzer.codebase;
 
@@ -345,13 +352,13 @@ pub(crate) fn get_array_access_type_given_offset(
                     stmt_type = Some(new_type);
                 }
             }
-            TAtomic::TDict(TDict { .. }) => {
+            TAtomic::TDict(dict) => {
                 let new_type = handle_array_access_on_dict(
                     statements_analyzer,
                     stmt.2,
                     analysis_data,
                     context,
-                    atomic_var_type,
+                    dict,
                     offset_type,
                     in_assignment,
                     &mut has_valid_expected_offset,
@@ -536,6 +543,10 @@ pub(crate) fn get_array_access_type_given_offset(
         }
     }
 
+    if context.inside_unset {
+        unset_array_item(statements_analyzer, stmt.0, context);
+    }
+
     // TODO handle if ($offset_type->hasMixed()), and incrementing mixed
     // nonmixed counts, as well as error message handling
 
@@ -545,6 +556,35 @@ pub(crate) fn get_array_access_type_given_offset(
     } else {
         // shouldn’t happen, but don’t crash
         get_mixed_any()
+    }
+}
+
+fn unset_array_item(
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    lhs: &aast::Expr<(), ()>,
+    context: &mut BlockContext,
+) {
+    if let Some(expr_var_id) = expression_identifier::get_var_id(
+        &lhs,
+        context.function_context.calling_class.as_ref(),
+        statements_analyzer.file_analyzer.resolved_names,
+        Some((statements_analyzer.codebase, statements_analyzer.interner)),
+    ) {
+        if let Some(var_type) = context.locals.get_mut(&VarName::new(expr_var_id)) {
+            let mut var_type_inner = (**var_type).clone();
+
+            for atomic_type in var_type_inner.types.iter_mut() {
+                if let TAtomic::TDict(TDict { non_empty, .. }) = atomic_type {
+                    *non_empty = false;
+                } else if let TAtomic::TVec(TVec { non_empty, .. })
+                | TAtomic::TKeyset { non_empty, .. } = atomic_type
+                {
+                    *non_empty = false;
+                }
+            }
+
+            *var_type = Rc::new(var_type_inner);
+        }
     }
 }
 
@@ -660,7 +700,7 @@ pub(crate) fn handle_array_access_on_dict(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
-    dict: &TAtomic,
+    dict: &TDict,
     dim_type: &TUnion,
     in_assignment: bool,
     has_valid_expected_offset: &mut bool,
@@ -672,14 +712,12 @@ pub(crate) fn handle_array_access_on_dict(
 
     let key_param = if in_assignment || context.inside_isset {
         get_arraykey(false)
-    } else if let TAtomic::TDict(TDict { params, .. }) = &dict {
-        if let Some(params) = params {
+    } else {
+        if let Some(params) = &dict.params {
             (*params.0).clone()
         } else {
             get_nothing()
         }
-    } else {
-        panic!()
     };
 
     let mut union_comparison_result = TypeComparisonResult::new();
@@ -698,11 +736,11 @@ pub(crate) fn handle_array_access_on_dict(
         *has_valid_expected_offset = true;
     }
 
-    if let TAtomic::TDict(TDict {
+    if let TDict {
         known_items: Some(known_items),
         params,
         ..
-    }) = &dict
+    } = &dict
     {
         if let Some(dict_key) = dim_type.get_single_dict_key() {
             let possible_value = known_items.get(&dict_key).cloned();
@@ -821,12 +859,12 @@ pub(crate) fn handle_array_access_on_dict(
         }
 
         return value_param;
-    } else if let TAtomic::TDict(TDict { params, .. }) = dict {
+    } else {
         // TODO Handle Assignments
         // if (context.inside_assignment && replacement_type) {
 
         // }
-        return if let Some(params) = params {
+        return if let Some(params) = &dict.params {
             if let Some(dict_key) = dim_type.get_single_dict_key() {
                 if !in_assignment {
                     if !allow_possibly_undefined {
@@ -849,6 +887,7 @@ pub(crate) fn handle_array_access_on_dict(
                             statements_analyzer.get_file_path_actual(),
                         );
                     } else {
+                        if context.inside_unset {}
                         *has_possibly_undefined = true;
                     }
                 }
@@ -859,8 +898,6 @@ pub(crate) fn handle_array_access_on_dict(
             get_nothing()
         };
     }
-
-    get_nothing()
 }
 
 // Handle array access on strings

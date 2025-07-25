@@ -478,6 +478,7 @@ fn replace_atomic<'a>(
                 file_path,
                 &if let Some(TAtomic::TKeyset {
                     type_param: input_param,
+                    ..
                 }) = &input_type
                 {
                     Some(input_param)
