@@ -1329,7 +1329,7 @@ fn report_unused_expressions(
         if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
             analysis_data.maybe_add_issue(
                 Issue::new(
-                    IssueKind::VariableDefinedOutsideIfOnlyUsedInside,
+                    IssueKind::VariableDefinedOutsideIf,
                     format!(
                         "Variable {} is defined outside if block but only used inside",
                         node.id.to_label(statements_analyzer.interner)

@@ -697,7 +697,7 @@ fn do_fix(
     let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
     config.hooks = analysis_hooks;
 
-    config.find_unused_expressions = issue_kind.is_unused_expression();
+    config.find_unused_expressions = issue_kind.requires_dataflow_analysis();
     config.find_unused_definitions = issue_kind.is_unused_definition();
     config.issues_to_fix.insert(issue_kind);
 

@@ -143,7 +143,7 @@ impl TestRunner {
 
         let dir_issue = IssueKind::from_str(&maybe_issue_name);
         analysis_config.find_unused_expressions = if let Ok(dir_issue) = &dir_issue {
-            dir_issue.is_unused_expression()
+            dir_issue.requires_dataflow_analysis()
         } else {
             dir.contains("/unused/")
         };

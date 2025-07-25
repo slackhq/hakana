@@ -156,7 +156,7 @@ pub enum IssueKind {
     UnusedXhpAttribute,
     UpcastAwaitable,
     UselessControlFlow,
-    VariableDefinedOutsideIfOnlyUsedInside,
+    VariableDefinedOutsideIf,
 }
 
 impl IssueKind {
@@ -227,7 +227,7 @@ impl IssueKind {
         )
     }
 
-    pub fn is_unused_expression(&self) -> bool {
+    pub fn requires_dataflow_analysis(&self) -> bool {
         matches!(
             self,
             Self::UnusedAssignment
@@ -237,6 +237,7 @@ impl IssueKind {
                 | Self::UnusedParameter
                 | Self::UnusedClosureParameter
                 | Self::UnusedPipeVariable
+                | Self::VariableDefinedOutsideIf
         )
     }
 }
