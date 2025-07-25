@@ -1,11 +1,13 @@
 final class A {
   public async function bar(): Awaitable<string> {
+    await \HH\Asio\usleep(100000);
     return "a";
   }
 }
 
 final class Boo {
     public static async function getA(): Awaitable<?A> {
+        await \HH\Asio\usleep(100000);
         return new A();
     }
 }

@@ -1,5 +1,6 @@
 <<Hakana\MustUse>>
 async function must_use_async(): Awaitable<int> {
+    await \HH\Asio\usleep(100000);
     return 0;
 }
 

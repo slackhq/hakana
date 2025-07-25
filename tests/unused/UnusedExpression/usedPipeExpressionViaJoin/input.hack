@@ -1,4 +1,5 @@
 async function foo(): Awaitable<void> {
+    await \HH\Asio\usleep(100000);
     echo "hello";
 }
 

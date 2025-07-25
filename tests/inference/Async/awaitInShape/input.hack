@@ -7,5 +7,6 @@ async function foo(?string $s): Awaitable<shape('a' => arraykey)> {
 }
 
 async function bar(): Awaitable<int> {
+    await \HH\Asio\usleep(100000);
     return 5;
 }

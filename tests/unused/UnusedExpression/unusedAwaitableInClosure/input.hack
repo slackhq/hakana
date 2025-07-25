@@ -11,5 +11,6 @@ function foo(): void {
 }
 
 async function myFunc(string $str): Awaitable<void> {
+    await \HH\Asio\usleep(100000);
     echo $str;
 }

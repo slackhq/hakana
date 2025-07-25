@@ -3,10 +3,12 @@ function foo()[]: Awaitable<vec<string>> {
 }
 
 async function bar()[]: Awaitable<vec<string>> {
+    await \HH\Asio\usleep(100000);
     return vec["a"];
 }
 
 async function baz(): Awaitable<vec<string>> {
+    await \HH\Asio\usleep(100000);
     echo "a";
     return vec["a"];
 }

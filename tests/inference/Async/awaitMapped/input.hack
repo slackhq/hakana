@@ -12,5 +12,6 @@ async function foo(vec<int> $vec): Awaitable<int> {
 }
 
 async function bar(int $i): Awaitable<int> {
+    await \HH\Asio\usleep(100000);
     return $i + 5;
 }

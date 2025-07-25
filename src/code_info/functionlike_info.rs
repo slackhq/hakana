@@ -6,9 +6,11 @@ use serde::{Deserialize, Serialize};
 use crate::{
     attribute_info::AttributeInfo,
     code_location::HPos,
-    function_context::FunctionLikeIdentifier,
+    codebase_info::CodebaseInfo,
+    function_context::{FunctionContext, FunctionLikeIdentifier},
     functionlike_parameter::FunctionLikeParameter,
     issue::IssueKind,
+    member_visibility::MemberVisibility,
     method_info::MethodInfo,
     t_union::TUnion,
     taint::{SinkType, SourceType},
@@ -241,5 +243,22 @@ impl FunctionLikeInfo {
         }
 
         true
+    }
+
+    pub fn is_simple_fn(
+        &self,
+        function_context: &FunctionContext,
+        codebase: &CodebaseInfo,
+    ) -> bool {
+        if let Some(method_storage) = &self.method_info {
+            match &method_storage.visibility {
+                MemberVisibility::Public | MemberVisibility::Protected => {
+                    method_storage.is_final_and_unextended(function_context, codebase)
+                }
+                MemberVisibility::Private => true,
+            }
+        } else {
+            true
+        }
     }
 }

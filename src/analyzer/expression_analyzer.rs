@@ -9,7 +9,7 @@ use crate::expr::fetch::{
     static_property_fetch_analyzer,
 };
 use crate::expr::{
-    as_analyzer, binop_analyzer, call_analyzer, cast_analyzer, closure_analyzer,
+    as_analyzer, await_analyzer, binop_analyzer, call_analyzer, cast_analyzer, closure_analyzer,
     collection_analyzer, const_fetch_analyzer, expression_identifier, include_analyzer,
     pipe_analyzer, prefixed_string_analyzer, shape_analyzer, ternary_analyzer, tuple_analyzer,
     unop_analyzer, variable_fetch_analyzer, xml_analyzer, yield_analyzer,
@@ -35,11 +35,10 @@ use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::type_expander::get_closure_from_id;
 use hakana_code_info::ttype::{
-    extend_dataflow_uniquely, get_bool, get_false, get_float, get_int, get_literal_int,
-    get_literal_string, get_mixed_any, get_null, get_true, wrap_atomic,
+    get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
+    get_null, get_true, wrap_atomic,
 };
 use hakana_code_info::var_name::VarName;
-use hakana_code_info::EFFECT_IMPURE;
 use hakana_reflector::simple_type_inferer::int_from_string;
 use hakana_str::StrId;
 use oxidized::pos::Pos;
@@ -364,49 +363,7 @@ pub(crate) fn analyze(
             )?;
         }
         aast::Expr_::Await(boxed) => {
-            let was_inside_use = context.inside_general_use;
-            context.inside_general_use = true;
-            analysis_data.inside_await = true;
-            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
-            context.inside_general_use = was_inside_use;
-            analysis_data.inside_await = false;
-
-            let mut awaited_stmt_type = analysis_data
-                .get_expr_type(boxed.pos())
-                .cloned()
-                .unwrap_or(get_mixed_any());
-
-            let awaited_types = awaited_stmt_type.types.drain(..).collect::<Vec<_>>();
-
-            let mut new_types = vec![];
-
-            for atomic_type in awaited_types {
-                if let TAtomic::TAwaitable { value } = atomic_type {
-                    let inside_type = (*value).clone();
-                    extend_dataflow_uniquely(
-                        &mut awaited_stmt_type.parent_nodes,
-                        inside_type.parent_nodes,
-                    );
-                    new_types.extend(inside_type.types);
-                    analysis_data.expr_effects.insert(
-                        (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
-                        EFFECT_IMPURE,
-                    );
-                } else {
-                    new_types.push(atomic_type);
-                    analysis_data.expr_effects.insert(
-                        (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
-                        EFFECT_IMPURE,
-                    );
-                }
-            }
-
-            awaited_stmt_type.types = new_types;
-
-            analysis_data.expr_types.insert(
-                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
-                Rc::new(awaited_stmt_type),
-            );
+            await_analyzer::analyze(statements_analyzer, expr, boxed, analysis_data, context)?;
         }
         aast::Expr_::FunctionPointer(boxed) => {
             analyze_function_pointer(statements_analyzer, boxed, context, analysis_data, expr)?;

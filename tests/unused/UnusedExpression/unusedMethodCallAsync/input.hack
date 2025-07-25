@@ -1,10 +1,12 @@
 final class UnusedMethodClass {
     <<Hakana\MustUse>>
 	public async function getEncodedId(): Awaitable<string> {
+        await \HH\Asio\usleep(100000);
 		return '';
 	}
 
 	public async function doWork(): Awaitable<string> {
+        await \HH\Asio\usleep(100000);
 		return '';
 	}
 }

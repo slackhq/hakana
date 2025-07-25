@@ -98,6 +98,11 @@ pub struct BlockContext {
     pub inside_general_use: bool,
 
     /**
+     * Whether or not we're inside an await
+     */
+    pub inside_await: bool,
+
+    /**
      * Whether or not we're inside a return expression
      */
     pub inside_return: bool,
@@ -198,6 +203,7 @@ impl BlockContext {
             inside_assignment_op: false,
             inside_awaitall: false,
             inside_loop_exprs: false,
+            inside_await: false,
 
             inside_negation: false,
             has_returned: false,

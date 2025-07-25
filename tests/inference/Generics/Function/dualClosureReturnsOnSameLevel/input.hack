@@ -26,6 +26,7 @@ async function foo<T>((function():Awaitable<Result<T, mixed>>) $one, (function()
 }
 
 async function get_int_result(): Awaitable<Result<int, nothing>> {
+    await \HH\Asio\usleep(100000);
     return new ResultOk(5);
 }
 

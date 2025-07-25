@@ -10,5 +10,6 @@ async function foo(?string $s): Awaitable<string> {
 }
 
 async function bar(): Awaitable<int> {
+    await \HH\Asio\usleep(100000);
     return 5;
 }

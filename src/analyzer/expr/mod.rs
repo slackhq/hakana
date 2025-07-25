@@ -1,6 +1,7 @@
 pub(crate) mod as_analyzer;
 pub(crate) mod assertion_finder;
 pub(crate) mod assignment;
+pub(crate) mod await_analyzer;
 pub(crate) mod binop;
 pub(crate) mod binop_analyzer;
 pub(crate) mod call;

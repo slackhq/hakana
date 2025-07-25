@@ -516,7 +516,7 @@ pub(crate) fn analyze(
 
                 if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
                     // Only replace code that's not already covered by a FIXME
-                    if analysis_data.inside_await
+                    if context.inside_await
                         || !context.function_context.is_production(codebase)
                         || analysis_data.get_matching_hakana_fixme(&issue).is_none()
                     {

@@ -1,2 +1,2 @@
-ERROR: UnusedFunctionCall - input.hack:7:5 - This is annotated with MustUse but the returned value is not used
-ERROR: UnusedFunctionCall - input.hack:11:5 - This is annotated with MustUse but the returned value is not used
+ERROR: UnusedFunctionCall - input.hack:8:5 - This is annotated with MustUse but the returned value is not used
+ERROR: UnusedFunctionCall - input.hack:12:5 - This is annotated with MustUse but the returned value is not used

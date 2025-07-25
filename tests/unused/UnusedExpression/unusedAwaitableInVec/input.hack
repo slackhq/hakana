@@ -5,5 +5,6 @@ function foo(): void {
 }
 
 async function bar(int $i): Awaitable<int> {
+    await \HH\Asio\usleep(100000);
     return $i;
 }

@@ -8,5 +8,6 @@ final class Codegen {
 
 <<__EntryPoint>>
 async function local_create_experiment_schema(): Awaitable<void> {
+    await \HH\Asio\usleep(100000);
 	Codegen::forPath(__DIR__)->bar(Codegen::FOO);
 }

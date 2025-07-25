@@ -1,15 +1,15 @@
-ERROR: UnusedAssignment - input.hack:15:5 - Assignment to $a is unused
-ERROR: UnusedAssignmentStatement - input.hack:16:5 - Assignment to $b is unused, and this expression has no effect
-ERROR: UnusedPipeVariable - input.hack:16:10 - The pipe data in this expression is not used anywhere
-ERROR: UnusedAssignment - input.hack:17:5 - Assignment to $c is unused
-ERROR: UnusedPipeVariable - input.hack:17:10 - The pipe data in this expression is not used anywhere
-ERROR: UnusedAssignment - input.hack:18:5 - Assignment to $a is unused
-ERROR: UnusedAssignmentStatement - input.hack:19:5 - Assignment to $b is unused, and this expression has no effect
+ERROR: UnusedAssignment - input.hack:17:5 - Assignment to $a is unused
+ERROR: UnusedAssignmentStatement - input.hack:18:5 - Assignment to $b is unused, and this expression has no effect
+ERROR: UnusedPipeVariable - input.hack:18:10 - The pipe data in this expression is not used anywhere
+ERROR: UnusedAssignment - input.hack:19:5 - Assignment to $c is unused
 ERROR: UnusedPipeVariable - input.hack:19:10 - The pipe data in this expression is not used anywhere
-ERROR: UnusedAssignment - input.hack:20:5 - Assignment to $c is unused
-ERROR: UnusedPipeVariable - input.hack:20:10 - The pipe data in this expression is not used anywhere
-ERROR: UnusedAssignment - input.hack:21:5 - Assignment to $a is unused
-ERROR: UnusedAwaitable - input.hack:22:5 - Assignment to awaitable $b is unused
+ERROR: UnusedAssignment - input.hack:20:5 - Assignment to $a is unused
+ERROR: UnusedAssignmentStatement - input.hack:21:5 - Assignment to $b is unused, and this expression has no effect
+ERROR: UnusedPipeVariable - input.hack:21:10 - The pipe data in this expression is not used anywhere
+ERROR: UnusedAssignment - input.hack:22:5 - Assignment to $c is unused
 ERROR: UnusedPipeVariable - input.hack:22:10 - The pipe data in this expression is not used anywhere
-ERROR: UnusedAssignment - input.hack:23:5 - Assignment to $c is unused
-ERROR: UnusedPipeVariable - input.hack:23:10 - The pipe data in this expression is not used anywhere
+ERROR: UnusedAssignment - input.hack:23:5 - Assignment to $a is unused
+ERROR: UnusedAwaitable - input.hack:24:5 - Assignment to awaitable $b is unused
+ERROR: UnusedPipeVariable - input.hack:24:10 - The pipe data in this expression is not used anywhere
+ERROR: UnusedAssignment - input.hack:25:5 - Assignment to $c is unused
+ERROR: UnusedPipeVariable - input.hack:25:10 - The pipe data in this expression is not used anywhere

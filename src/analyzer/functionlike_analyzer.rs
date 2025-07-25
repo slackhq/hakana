@@ -676,18 +676,37 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     statements_analyzer.get_file_path_actual(),
                 );
             }
-        }
 
-        if config.remove_fixmes && parent_analysis_data.is_none() {
-            for unused_fixme_position in analysis_data.get_unused_hakana_fixme_positions() {
-                analysis_data.add_replacement(
-                    (unused_fixme_position.0, unused_fixme_position.1),
-                    if unused_fixme_position.4 {
-                        Replacement::TrimTrailingWhitespace(unused_fixme_position.3)
-                    } else {
-                        Replacement::TrimPrecedingWhitespace(unused_fixme_position.2)
-                    },
-                );
+            if !analysis_data.has_await && functionlike_storage.is_async {
+                if functionlike_storage
+                    .is_simple_fn(&context.function_context, statements_analyzer.codebase)
+                {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::UnnecessaryAsyncFunction,
+                            format!("This function is marked async but has no async behaviour"),
+                            functionlike_storage
+                                .name_location
+                                .unwrap_or(functionlike_storage.def_location),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+            }
+
+            if config.remove_fixmes {
+                for unused_fixme_position in analysis_data.get_unused_hakana_fixme_positions() {
+                    analysis_data.add_replacement(
+                        (unused_fixme_position.0, unused_fixme_position.1),
+                        if unused_fixme_position.4 {
+                            Replacement::TrimTrailingWhitespace(unused_fixme_position.3)
+                        } else {
+                            Replacement::TrimPrecedingWhitespace(unused_fixme_position.2)
+                        },
+                    );
+                }
             }
         }
 
@@ -1182,32 +1201,10 @@ fn get_param_source_kind(
         VariableSourceKind::InoutParam
     } else if context.calling_closure_id.is_some() {
         VariableSourceKind::ClosureParam
-    } else if let Some(method_storage) = &functionlike_storage.method_info {
-        match &method_storage.visibility {
-            MemberVisibility::Public | MemberVisibility::Protected => {
-                if method_storage.is_final {
-                    if let Some(FunctionLikeIdentifier::Method(
-                        calling_class,
-                        calling_method_name,
-                    )) = context.function_context.calling_functionlike_id
-                    {
-                        if let Some(classlike_info) = codebase.classlike_infos.get(&calling_class) {
-                            if !classlike_info
-                                .overridden_method_ids
-                                .contains_key(&calling_method_name)
-                            {
-                                return VariableSourceKind::PrivateParam;
-                            }
-                        }
-                    }
-                }
-
-                VariableSourceKind::NonPrivateParam
-            }
-            MemberVisibility::Private => VariableSourceKind::PrivateParam,
-        }
-    } else {
+    } else if functionlike_storage.is_simple_fn(&context.function_context, codebase) {
         VariableSourceKind::PrivateParam
+    } else {
+        VariableSourceKind::NonPrivateParam
     }
 }
 
