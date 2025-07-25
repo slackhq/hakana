@@ -114,6 +114,15 @@ pub(crate) fn analyze(
     if_context.assigned_var_ids.clear();
     if_context.possibly_assigned_var_ids.clear();
 
+    // Track if block boundaries for variable scoping analysis
+    if let Some(first_stmt) = stmt.1 .0.first() {
+        if let Some(last_stmt) = stmt.1 .0.last() {
+            let if_block_start = first_stmt.0.start_offset() as u32;
+            let if_block_end = last_stmt.0.end_offset() as u32;
+            analysis_data.if_block_boundaries.push((if_block_start, if_block_end));
+        }
+    }
+    
     statements_analyzer.analyze(&stmt.1 .0, analysis_data, if_context, loop_scope)?;
 
     let final_actions = control_analyzer::get_control_actions(

@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::custom_hook::FunctionLikeParamData;
 use crate::dataflow::unused_variable_analyzer::{
-    add_unused_expression_replacements, check_variables_used,
+    add_unused_expression_replacements, check_variables_used, check_variables_scoped_incorrectly,
 };
 use crate::expr::call_analyzer::reconcile_lower_bounds_with_upper_bounds;
 use crate::expr::fetch::atomic_property_fetch_analyzer;
@@ -25,7 +25,6 @@ use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::function_context::{FunctionContext, FunctionLikeIdentifier};
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::{TAtomic, TVec};
 use hakana_code_info::t_union::TUnion;
@@ -677,13 +676,16 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 );
             }
 
-            if !analysis_data.has_await && functionlike_storage.is_async {
+            if !analysis_data.has_await
+                && functionlike_storage.is_async
+                && functionlike_storage.is_production_code
+            {
                 if functionlike_storage
                     .is_simple_fn(&context.function_context, statements_analyzer.codebase)
                 {
                     analysis_data.maybe_add_issue(
                         Issue::new(
-                            IssueKind::UnnecessaryAsyncFunction,
+                            IssueKind::UnnecessaryAsyncAnnotation,
                             format!("This function is marked async but has no async behaviour"),
                             functionlike_storage
                                 .name_location
@@ -1314,6 +1316,33 @@ fn report_unused_expressions(
 ) {
     let unused_source_nodes =
         check_variables_used(&analysis_data.data_flow_graph, statements_analyzer.interner);
+    
+    // Check for variables defined outside if blocks but only used inside
+    let incorrectly_scoped_nodes = check_variables_scoped_incorrectly(
+        &analysis_data.data_flow_graph,
+        &analysis_data.if_block_boundaries,
+        statements_analyzer.interner,
+    );
+    
+    // Report incorrectly scoped variables
+    for node in &incorrectly_scoped_nodes {
+        if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::VariableDefinedOutsideIfOnlyUsedInside,
+                    format!(
+                        "Variable {} is defined outside if block but only used inside",
+                        node.id.to_label(statements_analyzer.interner)
+                    ),
+                    *pos,
+                    calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+    }
+    
     analysis_data.current_stmt_offset = None;
 
     let mut unused_variable_nodes = vec![];

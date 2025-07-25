@@ -48,6 +48,7 @@ pub struct FunctionAnalysisData {
     pub after_expr_hook_called: FxHashSet<(u32, u32)>,
     pub after_arg_hook_called: FxHashSet<(u32, u32)>,
     pub has_await: bool,
+    pub if_block_boundaries: Vec<(u32, u32)>,
 }
 
 impl FunctionAnalysisData {
@@ -96,6 +97,7 @@ impl FunctionAnalysisData {
             has_await: false,
             previously_used_fixme_positions: FxHashMap::default(),
             actual_service_calls: FxHashSet::default(),
+            if_block_boundaries: Vec::new(),
         }
     }
 

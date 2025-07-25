@@ -1,1 +1,1 @@
-ERROR: UnnecessaryAsyncFunction - input.hack:1:16 - This function is marked async but has no async behaviour
+ERROR: UnnecessaryAsyncAnnotation - input.hack:1:16 - This function is marked async but has no async behaviour

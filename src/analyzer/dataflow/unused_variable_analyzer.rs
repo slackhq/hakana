@@ -95,6 +95,85 @@ pub fn check_variables_used(
     (unused_nodes, unused_but_referenced_nodes)
 }
 
+pub fn check_variables_scoped_incorrectly(
+    graph: &DataFlowGraph,
+    if_block_boundaries: &[(u32, u32)],
+    _interner: &Interner,
+) -> Vec<DataFlowNode> {
+    let mut incorrectly_scoped = Vec::new();
+    
+    // Skip if there are no if blocks to analyze
+    if if_block_boundaries.is_empty() {
+        return incorrectly_scoped;
+    }
+    
+    for (_, source_node) in graph.sources.iter() {
+        if let DataFlowNodeKind::VariableUseSource { pos, kind, .. } = &source_node.kind {
+            // Skip function parameters - they're not "defined outside if blocks" in the problematic sense
+            if matches!(kind, VariableSourceKind::NonPrivateParam | VariableSourceKind::PrivateParam | VariableSourceKind::ClosureParam) {
+                continue;
+            }
+            
+            // Check if variable is defined outside all if blocks
+            if !is_position_within_any_if_block(pos, if_block_boundaries) {
+                // Get all uses of this variable
+                if let Some(sink_positions) = get_all_variable_uses(graph, source_node) {
+                    // Check if ALL uses are within if blocks
+                    if !sink_positions.is_empty() 
+                        && sink_positions.iter().all(|sink_pos| is_position_within_any_if_block(sink_pos, if_block_boundaries)) 
+                    {
+                        incorrectly_scoped.push(source_node.clone());
+                    }
+                }
+            }
+        }
+    }
+    
+    incorrectly_scoped
+}
+
+fn is_position_within_any_if_block(pos: &HPos, if_block_boundaries: &[(u32, u32)]) -> bool {
+    let pos_offset = pos.start_offset;
+    if_block_boundaries.iter().any(|(start, end)| {
+        pos_offset >= *start && pos_offset <= *end
+    })
+}
+
+fn get_all_variable_uses(graph: &DataFlowGraph, source_node: &DataFlowNode) -> Option<Vec<HPos>> {
+    let mut visited_nodes = FxHashSet::default();
+    let mut sink_positions = Vec::new();
+    let mut to_visit = vec![source_node.id.clone()];
+    
+    while let Some(node_id) = to_visit.pop() {
+        if visited_nodes.contains(&node_id) {
+            continue;
+        }
+        visited_nodes.insert(node_id.clone());
+        
+        // Check if this node is a sink
+        if let Some(sink_node) = graph.sinks.get(&node_id) {
+            if let DataFlowNodeKind::VariableUseSink { pos } = &sink_node.kind {
+                sink_positions.push(*pos);
+            }
+        }
+        
+        // Add connected nodes to visit
+        if let Some(edges) = graph.forward_edges.get(&node_id) {
+            for (to_id, _) in edges {
+                if !visited_nodes.contains(to_id) {
+                    to_visit.push(to_id.clone());
+                }
+            }
+        }
+    }
+    
+    if sink_positions.is_empty() {
+        None
+    } else {
+        Some(sink_positions)
+    }
+}
+
 fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> VariableUsage {
     let mut visited_source_ids = FxHashSet::default();
 

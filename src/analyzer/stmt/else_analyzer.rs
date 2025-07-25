@@ -78,6 +78,15 @@ pub(crate) fn analyze(
     let pre_possibly_assigned_var_ids = else_context.possibly_assigned_var_ids.clone();
     else_context.possibly_assigned_var_ids.clear();
 
+    // Track else block boundaries for variable scoping analysis
+    if let Some(first_stmt) = stmts.0.first() {
+        if let Some(last_stmt) = stmts.0.last() {
+            let else_block_start = first_stmt.0.start_offset() as u32;
+            let else_block_end = last_stmt.0.end_offset() as u32;
+            analysis_data.if_block_boundaries.push((else_block_start, else_block_end));
+        }
+    }
+    
     statements_analyzer.analyze(&stmts.0, analysis_data, else_context, loop_scope)?;
 
     for var_id in &else_context.parent_conflicting_clause_vars {

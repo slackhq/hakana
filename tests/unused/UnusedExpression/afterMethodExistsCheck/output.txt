@@ -1,0 +1,1 @@
+ERROR: VariableDefinedOutsideIfOnlyUsedInside - input.hack:8:38 - Variable $value is defined outside if block but only used inside

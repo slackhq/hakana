@@ -11,9 +11,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Binary is created at `./target/release/hakana-default`
 
 ### Testing
-- `cargo run --bin hakana --release test tests` - Run all tests
+- `cargo run --release --bin=hakana test --reuse-codebase tests` - Run all tests (recommended)
 - `cargo run --bin hakana test <path-to-test-dir>` - Run individual test directory
 - Test directories are organized under `tests/` with subdirectories for different test types
+- **IMPORTANT**: Unused variable analysis only runs for tests in `tests/unused/` directory
 
 ### Security Analysis
 - `cargo run --bin hakana security-check <path>` - Run security/taint analysis mode
@@ -70,4 +71,14 @@ Hakana is a typechecker for Hack built in Rust, designed to complement HHVM's bu
 - `tests/security/` - Taint analysis and security tests  
 - `tests/diff/` - Incremental analysis tests
 - `tests/fix/` - Code transformation tests
+- `tests/unused/` - Unused variable and expression analysis tests
 - Each test has input.hack and output.txt files
+
+### Data Flow Analysis System
+- Located in `src/analyzer/dataflow/` with core graph structures in `src/code_info/data_flow/`
+- `unused_variable_analyzer.rs` contains logic for detecting unused variables and expressions
+- Data flow graph tracks variable definitions, uses, and control flow boundaries
+- Function analysis data (`FunctionAnalysisData`) accumulates analysis state including:
+  - `data_flow_graph` - tracks variable usage patterns
+  - Issue reporting and type inference state
+- `report_unused_expressions()` in `functionlike_analyzer.rs` is the main entry point for unused analysis

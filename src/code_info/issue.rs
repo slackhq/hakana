@@ -124,7 +124,7 @@ pub enum IssueKind {
     UndefinedStringArrayOffset,
     UndefinedVariable,
     UnevaluatedCode,
-    UnnecessaryAsyncFunction,
+    UnnecessaryAsyncAnnotation,
     UnnecessaryServiceCallsAttribute,
     UnnecessaryShapesIdx,
     UnrecognizedBinaryOp,
@@ -156,6 +156,7 @@ pub enum IssueKind {
     UnusedXhpAttribute,
     UpcastAwaitable,
     UselessControlFlow,
+    VariableDefinedOutsideIfOnlyUsedInside,
 }
 
 impl IssueKind {
