@@ -6,7 +6,6 @@ use crate::{
 };
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::ttype::get_nothing;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
