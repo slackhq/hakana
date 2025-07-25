@@ -14,7 +14,7 @@ use hakana_code_info::{
 use hakana_code_info::{
     ttype::{
         comparison::union_type_comparator, get_mixed_any, get_mixed_maybe_from_loop, get_nothing,
-        intersect_union_types, wrap_atomic,
+        intersect_union_types_simple, wrap_atomic,
     },
     var_name::VarName,
 };
@@ -668,7 +668,7 @@ fn reconcile_in_array(
     suppressed_issues: &FxHashMap<String, usize>,
     typed_value: &TUnion,
 ) -> TUnion {
-    let intersection = intersect_union_types(typed_value, existing_var_type, codebase);
+    let intersection = intersect_union_types_simple(typed_value, existing_var_type, codebase);
 
     if let Some(intersection) = intersection {
         return intersection;

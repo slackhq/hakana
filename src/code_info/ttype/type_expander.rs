@@ -13,7 +13,7 @@ use crate::{
     functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic, TClosure, TDict, TVec},
     t_union::TUnion,
-    ttype::intersect_union_types,
+    ttype::intersect_union_types_simple,
     type_definition_info::TypeDefinitionInfo,
 };
 use crate::{functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier};
@@ -323,7 +323,7 @@ fn expand_atomic(
         if let Some(where_constraints) = options.where_constraints {
             for (_, constraint_type) in where_constraints.iter().filter(|(k, _)| k == param_name) {
                 *as_type = Box::new(
-                    intersect_union_types(as_type, constraint_type, codebase)
+                    intersect_union_types_simple(as_type, constraint_type, codebase)
                         .unwrap_or(get_nothing()),
                 );
             }

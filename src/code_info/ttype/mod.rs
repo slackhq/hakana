@@ -1,12 +1,18 @@
 use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
+    code_location::FilePath,
     codebase_info::CodebaseInfo,
     data_flow::node::DataFlowNode,
     t_atomic::{DictKey, TAtomic, TDict, TVec},
     t_union::TUnion,
     type_resolution::TypeResolutionContext,
+};
+use comparison::{
+    atomic_type_comparator::{self, expand_constant_value},
+    type_comparison_result::TypeComparisonResult,
 };
 use itertools::Itertools;
 use type_combiner::combine;
@@ -325,12 +331,443 @@ pub fn add_union_type(
     base_type
 }
 
-pub fn intersect_union_types(
-    _type_1: &TUnion,
-    _type_2: &TUnion,
-    _codebase: &CodebaseInfo,
+pub fn intersect_union_types_simple(
+    type_1: &TUnion,
+    type_2: &TUnion,
+    codebase: &CodebaseInfo,
 ) -> Option<TUnion> {
+    if type_1 == type_2 {
+        return Some(type_1.clone());
+    }
+
+    match (type_1.is_single(), type_2.is_single()) {
+        (true, true) => {
+            intersect_atomic_with_atomic_simple(type_1.get_single(), type_2.get_single(), codebase)
+                .map(wrap_atomic)
+        }
+        (false, true) => intersect_union_with_atomic_simple(type_1, type_2.get_single(), codebase),
+        (true, false) => intersect_union_with_atomic_simple(type_2, type_1.get_single(), codebase),
+        (false, false) => {
+            let new_types = type_2
+                .types
+                .iter()
+                .flat_map(|t| {
+                    intersect_union_with_atomic_simple(type_1, t, codebase)
+                        .unwrap_or(get_nothing())
+                        .types
+                })
+                .collect::<Vec<_>>();
+
+            let combined_union = TUnion::new(combine(new_types, codebase, false));
+
+            if combined_union.is_nothing() {
+                None
+            } else {
+                Some(combined_union)
+            }
+        }
+    }
+}
+
+fn intersect_union_with_atomic_simple(
+    existing_var_type: &TUnion,
+    new_type: &TAtomic,
+    codebase: &CodebaseInfo,
+) -> Option<TUnion> {
+    let mut acceptable_types = Vec::new();
+
+    for existing_atomic in &existing_var_type.types {
+        if let Some(intersected_atomic_type) =
+            intersect_atomic_with_atomic_simple(existing_atomic, new_type, codebase)
+        {
+            acceptable_types.push(intersected_atomic_type);
+        }
+    }
+
+    if !acceptable_types.is_empty() {
+        if acceptable_types.len() > 1 {
+            acceptable_types = combine(acceptable_types, codebase, false);
+        }
+        return Some(TUnion::new(acceptable_types));
+    }
+
     None
+}
+
+fn intersect_atomic_with_atomic_simple(
+    type_1_atomic: &TAtomic,
+    type_2_atomic: &TAtomic,
+    codebase: &CodebaseInfo,
+) -> Option<TAtomic> {
+    let mut atomic_comparison_results = TypeComparisonResult::new();
+
+    // Basic same-type cases
+    match (type_1_atomic, type_2_atomic) {
+        (TAtomic::TNull, TAtomic::TNull) => {
+            return Some(TAtomic::TNull);
+        }
+        (TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false, _, false), TAtomic::TNull) => {
+            return Some(TAtomic::TNull);
+        }
+        (TAtomic::TNull, TAtomic::TMixedWithFlags(_, _, _, true)) => return None,
+        (
+            TAtomic::TObject { .. }
+            | TAtomic::TClosure(_)
+            | TAtomic::TAwaitable { .. }
+            | TAtomic::TNamedObject { .. },
+            TAtomic::TObject,
+        ) => {
+            return Some(type_1_atomic.clone());
+        }
+        (_, TAtomic::TObject) => {
+            return None;
+        }
+        (type_1_atomic, TAtomic::TArraykey { .. }) => {
+            if type_1_atomic.is_mixed() {
+                return Some(TAtomic::TArraykey { from_any: false });
+            } else if type_1_atomic.is_int()
+                || type_1_atomic.is_string()
+                || matches!(type_1_atomic, TAtomic::TArraykey { .. })
+            {
+                return Some(type_1_atomic.clone());
+            } else if matches!(type_1_atomic, TAtomic::TNum) {
+                return Some(TAtomic::TInt);
+            } else {
+                return None;
+            }
+        }
+        (type_1_atomic, TAtomic::TNum) => {
+            if type_1_atomic.is_mixed() {
+                return Some(TAtomic::TNum);
+            } else if type_1_atomic.is_int() || matches!(type_1_atomic, TAtomic::TFloat { .. }) {
+                return Some(type_1_atomic.clone());
+            } else if matches!(type_1_atomic, TAtomic::TArraykey { .. }) {
+                return Some(TAtomic::TInt);
+            } else {
+                return None;
+            }
+        }
+        (
+            TAtomic::TLiteralClassname { .. }
+            | TAtomic::TLiteralString { .. }
+            | TAtomic::TClassname { .. }
+            | TAtomic::TTypename { .. }
+            | TAtomic::TStringWithFlags(..)
+            | TAtomic::TString { .. },
+            TAtomic::TString,
+        ) => {
+            return Some(type_1_atomic.clone());
+        }
+        (
+            TAtomic::TMixed
+            | TAtomic::TMixedWithFlags(..)
+            | TAtomic::TMixedFromLoopIsset
+            | TAtomic::TScalar
+            | TAtomic::TArraykey { .. },
+            TAtomic::TString,
+        ) => {
+            return Some(TAtomic::TString);
+        }
+        (type_1_atomic, TAtomic::TString) => {
+            if atomic_type_comparator::is_contained_by(
+                codebase,
+                &FilePath(StrId::EMPTY),
+                type_1_atomic,
+                &TAtomic::TString,
+                false,
+                &mut TypeComparisonResult::new(),
+            ) {
+                return Some(type_1_atomic.clone());
+            } else {
+                return None;
+            }
+        }
+        (TAtomic::TLiteralInt { .. } | TAtomic::TInt, TAtomic::TInt) => {
+            return Some(type_1_atomic.clone());
+        }
+        (
+            TAtomic::TMixed
+            | TAtomic::TMixedWithFlags(..)
+            | TAtomic::TScalar
+            | TAtomic::TNum
+            | TAtomic::TArraykey { .. }
+            | TAtomic::TMixedFromLoopIsset,
+            TAtomic::TInt,
+        ) => {
+            return Some(TAtomic::TInt);
+        }
+        (type_1_atomic, TAtomic::TInt) => {
+            if atomic_type_comparator::is_contained_by(
+                codebase,
+                &FilePath(StrId::EMPTY),
+                type_1_atomic,
+                &TAtomic::TInt,
+                false,
+                &mut TypeComparisonResult::new(),
+            ) {
+                return Some(type_1_atomic.clone());
+            } else {
+                return None;
+            }
+        }
+        (TAtomic::TDict(type_1_dict), TAtomic::TDict(type_2_dict)) => {
+            return intersect_dicts_simple(type_1_dict, type_2_dict, codebase);
+        }
+        (
+            TAtomic::TVec(TVec {
+                known_items: type_1_known_items,
+                type_param: type_1_param,
+                ..
+            }),
+            TAtomic::TVec(TVec {
+                known_items: type_2_known_items,
+                type_param: type_2_param,
+                ..
+            }),
+        ) => {
+            return intersect_vecs_simple(
+                type_1_param,
+                type_2_param,
+                type_1_known_items,
+                type_2_known_items,
+                codebase,
+            );
+        }
+        (
+            TAtomic::TKeyset {
+                type_param: type_1_param,
+                ..
+            },
+            TAtomic::TKeyset {
+                type_param: type_2_param,
+                ..
+            },
+        ) => {
+            return intersect_union_types_simple(type_1_param, type_2_param, codebase).map(
+                |intersected| TAtomic::TKeyset {
+                    type_param: Box::new(intersected),
+                    non_empty: false,
+                },
+            );
+        }
+        _ => (),
+    }
+
+    // Check if type_2 is contained in type_1
+    if atomic_type_comparator::is_contained_by(
+        codebase,
+        &FilePath(StrId::EMPTY),
+        type_2_atomic,
+        type_1_atomic,
+        true,
+        &mut atomic_comparison_results,
+    ) {
+        let type_2_atomic =
+            if let Some(replacement) = atomic_comparison_results.replacement_atomic_type {
+                replacement
+            } else {
+                type_2_atomic.clone()
+            };
+
+        return Some(type_2_atomic);
+    }
+
+    // Check if type_1 is contained in type_2
+    atomic_comparison_results = TypeComparisonResult::new();
+    if atomic_type_comparator::is_contained_by(
+        codebase,
+        &FilePath(StrId::EMPTY),
+        type_1_atomic,
+        type_2_atomic,
+        false,
+        &mut atomic_comparison_results,
+    ) {
+        let type_1_atomic =
+            if let Some(replacement) = atomic_comparison_results.replacement_atomic_type {
+                replacement
+            } else {
+                type_1_atomic.clone()
+            };
+
+        return Some(type_1_atomic);
+    }
+
+    // Special cases for enums
+    match (type_1_atomic, type_2_atomic) {
+        (
+            TAtomic::TEnum {
+                name: type_1_name, ..
+            },
+            TAtomic::TEnum {
+                name: type_2_name, ..
+            },
+        ) => {
+            if let (Some(storage_1), Some(storage_2)) = (
+                codebase.classlike_infos.get(type_1_name),
+                codebase.classlike_infos.get(type_2_name),
+            ) {
+                for (_, c1) in &storage_1.constants {
+                    for (_, c2) in &storage_2.constants {
+                        let c1_value = expand_constant_value(c1, codebase);
+                        let c2_value = expand_constant_value(c2, codebase);
+                        if c1_value == c2_value {
+                            return Some(type_2_atomic.clone());
+                        }
+                    }
+                }
+            }
+        }
+        (
+            TAtomic::TNamedObject {
+                name: type_1_name, ..
+            },
+            TAtomic::TNamedObject {
+                name: type_2_name, ..
+            },
+        ) => {
+            if (codebase.interface_exists(type_1_name)
+                && codebase.can_intersect_interface(type_2_name))
+                || (codebase.interface_exists(type_2_name)
+                    && codebase.can_intersect_interface(type_1_name))
+            {
+                let mut type_1_atomic = type_1_atomic.clone();
+                type_1_atomic.add_intersection_type(type_2_atomic.clone());
+                return Some(type_1_atomic);
+            }
+        }
+        _ => (),
+    }
+
+    None
+}
+
+fn intersect_dicts_simple(
+    type_1_dict: &TDict,
+    type_2_dict: &TDict,
+    codebase: &CodebaseInfo,
+) -> Option<TAtomic> {
+    let params = match (&type_1_dict.params, &type_2_dict.params) {
+        (Some(type_1_params), Some(type_2_params)) => {
+            let key = intersect_union_types_simple(&type_1_params.0, &type_2_params.0, codebase);
+            let value = intersect_union_types_simple(&type_1_params.1, &type_2_params.1, codebase);
+
+            if let (Some(key), Some(value)) = (key, value) {
+                Some((Box::new(key), Box::new(value)))
+            } else {
+                return None;
+            }
+        }
+        _ => None,
+    };
+
+    match (&type_1_dict.known_items, &type_2_dict.known_items) {
+        (Some(type_1_known_items), Some(type_2_known_items)) => {
+            let mut intersected_items = BTreeMap::new();
+
+            for (type_2_key, type_2_value) in type_2_known_items {
+                if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
+                    intersected_items.insert(
+                        type_2_key.clone(),
+                        (
+                            type_2_value.0 && type_1_value.0,
+                            if let Some(t) = intersect_union_types_simple(
+                                &type_1_value.1,
+                                &type_2_value.1,
+                                codebase,
+                            ) {
+                                Arc::new(t)
+                            } else {
+                                return None;
+                            },
+                        ),
+                    );
+                } else if let Some(type_1_params) = &type_1_dict.params {
+                    intersected_items.insert(
+                        type_2_key.clone(),
+                        (
+                            type_2_value.0,
+                            if let Some(t) = intersect_union_types_simple(
+                                &type_1_params.1,
+                                &type_2_value.1,
+                                codebase,
+                            ) {
+                                Arc::new(t)
+                            } else {
+                                return None;
+                            },
+                        ),
+                    );
+                } else if !type_2_value.0 {
+                    return None;
+                }
+            }
+
+            Some(TAtomic::TDict(TDict {
+                known_items: Some(intersected_items),
+                params,
+                non_empty: true,
+                shape_name: None,
+            }))
+        }
+        _ => Some(TAtomic::TDict(TDict {
+            known_items: None,
+            params,
+            non_empty: true,
+            shape_name: None,
+        })),
+    }
+}
+
+fn intersect_vecs_simple(
+    type_1_param: &TUnion,
+    type_2_param: &TUnion,
+    type_1_known_items: &Option<BTreeMap<usize, (bool, TUnion)>>,
+    type_2_known_items: &Option<BTreeMap<usize, (bool, TUnion)>>,
+    codebase: &CodebaseInfo,
+) -> Option<TAtomic> {
+    let type_param = intersect_union_types_simple(type_1_param, type_2_param, codebase);
+
+    match (type_1_known_items, type_2_known_items) {
+        (Some(type_1_known_items), Some(type_2_known_items)) => {
+            let mut type_2_known_items = type_2_known_items.clone();
+
+            for (type_2_key, type_2_value) in type_2_known_items.iter_mut() {
+                if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
+                    type_2_value.0 = type_2_value.0 && type_1_value.0;
+                    type_2_value.1 =
+                        intersect_union_types_simple(&type_1_value.1, &type_2_value.1, codebase)?;
+                } else if !type_1_param.is_nothing() {
+                    type_2_value.1 =
+                        intersect_union_types_simple(type_1_param, &type_2_value.1, codebase)?;
+                } else if !type_2_value.0 {
+                    return None;
+                }
+            }
+
+            if let Some(type_param) = type_param {
+                Some(TAtomic::TVec(TVec {
+                    known_items: Some(type_2_known_items),
+                    type_param: Box::new(type_param),
+                    non_empty: true,
+                    known_count: None,
+                }))
+            } else {
+                None
+            }
+        }
+        _ => {
+            if let Some(type_param) = type_param {
+                Some(TAtomic::TVec(TVec {
+                    known_items: None,
+                    type_param: Box::new(type_param),
+                    non_empty: false,
+                    known_count: None,
+                }))
+            } else {
+                None
+            }
+        }
+    }
 }
 
 pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<(TUnion, TUnion)> {

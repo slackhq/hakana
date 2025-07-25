@@ -6,7 +6,7 @@ use crate::{
 };
 use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::ttype::{
-    comparison::union_type_comparator, get_mixed_any, get_nothing, get_null, intersect_union_types,
+    comparison::union_type_comparator, get_mixed_any, get_nothing, get_null, intersect_union_types_simple,
     wrap_atomic,
 };
 use hakana_code_info::var_name::VarName;
@@ -1850,7 +1850,7 @@ fn reconcile_not_in_array(
     suppressed_issues: &FxHashMap<String, usize>,
     typed_value: &TUnion,
 ) -> TUnion {
-    let intersection = intersect_union_types(typed_value, existing_var_type, codebase);
+    let intersection = intersect_union_types_simple(typed_value, existing_var_type, codebase);
 
     if intersection.is_some() {
         return existing_var_type.clone();
