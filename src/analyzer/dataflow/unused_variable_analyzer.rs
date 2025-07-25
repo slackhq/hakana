@@ -98,7 +98,7 @@ pub fn check_variables_used(
 pub fn check_variables_scoped_incorrectly(
     graph: &DataFlowGraph,
     if_block_boundaries: &[(u32, u32)],
-    _interner: &Interner,
+    interner: &Interner,
 ) -> Vec<DataFlowNode> {
     let mut incorrectly_scoped = Vec::new();
     
@@ -107,29 +107,58 @@ pub fn check_variables_scoped_incorrectly(
         return incorrectly_scoped;
     }
     
+    // Group variable sources by variable name to handle multiple dataflow sources
+    let mut variable_sources: FxHashMap<String, Vec<&DataFlowNode>> = FxHashMap::default();
+    
     for (_, source_node) in graph.sources.iter() {
-        if let DataFlowNodeKind::VariableUseSource { pos, kind, .. } = &source_node.kind {
+        if let DataFlowNodeKind::VariableUseSource { kind, .. } = &source_node.kind {
             // Skip function parameters - they're not "defined outside if blocks" in the problematic sense
             if matches!(kind, VariableSourceKind::NonPrivateParam | VariableSourceKind::PrivateParam | VariableSourceKind::ClosureParam) {
                 continue;
             }
             
-            // Check if variable is defined outside all if blocks
-            if !is_position_within_any_if_block(pos, if_block_boundaries) {
-                // Get all uses of this variable
-                if let Some(sink_positions) = get_all_variable_uses(graph, source_node) {
-                    // Check if ALL uses are within if blocks
-                    if !sink_positions.is_empty() 
-                        && sink_positions.iter().all(|sink_pos| is_position_within_any_if_block(sink_pos, if_block_boundaries)) 
-                    {
-                        incorrectly_scoped.push(source_node.clone());
-                    }
+            // Extract variable name from the node ID
+            if let Some(var_name) = get_variable_name_from_node(&source_node.id, interner) {
+                variable_sources.entry(var_name).or_default().push(source_node);
+            }
+        }
+    }
+    
+    // Check each variable's sources collectively
+    for (_, sources) in variable_sources {
+        // Check if ALL sources are defined outside if blocks
+        let all_sources_outside_if = sources.iter().all(|source_node| {
+            if let DataFlowNodeKind::VariableUseSource { pos, .. } = &source_node.kind {
+                !is_position_within_any_if_block(pos, if_block_boundaries)
+            } else {
+                false
+            }
+        });
+        
+        if all_sources_outside_if {
+            // Get all uses for any of the sources (they all represent the same variable)
+            let first_source = sources[0];
+            if let Some(sink_positions) = get_all_variable_uses(graph, first_source) {
+                // Check if ALL uses are within if blocks
+                if !sink_positions.is_empty() 
+                    && sink_positions.iter().all(|sink_pos| is_position_within_any_if_block(sink_pos, if_block_boundaries)) 
+                {
+                    // Add the first source to the incorrectly scoped list
+                    incorrectly_scoped.push(first_source.clone());
                 }
             }
         }
     }
     
     incorrectly_scoped
+}
+
+fn get_variable_name_from_node(node_id: &DataFlowNodeId, interner: &Interner) -> Option<String> {
+    match node_id {
+        DataFlowNodeId::Var(var_id, ..) => Some(interner.lookup(&var_id.0).to_string()),
+        DataFlowNodeId::Param(var_id, ..) => Some(interner.lookup(&var_id.0).to_string()),
+        _ => None,
+    }
 }
 
 fn is_position_within_any_if_block(pos: &HPos, if_block_boundaries: &[(u32, u32)]) -> bool {

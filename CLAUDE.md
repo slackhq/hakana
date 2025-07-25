@@ -82,3 +82,22 @@ Hakana is a typechecker for Hack built in Rust, designed to complement HHVM's bu
   - `data_flow_graph` - tracks variable usage patterns
   - Issue reporting and type inference state
 - `report_unused_expressions()` in `functionlike_analyzer.rs` is the main entry point for unused analysis
+
+#### Data Flow Graph Structure
+- `DataFlowGraph` contains:
+  - `sources` - HashMap of variable definition nodes (DataFlowNodeId -> DataFlowNode)
+  - `sinks` - HashMap of variable usage nodes  
+  - `forward_edges` - Maps from source to sink nodes with path information
+  - `backward_edges` - Reverse mapping for traversal
+- `DataFlowNodeId` variants include:
+  - `Var(VarId, FilePath, u32, u32)` - Variable definitions
+  - `Param(VarId, FilePath, u32, u32)` - Function parameters
+- `VarId` contains a `StrId` that must be resolved using `interner.lookup(&var_id.0)`
+
+#### Common Edge Cases in Unused Analysis
+- **Multiple dataflow sources**: Variables redefined in loops create multiple source nodes
+  - Example: `$x = 1; foreach(...) { $x = 2; }` creates two sources for variable `$x`
+  - Analysis must group sources by variable name to handle this correctly
+- **Control flow boundaries**: If/else blocks, loops, and try/catch create scoping challenges
+  - Variables defined outside if blocks but only used inside should be flagged
+  - But variables with multiple sources (e.g., loop redefinition) should not be flagged

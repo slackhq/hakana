@@ -1400,7 +1400,7 @@ fn do_analysis(
     let ignored = sub_matches
         .values_of("ignore")
         .map(|values| values.map(|f| f.to_string()).collect::<FxHashSet<_>>());
-    let find_unused_expressions = sub_matches.is_present("find-unused-expressions");
+    let mut find_unused_expressions = sub_matches.is_present("find-unused-expressions");
     let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
     let show_mixed_function_counts = sub_matches.is_present("show-mixed-function-counts");
     let show_symbol_map = sub_matches.is_present("show-symbol-map");
@@ -1421,6 +1421,9 @@ fn do_analysis(
             if let Ok(issue_kind) =
                 IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
             {
+                if issue_kind.requires_dataflow_analysis() {
+                    find_unused_expressions = true;
+                }
                 issue_kinds_filter.insert(issue_kind);
             } else {
                 println!("Invalid issue type {}", filter_issue_string);

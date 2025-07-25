@@ -1,3 +1,3 @@
-ERROR: VariableDefinedOutsideIfOnlyUsedInside - input.hack:2:5 - Variable $x is defined outside if block but only used inside
-ERROR: VariableDefinedOutsideIfOnlyUsedInside - input.hack:22:5 - Variable $x is defined outside if block but only used inside
-ERROR: VariableDefinedOutsideIfOnlyUsedInside - input.hack:31:5 - Variable $x is defined outside if block but only used inside
+ERROR: VariableDefinedOutsideIf - input.hack:2:5 - Variable $x is defined outside if block but only used inside
+ERROR: VariableDefinedOutsideIf - input.hack:22:5 - Variable $x is defined outside if block but only used inside
+ERROR: VariableDefinedOutsideIf - input.hack:31:5 - Variable $x is defined outside if block but only used inside
