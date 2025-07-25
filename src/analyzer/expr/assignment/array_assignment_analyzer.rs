@@ -102,6 +102,7 @@ pub(crate) fn analyze(
                         false,
                         false,
                         false,
+                        false,
                     ));
             }
         }
@@ -513,12 +514,14 @@ fn update_array_assignment_child_type(
 
         for original_type in &root_type.types {
             match original_type {
-                TAtomic::TVec(TVec { known_items, .. }) => collection_types.push(TAtomic::TVec(TVec {
-                    type_param: Box::new(value_type.clone()),
-                    known_items: known_items.clone(),
-                    known_count: None,
-                    non_empty: true,
-                })),
+                TAtomic::TVec(TVec { known_items, .. }) => {
+                    collection_types.push(TAtomic::TVec(TVec {
+                        type_param: Box::new(value_type.clone()),
+                        known_items: known_items.clone(),
+                        known_count: None,
+                        non_empty: true,
+                    }))
+                }
                 TAtomic::TDict(TDict { known_items, .. }) => {
                     collection_types.push(TAtomic::TDict(TDict {
                         params: Some((Box::new((*key_type).clone()), Box::new(value_type.clone()))),

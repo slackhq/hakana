@@ -101,3 +101,11 @@ Hakana is a typechecker for Hack built in Rust, designed to complement HHVM's bu
 - **Control flow boundaries**: If/else blocks, loops, and try/catch create scoping challenges
   - Variables defined outside if blocks but only used inside should be flagged
   - But variables with multiple sources (e.g., loop redefinition) should not be flagged
+- **Await expression detection**: Variables assigned from await expressions need special handling
+  - `context.inside_await` flag is unreliable for dataflow node creation timing
+  - Use counter-based approach: check `analysis_data.await_calls_count` before/after RHS analysis
+  - `has_await_call` field tracks if assignment RHS contained await expressions
+  - `has_awaitable` field tracks if assignment type is `Awaitable<T>` (for function parameters)
+- **Issue type naming**: Issue types may change names between commits (e.g., `VariableDefinedOutsideIfOnlyUsedInside` -> `VariableDefinedOutsideIf`)
+  - Always check `src/code_info/issue.rs` for current issue type names
+  - Update test output files when issue types change

@@ -387,6 +387,7 @@ pub enum DataFlowNodeKind {
         kind: VariableSourceKind,
         pure: bool,
         has_parent_nodes: bool,
+        has_await_call: bool,
         has_awaitable: bool,
         from_loop_init: bool,
     },
@@ -762,6 +763,7 @@ impl DataFlowNode {
         pure: bool,
         has_parent_nodes: bool,
         has_awaitable: bool,
+        has_await_call: bool,
         from_loop_init: bool,
     ) -> Self {
         Self {
@@ -776,6 +778,7 @@ impl DataFlowNode {
                 kind,
                 pure,
                 has_awaitable,
+                has_await_call,
                 has_parent_nodes,
                 from_loop_init,
             },

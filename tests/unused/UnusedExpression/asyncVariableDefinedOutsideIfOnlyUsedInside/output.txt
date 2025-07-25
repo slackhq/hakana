@@ -1,0 +1,1 @@
+ERROR: AsyncVariableDefinedOutsideIf - input.hack:7:5 - Variable $result is defined outside if block but only used inside

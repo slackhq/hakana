@@ -1126,6 +1126,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             ),
                             pure: false,
                             has_awaitable: param_type.has_awaitable_types(),
+                            has_await_call: false,
                             has_parent_nodes: true,
                             from_loop_init: false,
                         },
@@ -1318,7 +1319,7 @@ fn report_unused_expressions(
         check_variables_used(&analysis_data.data_flow_graph, statements_analyzer.interner);
     
     // Check for variables defined outside if blocks but only used inside
-    let incorrectly_scoped_nodes = check_variables_scoped_incorrectly(
+    let (incorrectly_scoped_nodes, async_incorrectly_scoped_nodes) = check_variables_scoped_incorrectly(
         &analysis_data.data_flow_graph,
         &analysis_data.if_block_boundaries,
         statements_analyzer.interner,
@@ -1330,6 +1331,25 @@ fn report_unused_expressions(
             analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::VariableDefinedOutsideIf,
+                    format!(
+                        "Variable {} is defined outside if block but only used inside",
+                        node.id.to_label(statements_analyzer.interner)
+                    ),
+                    *pos,
+                    calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+    }
+    
+    // Report async incorrectly scoped variables
+    for node in &async_incorrectly_scoped_nodes {
+        if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::AsyncVariableDefinedOutsideIf,
                     format!(
                         "Variable {} is defined outside if block but only used inside",
                         node.id.to_label(statements_analyzer.interner)

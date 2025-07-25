@@ -104,6 +104,8 @@ pub(crate) fn analyze(
         existing_var_type = context.locals.get(var_id.as_str()).cloned();
     }
 
+    let mut has_await_call = false;
+
     if let Some(assign_value) = assign_value {
         let mut root_expr = assign_var;
         while let aast::Expr_::ArrayGet(boxed) = &root_expr.2 {
@@ -118,12 +120,16 @@ pub(crate) fn analyze(
 
         match binop {
             None => {
+                let await_count = analysis_data.await_calls_count;
                 expression_analyzer::analyze(
                     statements_analyzer,
                     assign_value,
                     analysis_data,
                     context,
                 )?;
+                if analysis_data.await_calls_count > await_count {
+                    has_await_call = true;
+                }
             }
             // this rewrites $a += 4 and $a ??= 4 to $a = $a + 4 and $a = $a ?? 4 respectively
             Some(assignment_type) => {
@@ -315,6 +321,7 @@ pub(crate) fn analyze(
             assign_value,
             assign_value_type,
             VarName::new(var_id.as_ref().unwrap().clone()),
+            has_await_call,
             analysis_data,
             context,
             inout_node,
@@ -504,6 +511,7 @@ fn analyze_assignment_to_variable(
     source_expr: Option<&aast::Expr<(), ()>>,
     mut assign_value_type: TUnion,
     var_id: VarName,
+    has_await_call: bool,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     inout_node: Option<(DataFlowNode, &Pos)>,
@@ -548,6 +556,7 @@ fn analyze_assignment_to_variable(
             var_expr_pos.start_line = inout_token_pos.start_line;
             var_expr_pos.start_offset = inout_token_pos.start_offset;
         }
+
         DataFlowNode::get_for_variable_source(
             if inout_node.is_some() {
                 VariableSourceKind::InoutArg
@@ -564,6 +573,7 @@ fn analyze_assignment_to_variable(
                 },
             has_parent_nodes,
             assign_value_type.has_awaitable_types(),
+            has_await_call,
             context.inside_loop
                 && !context.inside_assignment_op
                 && context.for_loop_init_bounds.0 > 0,

@@ -99,12 +99,13 @@ pub fn check_variables_scoped_incorrectly(
     graph: &DataFlowGraph,
     if_block_boundaries: &[(u32, u32)],
     interner: &Interner,
-) -> Vec<DataFlowNode> {
+) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
     let mut incorrectly_scoped = Vec::new();
+    let mut async_incorrectly_scoped = Vec::new();
     
     // Skip if there are no if blocks to analyze
     if if_block_boundaries.is_empty() {
-        return incorrectly_scoped;
+        return (incorrectly_scoped, async_incorrectly_scoped);
     }
     
     // Group variable sources by variable name to handle multiple dataflow sources
@@ -143,14 +144,26 @@ pub fn check_variables_scoped_incorrectly(
                 if !sink_positions.is_empty() 
                     && sink_positions.iter().all(|sink_pos| is_position_within_any_if_block(sink_pos, if_block_boundaries)) 
                 {
-                    // Add the first source to the incorrectly scoped list
-                    incorrectly_scoped.push(first_source.clone());
+                    // Check if any of the sources are from await expressions
+                    let has_await_source = sources.iter().any(|source_node| {
+                        if let DataFlowNodeKind::VariableUseSource { has_await_call, .. } = &source_node.kind {
+                            *has_await_call
+                        } else {
+                            false
+                        }
+                    });
+                    
+                    if has_await_source {
+                        async_incorrectly_scoped.push(first_source.clone());
+                    } else {
+                        incorrectly_scoped.push(first_source.clone());
+                    }
                 }
             }
         }
     }
     
-    incorrectly_scoped
+    (incorrectly_scoped, async_incorrectly_scoped)
 }
 
 fn get_variable_name_from_node(node_id: &DataFlowNodeId, interner: &Interner) -> Option<String> {

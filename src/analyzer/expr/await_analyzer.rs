@@ -23,6 +23,9 @@ pub(crate) fn analyze(
     expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
     context.inside_general_use = was_inside_use;
     context.inside_await = was_inside_await;
+    
+    // Increment await calls
+    analysis_data.await_calls_count += 1;
 
     let mut awaited_stmt_type = analysis_data
         .get_expr_type(boxed.pos())
