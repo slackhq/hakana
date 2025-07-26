@@ -114,7 +114,7 @@ pub fn check_variables_scoped_incorrectly(
     let mut variable_sources: FxHashMap<String, Vec<&DataFlowNode>> = FxHashMap::default();
 
     for (_, source_node) in graph.sources.iter() {
-        if let DataFlowNodeKind::VariableUseSource { kind, .. } = &source_node.kind {
+        if let DataFlowNodeKind::VariableUseSource { kind, pure, .. } = &source_node.kind {
             // Skip function parameters - they're not "defined outside if blocks" in the problematic sense
             if matches!(
                 kind,
@@ -122,6 +122,11 @@ pub fn check_variables_scoped_incorrectly(
                     | VariableSourceKind::PrivateParam
                     | VariableSourceKind::ClosureParam
             ) {
+                continue;
+            }
+
+            // Skip pure sources - only flag variables with impure sources
+            if *pure {
                 continue;
             }
 
