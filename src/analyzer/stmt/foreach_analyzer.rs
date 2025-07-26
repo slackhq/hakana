@@ -107,6 +107,12 @@ pub(crate) fn analyze(
         aast::AsExpr::AsKv(key_expr, _) | aast::AsExpr::AwaitAsKv(_, key_expr, _) => {
             let key_type = key_type.unwrap_or(get_arraykey(true));
 
+            // Also store key expression bounds for variable scoping analysis
+            analysis_data.for_loop_init_boundaries.push((
+                key_expr.pos().start_offset() as u32,
+                key_expr.pos().end_offset() as u32,
+            ));
+
             assignment_analyzer::analyze(
                 statements_analyzer,
                 (key_expr, None, None),
@@ -124,9 +130,12 @@ pub(crate) fn analyze(
     let value_type = value_type.unwrap_or(get_mixed_any());
 
     foreach_context.for_loop_init_bounds = (
+        value_expr.pos().start_offset() as u32,
         value_expr.pos().end_offset() as u32,
-        pos.end_offset() as u32,
     );
+    
+    // Store for_loop_init_bounds for variable scoping analysis
+    analysis_data.for_loop_init_boundaries.push(foreach_context.for_loop_init_bounds);
 
     assignment_analyzer::analyze(
         statements_analyzer,
@@ -143,6 +152,8 @@ pub(crate) fn analyze(
 
     let prev_loop_bounds = foreach_context.loop_bounds;
     foreach_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
+    // Store loop bounds for variable scoping analysis
+    analysis_data.loop_boundaries.push(foreach_context.loop_bounds);
 
     loop_analyzer::analyze(
         statements_analyzer,

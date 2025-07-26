@@ -50,6 +50,8 @@ pub struct FunctionAnalysisData {
     pub has_await: bool,
     pub await_calls_count: usize,
     pub if_block_boundaries: Vec<(u32, u32)>,
+    pub loop_boundaries: Vec<(u32, u32)>,
+    pub for_loop_init_boundaries: Vec<(u32, u32)>,
 }
 
 impl FunctionAnalysisData {
@@ -100,6 +102,8 @@ impl FunctionAnalysisData {
             previously_used_fixme_positions: FxHashMap::default(),
             actual_service_calls: FxHashSet::default(),
             if_block_boundaries: Vec::new(),
+            loop_boundaries: Vec::new(),
+            for_loop_init_boundaries: Vec::new(),
         }
     }
 

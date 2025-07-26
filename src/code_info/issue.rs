@@ -156,7 +156,7 @@ pub enum IssueKind {
     UnusedXhpAttribute,
     UpcastAwaitable,
     UselessControlFlow,
-    AsyncVariableDefinedOutsideIf,
+    AwaitVariableDefinedOutsideIf,
     VariableDefinedOutsideIf,
 }
 
@@ -238,7 +238,7 @@ impl IssueKind {
                 | Self::UnusedParameter
                 | Self::UnusedClosureParameter
                 | Self::UnusedPipeVariable
-                | Self::AsyncVariableDefinedOutsideIf
+                | Self::AwaitVariableDefinedOutsideIf
                 | Self::VariableDefinedOutsideIf
         )
     }

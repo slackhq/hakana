@@ -98,33 +98,43 @@ pub fn check_variables_used(
 pub fn check_variables_scoped_incorrectly(
     graph: &DataFlowGraph,
     if_block_boundaries: &[(u32, u32)],
+    loop_boundaries: &[(u32, u32)],
+    for_loop_init_boundaries: &[(u32, u32)],
     interner: &Interner,
 ) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
     let mut incorrectly_scoped = Vec::new();
     let mut async_incorrectly_scoped = Vec::new();
-    
+
     // Skip if there are no if blocks to analyze
     if if_block_boundaries.is_empty() {
         return (incorrectly_scoped, async_incorrectly_scoped);
     }
-    
+
     // Group variable sources by variable name to handle multiple dataflow sources
     let mut variable_sources: FxHashMap<String, Vec<&DataFlowNode>> = FxHashMap::default();
-    
+
     for (_, source_node) in graph.sources.iter() {
         if let DataFlowNodeKind::VariableUseSource { kind, .. } = &source_node.kind {
             // Skip function parameters - they're not "defined outside if blocks" in the problematic sense
-            if matches!(kind, VariableSourceKind::NonPrivateParam | VariableSourceKind::PrivateParam | VariableSourceKind::ClosureParam) {
+            if matches!(
+                kind,
+                VariableSourceKind::NonPrivateParam
+                    | VariableSourceKind::PrivateParam
+                    | VariableSourceKind::ClosureParam
+            ) {
                 continue;
             }
-            
+
             // Extract variable name from the node ID
             if let Some(var_name) = get_variable_name_from_node(&source_node.id, interner) {
-                variable_sources.entry(var_name).or_default().push(source_node);
+                variable_sources
+                    .entry(var_name)
+                    .or_default()
+                    .push(source_node);
             }
         }
     }
-    
+
     // Check each variable's sources collectively
     for (_, sources) in variable_sources {
         // Check if ALL sources are defined outside if blocks
@@ -136,23 +146,39 @@ pub fn check_variables_scoped_incorrectly(
             }
         });
         
-        if all_sources_outside_if {
+        // Check if any source is defined within foreach iterator bounds (should be exempted)
+        let any_source_in_foreach_init = sources.iter().any(|source_node| {
+            if let DataFlowNodeKind::VariableUseSource { pos, .. } = &source_node.kind {
+                is_position_within_foreach_init_bounds(pos, for_loop_init_boundaries)
+            } else {
+                false
+            }
+        });
+
+        if all_sources_outside_if && !any_source_in_foreach_init {
             // Get all uses for any of the sources (they all represent the same variable)
             let first_source = sources[0];
             if let Some(sink_positions) = get_all_variable_uses(graph, first_source) {
-                // Check if ALL uses are within if blocks
-                if !sink_positions.is_empty() 
-                    && sink_positions.iter().all(|sink_pos| is_position_within_any_if_block(sink_pos, if_block_boundaries)) 
+                // Check if ALL uses are within if blocks AND not used in multiple if blocks
+                // BUT skip if the variable is defined before a loop and used inside an if within that loop
+                if !sink_positions.is_empty()
+                    && sink_positions.iter().all(|sink_pos| {
+                        is_position_within_any_if_block(sink_pos, if_block_boundaries)
+                    })
+                    && !is_used_in_multiple_if_blocks(&sink_positions, if_block_boundaries)
+                    && !is_optimization_pattern(&sources, &sink_positions, loop_boundaries, if_block_boundaries)
                 {
                     // Check if any of the sources are from await expressions
                     let has_await_source = sources.iter().any(|source_node| {
-                        if let DataFlowNodeKind::VariableUseSource { has_await_call, .. } = &source_node.kind {
+                        if let DataFlowNodeKind::VariableUseSource { has_await_call, .. } =
+                            &source_node.kind
+                        {
                             *has_await_call
                         } else {
                             false
                         }
                     });
-                    
+
                     if has_await_source {
                         async_incorrectly_scoped.push(first_source.clone());
                     } else {
@@ -162,7 +188,7 @@ pub fn check_variables_scoped_incorrectly(
             }
         }
     }
-    
+
     (incorrectly_scoped, async_incorrectly_scoped)
 }
 
@@ -176,29 +202,91 @@ fn get_variable_name_from_node(node_id: &DataFlowNodeId, interner: &Interner) ->
 
 fn is_position_within_any_if_block(pos: &HPos, if_block_boundaries: &[(u32, u32)]) -> bool {
     let pos_offset = pos.start_offset;
-    if_block_boundaries.iter().any(|(start, end)| {
-        pos_offset >= *start && pos_offset <= *end
-    })
+    if_block_boundaries
+        .iter()
+        .any(|(start, end)| pos_offset >= *start && pos_offset <= *end)
+}
+
+fn is_position_within_foreach_init_bounds(pos: &HPos, for_loop_init_boundaries: &[(u32, u32)]) -> bool {
+    let pos_offset = pos.start_offset;
+    for_loop_init_boundaries
+        .iter()
+        .any(|(start, end)| pos_offset >= *start && pos_offset <= *end)
+}
+
+fn is_used_in_multiple_if_blocks(
+    sink_positions: &[HPos],
+    if_block_boundaries: &[(u32, u32)],
+) -> bool {
+    // Group sink positions by which if block they belong to
+    let mut blocks_with_usage = FxHashSet::default();
+
+    for sink_pos in sink_positions {
+        let pos_offset = sink_pos.start_offset;
+        for (i, (start, end)) in if_block_boundaries.iter().enumerate() {
+            if pos_offset >= *start && pos_offset <= *end {
+                blocks_with_usage.insert(i);
+                break;
+            }
+        }
+    }
+
+    // If the variable is used in more than one if block, it's not "only used inside" a single if block
+    blocks_with_usage.len() > 1
+}
+
+fn is_optimization_pattern(
+    sources: &[&DataFlowNode],
+    sink_positions: &[HPos],
+    loop_boundaries: &[(u32, u32)],
+    if_block_boundaries: &[(u32, u32)],
+) -> bool {
+    // If there are no loop boundaries, this pattern doesn't apply
+    if loop_boundaries.is_empty() {
+        return false;
+    }
+    
+    // Check if any source is defined before a loop and any sink is used inside an if block within that loop
+    for source_node in sources {
+        if let DataFlowNodeKind::VariableUseSource { pos: source_pos, .. } = &source_node.kind {
+            // Check if the source is defined before any loop
+            for (loop_start, loop_end) in loop_boundaries {
+                if source_pos.start_offset < *loop_start {
+                    // Check if any sink is used inside an if block within this loop
+                    for sink_pos in sink_positions {
+                        if sink_pos.start_offset >= *loop_start && sink_pos.start_offset <= *loop_end {
+                            // The sink is within the loop, check if it's also within an if block
+                            if is_position_within_any_if_block(sink_pos, if_block_boundaries) {
+                                return true; // This is an optimization pattern
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    false
 }
 
 fn get_all_variable_uses(graph: &DataFlowGraph, source_node: &DataFlowNode) -> Option<Vec<HPos>> {
     let mut visited_nodes = FxHashSet::default();
     let mut sink_positions = Vec::new();
     let mut to_visit = vec![source_node.id.clone()];
-    
+
     while let Some(node_id) = to_visit.pop() {
         if visited_nodes.contains(&node_id) {
             continue;
         }
         visited_nodes.insert(node_id.clone());
-        
+
         // Check if this node is a sink
         if let Some(sink_node) = graph.sinks.get(&node_id) {
             if let DataFlowNodeKind::VariableUseSink { pos } = &sink_node.kind {
                 sink_positions.push(*pos);
             }
         }
-        
+
         // Add connected nodes to visit
         if let Some(edges) = graph.forward_edges.get(&node_id) {
             for (to_id, _) in edges {
@@ -208,7 +296,7 @@ fn get_all_variable_uses(graph: &DataFlowGraph, source_node: &DataFlowNode) -> O
             }
         }
     }
-    
+
     if sink_positions.is_empty() {
         None
     } else {
@@ -386,8 +474,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     let expression_effects = analysis_data
                         .expr_effects
                         .get(&(
-                            boxed.2.1.start_offset() as u32,
-                            boxed.2.1.end_offset() as u32,
+                            boxed.2 .1.start_offset() as u32,
+                            boxed.2 .1.end_offset() as u32,
                         ))
                         .unwrap_or(&0);
 
@@ -409,13 +497,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         analysis_data.add_replacement(
                             (
                                 stmt.0.start_offset() as u32,
-                                boxed.2.1.start_offset() as u32,
+                                boxed.2 .1.start_offset() as u32,
                             ),
                             Replacement::Remove,
                         );
 
                         // remove trailing array fetches
-                        if let aast::Expr_::ArrayGet(array_get) = &boxed.2.2 {
+                        if let aast::Expr_::ArrayGet(array_get) = &boxed.2 .2 {
                             if let Some(array_offset_expr) = &array_get.1 {
                                 let array_offset_effects = analysis_data
                                     .expr_effects

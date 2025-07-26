@@ -102,10 +102,35 @@ Hakana is a typechecker for Hack built in Rust, designed to complement HHVM's bu
   - Variables defined outside if blocks but only used inside should be flagged
   - But variables with multiple sources (e.g., loop redefinition) should not be flagged
 - **Await expression detection**: Variables assigned from await expressions need special handling
-  - `context.inside_await` flag is unreliable for dataflow node creation timing
+  - `context.inside_await` tracks only whether we're inside an await call, which definitionally cannot happen in the assignment itself (since assignments are top-level expressions in Hack)
   - Use counter-based approach: check `analysis_data.await_calls_count` before/after RHS analysis
   - `has_await_call` field tracks if assignment RHS contained await expressions
   - `has_awaitable` field tracks if assignment type is `Awaitable<T>` (for function parameters)
 - **Issue type naming**: Issue types may change names between commits (e.g., `VariableDefinedOutsideIfOnlyUsedInside` -> `VariableDefinedOutsideIf`)
   - Always check `src/code_info/issue.rs` for current issue type names
   - Update test output files when issue types change
+
+#### VariableDefinedOutsideIf Analysis Implementation
+The `VariableDefinedOutsideIf` and `AsyncVariableDefinedOutsideIf` checks are implemented in `check_variables_scoped_incorrectly()` in `src/analyzer/dataflow/unused_variable_analyzer.rs`.
+
+**Key Guards Against False Positives**:
+- **Multiple if block usage**: Variables used in multiple if blocks (e.g., both if and else) are exempted via `is_used_in_multiple_if_blocks()`
+- **Loop optimization patterns**: Variables defined before loops but used inside if blocks within those loops are exempted via `is_optimization_pattern()`
+- **Foreach iterator variables**: Variables defined in foreach iterator expressions are exempted via `is_position_within_foreach_init_bounds()`
+
+**Boundary Tracking in FunctionAnalysisData**:
+- `if_block_boundaries: Vec<(u32, u32)>` - Tracks if/else block boundaries from if_analyzer.rs and else_analyzer.rs
+- `loop_boundaries: Vec<(u32, u32)>` - Tracks loop boundaries from loop_analyzer.rs (populated from `BlockContext.loop_bounds`)
+- `for_loop_init_boundaries: Vec<(u32, u32)>` - Tracks foreach iterator variable definition boundaries from foreach_analyzer.rs
+
+**Context State for Boundary Tracking**:
+- `BlockContext.loop_bounds` - Set by foreach/while/for analyzers for the entire loop construct
+- `BlockContext.for_loop_init_bounds` - Set by foreach_analyzer.rs for the iterator variable definition span
+- Boundaries are collected during analysis and stored in `FunctionAnalysisData` for later use in unused variable analysis
+
+**Testing Patterns**:
+- Test both regular and async variants of the issue
+- Test legitimate optimization patterns (variable hoisting before loops)
+- Test foreach iterator variables (key and value variables)
+- Test if/else usage patterns
+- Always update both input.hack and output.txt files when adding test cases

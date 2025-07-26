@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::custom_hook::FunctionLikeParamData;
 use crate::dataflow::unused_variable_analyzer::{
-    add_unused_expression_replacements, check_variables_used, check_variables_scoped_incorrectly,
+    add_unused_expression_replacements, check_variables_scoped_incorrectly, check_variables_used,
 };
 use crate::expr::call_analyzer::reconcile_lower_bounds_with_upper_bounds;
 use crate::expr::fetch::atomic_property_fetch_analyzer;
@@ -1317,52 +1317,57 @@ fn report_unused_expressions(
 ) {
     let unused_source_nodes =
         check_variables_used(&analysis_data.data_flow_graph, statements_analyzer.interner);
-    
+
     // Check for variables defined outside if blocks but only used inside
-    let (incorrectly_scoped_nodes, async_incorrectly_scoped_nodes) = check_variables_scoped_incorrectly(
-        &analysis_data.data_flow_graph,
-        &analysis_data.if_block_boundaries,
-        statements_analyzer.interner,
-    );
-    
-    // Report incorrectly scoped variables
-    for node in &incorrectly_scoped_nodes {
-        if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::VariableDefinedOutsideIf,
-                    format!(
-                        "Variable {} is defined outside if block but only used inside",
-                        node.id.to_label(statements_analyzer.interner)
+    let (incorrectly_scoped_nodes, async_incorrectly_scoped_nodes) =
+        check_variables_scoped_incorrectly(
+            &analysis_data.data_flow_graph,
+            &analysis_data.if_block_boundaries,
+            &analysis_data.loop_boundaries,
+            &analysis_data.for_loop_init_boundaries,
+            statements_analyzer.interner,
+        );
+
+    if functionlike_storage.is_production_code {
+        // Report incorrectly scoped variables
+        for node in &incorrectly_scoped_nodes {
+            if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::VariableDefinedOutsideIf,
+                        format!(
+                            "Variable {} is defined outside if block but only used inside",
+                            node.id.to_label(statements_analyzer.interner)
+                        ),
+                        *pos,
+                        calling_functionlike_id,
                     ),
-                    *pos,
-                    calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+
+        // Report async incorrectly scoped variables
+        for node in &async_incorrectly_scoped_nodes {
+            if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::AwaitVariableDefinedOutsideIf,
+                        format!(
+                            "Awaited variable {} is defined outside if block but only used inside",
+                            node.id.to_label(statements_analyzer.interner)
+                        ),
+                        *pos,
+                        calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
         }
     }
-    
-    // Report async incorrectly scoped variables
-    for node in &async_incorrectly_scoped_nodes {
-        if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::AsyncVariableDefinedOutsideIf,
-                    format!(
-                        "Variable {} is defined outside if block but only used inside",
-                        node.id.to_label(statements_analyzer.interner)
-                    ),
-                    *pos,
-                    calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-        }
-    }
-    
+
     analysis_data.current_stmt_offset = None;
 
     let mut unused_variable_nodes = vec![];
