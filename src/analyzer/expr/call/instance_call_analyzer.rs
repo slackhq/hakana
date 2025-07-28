@@ -31,9 +31,10 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     nullsafe: bool,
 ) -> Result<(), AnalysisError> {
+    let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
-
     expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context)?;
+    context.inside_general_use = was_inside_general_use;
 
     if let aast::Expr_::Id(_) = &expr.1 .2 {
         // do nothing
