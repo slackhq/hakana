@@ -162,6 +162,16 @@ pub fn check_variables_scoped_incorrectly(
 
         if all_sources_outside_if && !any_source_in_foreach_init {
             for source in &sources {
+                if matches!(
+                    source.kind,
+                    DataFlowNodeKind::VariableUseSource {
+                        kind: VariableSourceKind::InoutArg,
+                        ..
+                    }
+                ) {
+                    continue;
+                }
+
                 if let Some(sink_positions) = get_all_variable_uses(graph, source) {
                     // Check if ALL uses are within if blocks AND not used in multiple if blocks
                     // BUT skip if the variable is defined before a loop and used inside an if within that loop
