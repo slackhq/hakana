@@ -6,6 +6,7 @@ use hakana_aast_helper::Uses;
 use hakana_code_info::attribute_info::AttributeInfo;
 use hakana_code_info::file_info::{FileInfo, ParserError};
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
+use hakana_code_info::issue::IssueKind;
 use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{get_bool, get_int, get_mixed_any, get_string};
@@ -455,7 +456,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             type_definition.shape_field_taints = Some(shape_sources);
         }
 
-        self.codebase.symbols.add_typedef_name(type_name, source_file.is_some());
+        self.codebase
+            .symbols
+            .add_typedef_name(type_name, source_file.is_some());
         self.codebase
             .type_definitions
             .insert(type_name, type_definition);
@@ -581,6 +584,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             &f.tparams,
             &f.fun.params,
             &functionlike_storage.attributes,
+            functionlike_storage
+                .suppressed_issues
+                .iter()
+                .map(|k| &k.0)
+                .collect(),
             &f.fun.ret,
             self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
         );
@@ -891,6 +899,7 @@ fn get_function_hashes(
     tparams: &[Tparam],
     params: &[FunParam],
     user_attributes: &[AttributeInfo],
+    suppressed_issues: Vec<&IssueKind>,
     ret: &TypeHint,
     uses: &Vec<(StrId, StrId)>,
 ) -> (u64, u64) {
@@ -921,6 +930,12 @@ fn get_function_hashes(
     let mut signature_hash = xxhash_rust::xxh3::xxh3_64(
         file_contents[def_location.start_offset as usize..signature_end].as_bytes(),
     );
+
+    for issue in suppressed_issues {
+        let mut hasher = rustc_hash::FxHasher::default();
+        issue.hash(&mut hasher);
+        signature_hash = signature_hash.wrapping_add(hasher.finish());
+    }
 
     for attribute in user_attributes {
         signature_hash = signature_hash

@@ -685,6 +685,11 @@ pub(crate) fn scan(
             &m.tparams,
             &m.params,
             &functionlike_storage.attributes,
+            functionlike_storage
+                .suppressed_issues
+                .iter()
+                .map(|k| &k.0)
+                .collect(),
             &m.ret,
             all_uses
                 .symbol_member_uses
