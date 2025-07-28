@@ -139,63 +139,47 @@ fn add_dataflow_to_variable(
     if data_flow_graph.kind == GraphKind::FunctionBody
         && (context.inside_general_use || context.inside_throw || context.inside_isset)
     {
-        add_dataflow_to_used_var(
-            statements_analyzer,
-            pos,
-            lid,
-            data_flow_graph,
-            &mut stmt_type,
-        );
+        let pos = statements_analyzer.get_hpos(pos);
+
+        let assignment_node = DataFlowNode {
+            id: if let Some(var_id) = statements_analyzer.interner.get(&lid.1 .1) {
+                DataFlowNodeId::Var(
+                    VarId(var_id),
+                    pos.file_path,
+                    pos.start_offset,
+                    pos.end_offset,
+                )
+            } else {
+                DataFlowNodeId::LocalString(
+                    lid.1 .1.to_string(),
+                    pos.file_path,
+                    pos.start_offset,
+                    pos.end_offset,
+                )
+            },
+            kind: DataFlowNodeKind::VariableUseSink { pos },
+        };
+
+        data_flow_graph.add_node(assignment_node.clone());
+
+        let mut parent_nodes = stmt_type.parent_nodes.clone();
+
+        if parent_nodes.is_empty() {
+            parent_nodes.push(assignment_node);
+        } else {
+            for parent_node in &parent_nodes {
+                data_flow_graph.add_path(
+                    &parent_node.id,
+                    &assignment_node.id,
+                    PathKind::Default,
+                    vec![],
+                    vec![],
+                );
+            }
+        }
+
+        stmt_type.parent_nodes = parent_nodes;
     }
 
     stmt_type
-}
-
-fn add_dataflow_to_used_var(
-    statements_analyzer: &StatementsAnalyzer,
-    pos: &Pos,
-    lid: &Lid,
-    data_flow_graph: &mut DataFlowGraph,
-    stmt_type: &mut TUnion,
-) {
-    let pos = statements_analyzer.get_hpos(pos);
-
-    let assignment_node = DataFlowNode {
-        id: if let Some(var_id) = statements_analyzer.interner.get(&lid.1 .1) {
-            DataFlowNodeId::Var(
-                VarId(var_id),
-                pos.file_path,
-                pos.start_offset,
-                pos.end_offset,
-            )
-        } else {
-            DataFlowNodeId::LocalString(
-                lid.1 .1.to_string(),
-                pos.file_path,
-                pos.start_offset,
-                pos.end_offset,
-            )
-        },
-        kind: DataFlowNodeKind::VariableUseSink { pos },
-    };
-
-    data_flow_graph.add_node(assignment_node.clone());
-
-    let mut parent_nodes = stmt_type.parent_nodes.clone();
-
-    if parent_nodes.is_empty() {
-        parent_nodes.push(assignment_node);
-    } else {
-        for parent_node in &parent_nodes {
-            data_flow_graph.add_path(
-                &parent_node.id,
-                &assignment_node.id,
-                PathKind::Default,
-                vec![],
-                vec![],
-            );
-        }
-    }
-
-    stmt_type.parent_nodes = parent_nodes;
 }

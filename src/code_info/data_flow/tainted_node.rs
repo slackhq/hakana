@@ -124,7 +124,7 @@ impl TaintedNode {
                 taint_sources: vec![],
             },
             _ => {
-                panic!();
+                panic!("Unrecognised node kind {:#?}", node.kind);
             }
         }
     }

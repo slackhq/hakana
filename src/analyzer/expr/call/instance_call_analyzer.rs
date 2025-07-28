@@ -8,6 +8,7 @@ use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
@@ -145,7 +146,9 @@ pub(crate) fn analyze(
             )?;
         }
 
-        if !analysis_result.has_valid_method_call_type {
+        if !analysis_result.has_valid_method_call_type
+            && matches!(analysis_data.data_flow_graph.kind, GraphKind::FunctionBody)
+        {
             let sink_node =
                 DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(pos));
 
