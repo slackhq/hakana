@@ -122,14 +122,16 @@ impl FunctionAnalysisData {
             return;
         }
 
-        issue.insertion_start = if let Some(expr_fixme_position) = self
-            .expr_fixme_positions
-            .get(&(issue.pos.start_offset, issue.pos.end_offset))
-        {
-            Some(*expr_fixme_position)
-        } else {
-            self.current_stmt_offset
-        };
+        if issue.insertion_start.is_none() {
+            issue.insertion_start = if let Some(expr_fixme_position) = self
+                .expr_fixme_positions
+                .get(&(issue.pos.start_offset, issue.pos.end_offset))
+            {
+                Some(*expr_fixme_position)
+            } else {
+                self.current_stmt_offset
+            };
+        }
 
         issue.can_fix = config.add_fixmes && config.issues_to_fix.contains(&issue.kind);
 

@@ -682,16 +682,27 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             {
                 if functionlike_storage
                     .is_simple_fn(&context.function_context, statements_analyzer.codebase)
+                    && !functionlike_storage
+                        .suppressed_issues
+                        .iter()
+                        .any(|(i, _)| i == &IssueKind::UnnecessaryAsyncAnnotation)
                 {
+                    let mut issue = Issue::new(
+                        IssueKind::UnnecessaryAsyncAnnotation,
+                        format!("This function is marked async but has no async behaviour"),
+                        functionlike_storage
+                            .name_location
+                            .unwrap_or(functionlike_storage.def_location),
+                        &context.function_context.calling_functionlike_id,
+                    );
+                    issue.insertion_start = Some(StmtStart {
+                        offset: functionlike_storage.def_location.start_offset,
+                        line: functionlike_storage.def_location.start_line,
+                        column: functionlike_storage.def_location.start_column - 1,
+                        add_newline: true,
+                    });
                     analysis_data.maybe_add_issue(
-                        Issue::new(
-                            IssueKind::UnnecessaryAsyncAnnotation,
-                            format!("This function is marked async but has no async behaviour"),
-                            functionlike_storage
-                                .name_location
-                                .unwrap_or(functionlike_storage.def_location),
-                            &context.function_context.calling_functionlike_id,
-                        ),
+                        issue,
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
                     );

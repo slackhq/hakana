@@ -1,0 +1,11 @@
+/* HAKANA_FIXME[UnnecessaryAsyncAnnotation] This function is marked async but has no async behaviour */
+async function foo(): Awaitable<void> {
+	echo "hello";
+}
+
+final class Bar {
+	/* HAKANA_FIXME[UnnecessaryAsyncAnnotation] This function is marked async but has no async behaviour */
+	public async function foo(): Awaitable<void> {
+		echo "hello";
+	}
+}
