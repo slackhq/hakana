@@ -14,6 +14,7 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
+use similar::{ChangeTag, TextDiff};
 
 use std::env;
 use std::fs;
@@ -27,6 +28,22 @@ use walkdir::WalkDir;
 
 pub trait HooksProvider {
     fn get_hooks_for_test(&self, dir: &str) -> Vec<Box<dyn CustomHook>>;
+}
+
+fn format_diff(expected: &str, actual: &str) -> String {
+    let diff = TextDiff::from_lines(expected, actual);
+    let mut output = String::new();
+    
+    for change in diff.iter_all_changes() {
+        let sign = match change.tag() {
+            ChangeTag::Delete => "-",
+            ChangeTag::Insert => "+",
+            ChangeTag::Equal => " ",
+        };
+        output.push_str(&format!("{}{}", sign, change));
+    }
+    
+    output
 }
 
 pub struct TestRunner(pub Box<dyn HooksProvider>);
@@ -270,7 +287,7 @@ impl TestRunner {
                                 serde_json::to_string_pretty(&test_output).unwrap();
                             test_diagnostics.push((
                                 dir,
-                                format!("- {}\n+ {}", expected_output_str, test_output_str),
+                                format_diff(&expected_output_str, &test_output_str),
                             ));
                             *had_error = true;
                             ("F".to_string(), None, None)
@@ -359,7 +376,7 @@ impl TestRunner {
             } else {
                 test_diagnostics.push((
                     dir,
-                    format!("- {}\n+ {}", expected_output_contents, output_contents),
+                    format_diff(&expected_output_contents, &output_contents),
                 ));
                 ("F".to_string(), Some(result.1), Some(result.0))
             }
@@ -468,11 +485,11 @@ impl TestRunner {
                         if let Some(expected_output) = &expected_output {
                             test_diagnostics.push((
                                 dir,
-                                format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
+                                format_diff(expected_output, &test_output.join("")),
                             ));
                         } else {
                             test_diagnostics
-                                .push((dir, format!("-\n+ {}", test_output.join("+ "))));
+                                .push((dir, format_diff("", &test_output.join(""))));
                         }
                         ("F".to_string(), Some(run_data), Some(analysis_result))
                     }
@@ -629,10 +646,10 @@ impl TestRunner {
             if let Some(expected_output) = &expected_output {
                 test_diagnostics.push((
                     dir,
-                    format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
+                    format_diff(expected_output, &test_output.join("")),
                 ));
             } else {
-                test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
+                test_diagnostics.push((dir, format_diff("", &test_output.join(""))));
             }
             ("F".to_string(), Some(run_data), Some(analysis_result))
         }
