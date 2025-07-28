@@ -19,7 +19,7 @@ rustc-hash = "1.1.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 tokio = { version = "1.26.0", features = ["full"] }
-similar = "2.3.0"
+similar = "2.7.0"
 
 [lib]
 path = "lib.rs"
