@@ -56,7 +56,6 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     lhs_var_id: Option<&String>,
-    lhs_var_pos: Option<&Pos>,
 ) -> Result<TUnion, AnalysisError> {
     analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
@@ -267,7 +266,6 @@ pub(crate) fn analyze(
         &declaring_method_id,
         lhs_type_part,
         lhs_var_id,
-        lhs_var_pos,
         functionlike_storage,
         classlike_storage,
         &template_result,

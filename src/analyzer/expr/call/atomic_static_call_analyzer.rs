@@ -215,7 +215,6 @@ pub(crate) fn analyze(
         analysis_data,
         context,
         None,
-        None,
     )?);
 
     Ok(())

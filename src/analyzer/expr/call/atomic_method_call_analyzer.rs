@@ -184,8 +184,6 @@ pub(crate) fn handle_method_call_on_named_object(
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.codebase;
 
-    result.has_valid_method_call_type = true;
-
     let mut classlike_names = vec![*classlike_name];
 
     if let Some(extra_types) = extra_types {
@@ -230,6 +228,8 @@ pub(crate) fn handle_method_call_on_named_object(
     }
 
     if let aast::Expr_::Id(boxed) = &expr.1 .2 {
+        result.has_valid_method_call_type = true;
+
         let method_name = if let Some(method_name) = statements_analyzer.interner.get(&boxed.1) {
             method_name
         } else {
@@ -270,7 +270,6 @@ pub(crate) fn handle_method_call_on_named_object(
             analysis_data,
             context,
             lhs_var_id.as_ref(),
-            Some(expr.0.pos()),
         )?;
 
         result.return_type = Some(hakana_code_info::ttype::add_optional_union_type(

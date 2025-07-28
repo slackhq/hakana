@@ -46,7 +46,6 @@ pub(crate) fn fetch(
     declaring_method_id: &MethodIdentifier,
     lhs_type_part: &TAtomic,
     lhs_var_id: Option<&String>,
-    lhs_var_pos: Option<&Pos>,
     functionlike_storage: &FunctionLikeInfo,
     classlike_storage: &ClassLikeInfo,
     template_result: &TemplateResult,
@@ -146,7 +145,6 @@ pub(crate) fn fetch(
         method_id,
         declaring_method_id,
         lhs_var_id,
-        lhs_var_pos,
         functionlike_storage,
         analysis_data,
         call_pos,
@@ -230,7 +228,6 @@ fn add_dataflow(
     method_id: &MethodIdentifier,
     declaring_method_id: &MethodIdentifier,
     lhs_var_id: Option<&String>,
-    lhs_var_pos: Option<&Pos>,
     functionlike_storage: &FunctionLikeInfo,
     analysis_data: &mut FunctionAnalysisData,
     call_pos: &Pos,
@@ -258,7 +255,6 @@ fn add_dataflow(
             method_id,
             declaring_method_id,
             lhs_var_id,
-            lhs_var_pos,
             functionlike_storage,
             analysis_data,
             call_pos,
@@ -276,6 +272,43 @@ fn add_dataflow(
                 None
             },
         );
+
+        if let Some(lhs_expr) = lhs_expr {
+            if let Some(expr_type) = analysis_data.expr_types.get(&(
+                lhs_expr.pos().start_offset() as u32,
+                lhs_expr.pos().end_offset() as u32,
+            )) {
+                let lhs_expr_parent_nodes = &expr_type.parent_nodes;
+
+                if matches!(functionlike_storage.effects, FnEffect::Pure) {
+                    for parent_node in lhs_expr_parent_nodes {
+                        analysis_data.data_flow_graph.add_path(
+                            &parent_node.id,
+                            &method_call_node.id,
+                            PathKind::Default,
+                            vec![],
+                            vec![],
+                        );
+                    }
+                } else {
+                    let sink_node = DataFlowNode::get_for_unlabelled_sink(
+                        statements_analyzer.get_hpos(lhs_expr.pos()),
+                    );
+
+                    for parent_node in lhs_expr_parent_nodes {
+                        analysis_data.data_flow_graph.add_path(
+                            &parent_node.id,
+                            &sink_node.id,
+                            PathKind::Default,
+                            vec![],
+                            vec![],
+                        );
+                    }
+
+                    analysis_data.data_flow_graph.add_node(sink_node);
+                }
+            }
+        }
     }
 
     if method_id.0 == StrId::SHAPES && method_id.1 == StrId::KEY_EXISTS {
@@ -348,7 +381,6 @@ fn get_tainted_method_node(
     method_id: &MethodIdentifier,
     declaring_method_id: &MethodIdentifier,
     lhs_var_id: Option<&String>,
-    lhs_var_pos: Option<&Pos>,
     functionlike_storage: &FunctionLikeInfo,
     analysis_data: &mut FunctionAnalysisData,
     call_pos: &Pos,
@@ -462,9 +494,7 @@ fn get_tainted_method_node(
         }
     }
 
-    if let (Some(lhs_expr), Some(lhs_var_id), Some(lhs_var_pos)) =
-        (lhs_expr, lhs_var_id, lhs_var_pos)
-    {
+    if let (Some(lhs_expr), Some(lhs_var_id)) = (lhs_expr, lhs_var_id) {
         if functionlike_storage.specialize_call {
             if let Some(context_type) = &analysis_data
                 .expr_types
@@ -479,13 +509,13 @@ fn get_tainted_method_node(
                 let var_node = match lhs_var_expr_id {
                     Some(ExprId::Var(id)) => DataFlowNode::get_for_lvar(
                         VarId(id),
-                        statements_analyzer.get_hpos(lhs_var_pos),
+                        statements_analyzer.get_hpos(lhs_expr.pos()),
                     ),
                     Some(ExprId::InstanceProperty(lhs_expr, name_pos, rhs_expr)) => {
                         DataFlowNode::get_for_local_property_fetch(lhs_expr, rhs_expr, name_pos)
                     }
                     None => DataFlowNode::get_for_instance_method_call(
-                        statements_analyzer.get_hpos(lhs_var_pos),
+                        statements_analyzer.get_hpos(lhs_expr.pos()),
                     ),
                 };
 

@@ -8,6 +8,8 @@ use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_code_info::data_flow::node::DataFlowNode;
+use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
@@ -31,15 +33,15 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     nullsafe: bool,
 ) -> Result<(), AnalysisError> {
-    let was_inside_general_use = context.inside_general_use;
-    context.inside_general_use = true;
     expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context)?;
-    context.inside_general_use = was_inside_general_use;
 
     if let aast::Expr_::Id(_) = &expr.1 .2 {
         // do nothing
     } else {
+        let was_in_general_use = context.inside_general_use;
+        context.inside_general_use = true;
         expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
+        context.inside_general_use = was_in_general_use;
     }
 
     let lhs_var_id = expression_identifier::get_var_id(
@@ -141,6 +143,23 @@ pub(crate) fn analyze(
                 &lhs_var_id,
                 &mut analysis_result,
             )?;
+        }
+
+        if !analysis_result.has_valid_method_call_type {
+            let sink_node =
+                DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(pos));
+
+            for parent_node in &class_type.parent_nodes {
+                analysis_data.data_flow_graph.add_path(
+                    &parent_node.id,
+                    &sink_node.id,
+                    PathKind::Default,
+                    vec![],
+                    vec![],
+                );
+            }
+
+            analysis_data.data_flow_graph.add_node(sink_node);
         }
     }
 
