@@ -150,7 +150,7 @@ pub fn check_variables_scoped_incorrectly(
                 false
             }
         });
-        
+
         // Check if any source is defined within foreach iterator bounds (should be exempted)
         let any_source_in_foreach_init = sources.iter().any(|source_node| {
             if let DataFlowNodeKind::VariableUseSource { pos, .. } = &source_node.kind {
@@ -161,33 +161,38 @@ pub fn check_variables_scoped_incorrectly(
         });
 
         if all_sources_outside_if && !any_source_in_foreach_init {
-            // Get all uses for any of the sources (they all represent the same variable)
-            let first_source = sources[0];
-            if let Some(sink_positions) = get_all_variable_uses(graph, first_source) {
-                // Check if ALL uses are within if blocks AND not used in multiple if blocks
-                // BUT skip if the variable is defined before a loop and used inside an if within that loop
-                if !sink_positions.is_empty()
-                    && sink_positions.iter().all(|sink_pos| {
-                        is_position_within_any_if_block(sink_pos, if_block_boundaries)
-                    })
-                    && !is_used_in_multiple_if_blocks(&sink_positions, if_block_boundaries)
-                    && !is_optimization_pattern(&sources, &sink_positions, loop_boundaries, if_block_boundaries)
-                {
-                    // Check if any of the sources are from await expressions
-                    let has_await_source = sources.iter().any(|source_node| {
-                        if let DataFlowNodeKind::VariableUseSource { has_await_call, .. } =
-                            &source_node.kind
-                        {
-                            *has_await_call
-                        } else {
-                            false
-                        }
-                    });
+            for source in &sources {
+                if let Some(sink_positions) = get_all_variable_uses(graph, source) {
+                    // Check if ALL uses are within if blocks AND not used in multiple if blocks
+                    // BUT skip if the variable is defined before a loop and used inside an if within that loop
+                    if !sink_positions.is_empty()
+                        && sink_positions.iter().all(|sink_pos| {
+                            is_position_within_any_if_block(sink_pos, if_block_boundaries)
+                        })
+                        && !is_used_in_multiple_if_blocks(&sink_positions, if_block_boundaries)
+                        && !is_optimization_pattern(
+                            &sources,
+                            &sink_positions,
+                            loop_boundaries,
+                            if_block_boundaries,
+                        )
+                    {
+                        // Check if any of the sources are from await expressions
+                        let has_await_source = sources.iter().any(|source_node| {
+                            if let DataFlowNodeKind::VariableUseSource { has_await_call, .. } =
+                                &source_node.kind
+                            {
+                                *has_await_call
+                            } else {
+                                false
+                            }
+                        });
 
-                    if has_await_source {
-                        async_incorrectly_scoped.push(first_source.clone());
-                    } else {
-                        incorrectly_scoped.push(first_source.clone());
+                        if has_await_source {
+                            async_incorrectly_scoped.push((*source).clone());
+                        } else {
+                            incorrectly_scoped.push((*source).clone());
+                        }
                     }
                 }
             }
@@ -212,7 +217,10 @@ fn is_position_within_any_if_block(pos: &HPos, if_block_boundaries: &[(u32, u32)
         .any(|(start, end)| pos_offset >= *start && pos_offset <= *end)
 }
 
-fn is_position_within_foreach_init_bounds(pos: &HPos, for_loop_init_boundaries: &[(u32, u32)]) -> bool {
+fn is_position_within_foreach_init_bounds(
+    pos: &HPos,
+    for_loop_init_boundaries: &[(u32, u32)],
+) -> bool {
     let pos_offset = pos.start_offset;
     for_loop_init_boundaries
         .iter()
@@ -250,16 +258,21 @@ fn is_optimization_pattern(
     if loop_boundaries.is_empty() {
         return false;
     }
-    
+
     // Check if any source is defined before a loop and any sink is used inside an if block within that loop
     for source_node in sources {
-        if let DataFlowNodeKind::VariableUseSource { pos: source_pos, .. } = &source_node.kind {
+        if let DataFlowNodeKind::VariableUseSource {
+            pos: source_pos, ..
+        } = &source_node.kind
+        {
             // Check if the source is defined before any loop
             for (loop_start, loop_end) in loop_boundaries {
                 if source_pos.start_offset < *loop_start {
                     // Check if any sink is used inside an if block within this loop
                     for sink_pos in sink_positions {
-                        if sink_pos.start_offset >= *loop_start && sink_pos.start_offset <= *loop_end {
+                        if sink_pos.start_offset >= *loop_start
+                            && sink_pos.start_offset <= *loop_end
+                        {
                             // The sink is within the loop, check if it's also within an if block
                             if is_position_within_any_if_block(sink_pos, if_block_boundaries) {
                                 return true; // This is an optimization pattern
@@ -270,7 +283,7 @@ fn is_optimization_pattern(
             }
         }
     }
-    
+
     false
 }
 
