@@ -110,35 +110,7 @@ pub fn check_variables_scoped_incorrectly(
         return (incorrectly_scoped, async_incorrectly_scoped);
     }
 
-    // Group variable sources by variable name to handle multiple dataflow sources
-    let mut variable_sources: FxHashMap<String, Vec<&DataFlowNode>> = FxHashMap::default();
-
-    for (_, source_node) in graph.sources.iter() {
-        if let DataFlowNodeKind::VariableUseSource { kind, pure, .. } = &source_node.kind {
-            // Skip function parameters - they're not "defined outside if blocks" in the problematic sense
-            if matches!(
-                kind,
-                VariableSourceKind::NonPrivateParam
-                    | VariableSourceKind::PrivateParam
-                    | VariableSourceKind::ClosureParam
-            ) {
-                continue;
-            }
-
-            // Skip pure sources - only flag variables with impure sources
-            if *pure {
-                continue;
-            }
-
-            // Extract variable name from the node ID
-            if let Some(var_name) = get_variable_name_from_node(&source_node.id, interner) {
-                variable_sources
-                    .entry(var_name)
-                    .or_default()
-                    .push(source_node);
-            }
-        }
-    }
+    let variable_sources = get_sources_grouped_by_var_name(graph, interner);
 
     // Check each variable's sources collectively
     for (_, sources) in variable_sources {
@@ -210,6 +182,41 @@ pub fn check_variables_scoped_incorrectly(
     }
 
     (incorrectly_scoped, async_incorrectly_scoped)
+}
+
+fn get_sources_grouped_by_var_name<'a>(
+    graph: &'a DataFlowGraph,
+    interner: &Interner,
+) -> FxHashMap<String, Vec<&'a DataFlowNode>> {
+    let mut variable_sources: FxHashMap<String, Vec<&DataFlowNode>> = FxHashMap::default();
+
+    for (_, source_node) in &graph.sources {
+        if let DataFlowNodeKind::VariableUseSource { kind, pure, .. } = &source_node.kind {
+            // Skip function parameters - they're not "defined outside if blocks" in the problematic sense
+            if matches!(
+                kind,
+                VariableSourceKind::NonPrivateParam
+                    | VariableSourceKind::PrivateParam
+                    | VariableSourceKind::ClosureParam
+            ) {
+                continue;
+            }
+
+            // Skip pure sources - only flag variables with impure sources
+            if *pure {
+                continue;
+            }
+
+            // Extract variable name from the node ID
+            if let Some(var_name) = get_variable_name_from_node(&source_node.id, interner) {
+                variable_sources
+                    .entry(var_name)
+                    .or_default()
+                    .push(source_node);
+            }
+        }
+    }
+    variable_sources
 }
 
 fn get_variable_name_from_node(node_id: &DataFlowNodeId, interner: &Interner) -> Option<String> {

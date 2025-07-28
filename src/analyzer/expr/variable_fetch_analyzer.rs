@@ -7,7 +7,7 @@ use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::{
     code_location::HPos,
     data_flow::{
-        graph::{DataFlowGraph, GraphKind},
+        graph::GraphKind,
         node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
         path::PathKind,
     },
