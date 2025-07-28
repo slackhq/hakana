@@ -822,8 +822,8 @@ pub(crate) fn add_decision_dataflow(
 
         for old_parent_node in &lhs_type.parent_nodes {
             analysis_data.data_flow_graph.add_path(
-                old_parent_node,
-                &decision_node,
+                &old_parent_node.id,
+                &decision_node.id,
                 PathKind::Default,
                 vec![],
                 vec![],
@@ -840,8 +840,8 @@ pub(crate) fn add_decision_dataflow(
 
             for old_parent_node in &rhs_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(
-                    old_parent_node,
-                    &decision_node,
+                    &old_parent_node.id,
+                    &decision_node.id,
                     PathKind::Default,
                     vec![],
                     vec![],

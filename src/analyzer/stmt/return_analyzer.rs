@@ -540,8 +540,8 @@ pub(crate) fn handle_inout_at_return(
 
                 for parent_node in &context_type.parent_nodes {
                     analysis_data.data_flow_graph.add_path(
-                        parent_node,
-                        &new_parent_node,
+                        &parent_node.id,
+                        &new_parent_node.id,
                         PathKind::Default,
                         vec![],
                         vec![],
@@ -566,7 +566,13 @@ fn handle_dataflow(
             DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(return_expr.pos()));
 
         for parent_node in &inferred_type.parent_nodes {
-            data_flow_graph.add_path(parent_node, &return_node, PathKind::Default, vec![], vec![]);
+            data_flow_graph.add_path(
+                &parent_node.id,
+                &return_node.id,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
         }
 
         return_node
@@ -596,8 +602,8 @@ fn handle_dataflow(
 
         for parent_node in &inferred_type.parent_nodes {
             data_flow_graph.add_path(
-                parent_node,
-                &return_node,
+                &parent_node.id,
+                &return_node.id,
                 PathKind::Default,
                 functionlike_storage.added_taints.clone(),
                 functionlike_storage.removed_taints.clone(),
@@ -611,8 +617,8 @@ fn handle_dataflow(
         );
 
         data_flow_graph.add_path(
-            &return_node,
-            &method_node,
+            &return_node.id,
+            &method_node.id,
             PathKind::Default,
             vec![],
             vec![],
@@ -638,8 +644,8 @@ fn handle_dataflow(
                             data_flow_graph.add_node(new_sink.clone());
 
                             data_flow_graph.add_path(
-                                &method_node,
-                                &new_sink,
+                                &method_node.id,
+                                &new_sink.id,
                                 PathKind::Default,
                                 vec![],
                                 vec![],

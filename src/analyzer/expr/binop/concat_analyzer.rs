@@ -129,8 +129,8 @@ pub(crate) fn analyze_concat_nodes(
 
                 for old_parent_node in &expr_type.parent_nodes {
                     analysis_data.data_flow_graph.add_path(
-                        old_parent_node,
-                        &decision_node,
+                        &old_parent_node.id,
+                        &decision_node.id,
                         PathKind::Default,
                         vec![],
                         if i > 0 && (has_slash || has_query) {

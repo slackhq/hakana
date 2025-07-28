@@ -235,8 +235,8 @@ pub(crate) fn add_array_fetch_dataflow(
 
             for parent_node in stmt_var_type.parent_nodes.iter() {
                 analysis_data.data_flow_graph.add_path(
-                    parent_node,
-                    &new_parent_node,
+                    &parent_node.id,
+                    &new_parent_node.id,
                     if let Some(dim_value) = dim_value.clone() {
                         PathKind::ArrayFetch(ArrayDataKind::ArrayValue, dim_value.to_string())
                     } else {
@@ -248,8 +248,8 @@ pub(crate) fn add_array_fetch_dataflow(
 
                 if let Some(array_key_node) = array_key_node.clone() {
                     analysis_data.data_flow_graph.add_path(
-                        parent_node,
-                        &array_key_node,
+                        &parent_node.id,
+                        &array_key_node.id,
                         PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey),
                         vec![],
                         vec![],
@@ -1024,8 +1024,8 @@ pub(crate) fn handle_array_access_on_mixed(
 
             for parent_node in stmt_var_type.parent_nodes.iter() {
                 analysis_data.data_flow_graph.add_path(
-                    parent_node,
-                    &new_parent_node,
+                    &parent_node.id,
+                    &new_parent_node.id,
                     PathKind::Default,
                     vec![],
                     vec![],

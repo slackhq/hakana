@@ -188,8 +188,8 @@ fn add_dataflow_to_used_var(
     } else {
         for parent_node in &parent_nodes {
             data_flow_graph.add_path(
-                parent_node,
-                &assignment_node,
+                &parent_node.id,
+                &assignment_node.id,
                 PathKind::Default,
                 vec![],
                 vec![],

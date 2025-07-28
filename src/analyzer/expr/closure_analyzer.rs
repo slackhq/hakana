@@ -114,8 +114,8 @@ pub(crate) fn analyze(
         );
 
         analysis_data.data_flow_graph.add_path(
-            &closure_return_node,
-            &application_node,
+            &closure_return_node.id,
+            &application_node.id,
             PathKind::Default,
             vec![],
             vec![],

@@ -152,8 +152,8 @@ pub(crate) fn analyze_vals(
 
                 for child_node in array_creation_info.parent_nodes {
                     analysis_data.data_flow_graph.add_path(
-                        &child_node,
-                        &vec_node,
+                        &child_node.id,
+                        &vec_node.id,
                         PathKind::Default,
                         vec![],
                         vec![],
@@ -182,8 +182,8 @@ pub(crate) fn analyze_vals(
 
                 for child_node in array_creation_info.parent_nodes {
                     analysis_data.data_flow_graph.add_path(
-                        &child_node,
-                        &keyset_node,
+                        &child_node.id,
+                        &keyset_node.id,
                         PathKind::Default,
                         vec![],
                         vec![],
@@ -307,8 +307,8 @@ pub(crate) fn analyze_keyvals(
 
         for child_node in array_creation_info.parent_nodes {
             analysis_data.data_flow_graph.add_path(
-                &child_node,
-                &dict_node,
+                &child_node.id,
+                &dict_node.id,
                 PathKind::Default,
                 vec![],
                 vec![],
@@ -508,8 +508,8 @@ fn add_array_value_dataflow(
 
     for parent_node in value_type.parent_nodes.iter() {
         analysis_data.data_flow_graph.add_path(
-            parent_node,
-            &new_parent_node,
+            &parent_node.id,
+            &new_parent_node.id,
             if let Some(key_item_single) = key_item_single {
                 if let TAtomic::TLiteralInt {
                     value: key_value, ..
@@ -569,8 +569,8 @@ fn add_array_key_dataflow(
 
     for parent_node in key_item_type.parent_nodes.iter() {
         analysis_data.data_flow_graph.add_path(
-            parent_node,
-            &new_parent_node,
+            &parent_node.id,
+            &new_parent_node.id,
             if let Some(key_item_single) = key_item_single {
                 if let TAtomic::TLiteralInt {
                     value: key_value, ..

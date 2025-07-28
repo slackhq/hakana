@@ -626,8 +626,8 @@ fn add_dataflow(
                                 data_flow_graph.add_node(new_sink.clone());
 
                                 data_flow_graph.add_path(
-                                    &method_node,
-                                    &new_sink,
+                                    &method_node.id,
+                                    &new_sink.id,
                                     PathKind::Default,
                                     vec![],
                                     vec![],
@@ -659,8 +659,8 @@ fn add_dataflow(
                     data_flow_graph.add_node(new_sink.clone());
 
                     data_flow_graph.add_path(
-                        &method_node,
-                        &new_sink,
+                        &method_node.id,
+                        &new_sink.id,
                         PathKind::Default,
                         vec![],
                         vec![],
@@ -682,8 +682,8 @@ fn add_dataflow(
 
     for parent_node in &input_type.parent_nodes {
         data_flow_graph.add_path(
-            parent_node,
-            &method_node,
+            &parent_node.id,
+            &method_node.id,
             PathKind::Default,
             vec![],
             removed_taints.clone(),

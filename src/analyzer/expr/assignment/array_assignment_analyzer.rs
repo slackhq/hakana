@@ -411,8 +411,8 @@ fn add_array_assignment_dataflow(
         };
 
         analysis_data.data_flow_graph.add_path(
-            &parent_node,
-            &assignment_node,
+            &parent_node.id,
+            &assignment_node.id,
             PathKind::Default,
             vec![],
             vec![],
@@ -429,8 +429,8 @@ fn add_array_assignment_dataflow(
 
     for old_parent_node in old_parent_nodes {
         analysis_data.data_flow_graph.add_path(
-            &old_parent_node,
-            &parent_node,
+            &old_parent_node.id,
+            &parent_node.id,
             PathKind::Default,
             vec![],
             vec![],
@@ -469,8 +469,8 @@ fn add_array_assignment_dataflow(
                 };
 
                 analysis_data.data_flow_graph.add_path(
-                    child_parent_node,
-                    &parent_node,
+                    &child_parent_node.id,
+                    &parent_node.id,
                     PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value),
                     vec![],
                     vec![],
@@ -478,8 +478,8 @@ fn add_array_assignment_dataflow(
             }
         } else {
             analysis_data.data_flow_graph.add_path(
-                child_parent_node,
-                &parent_node,
+                &child_parent_node.id,
+                &parent_node.id,
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 vec![],
                 vec![],

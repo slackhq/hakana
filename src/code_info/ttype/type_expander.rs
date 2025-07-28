@@ -557,8 +557,8 @@ fn expand_atomic(
                                     };
 
                                     data_flow_graph.add_path(
-                                        &field_node,
-                                        &shape_node,
+                                        &field_node.id,
+                                        &shape_node.id,
                                         PathKind::ArrayAssignment(
                                             ArrayDataKind::ArrayValue,
                                             match field_name {

@@ -383,8 +383,8 @@ fn handle_shapes_static_method(
 
                         for parent_node in &expr_type.parent_nodes {
                             analysis_data.data_flow_graph.add_path(
-                                parent_node,
-                                &assignment_node,
+                                &parent_node.id,
+                                &assignment_node.id,
                                 PathKind::RemoveDictKey(dim_var_id.clone()),
                                 vec![],
                                 vec![],

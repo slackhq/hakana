@@ -595,8 +595,8 @@ fn analyze_assignment_to_variable(
         if let Some(inout_node) = &inout_node {
             for parent_node in &assign_value_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(
-                    parent_node,
-                    &inout_node.0,
+                    &parent_node.id,
+                    &inout_node.0.id,
                     PathKind::Default,
                     vec![],
                     removed_taints.clone(),
@@ -605,8 +605,8 @@ fn analyze_assignment_to_variable(
         } else {
             for parent_node in &assign_value_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(
-                    parent_node,
-                    &assignment_node,
+                    &parent_node.id,
+                    &assignment_node.id,
                     PathKind::Default,
                     vec![],
                     removed_taints.clone(),

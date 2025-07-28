@@ -84,15 +84,12 @@ impl DataFlowGraph {
 
     pub fn add_path(
         &mut self,
-        from: &DataFlowNode,
-        to: &DataFlowNode,
+        from_id: &DataFlowNodeId,
+        to_id: &DataFlowNodeId,
         path_kind: PathKind,
         added_taints: Vec<SinkType>,
         removed_taints: Vec<SinkType>,
     ) {
-        let from_id = &from.id;
-        let to_id = &to.id;
-
         if from_id == to_id {
             return;
         }

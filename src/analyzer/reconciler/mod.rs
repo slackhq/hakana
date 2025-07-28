@@ -98,8 +98,8 @@ pub(crate) fn reconcile_keyed_types(
 
                                 for old_parent_node in &existing_var_type.parent_nodes {
                                     analysis_data.data_flow_graph.add_path(
-                                        old_parent_node,
-                                        &new_parent_node,
+                                        &old_parent_node.id,
+                                        &new_parent_node.id,
                                         PathKind::Default,
                                         vec![],
                                         taints.clone(),
@@ -263,8 +263,8 @@ pub(crate) fn reconcile_keyed_types(
 
                     for parent_node in &before_adjustment.parent_nodes {
                         analysis_data.data_flow_graph.add_path(
-                            parent_node,
-                            &scalar_check_node,
+                            &parent_node.id,
+                            &scalar_check_node.id,
                             PathKind::ScalarTypeGuard,
                             vec![],
                             vec![],
@@ -297,8 +297,8 @@ pub(crate) fn reconcile_keyed_types(
 
                         for parent_node in &before_adjustment.parent_nodes {
                             analysis_data.data_flow_graph.add_path(
-                                parent_node,
-                                &narrowing_node,
+                                &parent_node.id,
+                                &narrowing_node.id,
                                 PathKind::RefineSymbol(*narrowed_symbol),
                                 vec![],
                                 vec![],

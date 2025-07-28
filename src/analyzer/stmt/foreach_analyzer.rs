@@ -554,8 +554,8 @@ fn check_iterator_type(
 
         for parent_node in &iterator_type.parent_nodes {
             analysis_data.data_flow_graph.add_path(
-                parent_node,
-                &foreach_node,
+                &parent_node.id,
+                &foreach_node.id,
                 PathKind::Default,
                 vec![],
                 vec![],

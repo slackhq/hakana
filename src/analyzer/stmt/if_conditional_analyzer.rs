@@ -290,8 +290,8 @@ pub(crate) fn add_branch_dataflow(
 
             for parent_node in &conditional_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(
-                    parent_node,
-                    &branch_node,
+                    &parent_node.id,
+                    &branch_node.id,
                     PathKind::Default,
                     vec![],
                     vec![],

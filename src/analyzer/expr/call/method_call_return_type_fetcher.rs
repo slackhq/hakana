@@ -11,7 +11,7 @@ use oxidized::aast;
 use rustc_hash::FxHashMap;
 
 use hakana_code_info::classlike_info::ClassLikeInfo;
-use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
+use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::method_identifier::MethodIdentifier;
@@ -411,8 +411,8 @@ fn get_tainted_method_node(
 
         data_flow_graph.add_node(declaring_method_call_node.clone());
         data_flow_graph.add_path(
-            &declaring_method_call_node,
-            &method_call_node,
+            &declaring_method_call_node.id,
+            &method_call_node.id,
             PathKind::Default,
             added_taints,
             removed_taints,
@@ -446,8 +446,8 @@ fn get_tainted_method_node(
 
             data_flow_graph.add_node(declaring_method_call_node.clone());
             data_flow_graph.add_path(
-                &declaring_method_call_node,
-                &method_call_node,
+                &declaring_method_call_node.id,
+                &method_call_node.id,
                 PathKind::Default,
                 added_taints.clone(),
                 removed_taints.clone(),
@@ -465,8 +465,8 @@ fn get_tainted_method_node(
 
             for this_parent_node in &var_type.parent_nodes {
                 data_flow_graph.add_path(
-                    this_parent_node,
-                    &before_construct_node,
+                    &this_parent_node.id,
+                    &before_construct_node.id,
                     PathKind::Default,
                     vec![],
                     vec![],
@@ -526,8 +526,8 @@ fn get_tainted_method_node(
 
                 for parent_node in &context_type.parent_nodes {
                     data_flow_graph.add_path(
-                        parent_node,
-                        &this_before_method_node,
+                        &parent_node.id,
+                        &this_before_method_node.id,
                         PathKind::Default,
                         vec![],
                         vec![],
@@ -541,8 +541,8 @@ fn get_tainted_method_node(
                 );
 
                 data_flow_graph.add_path(
-                    &this_after_method_node,
-                    &var_node,
+                    &this_after_method_node.id,
+                    &var_node.id,
                     PathKind::Default,
                     vec![],
                     vec![],

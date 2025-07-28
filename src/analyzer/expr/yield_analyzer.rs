@@ -50,8 +50,8 @@ pub(crate) fn analyze(
 
             for parent_node in &inferred_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(
-                    parent_node,
-                    &return_node,
+                    &parent_node.id,
+                    &return_node.id,
                     PathKind::Default,
                     vec![],
                     vec![],

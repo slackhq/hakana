@@ -1008,8 +1008,8 @@ pub(crate) fn add_special_param_dataflow(
         };
 
     data_flow_graph.add_path(
-        &argument_node,
-        function_call_node,
+        &argument_node.id,
+        &function_call_node.id,
         path_kind,
         added_taints,
         removed_taints,

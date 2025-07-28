@@ -655,16 +655,16 @@ fn add_instance_property_assignment_dataflow(
         .data_flow_graph
         .add_node(property_node.clone());
     analysis_data.data_flow_graph.add_path(
-        &property_node,
-        &var_node,
+        &property_node.id,
+        &var_node.id,
         PathKind::PropertyAssignment(property_id.0, property_id.1),
         vec![],
         vec![],
     );
     for parent_node in assignment_value_type.parent_nodes.iter() {
         analysis_data.data_flow_graph.add_path(
-            parent_node,
-            &property_node,
+            &parent_node.id,
+            &property_node.id,
             PathKind::Default,
             vec![],
             vec![],
@@ -718,8 +718,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         .data_flow_graph
         .add_node(property_node.clone());
     analysis_data.data_flow_graph.add_path(
-        &localized_property_node,
-        &property_node,
+        &localized_property_node.id,
+        &property_node.id,
         PathKind::PropertyAssignment(property_id.0, property_id.1),
         vec![],
         removed_taints,
@@ -727,8 +727,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
 
     for parent_node in assignment_value_type.parent_nodes.iter() {
         analysis_data.data_flow_graph.add_path(
-            parent_node,
-            &localized_property_node,
+            &parent_node.id,
+            &localized_property_node.id,
             PathKind::Default,
             vec![],
             vec![],
@@ -743,8 +743,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
             let declaring_property_node = DataFlowNode::get_for_property(*property_id);
 
             analysis_data.data_flow_graph.add_path(
-                &property_node,
-                &declaring_property_node,
+                &property_node.id,
+                &declaring_property_node.id,
                 PathKind::PropertyAssignment(property_id.0, property_id.1),
                 vec![],
                 vec![],

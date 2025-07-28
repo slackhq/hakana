@@ -96,8 +96,8 @@ fn add_tuple_value_dataflow(
 
     for parent_node in value_type.parent_nodes.iter() {
         analysis_data.data_flow_graph.add_path(
-            parent_node,
-            &new_parent_node,
+            &parent_node.id,
+            &new_parent_node.id,
             PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.to_string()),
             vec![],
             vec![],

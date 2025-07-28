@@ -433,8 +433,8 @@ fn add_property_dataflow(
                     .add_node(property_node.clone());
 
                 analysis_data.data_flow_graph.add_path(
-                    &var_node,
-                    &property_node,
+                    &var_node.id,
+                    &property_node.id,
                     PathKind::PropertyFetch(property_id.0, property_id.1),
                     vec![],
                     vec![],
@@ -442,8 +442,8 @@ fn add_property_dataflow(
 
                 for parent_node in var_type.parent_nodes.iter() {
                     analysis_data.data_flow_graph.add_path(
-                        parent_node,
-                        &var_node,
+                        &parent_node.id,
+                        &var_node.id,
                         PathKind::Default,
                         vec![],
                         vec![],
@@ -532,16 +532,16 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
 
     if in_assignment {
         analysis_data.data_flow_graph.add_path(
-            &property_node,
-            &localized_property_node,
+            &property_node.id,
+            &localized_property_node.id,
             PathKind::PropertyAssignment(property_id.0, property_id.1),
             vec![],
             vec![],
         );
     } else {
         analysis_data.data_flow_graph.add_path(
-            &property_node,
-            &localized_property_node,
+            &property_node.id,
+            &localized_property_node.id,
             PathKind::PropertyFetch(property_id.0, property_id.1),
             vec![],
             vec![],

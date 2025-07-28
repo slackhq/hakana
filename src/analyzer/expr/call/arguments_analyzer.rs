@@ -1169,8 +1169,8 @@ fn handle_possibly_matching_inout_param(
     if let GraphKind::FunctionBody = &analysis_data.data_flow_graph.kind {
         for arg_node in &arg_type.parent_nodes {
             analysis_data.data_flow_graph.add_path(
-                arg_node,
-                &assignment_node,
+                &arg_node.id,
+                &assignment_node.id,
                 PathKind::Default,
                 vec![],
                 vec![],
@@ -1200,8 +1200,8 @@ fn handle_possibly_matching_inout_param(
             .add_node(argument_node.clone());
 
         analysis_data.data_flow_graph.add_path(
-            &argument_node,
-            &assignment_node,
+            &argument_node.id,
+            &assignment_node.id,
             PathKind::Aggregate,
             vec![],
             vec![],
@@ -1219,8 +1219,8 @@ fn handle_possibly_matching_inout_param(
             .add_node(argument_node.clone());
 
         analysis_data.data_flow_graph.add_path(
-            &argument_node,
-            &assignment_node,
+            &argument_node.id,
+            &assignment_node.id,
             PathKind::Default,
             vec![],
             removed_taints,
@@ -1242,8 +1242,8 @@ fn handle_possibly_matching_inout_param(
             .add_node(argument_node.clone());
 
         analysis_data.data_flow_graph.add_path(
-            &argument_node,
-            &assignment_node,
+            &argument_node.id,
+            &assignment_node.id,
             PathKind::Aggregate,
             vec![],
             vec![],

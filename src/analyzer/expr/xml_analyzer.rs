@@ -202,8 +202,8 @@ pub(crate) fn analyze(
 
                 for parent_node in &expr_type.parent_nodes {
                     analysis_data.data_flow_graph.add_path(
-                        parent_node,
-                        &xml_body_taint,
+                        &parent_node.id,
+                        &xml_body_taint.id,
                         PathKind::Default,
                         vec![],
                         vec![],
@@ -228,8 +228,8 @@ pub(crate) fn analyze(
 
                 for parent_node in &expr_type.parent_nodes {
                     analysis_data.data_flow_graph.add_path(
-                        parent_node,
-                        &xml_body_taint,
+                        &parent_node.id,
+                        &xml_body_taint.id,
                         PathKind::Default,
                         vec![],
                         vec![],

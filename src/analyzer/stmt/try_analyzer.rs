@@ -183,8 +183,8 @@ pub(crate) fn analyze(
             };
 
             analysis_data.data_flow_graph.add_path(
-                &new_parent_node,
-                &assignment_node,
+                &new_parent_node.id,
+                &assignment_node.id,
                 PathKind::Default,
                 vec![],
                 vec![],
