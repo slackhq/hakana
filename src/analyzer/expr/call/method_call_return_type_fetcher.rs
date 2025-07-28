@@ -249,7 +249,6 @@ fn add_dataflow(
     let codebase = statements_analyzer.codebase;
 
     let method_call_node;
-    let mut reused_base_expression_node = false;
 
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         method_call_node = get_tainted_method_node(
@@ -268,40 +267,15 @@ fn add_dataflow(
             codebase,
         );
     } else {
-        // For GraphKind::FunctionBody mode, check if method is pure
-        // If pure, use base expression's DataFlowNode instead of creating new method call node
-        let reusable_base_nodes = if matches!(functionlike_storage.effects, FnEffect::Pure) {
-            if let Some(lhs_expr) = lhs_expr {
-                analysis_data
-                    .expr_types
-                    .get(&(
-                        lhs_expr.pos().start_offset() as u32,
-                        lhs_expr.pos().end_offset() as u32,
-                    ))
-                    .map(|context_type| &context_type.parent_nodes)
+        method_call_node = DataFlowNode::get_for_method_return(
+            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+            functionlike_storage.return_type_location,
+            if functionlike_storage.specialize_call {
+                Some(statements_analyzer.get_hpos(call_pos))
             } else {
                 None
-            }
-        } else {
-            None
-        };
-
-        if let Some(reusable_base_nodes) = reusable_base_nodes {
-            // Use the base expression's DataFlowNode for pure method calls
-            method_call_node = reusable_base_nodes[0].clone();
-            reused_base_expression_node = true;
-        } else {
-            // For non-pure methods or when base expression can't be reused, use regular method call node
-            method_call_node = DataFlowNode::get_for_method_return(
-                &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
-                functionlike_storage.return_type_location,
-                if functionlike_storage.specialize_call {
-                    Some(statements_analyzer.get_hpos(call_pos))
-                } else {
-                    None
-                },
-            );
-        }
+            },
+        );
     }
 
     if method_id.0 == StrId::SHAPES && method_id.1 == StrId::KEY_EXISTS {
@@ -358,12 +332,9 @@ fn add_dataflow(
         );
     }
 
-    // Only add the node if we're not reusing the base expression's node
-    if !reused_base_expression_node {
-        analysis_data
-            .data_flow_graph
-            .add_node(method_call_node.clone());
-    }
+    analysis_data
+        .data_flow_graph
+        .add_node(method_call_node.clone());
 
     return_type_candidate.parent_nodes = vec![method_call_node.clone()];
 
