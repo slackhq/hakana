@@ -286,8 +286,6 @@ fn add_dataflow(
             None
         };
 
-        println!("{:#?}", reusable_base_nodes);
-
         if let Some(reusable_base_nodes) = reusable_base_nodes {
             // Use the base expression's DataFlowNode for pure method calls
             method_call_node = reusable_base_nodes[0].clone();
