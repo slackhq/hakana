@@ -7,7 +7,6 @@ use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::EFFECT_PURE;
 use hakana_code_info::EFFECT_READ_GLOBALS;
 use hakana_code_info::EFFECT_READ_PROPS;
-use hakana_str::Interner;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
@@ -32,10 +31,7 @@ enum VariableUsage {
     Used,
 }
 
-pub fn check_variables_used(
-    graph: &DataFlowGraph,
-    _interner: &Interner,
-) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
+pub fn check_variables_used(graph: &DataFlowGraph) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
     let vars = graph
         .sources
         .iter()
@@ -100,7 +96,7 @@ pub fn check_variables_scoped_incorrectly(
     if_block_boundaries: &[(u32, u32)],
     loop_boundaries: &[(u32, u32)],
     for_loop_init_boundaries: &[(u32, u32)],
-    interner: &Interner,
+    function_pos: HPos,
 ) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
     let mut incorrectly_scoped = Vec::new();
     let mut async_incorrectly_scoped = Vec::new();
@@ -110,7 +106,7 @@ pub fn check_variables_scoped_incorrectly(
         return (incorrectly_scoped, async_incorrectly_scoped);
     }
 
-    let sources_by_usage = get_sources_grouped_by_usage(graph, interner);
+    let sources_by_usage = get_sources_grouped_by_usage(graph, function_pos);
 
     // Check each group of sources that feed the same set of sinks
     for (sources, sink_positions_map) in sources_by_usage {
@@ -186,10 +182,13 @@ pub fn check_variables_scoped_incorrectly(
 
 fn get_sources_grouped_by_usage<'a>(
     graph: &'a DataFlowGraph,
-    interner: &Interner,
-) -> Vec<(Vec<&'a DataFlowNode>, FxHashMap<&'a DataFlowNode, Vec<HPos>>)> {
+    function_pos: HPos,
+) -> Vec<(
+    Vec<&'a DataFlowNode>,
+    FxHashMap<&'a DataFlowNode, Vec<HPos>>,
+)> {
     let mut sink_to_sources: FxHashMap<DataFlowNodeId, Vec<&DataFlowNode>> = FxHashMap::default();
-    let mut source_to_sinks: FxHashMap<&DataFlowNode, Vec<HPos>> = FxHashMap::default();
+    let mut source_to_sinks = FxHashMap::default();
 
     // First, collect all relevant sources
     let mut relevant_sources = Vec::new();
@@ -210,34 +209,41 @@ fn get_sources_grouped_by_usage<'a>(
                 continue;
             }
 
-            // Only consider sources that have a variable name
-            if get_variable_name_from_node(&source_node.id, interner).is_some() {
-                relevant_sources.push(source_node);
-            }
+            relevant_sources.push(source_node);
         }
     }
 
     // For each source, find all its sinks and map sink -> sources
     for source_node in &relevant_sources {
-        if let Some(sink_positions) = get_all_variable_uses(graph, source_node) {
-            // Store sink positions for this source
-            source_to_sinks.insert(source_node, sink_positions.clone());
-            
+        if let Some(sink_ids) = get_all_variable_uses(graph, source_node) {
+            let mut sink_positions = vec![];
+
             // Find the sink nodes that correspond to these positions
-            for sink_pos in sink_positions {
+            for sink_id in sink_ids {
                 // Find the sink node with this position
-                for (sink_id, sink_node) in &graph.sinks {
-                    if let DataFlowNodeKind::VariableUseSink { pos } = &sink_node.kind {
-                        if *pos == sink_pos {
-                            sink_to_sources
-                                .entry(sink_id.clone())
-                                .or_default()
-                                .push(source_node);
-                            break;
-                        }
+                if let Some(DataFlowNode {
+                    kind: DataFlowNodeKind::VariableUseSink { pos },
+                    ..
+                }) = &graph.sinks.get(&sink_id)
+                {
+                    // only count sinks inside the function bounds
+                    // Hakana will add function param locations as sinks
+                    // when vars passed as args to those functions
+                    if pos.start_offset > function_pos.start_offset
+                        && pos.end_offset <= function_pos.end_offset
+                        && pos.file_path == function_pos.file_path
+                    {
+                        sink_positions.push(*pos);
+                        sink_to_sources
+                            .entry(sink_id.clone())
+                            .or_default()
+                            .push(source_node);
                     }
                 }
             }
+
+            // Store sink positions for this source
+            source_to_sinks.insert(source_node, sink_positions.clone());
         }
     }
 
@@ -264,24 +270,19 @@ fn get_sources_grouped_by_usage<'a>(
     }
 
     // Return the groups of sources along with their sink positions
-    usage_groups.into_values().map(|sources| {
-        // Create a map of source -> sink positions for this group
-        let mut group_sink_map = FxHashMap::default();
-        for source in &sources {
-            if let Some(sink_positions) = source_to_sinks.get(source) {
-                group_sink_map.insert(*source, sink_positions.clone());
+    usage_groups
+        .into_values()
+        .map(|sources| {
+            // Create a map of source -> sink positions for this group
+            let mut group_sink_map = FxHashMap::default();
+            for source in &sources {
+                if let Some(sink_positions) = source_to_sinks.get(source) {
+                    group_sink_map.insert(*source, sink_positions.clone());
+                }
             }
-        }
-        (sources, group_sink_map)
-    }).collect()
-}
-
-fn get_variable_name_from_node(node_id: &DataFlowNodeId, interner: &Interner) -> Option<String> {
-    match node_id {
-        DataFlowNodeId::Var(var_id, ..) => Some(interner.lookup(&var_id.0).to_string()),
-        DataFlowNodeId::Param(var_id, ..) => Some(interner.lookup(&var_id.0).to_string()),
-        _ => None,
-    }
+            (sources, group_sink_map)
+        })
+        .collect()
 }
 
 fn is_position_within_any_if_block(pos: &HPos, if_block_boundaries: &[(u32, u32)]) -> bool {
@@ -361,9 +362,12 @@ fn is_optimization_pattern(
     false
 }
 
-fn get_all_variable_uses(graph: &DataFlowGraph, source_node: &DataFlowNode) -> Option<Vec<HPos>> {
+fn get_all_variable_uses(
+    graph: &DataFlowGraph,
+    source_node: &DataFlowNode,
+) -> Option<Vec<DataFlowNodeId>> {
     let mut visited_nodes = FxHashSet::default();
-    let mut sink_positions = Vec::new();
+    let mut sink_nodes = Vec::new();
     let mut to_visit = vec![source_node.id.clone()];
 
     while let Some(node_id) = to_visit.pop() {
@@ -374,8 +378,8 @@ fn get_all_variable_uses(graph: &DataFlowGraph, source_node: &DataFlowNode) -> O
 
         // Check if this node is a sink
         if let Some(sink_node) = graph.sinks.get(&node_id) {
-            if let DataFlowNodeKind::VariableUseSink { pos } = &sink_node.kind {
-                sink_positions.push(*pos);
+            if let DataFlowNodeKind::VariableUseSink { .. } = &sink_node.kind {
+                sink_nodes.push(sink_node.id.clone());
             }
         }
 
@@ -389,10 +393,10 @@ fn get_all_variable_uses(graph: &DataFlowGraph, source_node: &DataFlowNode) -> O
         }
     }
 
-    if sink_positions.is_empty() {
+    if sink_nodes.is_empty() {
         None
     } else {
-        Some(sink_positions)
+        Some(sink_nodes)
     }
 }
 

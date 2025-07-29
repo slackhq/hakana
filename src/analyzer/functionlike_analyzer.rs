@@ -1326,8 +1326,7 @@ fn report_unused_expressions(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    let unused_source_nodes =
-        check_variables_used(&analysis_data.data_flow_graph, statements_analyzer.interner);
+    let unused_source_nodes = check_variables_used(&analysis_data.data_flow_graph);
 
     // Check for variables defined outside if blocks but only used inside
     let (incorrectly_scoped_nodes, async_incorrectly_scoped_nodes) =
@@ -1336,7 +1335,7 @@ fn report_unused_expressions(
             &analysis_data.if_block_boundaries,
             &analysis_data.loop_boundaries,
             &analysis_data.for_loop_init_boundaries,
-            statements_analyzer.interner,
+            functionlike_storage.def_location,
         );
 
     if functionlike_storage.is_production_code {
