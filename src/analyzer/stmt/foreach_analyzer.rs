@@ -42,6 +42,7 @@ pub(crate) fn analyze(
     let value_expr = match stmt.1 {
         aast::AsExpr::AsV(value_expr) | aast::AsExpr::AsKv(_, value_expr) => value_expr,
         aast::AsExpr::AwaitAsV(_, value_expr) | aast::AsExpr::AwaitAsKv(_, _, value_expr) => {
+            analysis_data.has_await = true;
             value_is_async = true;
             value_expr
         }
