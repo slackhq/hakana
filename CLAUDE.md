@@ -67,12 +67,44 @@ Hakana is a typechecker for Hack built in Rust, designed to complement HHVM's bu
 - Custom builds can extend functionality via plugins
 
 ### Test Organization
-- `tests/inference/` - Type inference tests organized by feature
-- `tests/security/` - Taint analysis and security tests  
-- `tests/diff/` - Incremental analysis tests
-- `tests/fix/` - Code transformation tests
-- `tests/unused/` - Unused variable and expression analysis tests
-- Each test has input.hack and output.txt files
+Tests are organized in the `tests/` directory with subdirectories for different test types. The test runner logic is in `src/cli/test_runners/test_runner.rs`.
+
+**Standard Test Structure** (most directories):
+- `input.hack` - Input source code file
+- `output.txt` - Expected output (optional, omit if no issues expected)
+
+**Directory-Specific Test Configurations**:
+- `tests/inference/` - Type inference tests organized by feature (input.hack + optional output.txt)
+- `tests/security/` - Taint analysis and security tests (input.hack + optional output.txt)
+- `tests/unused/` - Unused variable and expression analysis tests (input.hack + optional output.txt)
+- `tests/nopanic/` - Tests that should not panic (input.hack + output.txt)
+- `tests/parsing/` - Parser error tests (input.hack + output.txt)
+
+**Special Test Types with Different Structure**:
+- `tests/diff/` - Incremental analysis tests:
+  - `a/`, `b/`, `c/`, `d/` subdirectories for different analysis stages
+  - Each stage has `input.hack` files
+  - `output.txt` contains expected final output
+  - `a-before-analysis/` variant for pre-analysis changes
+- `tests/fix/` - Code transformation tests:
+  - `input.hack` - Original code
+  - `output.txt` - Expected transformed code
+  - `actual.txt` - Generated during test run
+- `tests/add-fixmes/` - Fixme addition tests (same structure as fix/)
+- `tests/remove-unused-fixmes/` - Fixme removal tests (same structure as fix/)
+- `tests/migrations/` - Code migration tests:
+  - `input.hack` - Original code
+  - `output.txt` - Expected migrated code
+  - `replacements.txt` - Migration replacement rules
+- `tests/migration-candidates/` - Migration candidate detection:
+  - `input.hack` - Source code
+  - `candidates.txt` - Expected migration candidates
+- `tests/executable-code-finder/` - Executable code detection:
+  - `input.hack` - Source code
+  - `output.txt` - JSON output of executable lines
+
+**Configuration Files**:
+- `config.json` - Optional per-test configuration overrides (e.g., max_changes_allowed)
 
 ### Data Flow Analysis System
 - Located in `src/analyzer/dataflow/` with core graph structures in `src/code_info/data_flow/`
