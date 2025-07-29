@@ -110,10 +110,10 @@ pub fn check_variables_scoped_incorrectly(
         return (incorrectly_scoped, async_incorrectly_scoped);
     }
 
-    let variable_sources = get_sources_grouped_by_var_name(graph, interner);
+    let sources_by_usage = get_sources_grouped_by_usage(graph, interner);
 
-    // Check each variable's sources collectively
-    for (_, sources) in variable_sources {
+    // Check each group of sources that feed the same set of sinks
+    for (sources, sink_positions_map) in sources_by_usage {
         // Check if ALL sources are defined outside if blocks
         let all_sources_outside_if = sources.iter().all(|source_node| {
             if let DataFlowNodeKind::VariableUseSource { pos, .. } = &source_node.kind {
@@ -144,17 +144,17 @@ pub fn check_variables_scoped_incorrectly(
                     continue;
                 }
 
-                if let Some(sink_positions) = get_all_variable_uses(graph, source) {
+                if let Some(sink_positions) = sink_positions_map.get(source) {
                     // Check if ALL uses are within if blocks AND not used in multiple if blocks
                     // BUT skip if the variable is defined before a loop and used inside an if within that loop
                     if !sink_positions.is_empty()
                         && sink_positions.iter().all(|sink_pos| {
                             is_position_within_any_if_block(sink_pos, if_block_boundaries)
                         })
-                        && !is_used_in_multiple_if_blocks(&sink_positions, if_block_boundaries)
+                        && !is_used_in_multiple_if_blocks(sink_positions, if_block_boundaries)
                         && !is_optimization_pattern(
                             &sources,
-                            &sink_positions,
+                            sink_positions,
                             loop_boundaries,
                             if_block_boundaries,
                         )
@@ -184,12 +184,15 @@ pub fn check_variables_scoped_incorrectly(
     (incorrectly_scoped, async_incorrectly_scoped)
 }
 
-fn get_sources_grouped_by_var_name<'a>(
+fn get_sources_grouped_by_usage<'a>(
     graph: &'a DataFlowGraph,
     interner: &Interner,
-) -> FxHashMap<String, Vec<&'a DataFlowNode>> {
-    let mut variable_sources: FxHashMap<String, Vec<&DataFlowNode>> = FxHashMap::default();
+) -> Vec<(Vec<&'a DataFlowNode>, FxHashMap<&'a DataFlowNode, Vec<HPos>>)> {
+    let mut sink_to_sources: FxHashMap<DataFlowNodeId, Vec<&DataFlowNode>> = FxHashMap::default();
+    let mut source_to_sinks: FxHashMap<&DataFlowNode, Vec<HPos>> = FxHashMap::default();
 
+    // First, collect all relevant sources
+    let mut relevant_sources = Vec::new();
     for (_, source_node) in &graph.sources {
         if let DataFlowNodeKind::VariableUseSource { kind, pure, .. } = &source_node.kind {
             // Skip function parameters - they're not "defined outside if blocks" in the problematic sense
@@ -207,16 +210,70 @@ fn get_sources_grouped_by_var_name<'a>(
                 continue;
             }
 
-            // Extract variable name from the node ID
-            if let Some(var_name) = get_variable_name_from_node(&source_node.id, interner) {
-                variable_sources
-                    .entry(var_name)
-                    .or_default()
-                    .push(source_node);
+            // Only consider sources that have a variable name
+            if get_variable_name_from_node(&source_node.id, interner).is_some() {
+                relevant_sources.push(source_node);
             }
         }
     }
-    variable_sources
+
+    // For each source, find all its sinks and map sink -> sources
+    for source_node in &relevant_sources {
+        if let Some(sink_positions) = get_all_variable_uses(graph, source_node) {
+            // Store sink positions for this source
+            source_to_sinks.insert(source_node, sink_positions.clone());
+            
+            // Find the sink nodes that correspond to these positions
+            for sink_pos in sink_positions {
+                // Find the sink node with this position
+                for (sink_id, sink_node) in &graph.sinks {
+                    if let DataFlowNodeKind::VariableUseSink { pos } = &sink_node.kind {
+                        if *pos == sink_pos {
+                            sink_to_sources
+                                .entry(sink_id.clone())
+                                .or_default()
+                                .push(source_node);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Group sources by their set of sinks
+    let mut usage_groups: FxHashMap<Vec<DataFlowNodeId>, Vec<&DataFlowNode>> = FxHashMap::default();
+
+    for source_node in &relevant_sources {
+        // Find all sinks that this source feeds
+        let mut source_sinks = Vec::new();
+        for (sink_id, sources) in &sink_to_sources {
+            if sources.iter().any(|s| std::ptr::eq(*s, *source_node)) {
+                source_sinks.push(sink_id.clone());
+            }
+        }
+
+        // Sort sinks for consistent grouping
+        source_sinks.sort();
+
+        // Group sources by their sink set
+        usage_groups
+            .entry(source_sinks)
+            .or_default()
+            .push(*source_node);
+    }
+
+    // Return the groups of sources along with their sink positions
+    usage_groups.into_values().map(|sources| {
+        // Create a map of source -> sink positions for this group
+        let mut group_sink_map = FxHashMap::default();
+        for source in &sources {
+            if let Some(sink_positions) = source_to_sinks.get(source) {
+                group_sink_map.insert(*source, sink_positions.clone());
+            }
+        }
+        (sources, group_sink_map)
+    }).collect()
 }
 
 fn get_variable_name_from_node(node_id: &DataFlowNodeId, interner: &Interner) -> Option<String> {
