@@ -231,6 +231,12 @@ pub(crate) fn analyze(
         }
         aast::Stmt_::DeclareLocal(_) => {}
         aast::Stmt_::Concurrent(boxed) => {
+            let concurrent_block_start = stmt.0.start_offset() as u32;
+            let concurrent_block_end = stmt.0.end_offset() as u32;
+            analysis_data
+                .concurrent_block_boundaries
+                .push((concurrent_block_start, concurrent_block_end));
+
             for boxed_stmt in &boxed.0 {
                 analyze(
                     statements_analyzer,
@@ -463,6 +469,17 @@ fn analyze_awaitall(
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
     context.inside_awaitall = true;
+
+    // Track concurrent block boundaries for unused variable analysis
+    if !boxed.0.is_empty() {
+        let first_assignment = &boxed.0[0];
+        let last_assignment = boxed.0.last().unwrap();
+        let concurrent_block_start = first_assignment.0 .0.start_offset() as u32;
+        let concurrent_block_end = last_assignment.1 .1.end_offset() as u32;
+        analysis_data
+            .concurrent_block_boundaries
+            .push((concurrent_block_start, concurrent_block_end));
+    }
 
     for (assignment_id, expr) in boxed.0 {
         expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;

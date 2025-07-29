@@ -96,6 +96,7 @@ pub fn check_variables_scoped_incorrectly(
     if_block_boundaries: &[(u32, u32)],
     loop_boundaries: &[(u32, u32)],
     for_loop_init_boundaries: &[(u32, u32)],
+    concurrent_block_boundaries: &[(u32, u32)],
     function_pos: HPos,
 ) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
     let mut incorrectly_scoped = Vec::new();
@@ -128,7 +129,16 @@ pub fn check_variables_scoped_incorrectly(
             }
         });
 
-        if all_sources_outside_if && !any_source_in_foreach_init {
+        // Check if any source is defined within concurrent block bounds (should be exempted)
+        let any_source_in_concurrent_block = sources.iter().any(|source_node| {
+            if let DataFlowNodeKind::VariableUseSource { pos, .. } = &source_node.kind {
+                is_position_within_concurrent_block_bounds(pos, concurrent_block_boundaries)
+            } else {
+                false
+            }
+        });
+
+        if all_sources_outside_if && !any_source_in_foreach_init && !any_source_in_concurrent_block {
             for source in &sources {
                 if matches!(
                     source.kind,
@@ -298,6 +308,16 @@ fn is_position_within_foreach_init_bounds(
 ) -> bool {
     let pos_offset = pos.start_offset;
     for_loop_init_boundaries
+        .iter()
+        .any(|(start, end)| pos_offset >= *start && pos_offset <= *end)
+}
+
+fn is_position_within_concurrent_block_bounds(
+    pos: &HPos,
+    concurrent_block_boundaries: &[(u32, u32)],
+) -> bool {
+    let pos_offset = pos.start_offset;
+    concurrent_block_boundaries
         .iter()
         .any(|(start, end)| pos_offset >= *start && pos_offset <= *end)
 }

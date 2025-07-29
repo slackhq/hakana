@@ -1335,6 +1335,7 @@ fn report_unused_expressions(
             &analysis_data.if_block_boundaries,
             &analysis_data.loop_boundaries,
             &analysis_data.for_loop_init_boundaries,
+            &analysis_data.concurrent_block_boundaries,
             functionlike_storage.def_location,
         );
 

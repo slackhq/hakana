@@ -52,6 +52,7 @@ pub struct FunctionAnalysisData {
     pub if_block_boundaries: Vec<(u32, u32)>,
     pub loop_boundaries: Vec<(u32, u32)>,
     pub for_loop_init_boundaries: Vec<(u32, u32)>,
+    pub concurrent_block_boundaries: Vec<(u32, u32)>,
 }
 
 impl FunctionAnalysisData {
@@ -104,6 +105,7 @@ impl FunctionAnalysisData {
             if_block_boundaries: Vec::new(),
             loop_boundaries: Vec::new(),
             for_loop_init_boundaries: Vec::new(),
+            concurrent_block_boundaries: Vec::new(),
         }
     }
 
