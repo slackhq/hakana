@@ -50,6 +50,37 @@ Hakana is a typechecker for Hack built in Rust, designed to complement HHVM's bu
 - Template/generic support in `src/code_info/ttype/template/`
 - Type comparison logic in `src/code_info/ttype/comparison/`
 
+#### TAtomic Type Representation
+- `TAtomic` enum in `src/code_info/ttype/t_atomic.rs` represents different atomic type variants
+- Common variants include `TTypeAlias`, `TGenericParam`, `TNamedObject`, `TInt`, `TString`, etc.
+- Type aliases (including newtypes) are represented as `TAtomic::TTypeAlias` with:
+  - `name: StrId` - The type alias name (e.g., `StrId::MEMBER_OF` for `HH\MemberOf`)
+  - `type_params: Option<Vec<TUnion>>` - Generic type parameters
+  - `as_type: Option<Box<TUnion>>` - The underlying type for the alias
+  - `newtype: bool` - Whether this is a newtype (distinct type) vs transparent alias
+
+#### Type Intersection and Reconciliation
+- Type narrowing (e.g., `is` checks) triggers intersection logic in `src/analyzer/reconciler/assertion_reconciler.rs`
+- `intersect_atomic_with_atomic()` function handles intersection of two atomic types using pattern matching
+- Each pattern match handles specific type combinations (e.g., `TInt` ∩ `TString` = empty)
+- For complex types like `MemberOf`, intersection must:
+  1. Extract the inner value type (second type parameter: `type_params[1]`)
+  2. Recursively intersect the inner type with the other atomic type via `intersect_union_with_atomic()`
+  3. Reconstruct the wrapper type preserving original structure
+- **Important**: Bidirectional patterns needed - both `(MemberOf, Other)` and `(Other, MemberOf)` cases
+- **Implementation Pattern**:
+  ```rust
+  (TAtomic::TTypeAlias { name: StrId::MEMBER_OF, type_params: Some(params), .. }, _) => {
+      // Intersect inner type (params[1]) with the other type, preserve params[0]
+      intersect_union_with_atomic(..., &params[1], other_type, ...)
+          .map(|intersected| TAtomic::TTypeAlias {
+              name: StrId::MEMBER_OF,
+              type_params: Some(vec![params[0].clone(), intersected]),
+              // ... preserve other fields
+          })
+  }
+  ```
+
 **Security Analysis**:
 - Taint analysis system in `src/code_info/data_flow/` 
 - Tracks data flow from sources (user input) to sinks (dangerous operations)
@@ -105,6 +136,29 @@ Tests are organized in the `tests/` directory with subdirectories for different 
 
 **Configuration Files**:
 - `config.json` - Optional per-test configuration overrides (e.g., max_changes_allowed)
+
+### Debugging Type Issues
+When encountering type-related test failures, common patterns include:
+
+#### Common Error Types
+- `LessSpecificReturnStatement` - Function returns a more general type than declared
+  - Often indicates type narrowing/intersection not working properly
+  - Check if reconciler patterns handle the specific type combination
+- `InvalidReturnStatement` - Returned type doesn't match declaration
+- `PossiblyUndefinedVariable` - Variable might not be defined in all code paths
+
+#### Investigation Steps for Type Errors
+1. **Identify the failing assertion/check** - What type operation is failing?
+2. **Trace the type flow** - How does the type get to the error location?
+3. **Check reconciler patterns** - Does `assertion_reconciler.rs` handle the type intersection?
+4. **Verify TAtomic structure** - Is the type represented correctly in the type system?
+5. **Add debug prints** - Use `eprintln!("{:?}", type_union)` to inspect type structures
+
+#### Type System Debugging Tips
+- `HH\MemberOf<Enum, Type>` has `type_params[0] = Enum` and `type_params[1] = Type`
+- Newtype aliases have `newtype: true` and should preserve their wrapper structure
+- Type intersections should be commutative - handle both `(A, B)` and `(B, A)` patterns
+- Empty intersections (impossible types) return `None` from intersection functions
 
 ### Data Flow Analysis System
 - Located in `src/analyzer/dataflow/` with core graph structures in `src/code_info/data_flow/`
