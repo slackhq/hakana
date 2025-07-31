@@ -1270,6 +1270,54 @@ pub(crate) fn intersect_atomic_with_atomic(
         }
         (
             TAtomic::TTypeAlias {
+                name: StrId::MEMBER_OF,
+                type_params: Some(type_params),
+                newtype: true,
+                as_type,
+            },
+            _,
+        ) => {
+            return intersect_union_with_atomic(
+                statements_analyzer,
+                analysis_data,
+                &type_params[1],
+                type_2_atomic,
+                pos,
+                did_remove_type,
+            )
+            .map(|intersected| TAtomic::TTypeAlias {
+                name: StrId::MEMBER_OF,
+                type_params: Some(vec![type_params[0].clone(), intersected]),
+                as_type: as_type.clone(),
+                newtype: true,
+            })
+        }
+        (
+            _,
+            TAtomic::TTypeAlias {
+                name: StrId::MEMBER_OF,
+                type_params: Some(type_params),
+                newtype: true,
+                as_type,
+            },
+        ) => {
+            return intersect_union_with_atomic(
+                statements_analyzer,
+                analysis_data,
+                &type_params[1],
+                type_1_atomic,
+                pos,
+                did_remove_type,
+            )
+            .map(|intersected| TAtomic::TTypeAlias {
+                name: StrId::MEMBER_OF,
+                type_params: Some(vec![type_params[0].clone(), intersected]),
+                as_type: as_type.clone(),
+                newtype: true,
+            })
+        }
+        (
+            TAtomic::TTypeAlias {
                 as_type: Some(type_1_as),
                 name,
                 type_params,
