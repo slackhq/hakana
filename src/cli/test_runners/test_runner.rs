@@ -60,7 +60,14 @@ impl TestRunner {
         repeat: u16,
         random_seed: Option<u64>,
     ) {
-        let candidate_test_folders = get_all_test_folders(test_or_test_dir.clone());
+        let candidate_test_folders = match get_all_test_folders(test_or_test_dir.clone()) {
+            Ok(folders) => folders,
+            Err(error) => {
+                eprintln!("Error: {}", error);
+                *had_error = true;
+                return;
+            }
+        };
 
         let mut test_diagnostics = vec![];
 
@@ -685,14 +692,25 @@ fn copy_recursively(source: impl AsRef<Path>, destination: impl AsRef<Path>) -> 
     Ok(())
 }
 
-fn get_all_test_folders(test_or_test_dir: String) -> Vec<String> {
+fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String> {
+    // Check if the specified test directory exists
+    if !Path::new(&test_or_test_dir).exists() {
+        return Err(format!("Test directory does not exist: {}", test_or_test_dir));
+    }
+
     let mut test_folders = vec![];
-    if Path::new(&(test_or_test_dir.clone() + "/input.hack")).exists()
-        || Path::new(&(test_or_test_dir.clone() + "/output.txt")).exists()
-    {
+    let input_hack_path = test_or_test_dir.clone() + "/input.hack";
+    let output_txt_path = test_or_test_dir.clone() + "/output.txt";
+    
+    if Path::new(&input_hack_path).exists() {
+        // This looks like a single test directory
+        if !Path::new(&output_txt_path).exists() {
+            return Err(format!("Test directory is missing required output.txt file: {}", test_or_test_dir));
+        }
         test_folders.push(test_or_test_dir);
     } else {
-        for entry in WalkDir::new(test_or_test_dir)
+        // Walk the directory to find test folders
+        for entry in WalkDir::new(&test_or_test_dir)
             .sort_by(|a, b| a.file_name().cmp(b.file_name()))
             .follow_links(true)
             .into_iter()
@@ -703,16 +721,38 @@ fn get_all_test_folders(test_or_test_dir: String) -> Vec<String> {
             let metadata = fs::metadata(path).unwrap();
 
             if metadata.is_dir() {
-                if let Some(path) = path.to_str() {
-                    if (Path::new(&(path.to_owned() + "/input.hack")).exists()
-                        && !path.contains("/diff/"))
-                        || Path::new(&(path.to_owned() + "/output.txt")).exists()
-                    {
-                        test_folders.push(path.to_owned().to_string());
+                if let Some(path_str) = path.to_str() {
+                    let input_hack = path_str.to_owned() + "/input.hack";
+                    let output_txt = path_str.to_owned() + "/output.txt";
+                    let candidates_txt = path_str.to_owned() + "/candidates.txt";
+                    
+                    if Path::new(&input_hack).exists() && !path_str.contains("/diff/") {
+                        // Found a regular test directory - check if output.txt exists
+                        if !Path::new(&output_txt).exists() {
+                            return Err(format!("Test directory is missing required output.txt file: {}", path_str));
+                        }
+                        test_folders.push(path_str.to_owned());
+                    } else if path_str.contains("/diff/") && Path::new(&(path_str.to_owned() + "/a")).is_dir() {
+                        // Found a diff test directory - check if output.txt exists
+                        if !Path::new(&output_txt).exists() {
+                            return Err(format!("Diff test directory is missing required output.txt file: {}", path_str));
+                        }
+                        test_folders.push(path_str.to_owned());
+                    } else if path_str.contains("/migration-candidates/") && Path::new(&input_hack).exists() {
+                        // Migration candidates tests use candidates.txt instead of output.txt
+                        if !Path::new(&candidates_txt).exists() {
+                            return Err(format!("Migration candidates test directory is missing required candidates.txt file: {}", path_str));
+                        }
+                        test_folders.push(path_str.to_owned());
                     }
                 }
             }
         }
+        
+        // If no test folders were found in the directory, it's an error
+        if test_folders.is_empty() {
+            return Err(format!("No test directories found in: {}", test_or_test_dir));
+        }
     }
-    test_folders
+    Ok(test_folders)
 }
