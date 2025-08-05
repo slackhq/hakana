@@ -83,6 +83,7 @@ pub(crate) fn analyze(
                     param.signature_type = fn_param.signature_type.as_ref().map(|t| (**t).clone());
                     param.is_inout = fn_param.is_inout;
                     param.is_variadic = fn_param.is_variadic;
+                    param.is_optional = fn_param.is_optional;
                     param
                 })
                 .collect();

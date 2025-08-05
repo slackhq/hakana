@@ -1,0 +1,1 @@
+ERROR: TooFewArguments - input.hack:12:1 - Too few arguments for test_variadic_with_multiple_required - expecting 2 but got 1

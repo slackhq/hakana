@@ -9,5 +9,5 @@ final class A {
 
 <<__EntryPoint>>
 function main(): void {
-    (new A())->foo();
+    (new A())->foo(vec['a']);
 }

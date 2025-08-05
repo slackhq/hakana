@@ -1,0 +1,2 @@
+ERROR: TooFewArguments - input.hack:4:1 - Too few arguments for test_function - expecting 2 but got 1
+ERROR: TooFewArguments - input.hack:7:1 - Too few arguments for test_function - expecting 2 but got 0

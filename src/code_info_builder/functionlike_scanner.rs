@@ -751,20 +751,22 @@ fn convert_param_nodes(
                 }
             }
             param.promoted_property = param_node.visibility.is_some();
-            param.is_optional = if let tast::FunParamInfo::ParamOptional(expr) = &param_node.info {
-                if let Some(expr) = expr {
-                    let default = simple_type_inferer::infer(expr, resolved_names);
+            param.is_optional = match &param_node.info {
+                tast::FunParamInfo::ParamOptional(expr) => {
+                    if let Some(expr) = expr {
+                        let default = simple_type_inferer::infer(expr, resolved_names);
 
-                    if let Some(default) = default {
-                        param.default_type = Some(DefaultType::NormalData(default));
+                        if let Some(default) = default {
+                            param.default_type = Some(DefaultType::NormalData(default));
+                        }
+
+                        true
+                    } else {
+                        false
                     }
-
-                    true
-                } else {
-                    false
                 }
-            } else {
-                false
+                tast::FunParamInfo::ParamRequired => false,
+                tast::FunParamInfo::ParamVariadic => false,
             };
             param
         })

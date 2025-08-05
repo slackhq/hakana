@@ -22,6 +22,6 @@ function takesAChild(AChild $a): AChild {
 
 function bar() {
   $a = new Foo<AChild, _>(($a) ==> takesAChild($a));
-  $b = $a->bar();
+  $b = $a->bar(new AChild());
   echo $b->foo();
 }

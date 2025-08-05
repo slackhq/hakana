@@ -403,6 +403,47 @@ pub(crate) fn check_arguments_match(
     let function_params = &functionlike_info.params;
 
     if function_params.len() > args.len() {
+        // Check for TooFewArguments - find the minimum required arguments
+        // This is the position of the last required (non-default, non-variadic) parameter + 1
+        // Skip this check if there's an unpacked argument as it could provide multiple values
+        let mut min_required_args = 0;
+        for (i, param) in function_params.iter().enumerate() {
+            if !param.is_optional && !param.is_variadic {
+                min_required_args = i + 1;
+            }
+        }
+
+        if args.len() < min_required_args && unpacked_arg.is_none() {
+            let interner = statements_analyzer.interner;
+            let function_name = match functionlike_id {
+                FunctionLikeIdentifier::Function(fn_name) => interner.lookup(fn_name).to_string(),
+                FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => {
+                    format!(
+                        "{}::{}",
+                        interner.lookup(fq_classlike_name),
+                        interner.lookup(method_name)
+                    )
+                }
+                FunctionLikeIdentifier::Closure(..) => "closure".to_string(),
+            };
+
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::TooFewArguments,
+                    format!(
+                        "Too few arguments for {} - expecting {} but got {}",
+                        function_name,
+                        min_required_args,
+                        args.len()
+                    ),
+                    statements_analyzer.get_hpos(function_call_pos),
+                    &context.function_context.calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+
         let mut i = args.len();
         let i_max = function_params.len();
 

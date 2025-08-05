@@ -408,6 +408,10 @@ impl FunctionAnalysisData {
                         IssueKind::NonExistentFunction => true,
                         _ => false,
                     },
+                    4104 => match &issue_kind {
+                        IssueKind::TooFewArguments => true,
+                        _ => false,
+                    },
                     _ => false,
                 } {
                     self.previously_used_fixme_positions
