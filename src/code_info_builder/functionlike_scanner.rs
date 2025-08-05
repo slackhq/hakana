@@ -505,49 +505,74 @@ fn get_async_version(
     params: &[FunctionLikeParameter],
     interner: &mut ThreadedInterner,
 ) -> Option<FunctionLikeIdentifier> {
-    if let aast::Expr_::Call(call) = &expr.2 {
-        if let aast::Expr_::Id(boxed_id) = &call.func.2 {
-            if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
-                if fn_id == &StrId::ASIO_JOIN && call.args.len() == 1 {
-                    let first_join_expr = &call.args[0].to_expr_ref().2;
+    match &expr.2 {
+        aast::Expr_::Call(call) => {
+            if let aast::Expr_::Id(boxed_id) = &call.func.2 {
+                if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
+                    if fn_id == &StrId::ASIO_JOIN && call.args.len() == 1 {
+                        let first_join_expr = &call.args[0].to_expr_ref().2;
 
-                    if let aast::Expr_::Call(call) = &first_join_expr {
-                        if !is_async_call_is_same_as_sync(&call.args, params, interner) {
-                            return None;
-                        }
-
-                        match &call.func.2 {
-                            aast::Expr_::Id(boxed_id) => {
-                                if let Some(fn_id) =
-                                    resolved_names.get(&(boxed_id.0.start_offset() as u32))
-                                {
-                                    return Some(FunctionLikeIdentifier::Function(*fn_id));
-                                }
+                        if let aast::Expr_::Call(call) = &first_join_expr {
+                            if !is_async_call_is_same_as_sync(&call.args, params, interner) {
+                                return None;
                             }
-                            aast::Expr_::ClassConst(boxed) => {
-                                let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
 
-                                if let aast::ClassId_::CIexpr(lhs_expr) = &class_id.2 {
-                                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                                        if let Some(class_name) =
-                                            resolved_names.get(&(id.0.start_offset() as u32))
-                                        {
-                                            return Some(FunctionLikeIdentifier::Method(
-                                                *class_name,
-                                                interner.intern(rhs_expr.1.clone()),
-                                            ));
-                                        }
-                                    }
-                                }
-                            }
-                            _ => (),
+                            return get_name_from_expr(resolved_names, interner, &call.func.2);
                         }
                     }
                 }
             }
         }
+        aast::Expr_::Pipe(boxed) => {
+            if let aast::Expr_::Call(call) = &boxed.2 .2 {
+                if let aast::Expr_::Id(boxed_id) = &call.func.2 {
+                    if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
+                        if fn_id == &StrId::ASIO_JOIN && call.args.len() == 1 {
+                            if let aast::Expr_::Call(call) = &boxed.1 .2 {
+                                if !is_async_call_is_same_as_sync(&call.args, params, interner) {
+                                    return None;
+                                }
+
+                                return get_name_from_expr(resolved_names, interner, &call.func.2);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
     }
 
+    None
+}
+
+fn get_name_from_expr(
+    resolved_names: &FxHashMap<u32, StrId>,
+    interner: &mut ThreadedInterner,
+    func_name: &aast::Expr_<(), ()>,
+) -> Option<FunctionLikeIdentifier> {
+    match func_name {
+        aast::Expr_::Id(boxed_id) => {
+            if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
+                return Some(FunctionLikeIdentifier::Function(*fn_id));
+            }
+        }
+        aast::Expr_::ClassConst(boxed) => {
+            let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
+
+            if let aast::ClassId_::CIexpr(lhs_expr) = &class_id.2 {
+                if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                    if let Some(class_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
+                        return Some(FunctionLikeIdentifier::Method(
+                            *class_name,
+                            interner.intern(rhs_expr.1.clone()),
+                        ));
+                    }
+                }
+            }
+        }
+        _ => (),
+    }
     None
 }
 
