@@ -39,6 +39,7 @@ pub(crate) fn analyze(
         analysis_data,
         context,
         &mut if_scope,
+        true,
     )?;
 
     analysis_data.copy_effects(expr.0.pos(), pos);

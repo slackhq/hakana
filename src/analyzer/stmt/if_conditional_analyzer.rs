@@ -28,6 +28,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     outer_context: &BlockContext,
     if_scope: &mut IfScope,
+    is_sub_expression: bool,
 ) -> Result<IfConditionalScope, AnalysisError> {
     let mut outer_context = outer_context.clone();
     let old_outer_context = outer_context.clone();
@@ -106,7 +107,9 @@ pub(crate) fn analyze(
         externally_applied_if_cond_expr,
         analysis_data,
         &mut externally_applied_context,
-        true,
+        is_sub_expression
+            || internally_applied_if_cond_expr != cond
+            || externally_applied_if_cond_expr != cond,
     )?;
 
     externally_applied_context.if_body_context = tmp_if_body_context;

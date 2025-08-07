@@ -37,6 +37,7 @@ pub(crate) fn analyze<'expr>(
             analysis_data,
             context,
             &mut if_scope,
+            true,
         )?;
 
         left_context = if_conditional_scope.if_body_context;

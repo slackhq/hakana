@@ -66,6 +66,7 @@ pub(crate) fn analyze(
         analysis_data,
         context,
         &mut if_scope,
+        false,
     )?;
 
     add_branch_dataflow(statements_analyzer, stmt.0, analysis_data);
