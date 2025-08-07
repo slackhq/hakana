@@ -77,6 +77,7 @@ pub(crate) fn analyze<'expr>(
                 root_expr,
                 analysis_data,
                 &mut isset_context,
+                true,
             )
             .ok();
 
@@ -151,7 +152,7 @@ pub(crate) fn analyze<'expr>(
     let old_expr_types = analysis_data.expr_types.clone();
     analysis_data.expr_types.clone_from(&old_expr_types);
 
-    expression_analyzer::analyze(statements_analyzer, &ternary, analysis_data, context).ok();
+    expression_analyzer::analyze(statements_analyzer, &ternary, analysis_data, context, true,).ok();
 
     let ternary_type = analysis_data
         .get_rc_expr_type(pos)
@@ -186,6 +187,7 @@ fn get_left_expr(
             root_expr,
             analysis_data,
             &mut isset_context,
+            true,
         )
         .ok();
 

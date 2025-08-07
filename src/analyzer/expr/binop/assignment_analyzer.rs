@@ -126,6 +126,7 @@ pub(crate) fn analyze(
                     assign_value,
                     analysis_data,
                     context,
+                    false,
                 )?;
                 if analysis_data.await_calls_count > await_count {
                     has_await_call = true;
@@ -150,6 +151,7 @@ pub(crate) fn analyze(
                     ),
                     analysis_data,
                     context,
+                    false,
                 )?;
                 context.inside_assignment_op = false;
                 let new_expr_types = analysis_data.expr_types.clone();

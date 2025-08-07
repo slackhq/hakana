@@ -33,7 +33,7 @@ pub(crate) fn analyze(
 
     for (i, arg) in args.iter().enumerate() {
         let arg_expr = arg.to_expr_ref();
-        expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context, true)?;
 
         let arg_type = analysis_data.get_rc_expr_type(arg_expr.pos()).cloned();
 

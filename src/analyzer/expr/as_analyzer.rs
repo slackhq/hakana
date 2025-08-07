@@ -126,7 +126,7 @@ pub(crate) fn analyze<'expr>(
     let old_expr_types = analysis_data.expr_types.clone();
     analysis_data.expr_types.clone_from(&old_expr_types);
 
-    expression_analyzer::analyze(statements_analyzer, &ternary, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, &ternary, analysis_data, context, true)?;
 
     let mut ternary_type = analysis_data
         .get_expr_type(stmt_pos)
@@ -193,7 +193,7 @@ fn get_fake_as_var(
 ) -> Option<aast::Expr<(), ()>> {
     let left_var_id = format!("$<tmp coalesce var>{}", left.pos().start_offset());
 
-    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context).ok();
+    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context, true).ok();
 
     let condition_type = analysis_data
         .get_rc_expr_type(left.pos())

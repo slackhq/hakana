@@ -19,7 +19,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context, false)?;
 
     let mut pipe_expr_type = analysis_data
         .get_expr_type(&expr.1 .1)
@@ -55,7 +55,7 @@ pub(crate) fn analyze(
         .unwrap_or(&EFFECT_PURE);
 
     let analyzed_ok =
-        expression_analyzer::analyze(statements_analyzer, expr.2, analysis_data, context);
+        expression_analyzer::analyze(statements_analyzer, expr.2, analysis_data, context, true);
 
     context.locals.remove("$$");
     context.pipe_var_effects = EFFECT_PURE;

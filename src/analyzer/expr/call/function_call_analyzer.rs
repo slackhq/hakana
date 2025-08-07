@@ -44,6 +44,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
+    is_sub_expression: bool,
 ) -> Result<(), AnalysisError> {
     let name = expr.0 .1;
 
@@ -72,7 +73,7 @@ pub(crate) fn analyze(
     if (name == "unset" || name == "\\unset") && !expr.2.is_empty() {
         let first_arg = &expr.2.first().unwrap().to_expr_ref();
         context.inside_unset = true;
-        expression_analyzer::analyze(statements_analyzer, first_arg, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, first_arg, analysis_data, context, true)?;
         context.inside_unset = false;
         analysis_data.expr_effects.insert(
             (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -522,8 +523,18 @@ pub(crate) fn analyze(
                     {
                         analysis_data.add_replacement(
                             (pos.start_offset() as u32, expr.0 .0.end_offset() as u32 + 1),
-                            Replacement::Substitute("(await ".to_string()),
+                            Replacement::Substitute(format!(
+                                "{}await ",
+                                if is_sub_expression { "(" } else { "" }
+                            )),
                         );
+
+                        if !is_sub_expression {
+                            analysis_data.add_replacement(
+                                (pos.end_offset() as u32 - 1, pos.end_offset() as u32),
+                                Replacement::Substitute("".to_string()),
+                            );
+                        }
                     }
                 } else {
                     analysis_data.maybe_add_issue(

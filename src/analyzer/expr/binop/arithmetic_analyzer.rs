@@ -28,8 +28,8 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
     analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context)?;
-    expression_analyzer::analyze(statements_analyzer, right, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context, true)?;
+    expression_analyzer::analyze(statements_analyzer, right, analysis_data, context, true)?;
 
     let fallback = get_mixed_any();
     let e1_type = match analysis_data.get_rc_expr_type(&left.1).cloned() {

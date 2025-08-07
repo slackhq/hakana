@@ -53,7 +53,13 @@ pub(crate) fn analyze(
     array_exprs.push(root_array_expr);
     let root_array_expr = root_array_expr.0;
 
-    expression_analyzer::analyze(statements_analyzer, root_array_expr, analysis_data, context)?;
+    expression_analyzer::analyze(
+        statements_analyzer,
+        root_array_expr,
+        analysis_data,
+        context,
+        false,
+    )?;
 
     let mut root_type = analysis_data
         .get_expr_type(root_array_expr.pos())
@@ -61,10 +67,16 @@ pub(crate) fn analyze(
         .unwrap_or(get_mixed_any());
 
     if root_type.is_mixed() {
-        expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context, false)?;
 
         if let Some(dim_expr) = expr.1 {
-            expression_analyzer::analyze(statements_analyzer, dim_expr, analysis_data, context)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                dim_expr,
+                analysis_data,
+                context,
+                false,
+            )?;
         }
     }
 
@@ -685,7 +697,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             let was_inside_general_use = context.inside_general_use;
             context.inside_general_use = true;
 
-            expression_analyzer::analyze(statements_analyzer, dim, analysis_data, context)?;
+            expression_analyzer::analyze(statements_analyzer, dim, analysis_data, context, true)?;
 
             context.inside_general_use = was_inside_general_use;
             let dim_type = analysis_data.get_rc_expr_type(dim.pos()).cloned();

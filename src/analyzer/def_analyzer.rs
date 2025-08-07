@@ -93,6 +93,7 @@ pub(crate) fn analyze(
                 &boxed.value,
                 analysis_data,
                 &mut context,
+                true,
             ) {
                 return Err(InternalError(error, pos));
             }

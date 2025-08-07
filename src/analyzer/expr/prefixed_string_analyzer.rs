@@ -21,7 +21,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     expr: &aast::Expr<(), ()>,
 ) -> Result<(), AnalysisError> {
-    expression_analyzer::analyze(statements_analyzer, &boxed.1, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, &boxed.1, analysis_data, context, true,)?;
 
     let inner_type = if let Some(t) = analysis_data.expr_types.get(&(
         boxed.1.pos().start_offset() as u32,

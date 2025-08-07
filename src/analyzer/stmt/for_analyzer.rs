@@ -33,7 +33,7 @@ pub(crate) fn analyze(
     }
 
     for init_expr in stmt.0 {
-        expression_analyzer::analyze(statements_analyzer, init_expr, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, init_expr, analysis_data, context, true)?;
     }
 
     context.for_loop_init_bounds = (0, 0);

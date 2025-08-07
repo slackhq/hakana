@@ -1104,7 +1104,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             };
 
             if let tast::FunParamInfo::ParamOptional(Some(default)) = &param_node.info {
-                expression_analyzer::analyze(statements_analyzer, default, analysis_data, context)?;
+                expression_analyzer::analyze(statements_analyzer, default, analysis_data, context, true)?;
             }
 
             if param.is_variadic {

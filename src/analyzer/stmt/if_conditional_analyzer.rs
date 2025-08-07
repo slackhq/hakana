@@ -106,6 +106,7 @@ pub(crate) fn analyze(
         externally_applied_if_cond_expr,
         analysis_data,
         &mut externally_applied_context,
+        true,
     )?;
 
     externally_applied_context.if_body_context = tmp_if_body_context;
@@ -157,6 +158,7 @@ pub(crate) fn analyze(
             cond,
             analysis_data,
             &mut if_conditional_context,
+            true,
         )?;
 
         add_branch_dataflow(statements_analyzer, cond, analysis_data);

@@ -94,9 +94,21 @@ pub(crate) fn analyze(
         | oxidized::ast_defs::Bop::Lte
         | oxidized::ast_defs::Bop::Gt
         | oxidized::ast_defs::Bop::Gte => {
-            expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                expr.1,
+                analysis_data,
+                context,
+                true,
+            )?;
 
-            expression_analyzer::analyze(statements_analyzer, expr.2, analysis_data, context)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                expr.2,
+                analysis_data,
+                context,
+                true,
+            )?;
 
             let lhs_type = analysis_data.get_rc_expr_type(expr.1.pos());
             let rhs_type = analysis_data.get_rc_expr_type(expr.2.pos());
@@ -180,9 +192,21 @@ pub(crate) fn analyze(
         }
 
         oxidized::ast_defs::Bop::Cmp => {
-            expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                expr.1,
+                analysis_data,
+                context,
+                true,
+            )?;
 
-            expression_analyzer::analyze(statements_analyzer, expr.2, analysis_data, context)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                expr.2,
+                analysis_data,
+                context,
+                true,
+            )?;
 
             add_decision_dataflow(
                 statements_analyzer,

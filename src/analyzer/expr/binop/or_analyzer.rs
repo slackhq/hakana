@@ -54,7 +54,7 @@ pub(crate) fn analyze<'expr>(
         let tmp_if_body_context = left_context.if_body_context;
         left_context.if_body_context = None;
 
-        expression_analyzer::analyze(statements_analyzer, left, analysis_data, &mut left_context)?;
+        expression_analyzer::analyze(statements_analyzer, left, analysis_data, &mut left_context, true,)?;
 
         left_context.if_body_context = tmp_if_body_context;
 
@@ -233,6 +233,7 @@ pub(crate) fn analyze<'expr>(
         right,
         analysis_data,
         &mut right_context,
+        true,
     )?;
 
     right_context.if_body_context = tmp_if_body_context;

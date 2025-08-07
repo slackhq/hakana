@@ -258,7 +258,7 @@ pub(crate) fn check_arguments_match(
 
         // don't analyse closures here
         if !matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
-            expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context)?;
+            expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context, false)?;
         }
 
         if !was_inside_call {
@@ -324,7 +324,7 @@ pub(crate) fn check_arguments_match(
                 &param_type,
             );
 
-            expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context)?;
+            expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context, false)?;
 
             arg_value_type = analysis_data
                 .get_expr_type(arg_expr.pos())
@@ -397,7 +397,7 @@ pub(crate) fn check_arguments_match(
 
         last_param_type = Some(param_type.clone());
 
-        expression_analyzer::analyze(statements_analyzer, unpacked_arg, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, unpacked_arg, analysis_data, context, false)?;
     }
 
     let function_params = &functionlike_info.params;
@@ -1066,6 +1066,7 @@ pub(crate) fn evaluate_arbitrary_param(
         arg.to_expr_ref(),
         analysis_data,
         context,
+        false,
     )?;
 
     if !was_inside_call {

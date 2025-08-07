@@ -50,6 +50,7 @@ pub(crate) fn analyze(
     expr: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
+    is_sub_expression: bool,
 ) -> Result<(), AnalysisError> {
     if statements_analyzer.get_config().add_fixmes {
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
@@ -120,7 +121,13 @@ pub(crate) fn analyze(
         aast::Expr_::Is(boxed) => {
             let (lhs_expr, _) = (&boxed.0, &boxed.1);
 
-            expression_analyzer::analyze(statements_analyzer, lhs_expr, analysis_data, context)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                lhs_expr,
+                analysis_data,
+                context,
+                true,
+            )?;
 
             add_decision_dataflow(
                 statements_analyzer,
@@ -143,7 +150,14 @@ pub(crate) fn analyze(
             )?;
         }
         aast::Expr_::Call(boxed) => {
-            call_analyzer::analyze(statements_analyzer, boxed, &expr.1, analysis_data, context)?;
+            call_analyzer::analyze(
+                statements_analyzer,
+                boxed,
+                &expr.1,
+                analysis_data,
+                context,
+                is_sub_expression,
+            )?;
         }
         aast::Expr_::ArrayGet(boxed) => {
             let keyed_array_var_id = expression_identifier::get_var_id(
@@ -301,7 +315,7 @@ pub(crate) fn analyze(
             )?;
         }
         aast::Expr_::Clone(boxed) => {
-            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
+            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context, true)?;
 
             if let Some(stmt_type) = analysis_data
                 .expr_types
@@ -326,6 +340,7 @@ pub(crate) fn analyze(
                     concat_node,
                     analysis_data,
                     context,
+                    true,
                 )?;
             }
 
@@ -495,6 +510,7 @@ pub(crate) fn analyze(
                 expr,
                 context,
                 already_called: !newly_called,
+                is_sub_expression,
             },
         );
     }

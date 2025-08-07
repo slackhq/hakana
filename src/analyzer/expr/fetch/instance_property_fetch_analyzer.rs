@@ -30,7 +30,7 @@ pub(crate) fn analyze(
     let prop_name = if let aast::Expr_::Id(id) = &expr.1 .2 {
         Some(id.1.clone())
     } else {
-        expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context, true,)?;
 
         if let Some(stmt_name_type) = analysis_data.get_rc_expr_type(expr.1.pos()) {
             if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
@@ -43,7 +43,7 @@ pub(crate) fn analyze(
         }
     };
 
-    expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context, true,)?;
 
     analysis_data.combine_effects_with(expr.0.pos(), expr.1.pos(), pos, EFFECT_READ_PROPS);
 

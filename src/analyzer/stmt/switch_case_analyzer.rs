@@ -83,7 +83,7 @@ pub(crate) fn analyze_case(
     let mut case_equality_expr = None;
 
     if let Some(case_cond) = case_cond {
-        expression_analyzer::analyze(statements_analyzer, case_cond, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, case_cond, analysis_data, context, true,)?;
 
         add_branch_dataflow(statements_analyzer, case_cond, analysis_data);
 
@@ -110,6 +110,7 @@ pub(crate) fn analyze_case(
                     &previous_empty_case.0,
                     analysis_data,
                     context,
+                    true,
                 )?;
             }
             let mut case_conds = previous_empty_cases

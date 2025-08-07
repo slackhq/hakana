@@ -20,10 +20,10 @@ pub(crate) fn analyze(
     context.inside_general_use = true;
     let was_inside_await = context.inside_await;
     context.inside_await = true;
-    expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context, true)?;
     context.inside_general_use = was_inside_use;
     context.inside_await = was_inside_await;
-    
+
     // Increment await calls
     analysis_data.await_calls_count += 1;
 
@@ -67,4 +67,4 @@ pub(crate) fn analyze(
     analysis_data.has_await = true;
 
     Ok(())
-} 
+}

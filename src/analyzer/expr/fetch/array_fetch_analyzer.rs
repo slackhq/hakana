@@ -53,7 +53,7 @@ pub(crate) fn analyze(
         let was_inside_unset = context.inside_unset;
         context.inside_unset = false;
 
-        expression_analyzer::analyze(statements_analyzer, dim, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, dim, analysis_data, context, true)?;
 
         context.inside_unset = was_inside_unset;
 
@@ -68,7 +68,7 @@ pub(crate) fn analyze(
         used_key_type = get_int();
     }
 
-    expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context, true)?;
 
     if let Some(keyed_array_var_id) = &keyed_array_var_id {
         if context.has_variable(keyed_array_var_id) {

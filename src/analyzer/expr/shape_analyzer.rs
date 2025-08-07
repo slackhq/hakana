@@ -110,7 +110,7 @@ pub(crate) fn analyze(
         };
 
         // Now check types of the values
-        expression_analyzer::analyze(statements_analyzer, value_expr, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, value_expr, analysis_data, context, true)?;
 
         effects |= analysis_data
             .expr_effects

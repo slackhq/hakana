@@ -31,7 +31,7 @@ pub(crate) fn analyze<'expr>(
 
     analysis_data.set_expr_type(stmt_pos, get_bool());
 
-    expression_analyzer::analyze(statements_analyzer, left, analysis_data, &mut left_context)?;
+    expression_analyzer::analyze(statements_analyzer, left, analysis_data, &mut left_context, true,)?;
 
     if let Some(cond_type) = analysis_data.get_rc_expr_type(left.pos()).cloned() {
         handle_paradoxical_condition(
@@ -151,6 +151,7 @@ pub(crate) fn analyze<'expr>(
         right,
         analysis_data,
         &mut right_context,
+        true,
     )?;
 
     if let Some(cond_type) = analysis_data.get_rc_expr_type(right.pos()).cloned() {

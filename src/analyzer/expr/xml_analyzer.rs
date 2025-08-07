@@ -180,7 +180,7 @@ pub(crate) fn analyze(
     );
 
     for inner_expr in &boxed.2 {
-        expression_analyzer::analyze(statements_analyzer, inner_expr, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, inner_expr, analysis_data, context, true)?;
 
         analysis_data.combine_effects(inner_expr.pos(), pos, pos);
 
@@ -258,7 +258,7 @@ fn handle_attribute_spread(
     context: &mut BlockContext,
     codebase: &CodebaseInfo,
 ) -> Result<FxHashSet<StrId>, AnalysisError> {
-    expression_analyzer::analyze(statements_analyzer, xhp_expr, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, xhp_expr, analysis_data, context, true)?;
 
     let mut used_attributes = FxHashSet::default();
 
@@ -345,6 +345,7 @@ fn analyze_xhp_attribute_assignment(
         &attribute_info.expr,
         analysis_data,
         context,
+        true,
     )?;
 
     let property_id = (*element_name, attribute_name);

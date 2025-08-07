@@ -40,6 +40,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
+    is_sub_expression: bool,
 ) -> Result<(), AnalysisError> {
     let function_name_expr = &expr.func;
 
@@ -55,6 +56,7 @@ pub(crate) fn analyze(
             pos,
             analysis_data,
             context,
+            is_sub_expression,
         ),
         aast::Expr_::ObjGet(boxed) => {
             let (lhs_expr, rhs_expr, nullfetch, prop_or_method) =

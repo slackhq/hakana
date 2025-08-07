@@ -53,6 +53,7 @@ pub(crate) fn analyze(
                     lhs_expr,
                     analysis_data,
                     context,
+                    true,
                 )?;
 
                 context.inside_general_use = was_inside_general_use;

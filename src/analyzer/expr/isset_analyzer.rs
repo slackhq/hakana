@@ -13,7 +13,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     context.inside_isset = true;
-    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, true,)?;
     context.inside_isset = false;
     analysis_data.copy_effects(expr.pos(), pos);
 

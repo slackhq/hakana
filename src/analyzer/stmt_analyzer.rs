@@ -71,7 +71,7 @@ pub(crate) fn analyze(
 
     match &stmt.1 {
         aast::Stmt_::Expr(boxed) => {
-            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
+            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context, false)?;
 
             if statements_analyzer.get_config().find_unused_expressions {
                 detect_unused_statement_expressions(
@@ -154,7 +154,7 @@ pub(crate) fn analyze(
         aast::Stmt_::Throw(boxed) => {
             context.inside_throw = true;
 
-            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
+            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context, false)?;
 
             context.control_actions.insert(ControlAction::End);
 
@@ -190,6 +190,7 @@ pub(crate) fn analyze(
                     boxed_expr,
                     analysis_data,
                     context,
+                    false,
                 )?;
             }
 
@@ -482,7 +483,7 @@ fn analyze_awaitall(
     }
 
     for (assignment_id, expr) in boxed.0 {
-        expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, false)?;
 
         let mut assignment_type = None;
 

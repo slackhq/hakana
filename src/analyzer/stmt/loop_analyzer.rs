@@ -139,6 +139,7 @@ pub(crate) fn analyze<'a>(
                 post_expression,
                 analysis_data,
                 loop_context,
+                true,
             )?;
         }
         loop_context.inside_loop_exprs = true;
@@ -207,6 +208,7 @@ pub(crate) fn analyze<'a>(
                 post_expression,
                 analysis_data,
                 &mut continue_context,
+                true,
             )?;
         }
         continue_context.inside_loop_exprs = false;
@@ -414,6 +416,7 @@ pub(crate) fn analyze<'a>(
                     post_expression,
                     analysis_data,
                     &mut continue_context,
+                    true,
                 )?;
             }
             continue_context.inside_loop_exprs = false;
@@ -706,6 +709,7 @@ fn apply_pre_condition_to_loop_context(
         pre_condition,
         analysis_data,
         loop_context,
+        true,
     )?;
 
     add_branch_dataflow(statements_analyzer, pre_condition, analysis_data);

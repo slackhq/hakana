@@ -31,7 +31,7 @@ pub(crate) fn analyze(
         HPos::new(call_pos, *statements_analyzer.get_file_path()),
     );
 
-    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, true,)?;
 
     let arg_type = analysis_data.get_expr_type(expr.pos()).cloned();
 

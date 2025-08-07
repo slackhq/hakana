@@ -21,7 +21,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    expression_analyzer::analyze(statements_analyzer, inner_expr, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, inner_expr, analysis_data, context, true,)?;
 
     let expr_type = analysis_data
         .get_rc_expr_type(inner_expr.pos())

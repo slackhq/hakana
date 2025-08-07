@@ -21,14 +21,14 @@ pub(crate) fn analyze(
     context.inside_general_use = true;
 
     if let aast::Afield::AFkvalue(key_expr, _) = &field {
-        expression_analyzer::analyze(statements_analyzer, key_expr, analysis_data, context)?;
+        expression_analyzer::analyze(statements_analyzer, key_expr, analysis_data, context, true)?;
     };
 
     let value_expr = match &field {
         aast::Afield::AFvalue(value_expr) | aast::Afield::AFkvalue(_, value_expr) => value_expr,
     };
 
-    expression_analyzer::analyze(statements_analyzer, value_expr, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, value_expr, analysis_data, context, true)?;
 
     if let Some(expr_type) = analysis_data.get_expr_type(value_expr.pos()) {
         analysis_data.inferred_yield_type = Some(add_optional_union_type(

@@ -155,6 +155,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
                         expr,
                         &mut analysis_data,
                         &mut class_context,
+                        true,
                     )?;
 
                     if codebase.enum_exists(&name) {
@@ -208,6 +209,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
                     default,
                     &mut analysis_data,
                     &mut class_context,
+                    true,
                 )?;
             }
         }

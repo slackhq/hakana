@@ -18,6 +18,7 @@ pub struct AfterExprAnalysisData<'a> {
     pub expr: &'a aast::Expr<(), ()>,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
     pub already_called: bool,
+    pub is_sub_expression: bool,
 }
 
 pub struct AfterStmtAnalysisData<'a> {

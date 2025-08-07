@@ -37,7 +37,7 @@ pub(crate) fn analyze(
 
     context.inside_conditional = true;
 
-    expression_analyzer::analyze(statements_analyzer, stmt.0, analysis_data, context)?;
+    expression_analyzer::analyze(statements_analyzer, stmt.0, analysis_data, context, true,)?;
 
     context.inside_conditional = false;
 

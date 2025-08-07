@@ -238,6 +238,7 @@ pub(crate) fn analyze(
             if_branch,
             analysis_data,
             &mut if_context,
+            true,
         )?;
 
         analysis_data.combine_effects(if_branch.pos(), pos, pos);
@@ -297,6 +298,7 @@ pub(crate) fn analyze(
         expr.2,
         analysis_data,
         &mut temp_else_context,
+        true,
     )?;
 
     analysis_data.combine_effects(expr.2.pos(), pos, pos);
