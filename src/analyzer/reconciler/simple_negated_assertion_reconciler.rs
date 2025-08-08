@@ -1863,6 +1863,10 @@ fn reconcile_not_in_array(
         );
     }
 
+    if rest_type.types.is_empty() {
+        rest_type = get_nothing()
+    }
+
     rest_type
 }
 
