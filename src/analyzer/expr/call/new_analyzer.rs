@@ -396,7 +396,7 @@ fn analyze_named_constructor(
                 let mut param_type = if let Some(type_arg) = expr.1.get(i) {
                     get_type_from_hint(
                         &type_arg.1 .1,
-                        context.function_context.calling_class.as_ref(),
+                        context.function_context.calling_class,
                         statements_analyzer.get_type_resolution_context(),
                         statements_analyzer.file_analyzer.resolved_names,
                         *statements_analyzer.get_file_path(),
@@ -570,7 +570,7 @@ fn analyze_named_constructor(
                     for type_arg in expr.1.iter() {
                         let mut param_type = get_type_from_hint(
                             &type_arg.1 .1,
-                            context.function_context.calling_class.as_ref(),
+                            context.function_context.calling_class,
                             statements_analyzer.get_type_resolution_context(),
                             statements_analyzer.file_analyzer.resolved_names,
                             *statements_analyzer.get_file_path(),

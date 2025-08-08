@@ -162,7 +162,7 @@ pub(crate) fn analyze(
         aast::Expr_::ArrayGet(boxed) => {
             let keyed_array_var_id = expression_identifier::get_var_id(
                 expr,
-                context.function_context.calling_class.as_ref(),
+                context.function_context.calling_class,
                 statements_analyzer.file_analyzer.resolved_names,
                 Some((statements_analyzer.codebase, statements_analyzer.interner)),
             );
@@ -544,8 +544,8 @@ pub(crate) fn find_expr_logic_issues(
     analysis_data: &mut FunctionAnalysisData,
 ) {
     let assertion_context = statements_analyzer.get_assertion_context(
-        context.function_context.calling_class.as_ref(),
-        context.function_context.calling_functionlike_id.as_ref(),
+        context.function_context.calling_class,
+        context.function_context.calling_functionlike_id,
     );
 
     let mut if_context = context.clone();

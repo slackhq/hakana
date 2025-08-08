@@ -26,15 +26,15 @@ use std::sync::Arc;
 use super::{inferred_type_replacer, TemplateBound, TemplateResult};
 
 #[derive(Copy, Clone, Debug)]
-pub struct StandinOpts<'a> {
-    pub calling_class: Option<&'a StrId>,
-    pub calling_function: Option<&'a FunctionLikeIdentifier>,
+pub struct StandinOpts {
+    pub calling_class: Option<StrId>,
+    pub calling_function: Option<FunctionLikeIdentifier>,
     pub add_lower_bound: bool,  // false
     pub iteration_depth: usize, // 1
     pub appearance_depth: usize,
 }
 
-impl<'a> Default for StandinOpts<'a> {
+impl<'a> Default for StandinOpts {
     fn default() -> Self {
         Self {
             calling_class: None,
@@ -46,7 +46,7 @@ impl<'a> Default for StandinOpts<'a> {
     }
 }
 
-pub fn replace<'a>(
+pub fn replace(
     union_type: &TUnion,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
@@ -55,7 +55,7 @@ pub fn replace<'a>(
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
-    opts: StandinOpts<'a>,
+    opts: StandinOpts,
 ) -> TUnion {
     let mut atomic_types = Vec::new();
 
@@ -136,7 +136,7 @@ pub fn replace<'a>(
     return new_union_type;
 }
 
-fn handle_atomic_standin<'a>(
+fn handle_atomic_standin(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
@@ -145,7 +145,7 @@ fn handle_atomic_standin<'a>(
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
-    opts: StandinOpts<'a>,
+    opts: StandinOpts,
     was_single: bool,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
@@ -309,7 +309,7 @@ fn replace_atomic<'a>(
     input_type: Option<TAtomic>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
-    opts: StandinOpts<'a>,
+    opts: StandinOpts,
 ) -> TAtomic {
     let mut atomic_type = atomic_type.clone();
 
@@ -780,7 +780,7 @@ fn handle_template_param_standin<'a>(
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
-    opts: StandinOpts<'a>,
+    opts: StandinOpts,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
     let (param_name, defining_entity, extra_types, as_type) = if let TAtomic::TGenericParam {
@@ -797,7 +797,7 @@ fn handle_template_param_standin<'a>(
     };
 
     if let Some(calling_class) = opts.calling_class {
-        if defining_entity == &GenericParent::ClassLike(*calling_class) {
+        if defining_entity == &GenericParent::ClassLike(calling_class) {
             return vec![atomic_type.clone()];
         }
     }
@@ -899,11 +899,11 @@ fn handle_template_param_standin<'a>(
             {
                 if (opts.calling_class.is_none()
                     || replacement_defining_entity
-                        != &GenericParent::ClassLike(*opts.calling_class.unwrap()))
+                        != &GenericParent::ClassLike(opts.calling_class.unwrap()))
                     && match opts.calling_function {
                         Some(FunctionLikeIdentifier::Function(calling_function)) => {
                             replacement_defining_entity
-                                != &GenericParent::FunctionLike(*calling_function)
+                                != &GenericParent::FunctionLike(calling_function)
                         }
                         Some(FunctionLikeIdentifier::Method(_, _)) => true,
                         Some(_) => {
@@ -1109,7 +1109,7 @@ fn handle_template_param_class_standin<'a>(
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
-    opts: StandinOpts<'a>,
+    opts: StandinOpts,
     was_single: bool,
 ) -> Vec<TAtomic> {
     if let TAtomic::TGenericClassname {
@@ -1121,7 +1121,7 @@ fn handle_template_param_class_standin<'a>(
     {
         let mut atomic_type_as = *as_type.clone();
         if let Some(calling_class) = opts.calling_class {
-            if defining_entity == &GenericParent::ClassLike(*calling_class) {
+            if defining_entity == &GenericParent::ClassLike(calling_class) {
                 return vec![atomic_type.clone()];
             }
         }
@@ -1291,7 +1291,7 @@ fn handle_template_param_type_standin<'a>(
     input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
-    opts: StandinOpts<'a>,
+    opts: StandinOpts,
     was_single: bool,
 ) -> Vec<TAtomic> {
     if let TAtomic::TGenericTypename {
@@ -1303,7 +1303,7 @@ fn handle_template_param_type_standin<'a>(
     {
         let mut atomic_type_as = *as_type.clone();
         if let Some(calling_class) = opts.calling_class {
-            if defining_entity == &GenericParent::ClassLike(*calling_class) {
+            if defining_entity == &GenericParent::ClassLike(calling_class) {
                 return vec![atomic_type.clone()];
             }
         }

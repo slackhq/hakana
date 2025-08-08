@@ -42,8 +42,8 @@ pub(crate) fn analyze(
     );
 
     let assertion_context = statements_analyzer.get_assertion_context(
-        context.function_context.calling_class.as_ref(),
-        context.function_context.calling_functionlike_id.as_ref(),
+        context.function_context.calling_class,
+        context.function_context.calling_functionlike_id,
     );
 
     let mut while_clauses = formula_generator::get_formula(

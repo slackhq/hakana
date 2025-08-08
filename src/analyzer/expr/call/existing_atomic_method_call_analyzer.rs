@@ -194,7 +194,7 @@ pub(crate) fn analyze(
                     None,
                     StandinOpts {
                         calling_class: None,
-                        calling_function: context.function_context.calling_functionlike_id.as_ref(),
+                        calling_function: context.function_context.calling_functionlike_id,
                         ..Default::default()
                     },
                 );
@@ -303,7 +303,7 @@ fn handle_shapes_static_method(
             if call_expr.1.len() == 2 {
                 let expr_var_id = expression_identifier::get_var_id(
                     &call_expr.1[0].to_expr_ref(),
-                    context.function_context.calling_class.as_ref(),
+                    context.function_context.calling_class,
                     statements_analyzer.file_analyzer.resolved_names,
                     Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 );
@@ -343,7 +343,7 @@ fn handle_shapes_static_method(
             if call_expr.1.len() == 2 {
                 let expr_var_id = expression_identifier::get_var_id(
                     &call_expr.1[0].to_expr_ref(),
-                    context.function_context.calling_class.as_ref(),
+                    context.function_context.calling_class,
                     statements_analyzer.file_analyzer.resolved_names,
                     Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 );
@@ -614,7 +614,7 @@ fn handle_defined_shape_idx(
 
     let expr_var_id = expression_identifier::get_var_id(
         &call_expr.1[0].to_expr_ref(),
-        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_class,
         statements_analyzer.file_analyzer.resolved_names,
         Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );

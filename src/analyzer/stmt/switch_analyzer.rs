@@ -37,7 +37,7 @@ pub(crate) fn analyze(
 
     context.inside_conditional = true;
 
-    expression_analyzer::analyze(statements_analyzer, stmt.0, analysis_data, context, true,)?;
+    expression_analyzer::analyze(statements_analyzer, stmt.0, analysis_data, context, true)?;
 
     context.inside_conditional = false;
 
@@ -45,7 +45,7 @@ pub(crate) fn analyze(
 
     let switch_var_id = if let Some(switch_var_id) = expression_identifier::get_var_id(
         stmt.0,
-        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_class,
         statements_analyzer.file_analyzer.resolved_names,
         Some((statements_analyzer.codebase, statements_analyzer.interner)),
     ) {

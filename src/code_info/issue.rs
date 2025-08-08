@@ -76,6 +76,7 @@ pub enum IssueKind {
     MixedPropertyTypeCoercion,
     MixedReturnStatement,
     NoJoinInAsyncFunction,
+    NonExhaustiveSwitchStatement,
     NonExistentClass,
     NonExistentClassConstant,
     NonExistentClasslike,

@@ -1038,12 +1038,12 @@ impl TAtomic {
         }
     }
 
-    pub fn get_shape_name(&self) -> Option<&StrId> {
+    pub fn get_shape_name(&self) -> Option<StrId> {
         match self {
             TAtomic::TDict(TDict {
                 shape_name: Some((shape_name, None)),
                 ..
-            }) => Some(shape_name),
+            }) => Some(*shape_name),
             _ => None,
         }
     }

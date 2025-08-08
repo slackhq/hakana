@@ -1,3 +1,4 @@
+use hakana_algebra::Clause;
 use hakana_code_info::issue::IssueKind;
 
 use hakana_code_info::issue::Issue;
@@ -83,7 +84,7 @@ pub(crate) fn analyze_case(
     let mut case_equality_expr = None;
 
     if let Some(case_cond) = case_cond {
-        expression_analyzer::analyze(statements_analyzer, case_cond, analysis_data, context, true,)?;
+        expression_analyzer::analyze(statements_analyzer, case_cond, analysis_data, context, true)?;
 
         add_branch_dataflow(statements_analyzer, case_cond, analysis_data);
 
@@ -232,25 +233,11 @@ pub(crate) fn analyze_case(
     }
 
     if let Some(leftover_case_equality_expr) = &switch_scope.leftover_case_equality_expr {
-        let case_or_default_equality_expr = case_equality_expr.unwrap_or(aast::Expr(
-            (),
-            switch_condition.pos().clone(),
-            aast::Expr_::Binop(Box::new(Binop {
-                bop: ast_defs::Bop::Eqeqeq,
-                lhs: switch_condition.clone(),
-                rhs: switch_condition.clone(),
-            })),
-        ));
-
-        case_equality_expr = Some(aast::Expr(
-            (),
-            case_or_default_equality_expr.pos().clone(),
-            aast::Expr_::Binop(Box::new(Binop {
-                bop: ast_defs::Bop::Barbar,
-                lhs: leftover_case_equality_expr.clone(),
-                rhs: case_or_default_equality_expr.clone(),
-            })),
-        ));
+        case_equality_expr = expand_case_equality_from_leftovers(
+            switch_condition,
+            case_equality_expr,
+            leftover_case_equality_expr,
+        );
     }
 
     // if let Some(case_equality_expr) = &case_equality_expr {
@@ -263,76 +250,22 @@ pub(crate) fn analyze_case(
     switch_scope.leftover_case_equality_expr = None;
 
     let assertion_context = statements_analyzer.get_assertion_context(
-        context.function_context.calling_class.as_ref(),
-        context.function_context.calling_functionlike_id.as_ref(),
+        context.function_context.calling_class,
+        context.function_context.calling_functionlike_id,
     );
 
-    let case_clauses = if let Some(case_equality_expr) = &case_equality_expr {
-        let id = (
-            case_equality_expr.pos().start_offset() as u32,
-            case_equality_expr.pos().end_offset() as u32,
-        );
+    let (case_clauses_for_negation, case_context_clauses) = get_new_clauses(
+        statements_analyzer,
+        case_cond,
+        analysis_data,
+        context,
+        original_context,
+        switch_scope,
+        &case_equality_expr,
+        &assertion_context,
+    );
 
-        formula_generator::get_formula(
-            id,
-            id,
-            case_equality_expr,
-            &assertion_context,
-            analysis_data,
-            false,
-            false,
-        )
-        .unwrap()
-    } else {
-        vec![]
-    };
-
-    let mut entry_clauses =
-        if !switch_scope.negated_clauses.is_empty() && switch_scope.negated_clauses.len() < 50 {
-            hakana_algebra::simplify_cnf({
-                let mut c = original_context
-                    .clauses
-                    .iter()
-                    .map(|v| &**v)
-                    .collect::<Vec<_>>();
-                c.extend(switch_scope.negated_clauses.iter());
-                c
-            })
-        } else {
-            original_context
-                .clauses
-                .iter()
-                .map(|v| (**v).clone())
-                .collect::<Vec<_>>()
-        };
-
-    case_context.clauses = if !case_clauses.is_empty() {
-        if let Some(case_cond) = case_cond {
-            algebra_analyzer::check_for_paradox(
-                statements_analyzer,
-                &entry_clauses.iter().map(|v| Rc::new(v.clone())).collect(),
-                &case_clauses,
-                analysis_data,
-                case_cond.pos(),
-                &context.function_context.calling_functionlike_id,
-            );
-
-            entry_clauses.extend(case_clauses.clone());
-
-            if entry_clauses.len() < 50 {
-                hakana_algebra::simplify_cnf(entry_clauses.iter().collect())
-            } else {
-                entry_clauses
-            }
-        } else {
-            entry_clauses
-        }
-    } else {
-        entry_clauses
-    }
-    .into_iter()
-    .map(|v| Rc::new(v.clone()))
-    .collect();
+    case_context.clauses = case_context_clauses;
 
     let (reconcilable_if_types, _) = hakana_algebra::get_truths_from_formula(
         case_context.clauses.iter().map(|v| &**v).collect(),
@@ -370,35 +303,36 @@ pub(crate) fn analyze_case(
         }
     }
 
-    if !case_clauses.is_empty() {
+    if !case_clauses_for_negation.is_empty() {
         if let Some(case_equality_expr) = &case_equality_expr {
-            let negated_case_clauses =
-                if let Ok(negated_case_clauses) = hakana_algebra::negate_formula(case_clauses) {
-                    negated_case_clauses
-                } else {
-                    let case_equality_expr_id = (
-                        case_equality_expr.pos().start_offset() as u32,
-                        case_equality_expr.pos().end_offset() as u32,
-                    );
+            let negated_case_clauses = if let Ok(negated_case_clauses) =
+                hakana_algebra::negate_formula(case_clauses_for_negation)
+            {
+                negated_case_clauses
+            } else {
+                let case_equality_expr_id = (
+                    case_equality_expr.pos().start_offset() as u32,
+                    case_equality_expr.pos().end_offset() as u32,
+                );
 
-                    formula_generator::get_formula(
-                        case_equality_expr_id,
-                        case_equality_expr_id,
-                        &aast::Expr(
-                            (),
-                            case_equality_expr.pos().clone(),
-                            aast::Expr_::Unop(Box::new((
-                                ast_defs::Uop::Unot,
-                                case_equality_expr.clone(),
-                            ))),
-                        ),
-                        &assertion_context,
-                        analysis_data,
-                        false,
-                        false,
-                    )
-                    .unwrap_or_default()
-                };
+                formula_generator::get_formula(
+                    case_equality_expr_id,
+                    case_equality_expr_id,
+                    &aast::Expr(
+                        (),
+                        case_equality_expr.pos().clone(),
+                        aast::Expr_::Unop(Box::new((
+                            ast_defs::Uop::Unot,
+                            case_equality_expr.clone(),
+                        ))),
+                    ),
+                    &assertion_context,
+                    analysis_data,
+                    false,
+                    false,
+                )
+                .unwrap_or_default()
+            };
 
             switch_scope.negated_clauses.extend(negated_case_clauses);
         }
@@ -503,6 +437,112 @@ pub(crate) fn analyze_case(
     }
 
     Ok(ControlAction::None)
+}
+
+fn get_new_clauses(
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    case_cond: Option<&aast::Expr<(), ()>>,
+    analysis_data: &mut FunctionAnalysisData,
+    context: &BlockContext,
+    original_context: &BlockContext,
+    switch_scope: &SwitchScope,
+    case_equality_expr: &Option<aast::Expr<(), ()>>,
+    assertion_context: &formula_generator::AssertionContext<'_>,
+) -> (Vec<Clause>, Vec<Rc<Clause>>) {
+    let case_clauses = if let Some(case_equality_expr) = case_equality_expr {
+        let id = (
+            case_equality_expr.pos().start_offset() as u32,
+            case_equality_expr.pos().end_offset() as u32,
+        );
+
+        formula_generator::get_formula(
+            id,
+            id,
+            case_equality_expr,
+            assertion_context,
+            analysis_data,
+            false,
+            false,
+        )
+        .unwrap()
+    } else {
+        vec![]
+    };
+
+    let mut entry_clauses =
+        if !switch_scope.negated_clauses.is_empty() && switch_scope.negated_clauses.len() < 50 {
+            hakana_algebra::simplify_cnf({
+                let mut c = original_context
+                    .clauses
+                    .iter()
+                    .map(|v| &**v)
+                    .collect::<Vec<_>>();
+                c.extend(switch_scope.negated_clauses.iter());
+                c
+            })
+        } else {
+            original_context
+                .clauses
+                .iter()
+                .map(|v| (**v).clone())
+                .collect::<Vec<_>>()
+        };
+
+    let case_context_clauses = if !case_clauses.is_empty() {
+        if let Some(case_cond) = case_cond {
+            algebra_analyzer::check_for_paradox(
+                statements_analyzer,
+                &entry_clauses.iter().map(|v| Rc::new(v.clone())).collect(),
+                &case_clauses,
+                analysis_data,
+                case_cond.pos(),
+                &context.function_context.calling_functionlike_id,
+            );
+
+            entry_clauses.extend(case_clauses.clone());
+
+            if entry_clauses.len() < 50 {
+                hakana_algebra::simplify_cnf(entry_clauses.iter().collect())
+            } else {
+                entry_clauses
+            }
+        } else {
+            entry_clauses
+        }
+    } else {
+        entry_clauses
+    }
+    .into_iter()
+    .map(|v| Rc::new(v.clone()))
+    .collect();
+
+    (case_clauses, case_context_clauses)
+}
+
+fn expand_case_equality_from_leftovers(
+    switch_condition: &aast::Expr<(), ()>,
+    case_equality_expr: Option<aast::Expr<(), ()>>,
+    leftover_case_equality_expr: &aast::Expr<(), ()>,
+) -> Option<aast::Expr<(), ()>> {
+    let case_or_default_equality_expr = case_equality_expr.unwrap_or(aast::Expr(
+        (),
+        switch_condition.pos().clone(),
+        aast::Expr_::Binop(Box::new(Binop {
+            bop: ast_defs::Bop::Eqeqeq,
+            lhs: switch_condition.clone(),
+            rhs: switch_condition.clone(),
+        })),
+    ));
+
+    return Some(aast::Expr(
+        (),
+        case_or_default_equality_expr.pos().clone(),
+        aast::Expr_::Binop(Box::new(Binop {
+            bop: ast_defs::Bop::Barbar,
+            lhs: leftover_case_equality_expr.clone(),
+            rhs: case_or_default_equality_expr.clone(),
+        })),
+    ));
 }
 
 pub(crate) fn handle_non_returning_case(

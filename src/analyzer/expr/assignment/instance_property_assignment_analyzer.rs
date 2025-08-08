@@ -249,7 +249,7 @@ pub(crate) fn analyze_regular_assignment(
 
     let lhs_var_id = expression_identifier::get_var_id(
         stmt_var,
-        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_class,
         statements_analyzer.file_analyzer.resolved_names,
         Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
@@ -487,7 +487,7 @@ pub(crate) fn analyze_atomic_assignment(
     if let Some(declaring_property_class) = declaring_property_class {
         let declaring_classlike_storage = codebase
             .classlike_infos
-            .get(declaring_property_class)
+            .get(&declaring_property_class)
             .unwrap();
 
         if declaring_classlike_storage.immutable && !is_lhs_reference_free {
@@ -495,7 +495,7 @@ pub(crate) fn analyze_atomic_assignment(
                 if let Some(FunctionLikeIdentifier::Method(context_class, StrId::CONSTRUCT)) =
                     context.function_context.calling_functionlike_id
                 {
-                    context_class == *declaring_property_class
+                    context_class == declaring_property_class
                 } else {
                     false
                 };
@@ -548,9 +548,9 @@ pub(crate) fn analyze_atomic_assignment(
                 statements_analyzer.get_file_path(),
                 &mut class_property_type,
                 &TypeExpansionOptions {
-                    self_class: Some(&declaring_classlike_storage.name),
-                    static_class_type: StaticClassType::Name(&declaring_classlike_storage.name),
-                    parent_class: declaring_classlike_storage.direct_parent_class.as_ref(),
+                    self_class: Some(declaring_classlike_storage.name),
+                    static_class_type: StaticClassType::Name(declaring_classlike_storage.name),
+                    parent_class: declaring_classlike_storage.direct_parent_class,
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
@@ -739,7 +739,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         codebase.get_declaring_class_for_property(fq_class_name, &prop_name);
 
     if let Some(declaring_property_class) = declaring_property_class {
-        if declaring_property_class != fq_class_name {
+        if declaring_property_class != *fq_class_name {
             let declaring_property_node = DataFlowNode::get_for_property(*property_id);
 
             analysis_data.data_flow_graph.add_path(

@@ -14,7 +14,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 /** Gets the identifier for a simple variable */
 pub fn get_var_id(
     conditional: &aast::Expr<(), ()>,
-    this_class_name: Option<&StrId>,
+    this_class_name: Option<StrId>,
     resolved_names: &FxHashMap<u32, StrId>,
     codebase: Option<(&CodebaseInfo, &Interner)>,
 ) -> Option<String> {
@@ -41,7 +41,7 @@ pub fn get_var_id(
                             if let Some((codebase, _)) = codebase {
                                 get_id_name(
                                     id,
-                                    &this_class_name.cloned(),
+                                    &this_class_name,
                                     false,
                                     codebase,
                                     &mut false,

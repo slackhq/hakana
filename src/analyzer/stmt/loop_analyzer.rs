@@ -52,11 +52,8 @@ pub(crate) fn analyze<'a>(
 
     if !pre_conditions.is_empty() {
         let assertion_context = statements_analyzer.get_assertion_context(
-            loop_context.function_context.calling_class.as_ref(),
-            loop_context
-                .function_context
-                .calling_functionlike_id
-                .as_ref(),
+            loop_context.function_context.calling_class,
+            loop_context.function_context.calling_functionlike_id,
         );
 
         for pre_condition in &pre_conditions {

@@ -124,7 +124,7 @@ pub(crate) fn scan(
             let template_as_type = if let Some((_, constraint_hint)) = first_constraint {
                 get_type_from_hint(
                     &constraint_hint.1,
-                    Some(class_name),
+                    Some(*class_name),
                     &type_context,
                     resolved_names,
                     file_source.file_path,
@@ -198,7 +198,7 @@ pub(crate) fn scan(
                                 Arc::new(
                                     get_type_from_hint(
                                         &param.1,
-                                        Some(class_name),
+                                        Some(*class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
                                             template_supers: vec![],
@@ -245,7 +245,7 @@ pub(crate) fn scan(
                                     Arc::new(
                                         get_type_from_hint(
                                             &param.1,
-                                            Some(class_name),
+                                            Some(*class_name),
                                             &TypeResolutionContext {
                                                 template_type_map: storage.template_types.clone(),
                                                 template_supers: vec![],
@@ -371,7 +371,7 @@ pub(crate) fn scan(
                                 Arc::new(
                                     get_type_from_hint(
                                         &param.1,
-                                        Some(class_name),
+                                        Some(*class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
                                             template_supers: vec![],
@@ -423,7 +423,7 @@ pub(crate) fn scan(
                                 Arc::new(
                                     get_type_from_hint(
                                         &param.1,
-                                        Some(class_name),
+                                        Some(*class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
                                             template_supers: vec![],
@@ -798,7 +798,7 @@ fn handle_reqs(
                         Arc::new(
                             get_type_from_hint(
                                 &param.1,
-                                Some(class_name),
+                                Some(*class_name),
                                 &TypeResolutionContext {
                                     template_type_map: storage.template_types.clone(),
                                     template_supers: vec![],
@@ -945,7 +945,7 @@ fn visit_class_const_declaration(
     if let Some(supplied_type_hint) = &const_node.type_ {
         provided_type = get_type_from_hint(
             &supplied_type_hint.1,
-            Some(&classlike_storage.name),
+            Some(classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
                 template_supers: vec![],
@@ -1017,7 +1017,7 @@ fn visit_class_typeconst_declaration(
                 Some(
                     get_type_from_hint(
                         &hint.1,
-                        Some(&classlike_storage.name),
+                        Some(classlike_storage.name),
                         &TypeResolutionContext {
                             template_type_map: classlike_storage.template_types.clone(),
                             template_supers: vec![],
@@ -1035,7 +1035,7 @@ fn visit_class_typeconst_declaration(
         aast::ClassTypeconst::TCConcrete(const_node) => ClassConstantType::Concrete(
             get_type_from_hint(
                 &const_node.c_tc_type.1,
-                Some(&classlike_storage.name),
+                Some(classlike_storage.name),
                 &TypeResolutionContext {
                     template_type_map: classlike_storage.template_types.clone(),
                     template_supers: vec![],
@@ -1095,7 +1095,7 @@ fn visit_property_declaration(
     if let Some(property_type_hint) = &property_node.type_.1 {
         property_type = get_type_from_hint(
             &property_type_hint.1,
-            Some(&classlike_storage.name),
+            Some(classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
                 template_supers: vec![],

@@ -312,9 +312,12 @@ impl CodebaseInfo {
         &self,
         fq_class_name: &StrId,
         property_name: &StrId,
-    ) -> Option<&StrId> {
+    ) -> Option<StrId> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
-            return classlike_storage.declaring_property_ids.get(property_name);
+            return classlike_storage
+                .declaring_property_ids
+                .get(property_name)
+                .copied();
         }
 
         None

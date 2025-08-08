@@ -24,17 +24,17 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::ttype::{extend_dataflow_uniquely, get_nothing, template, type_combiner, wrap_atomic};
 
 #[derive(Debug)]
-pub enum StaticClassType<'a, 'b> {
+pub enum StaticClassType<'b> {
     None,
-    Name(&'a StrId),
+    Name(StrId),
     Object(&'b TAtomic),
 }
 
 #[derive(Debug)]
 pub struct TypeExpansionOptions<'a> {
-    pub self_class: Option<&'a StrId>,
-    pub static_class_type: StaticClassType<'a, 'a>,
-    pub parent_class: Option<&'a StrId>,
+    pub self_class: Option<StrId>,
+    pub static_class_type: StaticClassType<'a>,
+    pub parent_class: Option<StrId>,
 
     pub evaluate_class_constants: bool,
     pub evaluate_conditional_types: bool,
@@ -246,7 +246,7 @@ fn expand_atomic(
         if *name == StrId::THIS {
             *name = match options.static_class_type {
                 StaticClassType::None => StrId::THIS,
-                StaticClassType::Name(this_name) => *this_name,
+                StaticClassType::Name(this_name) => this_name,
                 StaticClassType::Object(obj) => {
                     *skip_key = true;
                     new_return_type_parts.push(obj.clone());
@@ -816,8 +816,8 @@ pub fn get_closure_from_id(
                     file_path,
                     data_flow_graph,
                     &TypeExpansionOptions {
-                        self_class: Some(classlike_name),
-                        static_class_type: StaticClassType::Name(classlike_name),
+                        self_class: Some(*classlike_name),
+                        static_class_type: StaticClassType::Name(*classlike_name),
                         ..Default::default()
                     },
                     cost,

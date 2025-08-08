@@ -84,7 +84,7 @@ pub(crate) fn analyze(
 
     let root_var_id = expression_identifier::get_var_id(
         root_array_expr,
-        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_class,
         statements_analyzer.file_analyzer.resolved_names,
         Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
@@ -718,7 +718,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                     format!("[{}]", dim_id)
                 } else if let Some(dim_id) = expression_identifier::get_var_id(
                     dim,
-                    context.function_context.calling_class.as_ref(),
+                    context.function_context.calling_class,
                     statements_analyzer.file_analyzer.resolved_names,
                     Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 ) {
@@ -796,7 +796,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                 &assign_value_type,
                 expression_identifier::get_var_id(
                     array_expr.0,
-                    context.function_context.calling_class.as_ref(),
+                    context.function_context.calling_class,
                     statements_analyzer.file_analyzer.resolved_names,
                     Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 ),
@@ -887,7 +887,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
         let array_expr_id = if let Some(var_var_id) = expression_identifier::get_var_id(
             array_expr.0,
-            context.function_context.calling_class.as_ref(),
+            context.function_context.calling_class,
             statements_analyzer.file_analyzer.resolved_names,
             Some((statements_analyzer.codebase, statements_analyzer.interner)),
         ) {

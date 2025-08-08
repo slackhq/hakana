@@ -530,7 +530,7 @@ fn add_dataflow(
 
         for at in &param_type.types {
             if let Some(shape_name) = at.get_shape_name() {
-                if let Some(t) = codebase.type_definitions.get(shape_name) {
+                if let Some(t) = codebase.type_definitions.get(&shape_name) {
                     if t.shape_field_taints.is_some() {
                         return;
                     }

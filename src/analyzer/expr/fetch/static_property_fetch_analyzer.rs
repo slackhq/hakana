@@ -225,7 +225,7 @@ pub(crate) fn analyze(
     if let Some(property_type) = property_type {
         let declaring_class_storage = codebase
             .classlike_infos
-            .get(declaring_property_class)
+            .get(&declaring_property_class)
             .unwrap();
         let parent_class = declaring_class_storage.direct_parent_class;
 
@@ -236,9 +236,9 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path(),
             &mut inserted_type,
             &TypeExpansionOptions {
-                self_class: Some(&declaring_class_storage.name),
-                static_class_type: StaticClassType::Name(&declaring_class_storage.name),
-                parent_class: parent_class.as_ref(),
+                self_class: Some(declaring_class_storage.name),
+                static_class_type: StaticClassType::Name(declaring_class_storage.name),
+                parent_class: parent_class,
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -281,7 +281,13 @@ fn analyze_variable_static_property_fetch(
         let was_inside_general_use = context.inside_general_use;
         context.inside_general_use = true;
 
-        expression_analyzer::analyze(statements_analyzer, stmt_class_expr, analysis_data, context, true)?;
+        expression_analyzer::analyze(
+            statements_analyzer,
+            stmt_class_expr,
+            analysis_data,
+            context,
+            true,
+        )?;
 
         context.inside_general_use = was_inside_general_use;
         analysis_data.get_expr_type(stmt_class_expr.pos()).cloned()

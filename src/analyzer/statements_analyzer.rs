@@ -118,8 +118,8 @@ impl<'a> StatementsAnalyzer<'a> {
     #[inline]
     pub(crate) fn get_assertion_context(
         &self,
-        this_class_name: Option<&'a StrId>,
-        calling_functionlike_id: Option<&'a FunctionLikeIdentifier>,
+        this_class_name: Option<StrId>,
+        calling_functionlike_id: Option<FunctionLikeIdentifier>,
     ) -> AssertionContext<'a> {
         AssertionContext {
             file_source: &self.file_analyzer.file_source,
@@ -129,9 +129,9 @@ impl<'a> StatementsAnalyzer<'a> {
             type_resolution_context: self.type_resolution_context,
             reference_source: match calling_functionlike_id {
                 Some(functionlike_id) => match functionlike_id {
-                    FunctionLikeIdentifier::Function(name) => ReferenceSource::Symbol(false, *name),
+                    FunctionLikeIdentifier::Function(name) => ReferenceSource::Symbol(false, name),
                     FunctionLikeIdentifier::Method(a, b) => {
-                        ReferenceSource::ClasslikeMember(false, *a, *b)
+                        ReferenceSource::ClasslikeMember(false, a, b)
                     }
                     _ => {
                         panic!()

@@ -44,7 +44,13 @@ pub(crate) fn analyze(
 
     let mut inferred_return_type = if let Some(return_expr) = return_expr {
         context.inside_return = true;
-        expression_analyzer::analyze(statements_analyzer, return_expr, analysis_data, context, true)?;
+        expression_analyzer::analyze(
+            statements_analyzer,
+            return_expr,
+            analysis_data,
+            context,
+            true,
+        )?;
         context.inside_return = false;
 
         if let Some(mut inferred_return_type) = analysis_data.get_expr_type(&return_expr.1).cloned()
@@ -111,10 +117,10 @@ pub(crate) fn analyze(
         statements_analyzer.get_file_path(),
         &mut inferred_return_type,
         &TypeExpansionOptions {
-            self_class: context.function_context.calling_class.as_ref(),
+            self_class: context.function_context.calling_class,
             static_class_type: if let Some(calling_class) = &context.function_context.calling_class
             {
-                StaticClassType::Name(calling_class)
+                StaticClassType::Name(*calling_class)
             } else {
                 StaticClassType::None
             },
@@ -174,11 +180,11 @@ pub(crate) fn analyze(
             &statements_analyzer.file_analyzer.file_source.file_path,
             &mut expected_type,
             &TypeExpansionOptions {
-                self_class: context.function_context.calling_class.as_ref(),
+                self_class: context.function_context.calling_class,
                 static_class_type: if let Some(calling_class) =
                     &context.function_context.calling_class
                 {
-                    StaticClassType::Name(calling_class)
+                    StaticClassType::Name(*calling_class)
                 } else {
                     StaticClassType::None
                 },
@@ -328,7 +334,7 @@ pub(crate) fn analyze(
                                 "The type {} is more general than the declared return type {} for {}",
                                 inferred_return_type.get_id(Some(interner)),
                                 expected_return_type.get_id(Some(interner)),
-                                context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
+                                context.function_context.calling_functionlike_id.unwrap().to_string(interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
                             &context.function_context.calling_functionlike_id,
@@ -350,7 +356,7 @@ pub(crate) fn analyze(
                                         "The type {} is more general than the declared return type {} for {}",
                                         inferred_return_type.get_id(Some(interner)),
                                         expected_return_type.get_id(Some(interner)),
-                                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
+                                        context.function_context.calling_functionlike_id.unwrap().to_string(interner)
                                     ),
                                     statements_analyzer.get_hpos(&return_expr.1),
                                     &context.function_context.calling_functionlike_id,
@@ -369,7 +375,7 @@ pub(crate) fn analyze(
                                 "The type {} is more general than the declared return type {} for {}",
                                 inferred_return_type.get_id(Some(interner)),
                                 expected_return_type.get_id(Some(interner)),
-                                context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
+                                context.function_context.calling_functionlike_id.unwrap().to_string(interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
                             &context.function_context.calling_functionlike_id,
@@ -450,7 +456,7 @@ pub(crate) fn analyze(
                     format!(
                         "The declared return type {} for {} is not nullable, but the function returns {}",
                         expected_return_type.get_id(Some(interner)),
-                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner),
+                        context.function_context.calling_functionlike_id.unwrap().to_string(interner),
                         inferred_return_type.get_id(Some(interner)),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
@@ -471,7 +477,7 @@ pub(crate) fn analyze(
                     format!(
                         "The declared return type {} for {} is not falsable, but the function returns {}",
                         expected_return_type.get_id(Some(interner)),
-                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner),
+                        context.function_context.calling_functionlike_id.unwrap().to_string(interner),
                         inferred_return_type.get_id(Some(interner)),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
@@ -589,7 +595,7 @@ fn handle_dataflow(
 
         for at in &inferred_type.types {
             if let Some(shape_name) = at.get_shape_name() {
-                if let Some(t) = codebase.type_definitions.get(shape_name) {
+                if let Some(t) = codebase.type_definitions.get(&shape_name) {
                     if t.shape_field_taints.is_some() {
                         return;
                     }

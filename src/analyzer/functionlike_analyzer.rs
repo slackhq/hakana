@@ -390,7 +390,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         );
                 }
 
-                let calling_class = context.function_context.calling_class.as_ref().unwrap();
+                let calling_class = context.function_context.calling_class.unwrap();
 
                 type_expander::expand_union(
                     self.file_analyzer.codebase,
@@ -735,11 +735,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 statements_analyzer.get_file_path(),
                 &mut expected_return_type,
                 &TypeExpansionOptions {
-                    self_class: context.function_context.calling_class.as_ref(),
+                    self_class: context.function_context.calling_class,
                     static_class_type: if let Some(calling_class) =
                         &context.function_context.calling_class
                     {
-                        StaticClassType::Name(calling_class)
+                        StaticClassType::Name(*calling_class)
                     } else {
                         StaticClassType::None
                     },
@@ -1026,7 +1026,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     param_type.clone()
                 } else {
                     let mut param_type = param_type.clone();
-                    let calling_class = context.function_context.calling_class.as_ref();
+                    let calling_class = context.function_context.calling_class;
 
                     type_expander::expand_union(
                         self.file_analyzer.codebase,
@@ -1104,7 +1104,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             };
 
             if let tast::FunParamInfo::ParamOptional(Some(default)) = &param_node.info {
-                expression_analyzer::analyze(statements_analyzer, default, analysis_data, context, true)?;
+                expression_analyzer::analyze(
+                    statements_analyzer,
+                    default,
+                    analysis_data,
+                    context,
+                    true,
+                )?;
             }
 
             if param.is_variadic {

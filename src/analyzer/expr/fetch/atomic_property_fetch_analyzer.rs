@@ -133,7 +133,7 @@ pub(crate) fn analyze(
         .symbol_references
         .add_reference_to_class_member(
             &context.function_context,
-            (*declaring_property_class, prop_name),
+            (declaring_property_class, prop_name),
             false,
         );
 
@@ -147,7 +147,7 @@ pub(crate) fn analyze(
         statements_analyzer,
         &classlike_name,
         &prop_name,
-        declaring_property_class,
+        &declaring_property_class,
         lhs_type_part,
         analysis_data,
     );
@@ -184,7 +184,7 @@ pub(crate) fn analyze(
             class_property_type,
             in_assignment,
             &property_id,
-            declaring_property_class,
+            &declaring_property_class,
             lhs_var_id,
         );
     }
@@ -229,9 +229,9 @@ fn get_class_property_type(
             &statements_analyzer.file_analyzer.file_source.file_path,
             &mut class_property_type,
             &TypeExpansionOptions {
-                self_class: Some(&declaring_class_storage.name),
+                self_class: Some(declaring_class_storage.name),
                 static_class_type: StaticClassType::Object(&lhs_type_part),
-                parent_class: parent_class.as_ref(),
+                parent_class: parent_class,
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -264,9 +264,9 @@ fn get_class_property_type(
                         &statements_analyzer.file_analyzer.file_source.file_path,
                         &mut class_property_type,
                         &TypeExpansionOptions {
-                            self_class: Some(&declaring_class_storage.name),
+                            self_class: Some(declaring_class_storage.name),
                             static_class_type: StaticClassType::Object(&lhs_type_part),
-                            parent_class: parent_class.as_ref(),
+                            parent_class: parent_class,
                             where_constraints: if functionlike_storage.where_constraints.is_empty()
                             {
                                 None
@@ -303,7 +303,7 @@ pub(crate) fn localize_property_type(
         analysis_data,
         statements_analyzer.get_file_path(),
         Some(property_declaring_class_storage),
-        Some(&property_declaring_class_storage.name),
+        Some(property_declaring_class_storage.name),
         Some(property_class_storage),
         &property_class_storage.template_types,
         &IndexMap::new(),

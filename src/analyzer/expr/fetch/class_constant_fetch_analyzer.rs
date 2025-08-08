@@ -285,7 +285,7 @@ fn analyse_known_class_constant(
             &TypeExpansionOptions {
                 evaluate_conditional_types: true,
                 expand_generic: true,
-                self_class: Some(classlike_name),
+                self_class: Some(*classlike_name),
                 static_class_type: StaticClassType::Object(&this_class),
                 parent_class: None,
                 ..Default::default()

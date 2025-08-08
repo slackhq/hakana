@@ -76,7 +76,7 @@ pub(crate) fn check_arguments_match(
         for (i, type_arg) in type_args.iter().enumerate() {
             let mut param_type = get_type_from_hint(
                 &type_arg.1 .1,
-                context.function_context.calling_class.as_ref(),
+                context.function_context.calling_class,
                 statements_analyzer.get_type_resolution_context(),
                 statements_analyzer.file_analyzer.resolved_names,
                 *statements_analyzer.get_file_path(),
@@ -258,7 +258,13 @@ pub(crate) fn check_arguments_match(
 
         // don't analyse closures here
         if !matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
-            expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context, false)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                arg_expr,
+                analysis_data,
+                context,
+                false,
+            )?;
         }
 
         if !was_inside_call {
@@ -324,7 +330,13 @@ pub(crate) fn check_arguments_match(
                 &param_type,
             );
 
-            expression_analyzer::analyze(statements_analyzer, arg_expr, analysis_data, context, false)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                arg_expr,
+                analysis_data,
+                context,
+                false,
+            )?;
 
             arg_value_type = analysis_data
                 .get_expr_type(arg_expr.pos())
@@ -397,7 +409,13 @@ pub(crate) fn check_arguments_match(
 
         last_param_type = Some(param_type.clone());
 
-        expression_analyzer::analyze(statements_analyzer, unpacked_arg, analysis_data, context, false)?;
+        expression_analyzer::analyze(
+            statements_analyzer,
+            unpacked_arg,
+            analysis_data,
+            context,
+            false,
+        )?;
     }
 
     let function_params = &functionlike_info.params;
@@ -725,10 +743,10 @@ fn adjust_param_type(
                                 if *method_name == StrId::CONSTRUCT {
                                     None
                                 } else {
-                                    Some(calling_class)
+                                    Some(*calling_class)
                                 }
                             } else {
-                                Some(calling_class)
+                                Some(*calling_class)
                             }
                         } else {
                             None
@@ -736,7 +754,7 @@ fn adjust_param_type(
                     } else {
                         None
                     },
-                    calling_function: context.function_context.calling_functionlike_id.as_ref(),
+                    calling_function: context.function_context.calling_functionlike_id,
                     ..Default::default()
                 },
             );
@@ -803,7 +821,7 @@ fn get_param_type(
                 &mut param_type,
                 &TypeExpansionOptions {
                     self_class: if let Some(classlike_storage) = class_storage {
-                        Some(&classlike_storage.name)
+                        Some(classlike_storage.name)
                     } else {
                         None
                     },
@@ -813,7 +831,7 @@ fn get_param_type(
                         if let Some(calling_static_type) = calling_static_type {
                             StaticClassType::Object(calling_static_type)
                         } else {
-                            StaticClassType::Name(&calling_class_storage.name)
+                            StaticClassType::Name(calling_class_storage.name)
                         }
                     } else {
                         StaticClassType::None
@@ -889,7 +907,7 @@ fn handle_closure_arg(
         None,
         StandinOpts {
             calling_class: None,
-            calling_function: context.function_context.calling_functionlike_id.as_ref(),
+            calling_function: context.function_context.calling_functionlike_id,
             ..Default::default()
         },
     );
@@ -1025,8 +1043,8 @@ fn map_class_generic_params(
         Some(argument_offset),
         None,
         StandinOpts {
-            calling_class: context.function_context.calling_class.as_ref(),
-            calling_function: context.function_context.calling_functionlike_id.as_ref(),
+            calling_class: context.function_context.calling_class,
+            calling_function: context.function_context.calling_functionlike_id,
             ..Default::default()
         },
     );
@@ -1042,8 +1060,8 @@ fn map_class_generic_params(
             Some(argument_offset),
             None,
             StandinOpts {
-                calling_class: context.function_context.calling_class.as_ref(),
-                calling_function: context.function_context.calling_functionlike_id.as_ref(),
+                calling_class: context.function_context.calling_class,
+                calling_function: context.function_context.calling_functionlike_id,
                 ..Default::default()
             },
         );
@@ -1076,7 +1094,7 @@ pub(crate) fn evaluate_arbitrary_param(
     if is_inout {
         let var_id = get_var_id(
             arg.to_expr_ref(),
-            context.function_context.calling_class.as_ref(),
+            context.function_context.calling_class,
             statements_analyzer.file_analyzer.resolved_names,
             Some((statements_analyzer.codebase, statements_analyzer.interner)),
         );
@@ -1154,10 +1172,10 @@ fn handle_possibly_matching_inout_param(
             Some(argument_offset),
             None,
             StandinOpts {
-                calling_class: context.function_context.calling_class.as_ref(),
+                calling_class: context.function_context.calling_class,
                 calling_function: if let Some(m) = &context.function_context.calling_functionlike_id
                 {
-                    Some(m)
+                    Some(*m)
                 } else {
                     None
                 },
@@ -1178,12 +1196,12 @@ fn handle_possibly_matching_inout_param(
         &mut inout_type,
         &TypeExpansionOptions {
             self_class: if let Some(classlike_storage) = classlike_storage {
-                Some(&classlike_storage.name)
+                Some(classlike_storage.name)
             } else {
                 None
             },
             static_class_type: if let Some(calling_class_storage) = calling_classlike_storage {
-                StaticClassType::Name(&calling_class_storage.name)
+                StaticClassType::Name(calling_class_storage.name)
             } else {
                 StaticClassType::None
             },
@@ -1327,7 +1345,7 @@ fn refine_template_result_for_functionlike(
         file_path,
         classlike_storage,
         if let Some(method_call_info) = method_call_info {
-            Some(&method_call_info.self_fq_classlike_name)
+            Some(method_call_info.self_fq_classlike_name)
         } else {
             None
         },
@@ -1353,7 +1371,7 @@ pub(crate) fn get_template_types_for_class_member(
     analysis_data: &mut FunctionAnalysisData,
     file_path: &FilePath,
     declaring_classlike_storage: Option<&ClassLikeInfo>,
-    appearing_class_name: Option<&StrId>,
+    appearing_class_name: Option<StrId>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     existing_template_types: &[(StrId, Vec<(GenericParent, Arc<TUnion>)>)],
     class_template_params: &IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
@@ -1467,7 +1485,7 @@ pub(crate) fn get_template_types_for_class_member(
                                 static_class_type: if let Some(calling_class_storage) =
                                     calling_classlike_storage
                                 {
-                                    StaticClassType::Name(&calling_class_storage.name)
+                                    StaticClassType::Name(calling_class_storage.name)
                                 } else {
                                     StaticClassType::None
                                 },

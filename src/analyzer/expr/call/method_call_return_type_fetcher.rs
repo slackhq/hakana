@@ -90,8 +90,8 @@ pub(crate) fn fetch(
             statements_analyzer.get_file_path(),
             &mut return_type_candidate,
             &TypeExpansionOptions {
-                self_class: Some(&method_id.0),
-                parent_class: classlike_storage.direct_parent_class.as_ref(),
+                self_class: Some(method_id.0),
+                parent_class: classlike_storage.direct_parent_class,
                 function_is_final: method_storage.is_final,
                 expand_generic: true,
                 ..Default::default()
@@ -113,7 +113,7 @@ pub(crate) fn fetch(
         &statements_analyzer.file_analyzer.file_source.file_path,
         &mut return_type_candidate,
         &TypeExpansionOptions {
-            self_class: Some(&method_id.0),
+            self_class: Some(method_id.0),
             static_class_type: match lhs_type_part {
                 TAtomic::TNamedObject { .. } | TAtomic::TGenericParam { .. } => {
                     type_expander::StaticClassType::Object(lhs_type_part)
@@ -123,7 +123,7 @@ pub(crate) fn fetch(
                 }
                 _ => type_expander::StaticClassType::None,
             },
-            parent_class: classlike_storage.direct_parent_class.as_ref(),
+            parent_class: classlike_storage.direct_parent_class,
             function_is_final: method_storage.is_final,
             expand_generic: true,
             ..Default::default()

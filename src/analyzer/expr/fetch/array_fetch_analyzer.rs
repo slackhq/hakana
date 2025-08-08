@@ -39,7 +39,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let extended_var_id = expression_identifier::get_var_id(
         expr.0,
-        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_class,
         statements_analyzer.file_analyzer.resolved_names,
         Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
@@ -566,7 +566,7 @@ fn unset_array_item(
 ) {
     if let Some(expr_var_id) = expression_identifier::get_var_id(
         &lhs,
-        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_class,
         statements_analyzer.file_analyzer.resolved_names,
         Some((statements_analyzer.codebase, statements_analyzer.interner)),
     ) {

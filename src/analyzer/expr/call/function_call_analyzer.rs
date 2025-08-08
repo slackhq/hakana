@@ -273,7 +273,7 @@ pub(crate) fn analyze(
         StrId::LIB_C_IS_EMPTY => {
             let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].to_expr_ref(),
-                context.function_context.calling_class.as_ref(),
+                context.function_context.calling_class,
                 resolved_names,
                 Some((statements_analyzer.codebase, statements_analyzer.interner)),
             );
@@ -290,7 +290,7 @@ pub(crate) fn analyze(
         | StrId::LIB_DICT_CONTAINS_KEY => {
             let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].to_expr_ref(),
-                context.function_context.calling_class.as_ref(),
+                context.function_context.calling_class,
                 resolved_names,
                 Some((statements_analyzer.codebase, statements_analyzer.interner)),
             );
@@ -377,7 +377,7 @@ pub(crate) fn analyze(
             if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                 let second_arg_var_id = expression_identifier::get_var_id(
                     &expr.2[1].to_expr_ref(),
-                    context.function_context.calling_class.as_ref(),
+                    context.function_context.calling_class,
                     resolved_names,
                     Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 );
@@ -405,7 +405,7 @@ pub(crate) fn analyze(
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(
                         &expr.2[0].to_expr_ref(),
-                        context.function_context.calling_class.as_ref(),
+                        context.function_context.calling_class,
                         resolved_names,
                         Some((statements_analyzer.codebase, statements_analyzer.interner)),
                     );
@@ -447,7 +447,7 @@ pub(crate) fn analyze(
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(
                         &expr.2[0].to_expr_ref(),
-                        context.function_context.calling_class.as_ref(),
+                        context.function_context.calling_class,
                         resolved_names,
                         Some((statements_analyzer.codebase, statements_analyzer.interner)),
                     );
@@ -600,8 +600,8 @@ fn process_invariant(
     analysis_data: &mut FunctionAnalysisData,
 ) {
     let assertion_context = statements_analyzer.get_assertion_context(
-        context.function_context.calling_class.as_ref(),
-        context.function_context.calling_functionlike_id.as_ref(),
+        context.function_context.calling_class,
+        context.function_context.calling_functionlike_id,
     );
     // todo support $a = !($b || $c)
     let var_object_id = (

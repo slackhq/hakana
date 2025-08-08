@@ -64,7 +64,7 @@ pub(crate) fn analyze(
 
     let var_id = get_var_id(
         assign_var,
-        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_class,
         statements_analyzer.file_analyzer.resolved_names,
         Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
@@ -407,7 +407,7 @@ fn analyze_list_assignment(
     for (offset, assign_var_item) in expressions.iter().enumerate() {
         let list_var_id = expression_identifier::get_var_id(
             assign_var_item,
-            context.function_context.calling_class.as_ref(),
+            context.function_context.calling_class,
             statements_analyzer.file_analyzer.resolved_names,
             Some((statements_analyzer.codebase, statements_analyzer.interner)),
         );
@@ -472,7 +472,7 @@ fn analyze_list_assignment(
         if let Some(source_expr) = source_expr {
             let source_expr_id = expression_identifier::get_var_id(
                 source_expr,
-                context.function_context.calling_class.as_ref(),
+                context.function_context.calling_class,
                 statements_analyzer.file_analyzer.resolved_names,
                 Some((statements_analyzer.codebase, statements_analyzer.interner)),
             );
@@ -681,8 +681,8 @@ fn handle_assignment_with_boolean_logic(
     );
 
     let assertion_context = statements_analyzer.get_assertion_context(
-        context.function_context.calling_class.as_ref(),
-        context.function_context.calling_functionlike_id.as_ref(),
+        context.function_context.calling_class,
+        context.function_context.calling_functionlike_id,
     );
 
     let right_clauses = formula_generator::get_formula(

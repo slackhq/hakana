@@ -137,7 +137,7 @@ pub(crate) fn analyze<'expr>(
         let codebase = statements_analyzer.codebase;
         let mut hint_type = get_type_from_hint(
             &hint.1,
-            context.function_context.calling_class.as_ref(),
+            context.function_context.calling_class,
             statements_analyzer.get_type_resolution_context(),
             statements_analyzer.file_analyzer.resolved_names,
             *statements_analyzer.get_file_path(),
@@ -163,7 +163,7 @@ pub(crate) fn analyze<'expr>(
                 statements_analyzer.get_file_path(),
                 &mut hint_type,
                 &TypeExpansionOptions {
-                    self_class: context.function_context.calling_class.as_ref(),
+                    self_class: context.function_context.calling_class,
                     ..Default::default()
                 },
                 &mut DataFlowGraph::new(GraphKind::FunctionBody),

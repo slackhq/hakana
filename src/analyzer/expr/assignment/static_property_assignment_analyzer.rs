@@ -189,9 +189,9 @@ pub(crate) fn analyze(
                     &statements_analyzer.file_analyzer.file_source.file_path,
                     &mut class_property_type,
                     &TypeExpansionOptions {
-                        self_class: Some(&declaring_class_storage.name),
-                        static_class_type: StaticClassType::Name(&declaring_class_storage.name),
-                        parent_class: declaring_class_storage.direct_parent_class.as_ref(),
+                        self_class: Some(declaring_class_storage.name),
+                        static_class_type: StaticClassType::Name(declaring_class_storage.name),
+                        parent_class: declaring_class_storage.direct_parent_class,
                         ..Default::default()
                     },
                     &mut analysis_data.data_flow_graph,
@@ -230,7 +230,7 @@ pub(crate) fn analyze(
                             "{}::${} with declared type {}, cannot be assigned type {}",
                             statements_analyzer
                                 .interner
-                                .lookup(declaring_property_class),
+                                .lookup(&declaring_property_class),
                             statements_analyzer.interner.lookup(&property_id.1),
                             class_property_type.get_id(Some(statements_analyzer.interner)),
                             assign_value_type.get_id(Some(statements_analyzer.interner)),
