@@ -6,6 +6,7 @@ use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::ReferenceSource;
 use hakana_code_info::t_atomic::DictKey;
+use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::type_expander::{self, TypeExpansionOptions};
@@ -539,6 +540,28 @@ fn scrape_function_assertions(
                     );
                 } else {
                     if_types.insert(first_var_name.clone(), vec![vec![Assertion::IsIsset]]);
+                }
+            }
+        }
+    } else if function_name == &StrId::IN_ARRAY {
+        let (first_arg, first_var_name, _) = firsts.unwrap();
+        if let (Some(first_var_name), Some(second_arg)) = (first_var_name, args.get(1)) {
+            if let aast::Expr_::ValCollection(vals) = &second_arg.to_expr_ref().2 {
+                let mut in_arr_types = vec![];
+                for val_expr in &vals.2 {
+                    let val_expr_type = analysis_data.get_expr_type(val_expr.pos());
+
+                    if let Some(val_expr_type) = val_expr_type {
+                        in_arr_types.extend(val_expr_type.types.clone());
+                    }
+                }
+
+                let union = TUnion::new(in_arr_types);
+                if matches!(first_arg, aast::Expr((), _, aast::Expr_::Lvar(_))) {
+                    if_types.insert(
+                        first_var_name.clone(),
+                        vec![vec![Assertion::InArray(union)]],
+                    );
                 }
             }
         }

@@ -352,7 +352,7 @@ fn handle_negated_class(
     }
 }
 
-fn handle_literal_negated_equality(
+pub(crate) fn handle_literal_negated_equality(
     assertion: &Assertion,
     existing_var_type: &TUnion,
     key: Option<&VarName>,

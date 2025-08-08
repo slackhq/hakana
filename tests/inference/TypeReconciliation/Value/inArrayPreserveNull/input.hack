@@ -1,5 +1,5 @@
 function x(?string $foo): void {
-    if (!in_array($foo, vec["foo", "bar", null], true)) {
+    if (!C\contains(vec["foo", "bar", null], $foo)) {
         throw new Exception();
     }
 

@@ -1,18 +1,17 @@
 use super::assertion_reconciler::intersect_union_with_atomic;
 use super::simple_assertion_reconciler::get_acceptable_type;
+use crate::reconciler::negated_assertion_reconciler::handle_literal_negated_equality;
 use crate::{
     function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
     statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::ttype::{
-    comparison::union_type_comparator, get_mixed_any, get_nothing, get_null, intersect_union_types_simple,
-    wrap_atomic,
+    comparison::union_type_comparator, get_nothing, get_null, wrap_atomic,
 };
 use hakana_code_info::var_name::VarName;
 use hakana_code_info::{
     assertion::Assertion,
-    codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
@@ -280,8 +279,6 @@ pub(crate) fn reconcile(
             reconcile_no_nonnull_entry_for_key(existing_var_type, key_name),
         ),
         Assertion::NotInArray(typed_value) => Some(reconcile_not_in_array(
-            statements_analyzer.codebase,
-            assertion,
             existing_var_type,
             key,
             negated,
@@ -1838,8 +1835,6 @@ fn reconcile_not_exactly_countable(
 }
 
 fn reconcile_not_in_array(
-    codebase: &CodebaseInfo,
-    assertion: &Assertion,
     existing_var_type: &TUnion,
     key: Option<&VarName>,
     negated: bool,
@@ -1850,30 +1845,25 @@ fn reconcile_not_in_array(
     suppressed_issues: &FxHashMap<String, usize>,
     typed_value: &TUnion,
 ) -> TUnion {
-    let intersection = intersect_union_types_simple(typed_value, existing_var_type, codebase);
+    let mut rest_type = existing_var_type.clone();
 
-    if intersection.is_some() {
-        return existing_var_type.clone();
+    for a in &typed_value.types {
+        let sub_assertion = Assertion::IsNotEqual(a.clone());
+        rest_type = handle_literal_negated_equality(
+            &sub_assertion,
+            &rest_type,
+            key,
+            statements_analyzer,
+            analysis_data,
+            "".to_string(),
+            pos,
+            calling_functionlike_id,
+            negated,
+            suppressed_issues,
+        );
     }
 
-    if let Some(key) = key {
-        if let Some(pos) = pos {
-            trigger_issue_for_impossible(
-                analysis_data,
-                statements_analyzer,
-                &existing_var_type.get_id(Some(statements_analyzer.interner)),
-                key,
-                assertion,
-                true,
-                negated,
-                pos,
-                calling_functionlike_id,
-                suppressed_issues,
-            );
-        }
-    }
-
-    get_mixed_any()
+    rest_type
 }
 
 fn reconcile_no_array_key(

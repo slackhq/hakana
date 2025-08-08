@@ -183,7 +183,7 @@ pub fn get_static_functionlike_id_from_call(
             let name = if boxed_id.1 == "isset" {
                 StrId::ISSET
             } else if boxed_id.1 == "\\in_array" {
-                interner.get("in_array").unwrap()
+                StrId::IN_ARRAY
             } else if let Some(resolved_name) =
                 resolved_names.get(&(boxed_id.0.start_offset() as u32))
             {
