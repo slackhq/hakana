@@ -157,6 +157,7 @@ pub enum IssueKind {
     UnusedXhpAttribute,
     UpcastAwaitable,
     UselessControlFlow,
+    UselessDefaultCase,
     AwaitVariableDefinedOutsideIf,
     VariableDefinedOutsideIf,
 }

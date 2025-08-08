@@ -561,7 +561,7 @@ pub(crate) fn handle_non_returning_case(
             if switch_type.is_nothing() {
                 analysis_data.maybe_add_issue(
                     Issue::new(
-                        IssueKind::ParadoxicalCondition,
+                        IssueKind::UselessDefaultCase,
                         "All possible case statements have been met, default is impossible here"
                             .to_string(),
                         statements_analyzer.get_hpos(case_pos),

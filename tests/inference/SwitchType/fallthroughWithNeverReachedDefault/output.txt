@@ -1,1 +1,1 @@
-ParadoxicalCondition
+ERROR: UselessDefaultCase - input.hack:15:5 - All possible case statements have been met, default is impossible here
