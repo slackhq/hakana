@@ -729,7 +729,15 @@ impl PartialEq for TUnion {
         }
 
         if len == 0 {
+            // do nothing
+        } else if len == 1 {
             if self.types[0] != other.types[0] {
+                return false;
+            }
+        } else if len == 2 {
+            if (self.types[0] != other.types[0] || self.types[1] != other.types[1])
+                && (self.types[0] != other.types[1] || self.types[1] != other.types[0])
+            {
                 return false;
             }
         } else {
