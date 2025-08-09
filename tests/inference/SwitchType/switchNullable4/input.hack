@@ -3,5 +3,7 @@ function foo(?string $s, string $a, string $b) : void {
         case $a:
         case $b:
             break;
+        case null:
+            break;
     }
 }

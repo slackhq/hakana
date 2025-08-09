@@ -1,0 +1,1 @@
+ERROR: NonExhaustiveSwitchStatement - input.hack:9:17 - Switch statement doesn’t cover the following literal type(s): int(3)

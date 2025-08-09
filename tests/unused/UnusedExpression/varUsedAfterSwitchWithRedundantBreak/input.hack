@@ -9,6 +9,9 @@ function foo(?string $s) : void {
         case "goodbye":
             throw new Exception('bad');
             break;
+        case null:
+            $a = 3;
+            break;
     }
     echo $a;
 }

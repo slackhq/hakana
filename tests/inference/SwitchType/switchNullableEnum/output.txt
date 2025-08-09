@@ -1,1 +1,1 @@
-ERROR: NonExhaustiveSwitchStatement - input.hack:8:13 - Switch statement doesn’t cover the following type(s): ?Foo::C
+ERROR: NonExhaustiveSwitchStatement - input.hack:8:13 - Switch statement doesn’t cover the following literal type(s): ?Foo::C

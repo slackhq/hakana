@@ -1,7 +1,6 @@
 use hakana_code_info::{
     assertion::Assertion,
     issue::{Issue, IssueKind},
-    t_atomic::TAtomic,
     t_union::TUnion,
     ttype::{combine_union_types, get_mixed_any},
     var_name::VarName,
@@ -187,17 +186,20 @@ pub(crate) fn analyze(
                     &FxHashMap::default(),
                 );
 
-                if new_switch_type
+                let literal_types = new_switch_type
                     .types
-                    .iter()
-                    .any(|a| matches!(a, TAtomic::TEnumLiteralCase { .. }))
-                {
+                    .into_iter()
+                    .filter(|a| a.is_literal())
+                    .collect::<Vec<_>>();
+
+                if !literal_types.is_empty() {
+                    let literal_type = TUnion::new(literal_types);
                     analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::NonExhaustiveSwitchStatement,
                             format!(
-                                "Switch statement doesn’t cover the following type(s): {}",
-                                new_switch_type.get_id(Some(statements_analyzer.interner))
+                                "Switch statement doesn’t cover the following literal type(s): {}",
+                                literal_type.get_id(Some(statements_analyzer.interner))
                             ),
                             statements_analyzer.get_hpos(stmt.0.pos()),
                             &context.function_context.calling_functionlike_id,

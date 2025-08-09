@@ -1,6 +1,6 @@
 use super::assertion_reconciler::intersect_union_with_atomic;
 use super::simple_assertion_reconciler::get_acceptable_type;
-use crate::reconciler::negated_assertion_reconciler::handle_literal_negated_equality;
+use crate::reconciler::negated_assertion_reconciler;
 use crate::{
     function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
     statements_analyzer::StatementsAnalyzer,
@@ -1849,13 +1849,14 @@ fn reconcile_not_in_array(
 
     for a in &typed_value.types {
         let sub_assertion = Assertion::IsNotEqual(a.clone());
-        rest_type = handle_literal_negated_equality(
+        rest_type = negated_assertion_reconciler::reconcile(
             &sub_assertion,
             &rest_type,
+            false,
             key,
             statements_analyzer,
             analysis_data,
-            "".to_string(),
+            rest_type.get_id(Some(statements_analyzer.interner)),
             pos,
             calling_functionlike_id,
             negated,

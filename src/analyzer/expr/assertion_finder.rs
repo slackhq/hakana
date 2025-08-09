@@ -548,20 +548,25 @@ fn scrape_function_assertions(
         if let (Some(first_var_name), Some(second_arg)) = (first_var_name, args.get(1)) {
             if let aast::Expr_::ValCollection(vals) = &second_arg.to_expr_ref().2 {
                 let mut in_arr_types = vec![];
+                let mut has_reconcilable_type = true;
                 for val_expr in &vals.2 {
                     let val_expr_type = analysis_data.get_expr_type(val_expr.pos());
 
                     if let Some(val_expr_type) = val_expr_type {
                         in_arr_types.extend(val_expr_type.types.clone());
+                    } else {
+                        has_reconcilable_type = false;
                     }
                 }
 
-                let union = TUnion::new(in_arr_types);
-                if matches!(first_arg, aast::Expr((), _, aast::Expr_::Lvar(_))) {
-                    if_types.insert(
-                        first_var_name.clone(),
-                        vec![vec![Assertion::InArray(union)]],
-                    );
+                if has_reconcilable_type {
+                    let union = TUnion::new(in_arr_types);
+                    if matches!(first_arg, aast::Expr((), _, aast::Expr_::Lvar(_))) {
+                        if_types.insert(
+                            first_var_name.clone(),
+                            vec![vec![Assertion::InArray(union)]],
+                        );
+                    }
                 }
             }
         }

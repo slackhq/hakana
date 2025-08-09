@@ -8,5 +8,7 @@ function foo(?string $s) : void {
         case "hello again":
             echo "cool";
             break;
+        case null:
+            break;
     }
 }
