@@ -1,20 +1,27 @@
 use hakana_code_info::{
+    assertion::Assertion,
+    issue::{Issue, IssueKind},
+    t_atomic::TAtomic,
+    t_union::TUnion,
     ttype::{combine_union_types, get_mixed_any},
     var_name::VarName,
 };
 
 use indexmap::IndexMap;
 use oxidized::{aast, aast::Pos};
+use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
 use crate::{
     expr::expression_identifier,
     expression_analyzer,
     function_analysis_data::FunctionAnalysisData,
+    reconciler::negated_assertion_reconciler,
     scope::{
         control_action::ControlAction, loop_scope::LoopScope, switch_scope::SwitchScope,
         BlockContext,
     },
+    scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -149,6 +156,57 @@ pub(crate) fn analyze(
 
         if case_exit_type != ControlAction::Return {
             all_options_returned = false;
+        }
+    } else {
+        let case_cond_types = cases
+            .iter()
+            .map(|a| analysis_data.get_rc_expr_type(a.1 .0.pos()))
+            .collect::<Vec<_>>();
+        if case_cond_types.iter().all(|t| t.is_some()) {
+            let case_cond_type = TUnion::new(
+                case_cond_types
+                    .iter()
+                    .map(|t| t.unwrap().types.clone())
+                    .flatten()
+                    .collect::<Vec<_>>(),
+            );
+            let assertion = Assertion::NotInArray(case_cond_type);
+
+            if let Some(switch_type) = original_context.locals.get(&switch_var_id) {
+                let new_switch_type = negated_assertion_reconciler::reconcile(
+                    &assertion,
+                    switch_type,
+                    false,
+                    None,
+                    statements_analyzer,
+                    analysis_data,
+                    "".to_string(),
+                    None,
+                    &None,
+                    false,
+                    &FxHashMap::default(),
+                );
+
+                if new_switch_type
+                    .types
+                    .iter()
+                    .any(|a| matches!(a, TAtomic::TEnumLiteralCase { .. }))
+                {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::NonExhaustiveSwitchStatement,
+                            format!(
+                                "Switch statement doesn’t cover the following type(s): {}",
+                                new_switch_type.get_id(Some(statements_analyzer.interner))
+                            ),
+                            statements_analyzer.get_hpos(stmt.0.pos()),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+            }
         }
     }
 

@@ -305,36 +305,13 @@ pub(crate) fn analyze_case(
 
     if !case_clauses_for_negation.is_empty() {
         if let Some(case_equality_expr) = &case_equality_expr {
-            let negated_case_clauses = if let Ok(negated_case_clauses) =
-                hakana_algebra::negate_formula(case_clauses_for_negation)
-            {
-                negated_case_clauses
-            } else {
-                let case_equality_expr_id = (
-                    case_equality_expr.pos().start_offset() as u32,
-                    case_equality_expr.pos().end_offset() as u32,
-                );
-
-                formula_generator::get_formula(
-                    case_equality_expr_id,
-                    case_equality_expr_id,
-                    &aast::Expr(
-                        (),
-                        case_equality_expr.pos().clone(),
-                        aast::Expr_::Unop(Box::new((
-                            ast_defs::Uop::Unot,
-                            case_equality_expr.clone(),
-                        ))),
-                    ),
-                    &assertion_context,
-                    analysis_data,
-                    false,
-                    false,
-                )
-                .unwrap_or_default()
-            };
-
-            switch_scope.negated_clauses.extend(negated_case_clauses);
+            extend_switch_negated_clauses(
+                analysis_data,
+                switch_scope,
+                &assertion_context,
+                case_clauses_for_negation,
+                case_equality_expr,
+            );
         }
     }
 
@@ -437,6 +414,42 @@ pub(crate) fn analyze_case(
     }
 
     Ok(ControlAction::None)
+}
+
+fn extend_switch_negated_clauses(
+    analysis_data: &mut FunctionAnalysisData,
+    switch_scope: &mut SwitchScope,
+    assertion_context: &formula_generator::AssertionContext<'_>,
+    case_clauses_for_negation: Vec<Clause>,
+    case_equality_expr: &aast::Expr<(), ()>,
+) {
+    let negated_case_clauses = if let Ok(negated_case_clauses) =
+        hakana_algebra::negate_formula(case_clauses_for_negation)
+    {
+        negated_case_clauses
+    } else {
+        let case_equality_expr_id = (
+            case_equality_expr.pos().start_offset() as u32,
+            case_equality_expr.pos().end_offset() as u32,
+        );
+
+        formula_generator::get_formula(
+            case_equality_expr_id,
+            case_equality_expr_id,
+            &aast::Expr(
+                (),
+                case_equality_expr.pos().clone(),
+                aast::Expr_::Unop(Box::new((ast_defs::Uop::Unot, case_equality_expr.clone()))),
+            ),
+            assertion_context,
+            analysis_data,
+            false,
+            false,
+        )
+        .unwrap_or_default()
+    };
+
+    switch_scope.negated_clauses.extend(negated_case_clauses);
 }
 
 fn get_new_clauses(

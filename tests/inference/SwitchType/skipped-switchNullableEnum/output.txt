@@ -1,1 +1,0 @@
-ERROR: NonExhaustiveSwitchStatement - input.hack:11:14 - This switch statement doesn’t capture the following types: ?Foo::C
