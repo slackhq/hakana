@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, time::Duration};
 
-use hakana_str::Interner;
+use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 
@@ -39,6 +39,7 @@ pub struct AnalysisResult {
     pub functions_to_migrate: FxHashMap<FunctionLikeIdentifier, bool>,
     pub has_invalid_hack_files: bool,
     pub changed_during_analysis_files: FxHashSet<FilePath>,
+    pub definition_locations: FxHashMap<FilePath, FxHashMap<(u32, u32), (StrId, StrId)>>,
 }
 
 impl AnalysisResult {
@@ -60,6 +61,7 @@ impl AnalysisResult {
             codegen: Vec::new(),
             has_invalid_hack_files: false,
             changed_during_analysis_files: FxHashSet::default(),
+            definition_locations: FxHashMap::default(),
         }
     }
 
@@ -86,6 +88,14 @@ impl AnalysisResult {
         self.changed_during_analysis_files
             .extend(other.changed_during_analysis_files);
         self.has_invalid_hack_files = self.has_invalid_hack_files || other.has_invalid_hack_files;
+
+        // Extend definition locations
+        for (file_path, symbol_locations) in other.definition_locations {
+            self.definition_locations
+                .entry(file_path)
+                .or_default()
+                .extend(symbol_locations);
+        }
     }
 
     pub fn get_all_issues(

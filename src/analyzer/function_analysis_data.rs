@@ -11,6 +11,7 @@ use hakana_code_info::{
     symbol_references::SymbolReferences,
     t_union::TUnion,
 };
+use hakana_str::StrId;
 use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
@@ -53,6 +54,7 @@ pub struct FunctionAnalysisData {
     pub loop_boundaries: Vec<(u32, u32)>,
     pub for_loop_init_boundaries: Vec<(u32, u32)>,
     pub concurrent_block_boundaries: Vec<(u32, u32)>,
+    pub definition_locations: FxHashMap<(u32, u32), (StrId, StrId)>,
 }
 
 impl FunctionAnalysisData {
@@ -106,6 +108,7 @@ impl FunctionAnalysisData {
             loop_boundaries: Vec::new(),
             for_loop_init_boundaries: Vec::new(),
             concurrent_block_boundaries: Vec::new(),
+            definition_locations: FxHashMap::default(),
         }
     }
 

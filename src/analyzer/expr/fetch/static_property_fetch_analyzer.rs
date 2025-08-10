@@ -105,15 +105,15 @@ pub(crate) fn analyze(
         get_named_object(classlike_name, Some(type_resolution_context)),
     );
 
-    let prop_name = match &stmt_name {
+    let (prop_name, name_pos) = match &stmt_name {
         aast::ClassGetExpr::CGexpr(stmt_name_expr) => {
             if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
-                id.1.clone()
+                (id.1.clone(), stmt_name_expr.pos())
             } else if let Some(stmt_name_type) =
                 analysis_data.get_rc_expr_type(stmt_name_expr.pos())
             {
                 if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
-                    value.clone()
+                    (value.clone(), stmt_name_expr.pos())
                 } else {
                     return Err(AnalysisError::UserError);
                 }
@@ -124,7 +124,7 @@ pub(crate) fn analyze(
         aast::ClassGetExpr::CGstring(str) => {
             let id = &str.1;
 
-            id[1..].to_string()
+            (id[1..].to_string(), &str.0)
         }
     };
 
@@ -170,6 +170,17 @@ pub(crate) fn analyze(
             (property_id.0, property_id.1),
             false,
         );
+
+    // Track member definition location for go-to-definition support
+    if statements_analyzer
+        .get_config()
+        .collect_goto_definition_locations
+    {
+        analysis_data.definition_locations.insert(
+            (name_pos.start_offset() as u32, name_pos.end_offset() as u32),
+            (property_id.0, property_id.1),
+        );
+    }
 
     // Handle scoped property fetches
     if context.has_variable(&var_id) {

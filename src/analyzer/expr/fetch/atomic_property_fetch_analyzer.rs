@@ -137,6 +137,20 @@ pub(crate) fn analyze(
             false,
         );
 
+    // Track member definition location for go-to-definition support
+    if statements_analyzer
+        .get_config()
+        .collect_goto_definition_locations
+    {
+        analysis_data.definition_locations.insert(
+            (
+                expr.1 .1.start_offset() as u32,
+                expr.1 .1.end_offset() as u32,
+            ),
+            (declaring_property_class, prop_name),
+        );
+    }
+
     // TODO: self::propertyFetchCanBeAnalyzed
 
     // TODO: handleNonExistentProperty

@@ -128,6 +128,19 @@ pub(crate) fn analyze(
 
     let method_name = statements_analyzer.interner.get(&expr.1 .1);
 
+    if statements_analyzer
+        .get_config()
+        .collect_goto_definition_locations
+    {
+        analysis_data.definition_locations.insert(
+            (
+                expr.0 .1.start_offset() as u32,
+                expr.0 .1.end_offset() as u32,
+            ),
+            (classlike_name, StrId::EMPTY),
+        );
+    }
+
     if method_name.is_none() || !codebase.method_exists(&classlike_name, &method_name.unwrap()) {
         let Some(classlike_info) = codebase.classlike_infos.get(&classlike_name) else {
             analysis_data.maybe_add_issue(

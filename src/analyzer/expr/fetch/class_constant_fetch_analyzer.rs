@@ -211,6 +211,16 @@ fn analyse_known_class_constant(
             false,
         );
 
+        if statements_analyzer
+            .get_config()
+            .collect_goto_definition_locations
+        {
+            analysis_data.definition_locations.insert(
+                (pos.start_offset() as u32, pos.end_offset() as u32),
+                (*classlike_name, StrId::EMPTY),
+            );
+        }
+
         return Some(wrap_atomic(inner_object));
     }
 
@@ -242,6 +252,17 @@ fn analyse_known_class_constant(
             (*classlike_name, const_name),
             false,
         );
+
+    // Track member definition location for go-to-definition support
+    if statements_analyzer
+        .get_config()
+        .collect_goto_definition_locations
+    {
+        analysis_data.definition_locations.insert(
+            (pos.start_offset() as u32, pos.end_offset() as u32),
+            (*classlike_name, const_name),
+        );
+    }
 
     let classlike_storage = codebase.classlike_infos.get(classlike_name).unwrap();
 

@@ -427,6 +427,19 @@ pub(crate) fn analyze_atomic_assignment(
                 false,
             );
 
+            if statements_analyzer
+                .get_config()
+                .collect_goto_definition_locations
+            {
+                analysis_data.definition_locations.insert(
+                    (
+                        expr.1.pos().start_offset() as u32,
+                        expr.1.pos().end_offset() as u32,
+                    ),
+                    (fq_class_name, StrId::EMPTY),
+                );
+            }
+
             return None;
         }
     } else {
@@ -473,6 +486,20 @@ pub(crate) fn analyze_atomic_assignment(
                     (fq_class_name, prop_name),
                     false,
                 );
+
+            // Track member definition location for go-to-definition support
+            if statements_analyzer
+                .get_config()
+                .collect_goto_definition_locations
+            {
+                analysis_data.definition_locations.insert(
+                    (
+                        expr.1.pos().start_offset() as u32,
+                        expr.1.pos().end_offset() as u32,
+                    ),
+                    (fq_class_name, prop_name),
+                );
+            }
         }
     } else {
         analysis_data
@@ -482,6 +509,20 @@ pub(crate) fn analyze_atomic_assignment(
                 (fq_class_name, prop_name),
                 false,
             );
+
+        // Track member definition location for go-to-definition support
+        if statements_analyzer
+            .get_config()
+            .collect_goto_definition_locations
+        {
+            analysis_data.definition_locations.insert(
+                (
+                    expr.1.pos().start_offset() as u32,
+                    expr.1.pos().end_offset() as u32,
+                ),
+                (fq_class_name, prop_name),
+            );
+        }
     }
 
     if let Some(declaring_property_class) = declaring_property_class {

@@ -154,6 +154,20 @@ pub(crate) fn analyze(
             .symbol_references
             .add_reference_to_class_member(&context.function_context, property_id, false);
 
+        // Track member definition location for go-to-definition support
+        if statements_analyzer
+            .get_config()
+            .collect_goto_definition_locations
+        {
+            analysis_data.definition_locations.insert(
+                (
+                    stmt_name_pos.start_offset() as u32,
+                    stmt_name_pos.end_offset() as u32,
+                ),
+                (property_id.0, property_id.1),
+            );
+        }
+
         // TODO if (ClassLikeAnalyzer::checkPropertyVisibility(
 
         let declaring_property_class =

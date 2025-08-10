@@ -337,6 +337,20 @@ fn analyze_named_constructor(
             false,
         );
 
+    // Track member definition location for go-to-definition support
+    if statements_analyzer
+        .get_config()
+        .collect_goto_definition_locations
+    {
+        analysis_data.definition_locations.insert(
+            (
+                expr.0 .1.start_offset() as u32,
+                expr.0 .1.end_offset() as u32,
+            ),
+            (classlike_name, StrId::EMPTY),
+        );
+    }
+
     if codebase.method_exists(&method_id.0, &method_id.1) {
         let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
@@ -347,6 +361,20 @@ fn analyze_named_constructor(
                 (declaring_method_id.0, declaring_method_id.1),
                 false,
             );
+
+        // Track member definition location for go-to-definition support
+        if statements_analyzer
+            .get_config()
+            .collect_goto_definition_locations
+        {
+            analysis_data.definition_locations.insert(
+                (
+                    expr.0 .1.start_offset() as u32,
+                    expr.0 .1.end_offset() as u32,
+                ),
+                (declaring_method_id.0, declaring_method_id.1),
+            );
+        }
 
         let mut template_result = TemplateResult::new(
             if expr.1.is_empty() {

@@ -19,6 +19,7 @@ pub(crate) struct CachedAnalysis {
     pub safe_symbol_members: FxHashSet<(StrId, StrId)>,
     pub existing_issues: FxHashMap<FilePath, Vec<Issue>>,
     pub symbol_references: SymbolReferences,
+    pub definition_locations: FxHashMap<FilePath, FxHashMap<(u32, u32), (StrId, StrId)>>,
 }
 
 pub(crate) fn mark_safe_symbols_from_diff(
@@ -33,33 +34,34 @@ pub(crate) fn mark_safe_symbols_from_diff(
     previous_analysis_result: Option<AnalysisResult>,
     max_changes_allowed: usize,
 ) -> CachedAnalysis {
-    let (existing_references, mut existing_issues) = if let Some(previous_analysis_result) =
-        previous_analysis_result
-    {
-        (
-            previous_analysis_result.symbol_references,
-            previous_analysis_result.emitted_issues,
-        )
-    } else if let (Some(issues_path), Some(references_path)) = (issues_path, references_path) {
-        let existing_references = if let Some(existing_references) =
-            load_cached_existing_references(references_path, true, logger)
-        {
-            existing_references
-        } else {
-            return CachedAnalysis::default();
-        };
+    let (existing_references, mut existing_issues, mut existing_member_definitions) =
+        if let Some(previous_analysis_result) = previous_analysis_result {
+            (
+                previous_analysis_result.symbol_references,
+                previous_analysis_result.emitted_issues,
+                previous_analysis_result.definition_locations,
+            )
+        } else if let (Some(issues_path), Some(references_path)) = (issues_path, references_path) {
+            let existing_references = if let Some(existing_references) =
+                load_cached_existing_references(references_path, true, logger)
+            {
+                existing_references
+            } else {
+                return CachedAnalysis::default();
+            };
 
-        let existing_issues =
-            if let Some(existing_issues) = load_cached_existing_issues(issues_path, true, logger) {
+            let existing_issues = if let Some(existing_issues) =
+                load_cached_existing_issues(issues_path, true, logger)
+            {
                 existing_issues
             } else {
                 return CachedAnalysis::default();
             };
 
-        (existing_references, existing_issues)
-    } else {
-        return CachedAnalysis::default();
-    };
+            (existing_references, existing_issues, FxHashMap::default())
+        } else {
+            return CachedAnalysis::default();
+        };
 
     let (invalid_symbols_and_members, partially_invalid_symbols) = if let Some(invalid_symbols) =
         existing_references.get_invalid_symbols(&codebase_diff, max_changes_allowed)
@@ -115,17 +117,20 @@ pub(crate) fn mark_safe_symbols_from_diff(
 
     update_issues_from_diff(
         &mut existing_issues,
-        codebase_diff,
+        &codebase_diff,
         &invalid_symbols_and_members,
     );
     cached_analysis.existing_issues = existing_issues;
+
+    update_member_definitions_from_diff(&mut existing_member_definitions, &codebase_diff);
+    cached_analysis.definition_locations = existing_member_definitions;
 
     cached_analysis
 }
 
 fn update_issues_from_diff(
     existing_issues: &mut FxHashMap<FilePath, Vec<Issue>>,
-    codebase_diff: CodebaseDiff,
+    codebase_diff: &CodebaseDiff,
     invalid_symbols_and_members: &FxHashSet<(StrId, StrId)>,
 ) {
     for (existing_file, file_issues) in existing_issues.iter_mut() {
@@ -177,6 +182,62 @@ fn update_issues_from_diff(
                     }
                 }
             }
+        }
+    }
+}
+
+fn update_member_definitions_from_diff(
+    existing_member_definitions: &mut FxHashMap<FilePath, FxHashMap<(u32, u32), (StrId, StrId)>>,
+    codebase_diff: &CodebaseDiff,
+) {
+    for (existing_file, file_member_definitions) in existing_member_definitions.iter_mut() {
+        if file_member_definitions.is_empty() {
+            continue;
+        }
+
+        let diff_map = codebase_diff
+            .diff_map
+            .get(existing_file)
+            .cloned()
+            .unwrap_or(vec![]);
+
+        let deletion_ranges = codebase_diff
+            .deletion_ranges_map
+            .get(existing_file)
+            .cloned()
+            .unwrap_or(vec![]);
+
+        if !deletion_ranges.is_empty() {
+            file_member_definitions.retain(|(start_offset, _end_offset), _pos| {
+                for (from, to) in &deletion_ranges {
+                    if start_offset >= from && start_offset <= to {
+                        return false;
+                    }
+                }
+
+                true
+            });
+        }
+
+        if !diff_map.is_empty() {
+            let mut updated_definitions = FxHashMap::default();
+
+            for ((start_offset, end_offset), symbol_tuple) in file_member_definitions.drain() {
+                let mut new_start_offset = start_offset;
+                let mut new_end_offset = end_offset;
+
+                for (from, to, file_offset, _line_offset) in &diff_map {
+                    if &start_offset >= from && &start_offset <= to {
+                        new_start_offset = ((start_offset as isize) + file_offset) as u32;
+                        new_end_offset = ((end_offset as isize) + file_offset) as u32;
+                        break;
+                    }
+                }
+
+                updated_definitions.insert((new_start_offset, new_end_offset), symbol_tuple);
+            }
+
+            *file_member_definitions = updated_definitions;
         }
     }
 }

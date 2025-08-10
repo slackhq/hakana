@@ -59,6 +59,19 @@ pub(crate) fn analyze(
         false,
     );
 
+    if statements_analyzer
+        .get_config()
+        .collect_goto_definition_locations
+    {
+        analysis_data.definition_locations.insert(
+            (
+                boxed.0 .0.start_offset() as u32,
+                boxed.0 .0.end_offset() as u32,
+            ),
+            (*xhp_class_name, StrId::EMPTY),
+        );
+    }
+
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
 
@@ -180,7 +193,13 @@ pub(crate) fn analyze(
     );
 
     for inner_expr in &boxed.2 {
-        expression_analyzer::analyze(statements_analyzer, inner_expr, analysis_data, context, true)?;
+        expression_analyzer::analyze(
+            statements_analyzer,
+            inner_expr,
+            analysis_data,
+            context,
+            true,
+        )?;
 
         analysis_data.combine_effects(inner_expr.pos(), pos, pos);
 
@@ -469,6 +488,20 @@ fn get_attribute_name(
                 (*element_name, attribute_name),
                 false,
             );
+
+        // Track member definition location for go-to-definition support
+        if statements_analyzer
+            .get_config()
+            .collect_goto_definition_locations
+        {
+            analysis_data.definition_locations.insert(
+                (
+                    attribute_info.name.0.start_offset() as u32,
+                    attribute_info.name.0.end_offset() as u32,
+                ),
+                (*element_name, attribute_name),
+            );
+        }
 
         Ok(attribute_name)
     }

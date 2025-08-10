@@ -9,7 +9,7 @@ use hakana_code_info::issue::IssueKind;
 use hakana_logger::Logger;
 use hakana_orchestrator::wasm::get_single_file_codebase;
 use hakana_orchestrator::SuccessfulScanData;
-use hakana_str::Interner;
+use hakana_str::{Interner, StrId};
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashMap;
@@ -33,7 +33,7 @@ pub trait HooksProvider {
 fn format_diff(expected: &str, actual: &str) -> String {
     let diff = TextDiff::from_lines(expected, actual);
     let mut output = String::new();
-    
+
     for change in diff.iter_all_changes() {
         let sign = match change.tag() {
             ChangeTag::Delete => "-",
@@ -42,7 +42,7 @@ fn format_diff(expected: &str, actual: &str) -> String {
         };
         output.push_str(&format!("{}{}", sign, change));
     }
-    
+
     output
 }
 
@@ -220,6 +220,12 @@ impl TestRunner {
         } else if dir.contains("/migration-candidates/") {
             analysis_config.in_migration = true;
         }
+
+        // Enable go-to-definition collection for goto-definition tests
+        if dir.contains("/goto-definition/") {
+            analysis_config.collect_goto_definition_locations = true;
+        }
+
         analysis_config
     }
 
@@ -264,6 +270,21 @@ impl TestRunner {
 
         let config = Arc::new(analysis_config);
 
+        if dir.contains("/goto-definition/") {
+            return self.run_goto_definition_test(
+                dir,
+                config,
+                logger,
+                cache_dir,
+                had_error,
+                test_diagnostics,
+                build_checksum,
+                previous_scan_data,
+                previous_analysis_result,
+                total_time_in_analysis,
+            );
+        }
+
         if dir.contains("/executable-code-finder/") {
             return match executable_finder::scan_files(
                 &vec![dir.clone()],
@@ -292,10 +313,8 @@ impl TestRunner {
                                 serde_json::to_string_pretty(&expected_output).unwrap();
                             let test_output_str =
                                 serde_json::to_string_pretty(&test_output).unwrap();
-                            test_diagnostics.push((
-                                dir,
-                                format_diff(&expected_output_str, &test_output_str),
-                            ));
+                            test_diagnostics
+                                .push((dir, format_diff(&expected_output_str, &test_output_str)));
                             *had_error = true;
                             ("F".to_string(), None, None)
                         }
@@ -490,13 +509,10 @@ impl TestRunner {
                         (".".to_string(), Some(run_data), Some(analysis_result))
                     } else {
                         if let Some(expected_output) = &expected_output {
-                            test_diagnostics.push((
-                                dir,
-                                format_diff(expected_output, &test_output.join("")),
-                            ));
-                        } else {
                             test_diagnostics
-                                .push((dir, format_diff("", &test_output.join(""))));
+                                .push((dir, format_diff(expected_output, &test_output.join(""))));
+                        } else {
+                            test_diagnostics.push((dir, format_diff("", &test_output.join(""))));
                         }
                         ("F".to_string(), Some(run_data), Some(analysis_result))
                     }
@@ -651,15 +667,246 @@ impl TestRunner {
             (".".to_string(), Some(run_data), Some(analysis_result))
         } else {
             if let Some(expected_output) = &expected_output {
-                test_diagnostics.push((
-                    dir,
-                    format_diff(expected_output, &test_output.join("")),
-                ));
+                test_diagnostics.push((dir, format_diff(expected_output, &test_output.join(""))));
             } else {
                 test_diagnostics.push((dir, format_diff("", &test_output.join(""))));
             }
             ("F".to_string(), Some(run_data), Some(analysis_result))
         }
+    }
+
+    fn run_goto_definition_test(
+        &self,
+        dir: String,
+        config: Arc<config::Config>,
+        logger: Arc<Logger>,
+        _cache_dir: Option<&String>,
+        had_error: &mut bool,
+        test_diagnostics: &mut Vec<(String, String)>,
+        build_checksum: &str,
+        previous_scan_data: Option<SuccessfulScanData>,
+        previous_analysis_result: Option<AnalysisResult>,
+        total_time_in_analysis: &mut Duration,
+    ) -> (String, Option<SuccessfulScanData>, Option<AnalysisResult>) {
+        use hakana_orchestrator::scan_and_analyze;
+
+        let result = scan_and_analyze(
+            Vec::new(),
+            Some(dir.clone()),
+            None,
+            config.clone(),
+            None,
+            1,
+            logger,
+            build_checksum,
+            hakana_str::Interner::default(),
+            previous_scan_data,
+            previous_analysis_result,
+            None,
+            || {},
+        );
+
+        let result = match result {
+            Ok(result) => result,
+            Err(_) => {
+                *had_error = true;
+                return ("F".to_string(), None, None);
+            }
+        };
+
+        *total_time_in_analysis += result.0.time_in_analysis;
+
+        let input_file = format!("{}/input.hack", dir);
+        let positions_file = format!("{}/positions.txt", dir);
+
+        if !Path::new(&positions_file).exists() {
+            test_diagnostics.push((
+                dir,
+                "positions.txt file not found for goto-definition test".to_string(),
+            ));
+            return ("F".to_string(), Some(result.1), Some(result.0));
+        }
+
+        let positions_content = match fs::read_to_string(&positions_file) {
+            Ok(content) => content,
+            Err(_) => {
+                test_diagnostics.push((dir, "Could not read positions.txt file".to_string()));
+                return ("F".to_string(), Some(result.1), Some(result.0));
+            }
+        };
+
+        // Get the file path key for resolved_names lookup
+        let file_path_id = match result.1.interner.get(&input_file) {
+            Some(id) => id,
+            None => {
+                test_diagnostics.push((dir, "Input file not found in interner".to_string()));
+                return ("F".to_string(), Some(result.1), Some(result.0));
+            }
+        };
+
+        let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
+        let file_resolved_names = match result.1.resolved_names.get(&file_path_obj) {
+            Some(names) => names,
+            None => {
+                test_diagnostics.push((dir, "No resolved names found for input file".to_string()));
+                return ("F".to_string(), Some(result.1), Some(result.0));
+            }
+        };
+
+        let mut test_passed = true;
+        let mut error_messages = vec![];
+
+        // Read the input file to calculate positions
+        let file_contents = match fs::read_to_string(&input_file) {
+            Ok(contents) => contents,
+            Err(_) => {
+                test_diagnostics.push((dir, "Could not read input file".to_string()));
+                return ("F".to_string(), Some(result.1), Some(result.0));
+            }
+        };
+
+        for line in positions_content.lines() {
+            if line.starts_with('#') || line.trim().is_empty() {
+                continue;
+            }
+
+            let parts: Vec<&str> = line.split(':').collect();
+            if parts.len() < 3 {
+                error_messages.push(format!("Invalid position line format: {}", line));
+                test_passed = false;
+                continue;
+            }
+
+            let line_num: u32 = match parts[0].parse() {
+                Ok(num) => num,
+                Err(_) => {
+                    error_messages.push(format!("Invalid line number: {}", parts[0]));
+                    test_passed = false;
+                    continue;
+                }
+            };
+
+            let column_num: u32 = match parts[1].parse() {
+                Ok(num) => num,
+                Err(_) => {
+                    error_messages.push(format!("Invalid column number: {}", parts[1]));
+                    test_passed = false;
+                    continue;
+                }
+            };
+
+            let expected_class = parts[2..].join(":").trim().to_string();
+
+            // Convert line/column to byte offset
+            let offset = self.position_to_offset(&file_contents, line_num - 1, column_num);
+
+            let mut found_match = false;
+
+            // Check if there's a definition location at this position (for both symbols and members)
+            if let Some(file_definitions) = result.0.definition_locations.get(&file_path_obj) {
+                // Check for exact offset match
+                let offset_key = (offset as u32, offset as u32);
+                if let Some((symbol_id, member_id)) = file_definitions.get(&offset_key) {
+                    let symbol_name = result.1.interner.lookup(symbol_id);
+                    let member_name = if *member_id == StrId::EMPTY {
+                        ""
+                    } else {
+                        result.1.interner.lookup(member_id)
+                    };
+                    
+                    // Build the full name (e.g., "MyClass::doSomething" or just "MyClass")
+                    let full_name = if member_name.is_empty() {
+                        symbol_name.to_string()
+                    } else {
+                        format!("{}::{}", symbol_name, member_name)
+                    };
+                    
+                    if full_name == expected_class {
+                        found_match = true;
+                    }
+                } else {
+                    // Check for range matches
+                    for ((start_offset, end_offset), (symbol_id, member_id)) in file_definitions {
+                        if (offset as u32) >= *start_offset && (offset as u32) <= *end_offset {
+                            let symbol_name = result.1.interner.lookup(symbol_id);
+                            let member_name = if *member_id == StrId::EMPTY {
+                                ""
+                            } else {
+                                result.1.interner.lookup(member_id)
+                            };
+                            
+                            // Build the full name (e.g., "MyClass::doSomething" or just "MyClass")
+                            let full_name = if member_name.is_empty() {
+                                symbol_name.to_string()
+                            } else {
+                                format!("{}::{}", symbol_name, member_name)
+                            };
+                            
+                            if full_name == expected_class {
+                                found_match = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback: check resolved names for symbols without "::" (legacy support)
+            if !found_match && !expected_class.contains("::") {
+                if let Some(resolved_name_id) = file_resolved_names.get(&(offset as u32)) {
+                    let resolved_name = result.1.interner.lookup(resolved_name_id);
+
+                    // Check if the resolved name matches expected (basic string comparison)
+                    if resolved_name == expected_class {
+                        // Also check if the class exists in the codebase
+                        if result
+                            .1
+                            .codebase
+                            .classlike_infos
+                            .contains_key(resolved_name_id)
+                        {
+                            found_match = true;
+                        } else {
+                            error_messages.push(format!("Class {} found in resolved_names but not in codebase at line {}, column {}", expected_class, line_num, column_num));
+                            test_passed = false;
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            if !found_match {
+                error_messages.push(format!(
+                    "No definition found for {} at line {}, column {} (offset {})",
+                    expected_class, line_num, column_num, offset
+                ));
+                test_passed = false;
+            }
+        }
+
+        if test_passed {
+            (".".to_string(), Some(result.1), Some(result.0))
+        } else {
+            test_diagnostics.push((dir, error_messages.join("\n")));
+            ("F".to_string(), Some(result.1), Some(result.0))
+        }
+    }
+
+    fn position_to_offset(&self, file_contents: &str, line: u32, character: u32) -> usize {
+        let lines: Vec<&str> = file_contents.lines().collect();
+        let mut offset = 0;
+
+        // Add offset for complete lines before the target line
+        for (_line_idx, line) in lines.iter().enumerate().take(line as usize) {
+            offset += line.len() + 1; // +1 for newline character
+        }
+
+        // Add offset for characters in the target line
+        if let Some(target_line) = lines.get(line as usize) {
+            offset += std::cmp::min(character as usize, target_line.len());
+        }
+
+        offset
     }
 }
 
@@ -695,17 +942,24 @@ fn copy_recursively(source: impl AsRef<Path>, destination: impl AsRef<Path>) -> 
 fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String> {
     // Check if the specified test directory exists
     if !Path::new(&test_or_test_dir).exists() {
-        return Err(format!("Test directory does not exist: {}", test_or_test_dir));
+        return Err(format!(
+            "Test directory does not exist: {}",
+            test_or_test_dir
+        ));
     }
 
     let mut test_folders = vec![];
     let input_hack_path = test_or_test_dir.clone() + "/input.hack";
     let output_txt_path = test_or_test_dir.clone() + "/output.txt";
-    
+
     if Path::new(&input_hack_path).exists() {
         // This looks like a single test directory
-        if !Path::new(&output_txt_path).exists() {
-            return Err(format!("Test directory is missing required output.txt file: {}", test_or_test_dir));
+        if !Path::new(&output_txt_path).exists() && !test_or_test_dir.contains("/goto-definition/")
+        {
+            return Err(format!(
+                "Test directory is missing required output.txt file: {}",
+                test_or_test_dir
+            ));
         }
         test_folders.push(test_or_test_dir);
     } else {
@@ -725,20 +979,32 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                     let input_hack = path_str.to_owned() + "/input.hack";
                     let output_txt = path_str.to_owned() + "/output.txt";
                     let candidates_txt = path_str.to_owned() + "/candidates.txt";
-                    
+
                     if Path::new(&input_hack).exists() && !path_str.contains("/diff/") {
                         // Found a regular test directory - check if output.txt exists
-                        if !Path::new(&output_txt).exists() {
-                            return Err(format!("Test directory is missing required output.txt file: {}", path_str));
+                        if !Path::new(&output_txt).exists()
+                            && !path_str.contains("/goto-definition/")
+                        {
+                            return Err(format!(
+                                "Test directory is missing required output.txt file: {}",
+                                path_str
+                            ));
                         }
                         test_folders.push(path_str.to_owned());
-                    } else if path_str.contains("/diff/") && Path::new(&(path_str.to_owned() + "/a")).is_dir() {
+                    } else if path_str.contains("/diff/")
+                        && Path::new(&(path_str.to_owned() + "/a")).is_dir()
+                    {
                         // Found a diff test directory - check if output.txt exists
                         if !Path::new(&output_txt).exists() {
-                            return Err(format!("Diff test directory is missing required output.txt file: {}", path_str));
+                            return Err(format!(
+                                "Diff test directory is missing required output.txt file: {}",
+                                path_str
+                            ));
                         }
                         test_folders.push(path_str.to_owned());
-                    } else if path_str.contains("/migration-candidates/") && Path::new(&input_hack).exists() {
+                    } else if path_str.contains("/migration-candidates/")
+                        && Path::new(&input_hack).exists()
+                    {
                         // Migration candidates tests use candidates.txt instead of output.txt
                         if !Path::new(&candidates_txt).exists() {
                             return Err(format!("Migration candidates test directory is missing required candidates.txt file: {}", path_str));
@@ -748,10 +1014,13 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                 }
             }
         }
-        
+
         // If no test folders were found in the directory, it's an error
         if test_folders.is_empty() {
-            return Err(format!("No test directories found in: {}", test_or_test_dir));
+            return Err(format!(
+                "No test directories found in: {}",
+                test_or_test_dir
+            ));
         }
     }
     Ok(test_folders)

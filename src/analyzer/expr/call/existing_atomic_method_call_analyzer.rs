@@ -83,6 +83,22 @@ pub(crate) fn analyze(
             false,
         );
 
+    // Track member definition location for go-to-definition support
+    if statements_analyzer
+        .get_config()
+        .collect_goto_definition_locations
+    {
+        if let Some(method_name_pos) = method_name_pos {
+            analysis_data.definition_locations.insert(
+                (
+                    method_name_pos.start_offset() as u32,
+                    method_name_pos.end_offset() as u32,
+                ),
+                (declaring_method_id.0, declaring_method_id.1),
+            );
+        }
+    }
+
     if method_id != declaring_method_id
         && codebase.class_or_trait_extends(&method_id.0, &declaring_method_id.0)
     {

@@ -9,7 +9,9 @@ hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
 hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
+hakana-language-server = { path = "../language_server" }
 executable-finder = { path = "../executable_code_finder" }
+tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 walkdir = "2"
 clap = { version = "3.2.6", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }

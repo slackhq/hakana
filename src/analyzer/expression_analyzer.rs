@@ -728,6 +728,19 @@ fn analyze_function_pointer(
                 false,
             );
 
+            if statements_analyzer
+                .get_config()
+                .collect_goto_definition_locations
+            {
+                analysis_data.definition_locations.insert(
+                    (
+                        expr.pos().start_offset() as u32,
+                        expr.pos().end_offset() as u32,
+                    ),
+                    (*name, StrId::EMPTY),
+                );
+            }
+
             if !codebase
                 .functionlike_infos
                 .contains_key(&(*name, StrId::EMPTY))
@@ -757,6 +770,20 @@ fn analyze_function_pointer(
                     (*class_name, *method_name),
                     false,
                 );
+
+            // Track member definition location for go-to-definition support
+            if statements_analyzer
+                .get_config()
+                .collect_goto_definition_locations
+            {
+                analysis_data.definition_locations.insert(
+                    (
+                        expr.pos().start_offset() as u32,
+                        expr.pos().end_offset() as u32,
+                    ),
+                    (*class_name, *method_name),
+                );
+            }
 
             if let Some(classlike_storage) = codebase.classlike_infos.get(class_name) {
                 let declaring_method_id =

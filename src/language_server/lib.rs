@@ -6,12 +6,14 @@ use std::time::Duration;
 use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
-use hakana_str::Interner;
+use hakana_code_info::code_location::HPos;
+use hakana_code_info::functionlike_info;
 use hakana_orchestrator::file::FileStatus;
-#[cfg(not(target_arch = "wasm32"))]
-use hakana_orchestrator::{scan_and_analyze_async, SuccessfulScanData};
 #[cfg(target_arch = "wasm32")]
 use hakana_orchestrator::SuccessfulScanData;
+#[cfg(not(target_arch = "wasm32"))]
+use hakana_orchestrator::{scan_and_analyze_async, SuccessfulScanData};
+use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::sync::RwLock;
 use tokio::time::sleep;
@@ -44,6 +46,23 @@ impl Backend {
             files_with_errors: RwLock::new(FxHashSet::default()),
         }
     }
+
+    fn position_to_offset(&self, file_contents: &str, position: Position) -> usize {
+        let lines: Vec<&str> = file_contents.lines().collect();
+        let mut offset = 0;
+
+        // Add offset for complete lines before the target line
+        for (_line_idx, line) in lines.iter().enumerate().take(position.line as usize) {
+            offset += line.len() + 1; // +1 for newline character
+        }
+
+        // Add offset for characters in the target line
+        if let Some(target_line) = lines.get(position.line as usize) {
+            offset += std::cmp::min(position.character as usize, target_line.len());
+        }
+
+        offset
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -62,6 +81,11 @@ impl LanguageServer for Backend {
                         save: Some(TextDocumentSyncSaveOptions::Supported(true)),
                     },
                 )),
+                definition_provider: if cfg!(target_os = "linux") {
+                    None
+                } else {
+                    Some(OneOf::Left(true))
+                },
                 ..ServerCapabilities::default()
             },
             ..InitializeResult::default()
@@ -185,9 +209,120 @@ impl LanguageServer for Backend {
         Ok(None)
     }
 
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let position = params.text_document_position_params.position;
+        let uri = params.text_document_position_params.text_document.uri;
+        let file_path = uri.path().to_string();
+
+        let scan_data_guard = self.previous_scan_data.read().await;
+        let analysis_result_guard = self.previous_analysis_result.read().await;
+        if let Some(scan_data) = scan_data_guard.as_ref() {
+            // Convert LSP position to offset
+            if let Ok(file_contents) = std::fs::read_to_string(&file_path) {
+                let offset = self.position_to_offset(&file_contents, position);
+
+                // Create FilePath from the file path string
+                if let Some(file_path_id) = scan_data.interner.get(&file_path) {
+                    let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
+
+                    // Check member definition locations (methods, properties, constants)
+                    if let Some(analysis_result) = analysis_result_guard.as_ref() {
+                        if let Some(definition_locations) =
+                            analysis_result.definition_locations.get(&file_path_obj)
+                        {
+                            // check for approximate position matches (within a range)
+                            for ((start_offset, end_offset), (classlike_name, member_name)) in
+                                definition_locations
+                            {
+                                if (offset as u32) >= *start_offset
+                                    && (offset as u32) <= *end_offset
+                                {
+                                    let classlike_info =
+                                        scan_data.codebase.classlike_infos.get(classlike_name);
+
+                                    if *member_name == StrId::EMPTY {
+                                        if let Some(classlike_info) = classlike_info {
+                                            return Ok(pos_to_offset(
+                                                classlike_info.name_location,
+                                                &scan_data.interner,
+                                            ));
+                                        }
+                                    }
+
+                                    if let Some(classlike_info) = classlike_info {
+                                        if let Some(property_info) =
+                                            classlike_info.properties.get(member_name)
+                                        {
+                                            if let Some(property_pos) = property_info.pos {
+                                                return Ok(pos_to_offset(
+                                                    property_pos,
+                                                    &scan_data.interner,
+                                                ));
+                                            }
+                                        }
+
+                                        if let Some(constant_info) =
+                                            classlike_info.constants.get(member_name)
+                                        {
+                                            return Ok(pos_to_offset(
+                                                constant_info.pos,
+                                                &scan_data.interner,
+                                            ));
+                                        }
+                                    }
+
+                                    let functionlike_info = scan_data
+                                        .codebase
+                                        .functionlike_infos
+                                        .get(&(*classlike_name, *member_name));
+
+                                    if let Some(functionlike_info) = functionlike_info {
+                                        if let Some(name_pos) = functionlike_info.name_location {
+                                            return Ok(pos_to_offset(
+                                                name_pos,
+                                                &scan_data.interner,
+                                            ));
+                                        }
+                                    }
+
+                                    return Ok(None);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
     async fn shutdown(&self) -> Result<()> {
         Ok(())
     }
+}
+
+fn pos_to_offset(def_pos: HPos, interner: &Interner) -> Option<GotoDefinitionResponse> {
+    if let Ok(def_uri) = Url::from_file_path(interner.lookup(&def_pos.file_path.0)) {
+        return Some(GotoDefinitionResponse::Scalar(Location {
+            uri: def_uri,
+            range: Range {
+                start: Position {
+                    line: def_pos.start_line - 1,
+                    character: (def_pos.start_column - 1) as u32,
+                },
+                end: Position {
+                    line: def_pos.end_line - 1,
+                    character: (def_pos.end_column - 1) as u32,
+                },
+            },
+        }));
+    }
+
+    return None;
 }
 
 impl Backend {
@@ -354,6 +489,7 @@ pub fn get_config(
     config.find_unused_definitions = true;
     config.ignore_mixed_issues = true;
     config.ast_diff = true;
+    config.collect_goto_definition_locations = !cfg!(target_os = "linux");
 
     config.hooks = plugins;
 

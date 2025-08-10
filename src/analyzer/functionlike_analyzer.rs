@@ -938,6 +938,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 *parent_analysis_data.issue_counts.entry(kind).or_insert(0) += count;
             }
 
+            // Transfer definition locations from child to parent
+            parent_analysis_data
+                .definition_locations
+                .extend(analysis_data.definition_locations);
+
             if !matches!(parent_analysis_data.migrate_function, Some(false))
                 && analysis_data.migrate_function.is_some()
             {
@@ -1714,6 +1719,15 @@ pub(crate) fn update_analysis_result_with_tast(
 
         for (kind, count) in analysis_data.issue_counts {
             *analysis_result.issue_counts.entry(kind).or_insert(0) += count;
+        }
+
+        // Transfer member definition locations
+        if !analysis_data.definition_locations.is_empty() {
+            analysis_result
+                .definition_locations
+                .entry(*file_path)
+                .or_default()
+                .extend(analysis_data.definition_locations);
         }
     }
 }

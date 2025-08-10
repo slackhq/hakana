@@ -28,6 +28,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Hakana is a typechecker for Hack built in Rust, designed to complement HHVM's built-in typechecker with enhanced type inference and security analysis.
 
+### Hack File Conventions
+- **File Extensions**: Use `.hack` for Hack source files
+- **Opening Tags**: Hack files in this project should NOT start with `<?hh` - the opening tag is omitted
+- **File Format**: Files should start directly with Hack code (classes, functions, namespaces, etc.)
+
 ### Core Components
 
 **Workspace Structure**: Multi-crate workspace with specialized modules:
@@ -101,7 +106,7 @@ Hakana is a typechecker for Hack built in Rust, designed to complement HHVM's bu
 Tests are organized in the `tests/` directory with subdirectories for different test types. The test runner logic is in `src/cli/test_runners/test_runner.rs`.
 
 **Standard Test Structure** (most directories):
-- `input.hack` - Input source code file
+- `input.hack` - Input source code file (should NOT start with `<?hh` - Hack files in this project omit the opening tag)
 - `output.txt` - Expected output (optional, omit if no issues expected)
 
 **Directory-Specific Test Configurations**:
