@@ -127,16 +127,6 @@ pub(crate) fn analyze(
                     name,
                     false,
                 );
-
-                if statements_analyzer
-                    .get_config()
-                    .collect_goto_definition_locations
-                {
-                    analysis_data.definition_locations.insert(
-                        (pos.start_offset() as u32, pos.end_offset() as u32),
-                        (name, StrId::EMPTY),
-                    );
-                }
             }
 
             return Ok(());
@@ -154,7 +144,10 @@ pub(crate) fn analyze(
             .collect_goto_definition_locations
         {
             analysis_data.definition_locations.insert(
-                (pos.start_offset() as u32, pos.end_offset() as u32),
+                (
+                    expr.0 .0.start_offset() as u32,
+                    expr.0 .0.end_offset() as u32,
+                ),
                 (name, StrId::EMPTY),
             );
         }
