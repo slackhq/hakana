@@ -756,6 +756,14 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 &mut cost,
             );
 
+            // Add symbol references and definition locations for return type
+            add_symbol_references_with_location(
+                &expected_return_type,
+                context.function_context.calling_functionlike_id,
+                &mut analysis_data,
+                functionlike_storage.return_type_location,
+            );
+
             if let Some(name_location) = functionlike_storage.name_location {
                 if cost > 50_000 {
                     analysis_data.maybe_add_issue(
@@ -1021,10 +1029,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     ) -> Result<(), AnalysisError> {
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {
-                add_symbol_references(
+                add_symbol_references_with_location(
                     param_type,
                     context.function_context.calling_functionlike_id,
                     analysis_data,
+                    param.signature_type_location,
                 );
 
                 if param_type.is_mixed() {
@@ -1233,10 +1242,11 @@ fn get_param_source_kind(
     }
 }
 
-fn add_symbol_references(
+fn add_symbol_references_with_location(
     param_type: &TUnion,
     calling_functionlike_id: Option<FunctionLikeIdentifier>,
     analysis_data: &mut FunctionAnalysisData,
+    type_location: Option<hakana_code_info::code_location::HPos>,
 ) {
     for type_node in param_type.get_all_child_nodes() {
         if let hakana_code_info::t_union::TypeNode::Atomic(atomic) = type_node {
@@ -1244,23 +1254,36 @@ fn add_symbol_references(
                 TAtomic::TReference { name, .. }
                 | TAtomic::TClosureAlias {
                     id: FunctionLikeIdentifier::Function(name),
-                } => match calling_functionlike_id {
-                    Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                        analysis_data
-                            .symbol_references
-                            .add_symbol_reference_to_symbol(calling_function, *name, true);
+                } => {
+                    // Add definition location tracking for go-to-definition support
+                    if let Some(location) = type_location {
+                        analysis_data.definition_locations.insert(
+                            (location.start_offset, location.end_offset),
+                            (*name, hakana_str::StrId::EMPTY),
+                        );
                     }
-                    Some(FunctionLikeIdentifier::Method(calling_classlike, calling_function)) => {
-                        analysis_data
-                            .symbol_references
-                            .add_class_member_reference_to_symbol(
-                                (calling_classlike, calling_function),
-                                *name,
-                                true,
-                            );
+
+                    match calling_functionlike_id {
+                        Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                            analysis_data
+                                .symbol_references
+                                .add_symbol_reference_to_symbol(calling_function, *name, true);
+                        }
+                        Some(FunctionLikeIdentifier::Method(
+                            calling_classlike,
+                            calling_function,
+                        )) => {
+                            analysis_data
+                                .symbol_references
+                                .add_class_member_reference_to_symbol(
+                                    (calling_classlike, calling_function),
+                                    *name,
+                                    true,
+                                );
+                        }
+                        _ => {}
                     }
-                    _ => {}
-                },
+                }
 
                 TAtomic::TEnumLiteralCase {
                     enum_name: name,
