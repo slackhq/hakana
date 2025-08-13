@@ -1,0 +1,20 @@
+[
+  {
+    "end_offset": 205,
+    "file": "input.hack",
+    "name": "B",
+    "start_offset": 198
+  },
+  {
+    "end_offset": 218,
+    "file": "input.hack",
+    "name": "C",
+    "start_offset": 211
+  },
+  {
+    "end_offset": 231,
+    "file": "input.hack",
+    "name": "D",
+    "start_offset": 224
+  }
+]

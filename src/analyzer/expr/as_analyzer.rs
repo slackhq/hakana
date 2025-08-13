@@ -17,6 +17,7 @@ use hakana_code_info::var_name::VarName;
 use hakana_code_info::EFFECT_IMPURE;
 use hakana_code_info::{data_flow::graph::DataFlowGraph, t_union::populate_union_type};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
+use hakana_str::StrId;
 use oxidized::aast;
 
 pub(crate) fn analyze<'expr>(
@@ -148,6 +149,15 @@ pub(crate) fn analyze<'expr>(
         if hint_type.is_nonnull() && ternary_type.is_any() {
             hint_type = wrap_atomic(TAtomic::TMixedWithFlags(true, false, false, true));
         } else {
+            for t in &hint_type.types {
+                if let TAtomic::TReference { name, .. } = t {
+                    analysis_data.definition_locations.insert(
+                        (hint.0.start_offset() as u32, hint.0.end_offset() as u32),
+                        (*name, StrId::EMPTY),
+                    );
+                }
+            }
+
             populate_union_type(
                 &mut hint_type,
                 &codebase.symbols,
@@ -157,6 +167,7 @@ pub(crate) fn analyze<'expr>(
                 &mut analysis_data.symbol_references,
                 false,
             );
+
             type_expander::expand_union(
                 codebase,
                 &Some(statements_analyzer.interner),

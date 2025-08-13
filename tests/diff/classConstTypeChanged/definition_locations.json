@@ -1,0 +1,26 @@
+[
+  {
+    "end_offset": 280,
+    "file": "input.hack",
+    "name": "foo",
+    "start_offset": 277
+  },
+  {
+    "end_offset": 305,
+    "file": "input.hack",
+    "name": "Exception::__construct",
+    "start_offset": 285
+  },
+  {
+    "end_offset": 321,
+    "file": "input.hack",
+    "name": "B",
+    "start_offset": 314
+  },
+  {
+    "end_offset": 327,
+    "file": "input.hack",
+    "name": "B::bar",
+    "start_offset": 324
+  }
+]

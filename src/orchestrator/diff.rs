@@ -34,7 +34,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
     previous_analysis_result: Option<AnalysisResult>,
     max_changes_allowed: usize,
 ) -> CachedAnalysis {
-    let (existing_references, mut existing_issues, mut existing_member_definitions) =
+    let (existing_references, mut existing_issues, mut existing_definition_locations) =
         if let Some(previous_analysis_result) = previous_analysis_result {
             (
                 previous_analysis_result.symbol_references,
@@ -122,8 +122,8 @@ pub(crate) fn mark_safe_symbols_from_diff(
     );
     cached_analysis.existing_issues = existing_issues;
 
-    update_member_definitions_from_diff(&mut existing_member_definitions, &codebase_diff);
-    cached_analysis.definition_locations = existing_member_definitions;
+    update_definition_locations_from_diff(&mut existing_definition_locations, &codebase_diff);
+    cached_analysis.definition_locations = existing_definition_locations;
 
     cached_analysis
 }
@@ -186,12 +186,12 @@ fn update_issues_from_diff(
     }
 }
 
-fn update_member_definitions_from_diff(
-    existing_member_definitions: &mut FxHashMap<FilePath, FxHashMap<(u32, u32), (StrId, StrId)>>,
+fn update_definition_locations_from_diff(
+    existing_definition_locations: &mut FxHashMap<FilePath, FxHashMap<(u32, u32), (StrId, StrId)>>,
     codebase_diff: &CodebaseDiff,
 ) {
-    for (existing_file, file_member_definitions) in existing_member_definitions.iter_mut() {
-        if file_member_definitions.is_empty() {
+    for (existing_file, file_definition_locations) in existing_definition_locations.iter_mut() {
+        if file_definition_locations.is_empty() {
             continue;
         }
 
@@ -208,7 +208,7 @@ fn update_member_definitions_from_diff(
             .unwrap_or(vec![]);
 
         if !deletion_ranges.is_empty() {
-            file_member_definitions.retain(|(start_offset, _end_offset), _pos| {
+            file_definition_locations.retain(|(start_offset, _end_offset), _pos| {
                 for (from, to) in &deletion_ranges {
                     if start_offset >= from && start_offset <= to {
                         return false;
@@ -222,11 +222,11 @@ fn update_member_definitions_from_diff(
         if !diff_map.is_empty() {
             let mut updated_definitions = FxHashMap::default();
 
-            for ((start_offset, end_offset), symbol_tuple) in file_member_definitions.drain() {
+            for ((start_offset, end_offset), symbol_tuple) in file_definition_locations.drain() {
                 let mut new_start_offset = start_offset;
                 let mut new_end_offset = end_offset;
 
-                for (from, to, file_offset, _line_offset) in &diff_map {
+                for (from, to, file_offset, _) in &diff_map {
                     if &start_offset >= from && &start_offset <= to {
                         new_start_offset = ((start_offset as isize) + file_offset) as u32;
                         new_end_offset = ((end_offset as isize) + file_offset) as u32;
@@ -237,7 +237,7 @@ fn update_member_definitions_from_diff(
                 updated_definitions.insert((new_start_offset, new_end_offset), symbol_tuple);
             }
 
-            *file_member_definitions = updated_definitions;
+            *file_definition_locations = updated_definitions;
         }
     }
 }

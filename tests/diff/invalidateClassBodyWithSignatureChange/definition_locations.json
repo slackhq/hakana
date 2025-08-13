@@ -1,0 +1,26 @@
+[
+  {
+    "end_offset": 66,
+    "file": "input.hack",
+    "name": "B",
+    "start_offset": 61
+  },
+  {
+    "end_offset": 66,
+    "file": "input.hack",
+    "name": "B::bb",
+    "start_offset": 64
+  },
+  {
+    "end_offset": 83,
+    "file": "input.hack",
+    "name": "C",
+    "start_offset": 78
+  },
+  {
+    "end_offset": 83,
+    "file": "input.hack",
+    "name": "C::cc",
+    "start_offset": 81
+  }
+]

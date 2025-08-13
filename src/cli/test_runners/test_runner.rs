@@ -14,6 +14,7 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
+use serde_json;
 use similar::{ChangeTag, TextDiff};
 
 use std::env;
@@ -221,8 +222,8 @@ impl TestRunner {
             analysis_config.in_migration = true;
         }
 
-        // Enable go-to-definition collection for goto-definition tests
-        if dir.contains("/goto-definition/") {
+        // Enable go-to-definition collection for goto-definition and diff tests
+        if dir.contains("/goto-definition/") || dir.contains("/diff/") {
             analysis_config.collect_goto_definition_locations = true;
         }
 
@@ -636,6 +637,15 @@ impl TestRunner {
 
         let test_output = output;
 
+        // Generate definition_locations.json
+        let definition_locations_json = generate_definition_locations_json(&analysis_result, &run_data.interner);
+        let definition_locations_path = dir.clone() + "/definition_locations.json";
+        
+        // Write definition_locations.json file
+        if let Err(e) = fs::write(&definition_locations_path, definition_locations_json) {
+            eprintln!("Warning: Failed to write definition_locations.json: {}", e);
+        }
+
         let expected_output_path = dir.clone() + "/output.txt";
         let expected_output = if Path::new(&expected_output_path).exists() {
             let expected = fs::read_to_string(expected_output_path)
@@ -937,6 +947,59 @@ fn copy_recursively(source: impl AsRef<Path>, destination: impl AsRef<Path>) -> 
         }
     }
     Ok(())
+}
+
+fn generate_definition_locations_json(analysis_result: &AnalysisResult, interner: &Interner) -> String {
+    use serde_json::json;
+
+    let mut all_locations = Vec::new();
+
+    for (file_path, locations) in &analysis_result.definition_locations {
+        let original_file_path_str = interner.lookup(&file_path.0);
+        
+        // Extract just the filename for cleaner output
+        let file_path_str = if let Some(workdir_pos) = original_file_path_str.find("/workdir/") {
+            let file_name = &original_file_path_str[workdir_pos + 9..]; // Skip "/workdir/"
+            file_name.to_string()
+        } else {
+            // Extract filename from any path
+            original_file_path_str.split('/').last().unwrap_or(original_file_path_str).to_string()
+        };
+        
+        for ((start_offset, end_offset), (symbol_id, member_id)) in locations {
+            let symbol_name = interner.lookup(symbol_id);
+            let member_name = if *member_id == StrId::EMPTY {
+                ""
+            } else {
+                interner.lookup(member_id)
+            };
+            
+            let name = if member_name.is_empty() {
+                symbol_name.to_string()
+            } else {
+                format!("{}::{}", symbol_name, member_name)
+            };
+            
+            all_locations.push(json!({
+                "name": name,
+                "file": file_path_str,
+                "start_offset": start_offset,
+                "end_offset": end_offset
+            }));
+        }
+    }
+
+    // Sort by start_offset, then by end_offset
+    all_locations.sort_by(|a, b| {
+        let start_a = a["start_offset"].as_u64().unwrap();
+        let start_b = b["start_offset"].as_u64().unwrap();
+        let end_a = a["end_offset"].as_u64().unwrap();
+        let end_b = b["end_offset"].as_u64().unwrap();
+        
+        start_a.cmp(&start_b).then(end_a.cmp(&end_b))
+    });
+
+    serde_json::to_string_pretty(&all_locations).unwrap_or_else(|_| "[]".to_string())
 }
 
 fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String> {

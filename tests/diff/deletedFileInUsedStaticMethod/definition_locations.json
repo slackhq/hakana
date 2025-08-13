@@ -1,0 +1,14 @@
+[
+  {
+    "end_offset": 59,
+    "file": "main.hack",
+    "name": "A",
+    "start_offset": 45
+  },
+  {
+    "end_offset": 59,
+    "file": "main.hack",
+    "name": "A::toBeChanged",
+    "start_offset": 48
+  }
+]

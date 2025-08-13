@@ -1,0 +1,44 @@
+[
+  {
+    "end_offset": 47,
+    "file": "input.hack",
+    "name": "bar",
+    "start_offset": 44
+  },
+  {
+    "end_offset": 67,
+    "file": "input.hack",
+    "name": "B",
+    "start_offset": 60
+  },
+  {
+    "end_offset": 80,
+    "file": "input.hack",
+    "name": "B::baz",
+    "start_offset": 77
+  },
+  {
+    "end_offset": 95,
+    "file": "input.hack",
+    "name": "B::bat",
+    "start_offset": 92
+  },
+  {
+    "end_offset": 116,
+    "file": "input.hack",
+    "name": "Exception::__construct",
+    "start_offset": 109
+  },
+  {
+    "end_offset": 161,
+    "file": "input.hack",
+    "name": "A",
+    "start_offset": 153
+  },
+  {
+    "end_offset": 237,
+    "file": "input.hack",
+    "name": "A",
+    "start_offset": 229
+  }
+]

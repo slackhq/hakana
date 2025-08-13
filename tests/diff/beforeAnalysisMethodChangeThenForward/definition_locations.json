@@ -1,0 +1,38 @@
+[
+  {
+    "end_offset": 74,
+    "file": "input.hack",
+    "name": "A",
+    "start_offset": 65
+  },
+  {
+    "end_offset": 74,
+    "file": "input.hack",
+    "name": "A::bar",
+    "start_offset": 71
+  },
+  {
+    "end_offset": 95,
+    "file": "input.hack",
+    "name": "A",
+    "start_offset": 86
+  },
+  {
+    "end_offset": 95,
+    "file": "input.hack",
+    "name": "A::baz",
+    "start_offset": 92
+  },
+  {
+    "end_offset": 304,
+    "file": "input.hack",
+    "name": "A",
+    "start_offset": 298
+  },
+  {
+    "end_offset": 304,
+    "file": "input.hack",
+    "name": "A::foo",
+    "start_offset": 301
+  }
+]

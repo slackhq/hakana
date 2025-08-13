@@ -1,0 +1,14 @@
+[
+  {
+    "end_offset": 58,
+    "file": "bar.hack",
+    "name": "A::__construct",
+    "start_offset": 44
+  },
+  {
+    "end_offset": 78,
+    "file": "bar.hack",
+    "name": "A::value",
+    "start_offset": 73
+  }
+]

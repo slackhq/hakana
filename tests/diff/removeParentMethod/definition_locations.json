@@ -1,0 +1,14 @@
+[
+  {
+    "end_offset": 144,
+    "file": "input.hack",
+    "name": "B",
+    "start_offset": 137
+  },
+  {
+    "end_offset": 150,
+    "file": "input.hack",
+    "name": "B::bar",
+    "start_offset": 147
+  }
+]

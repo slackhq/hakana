@@ -1,0 +1,20 @@
+[
+  {
+    "end_offset": 42,
+    "file": "bar.hack",
+    "name": "bar",
+    "start_offset": 39
+  },
+  {
+    "end_offset": 124,
+    "file": "bar.hack",
+    "name": "HH\\Shapes",
+    "start_offset": 113
+  },
+  {
+    "end_offset": 124,
+    "file": "bar.hack",
+    "name": "HH\\Shapes::idx",
+    "start_offset": 121
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "end_offset": 51,
+    "file": "main.hack",
+    "name": "A",
+    "start_offset": 45
+  },
+  {
+    "end_offset": 51,
+    "file": "main.hack",
+    "name": "A::foo",
+    "start_offset": 48
+  },
+  {
+    "end_offset": 73,
+    "file": "main.hack",
+    "name": "A",
+    "start_offset": 59
+  },
+  {
+    "end_offset": 73,
+    "file": "main.hack",
+    "name": "AParent::toBeChanged",
+    "start_offset": 62
+  }
+]

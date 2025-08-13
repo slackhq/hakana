@@ -321,17 +321,6 @@ fn handle_nonexistent_method(
                 false,
             );
 
-        // Track member definition location for go-to-definition support
-        if statements_analyzer
-            .get_config()
-            .collect_goto_definition_locations
-        {
-            analysis_data.definition_locations.insert(
-                (id.0.start_offset() as u32, id.0.end_offset() as u32),
-                (*classlike_name, method_name),
-            );
-        }
-
         let Some(classlike_info) = statements_analyzer
             .codebase
             .classlike_infos

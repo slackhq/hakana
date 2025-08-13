@@ -1,0 +1,20 @@
+[
+  {
+    "end_offset": 232,
+    "file": "input.hack",
+    "name": "Facebook\\XHP\\Core\\frag",
+    "start_offset": 228
+  },
+  {
+    "end_offset": 251,
+    "file": "input.hack",
+    "name": "MyElement:::some-attr",
+    "start_offset": 241
+  },
+  {
+    "end_offset": 316,
+    "file": "input.hack",
+    "name": "MyElement",
+    "start_offset": 307
+  }
+]

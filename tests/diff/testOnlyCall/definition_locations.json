@@ -1,0 +1,20 @@
+[
+  {
+    "end_offset": 69,
+    "file": "input.hack",
+    "name": "test_fn",
+    "start_offset": 62
+  },
+  {
+    "end_offset": 85,
+    "file": "input.hack",
+    "name": "other_fn",
+    "start_offset": 77
+  },
+  {
+    "end_offset": 200,
+    "file": "input.hack",
+    "name": "test_fn",
+    "start_offset": 193
+  }
+]
