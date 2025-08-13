@@ -5,6 +5,7 @@ use std::sync::Arc;
 use self::symbols::SymbolKind;
 pub use self::symbols::Symbols;
 use crate::classlike_info::ClassLikeInfo;
+use crate::code_location::HPos;
 use crate::file_info::FileInfo;
 use crate::functionlike_info::FunctionLikeInfo;
 use crate::method_identifier::MethodIdentifier;
@@ -395,6 +396,42 @@ impl CodebaseInfo {
         }
 
         *method_id
+    }
+
+    pub fn get_symbol_pos(&self, classlike_name: &StrId, member_name: &StrId) -> Option<HPos> {
+        let classlike_info = self.classlike_infos.get(classlike_name);
+
+        if *member_name == StrId::EMPTY {
+            if let Some(classlike_info) = classlike_info {
+                return Some(classlike_info.name_location);
+            }
+        }
+
+        if let Some(classlike_info) = classlike_info {
+            if let Some(property_info) = classlike_info.properties.get(member_name) {
+                if let Some(property_pos) = property_info.pos {
+                    return Some(property_pos);
+                }
+            }
+
+            if let Some(constant_info) = classlike_info.constants.get(member_name) {
+                return Some(constant_info.pos);
+            }
+        } else if let Some(type_info) = self.type_definitions.get(classlike_name) {
+            return Some(type_info.location);
+        }
+
+        let functionlike_info = self
+            .functionlike_infos
+            .get(&(*classlike_name, *member_name));
+
+        if let Some(functionlike_info) = functionlike_info {
+            if let Some(name_pos) = functionlike_info.name_location {
+                return Some(name_pos);
+            }
+        }
+
+        return None;
     }
 
     #[inline]

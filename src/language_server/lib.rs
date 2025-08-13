@@ -7,13 +7,12 @@ use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::HPos;
-use hakana_code_info::functionlike_info;
 use hakana_orchestrator::file::FileStatus;
 #[cfg(target_arch = "wasm32")]
 use hakana_orchestrator::SuccessfulScanData;
 #[cfg(not(target_arch = "wasm32"))]
 use hakana_orchestrator::{scan_and_analyze_async, SuccessfulScanData};
-use hakana_str::{Interner, StrId};
+use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::sync::RwLock;
 use tokio::time::sleep;
@@ -240,52 +239,11 @@ impl LanguageServer for Backend {
                                 if (offset as u32) >= *start_offset
                                     && (offset as u32) <= *end_offset
                                 {
-                                    let classlike_info =
-                                        scan_data.codebase.classlike_infos.get(classlike_name);
-
-                                    if *member_name == StrId::EMPTY {
-                                        if let Some(classlike_info) = classlike_info {
-                                            return Ok(pos_to_offset(
-                                                classlike_info.name_location,
-                                                &scan_data.interner,
-                                            ));
-                                        }
-                                    }
-
-                                    if let Some(classlike_info) = classlike_info {
-                                        if let Some(property_info) =
-                                            classlike_info.properties.get(member_name)
-                                        {
-                                            if let Some(property_pos) = property_info.pos {
-                                                return Ok(pos_to_offset(
-                                                    property_pos,
-                                                    &scan_data.interner,
-                                                ));
-                                            }
-                                        }
-
-                                        if let Some(constant_info) =
-                                            classlike_info.constants.get(member_name)
-                                        {
-                                            return Ok(pos_to_offset(
-                                                constant_info.pos,
-                                                &scan_data.interner,
-                                            ));
-                                        }
-                                    }
-
-                                    let functionlike_info = scan_data
+                                    if let Some(pos) = scan_data
                                         .codebase
-                                        .functionlike_infos
-                                        .get(&(*classlike_name, *member_name));
-
-                                    if let Some(functionlike_info) = functionlike_info {
-                                        if let Some(name_pos) = functionlike_info.name_location {
-                                            return Ok(pos_to_offset(
-                                                name_pos,
-                                                &scan_data.interner,
-                                            ));
-                                        }
+                                        .get_symbol_pos(classlike_name, member_name)
+                                    {
+                                        return Ok(pos_to_offset(pos, &scan_data.interner));
                                     }
 
                                     return Ok(None);
