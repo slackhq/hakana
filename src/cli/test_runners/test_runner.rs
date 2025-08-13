@@ -641,9 +641,22 @@ impl TestRunner {
         let definition_locations_json = generate_definition_locations_json(&analysis_result, &run_data.interner);
         let definition_locations_path = dir.clone() + "/definition_locations.json";
         
-        // Write definition_locations.json file
-        if let Err(e) = fs::write(&definition_locations_path, definition_locations_json) {
-            eprintln!("Warning: Failed to write definition_locations.json: {}", e);
+        // Check if expected definition_locations.json exists for validation
+        if Path::new(&definition_locations_path).exists() {
+            let expected_definition_locations = fs::read_to_string(&definition_locations_path)
+                .unwrap()
+                .trim()
+                .to_string();
+            
+            if expected_definition_locations.trim() != definition_locations_json.trim() {
+                test_diagnostics.push((dir.clone(), format_diff(&expected_definition_locations, &definition_locations_json)));
+                return ("F".to_string(), Some(run_data), Some(analysis_result));
+            }
+        } else {
+            // Write definition_locations.json file if it doesn't exist
+            if let Err(e) = fs::write(&definition_locations_path, definition_locations_json) {
+                eprintln!("Warning: Failed to write definition_locations.json: {}", e);
+            }
         }
 
         let expected_output_path = dir.clone() + "/output.txt";
