@@ -163,6 +163,7 @@ pub async fn scan_and_analyze_async(
         resolved_names,
         cached_analysis.symbol_references,
         cached_analysis.existing_issues,
+        cached_analysis.definition_locations,
     );
 
     lsp_client
@@ -320,6 +321,7 @@ pub fn scan_and_analyze<F: FnOnce()>(
         resolved_names,
         cached_analysis.symbol_references,
         cached_analysis.existing_issues,
+        cached_analysis.definition_locations,
     );
 
     logger.log_sync(&format!("Analyzing {} files", files_to_analyze.len()));
@@ -404,10 +406,12 @@ fn get_analysis_ready(
     resolved_names: FxHashMap<FilePath, FxHashMap<u32, StrId>>,
     symbol_references: SymbolReferences,
     existing_issues: FxHashMap<FilePath, Vec<Issue>>,
+    definition_locations: FxHashMap<FilePath, FxHashMap<(u32, u32), (StrId, StrId)>>,
 ) -> (Arc<Mutex<AnalysisResult>>, Arc<SuccessfulScanData>) {
     let mut analysis_result = AnalysisResult::new(config.graph_kind, symbol_references);
 
     analysis_result.emitted_issues = existing_issues;
+    analysis_result.definition_locations = definition_locations;
 
     let analysis_result = Arc::new(Mutex::new(analysis_result));
 

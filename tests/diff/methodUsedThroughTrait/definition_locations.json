@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "end_offset": 290,
+    "file": "input.hack",
+    "name": "ConcreteClass",
+    "start_offset": 271
+  },
+  {
+    "end_offset": 311,
+    "file": "input.hack",
+    "name": "UsesClass::process",
+    "start_offset": 304
+  },
+  {
+    "end_offset": 401,
+    "file": "input.hack",
+    "name": "ParentClass::doThing",
+    "start_offset": 394
+  },
+  {
+    "end_offset": 471,
+    "file": "input.hack",
+    "name": "UsesClass::__construct",
+    "start_offset": 456
+  }
+]

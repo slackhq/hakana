@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "end_offset": 91,
+    "file": "changed_file.hack",
+    "name": "baz",
+    "start_offset": 88
+  },
+  {
+    "end_offset": 114,
+    "file": "input.hack",
+    "name": "foo",
+    "start_offset": 111
+  },
+  {
+    "end_offset": 125,
+    "file": "input.hack",
+    "name": "bar",
+    "start_offset": 122
+  }
+]

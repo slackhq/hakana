@@ -28,5 +28,29 @@
     "file": "input.hack",
     "name": "B::bak",
     "start_offset": 107
+  },
+  {
+    "end_offset": 136,
+    "file": "input.hack",
+    "name": "Exception::__construct",
+    "start_offset": 124
+  },
+  {
+    "end_offset": 181,
+    "file": "input.hack",
+    "name": "A",
+    "start_offset": 173
+  },
+  {
+    "end_offset": 257,
+    "file": "input.hack",
+    "name": "A",
+    "start_offset": 249
+  },
+  {
+    "end_offset": 326,
+    "file": "input.hack",
+    "name": "Exception::__construct",
+    "start_offset": 314
   }
 ]

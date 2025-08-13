@@ -1,0 +1,14 @@
+[
+  {
+    "end_offset": 47,
+    "file": "input.hack",
+    "name": "bar",
+    "start_offset": 44
+  },
+  {
+    "end_offset": 85,
+    "file": "input.hack",
+    "name": "baz",
+    "start_offset": 82
+  }
+]

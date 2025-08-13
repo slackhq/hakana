@@ -1,5 +1,17 @@
 [
   {
+    "end_offset": 44,
+    "file": "initiator.hack",
+    "name": "A",
+    "start_offset": 39
+  },
+  {
+    "end_offset": 44,
+    "file": "initiator.hack",
+    "name": "A::aa",
+    "start_offset": 42
+  },
+  {
     "end_offset": 66,
     "file": "input.hack",
     "name": "B",
