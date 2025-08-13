@@ -1,0 +1,14 @@
+[
+  {
+    "end_offset": 142,
+    "file": "input.hack",
+    "name": "MyClass",
+    "start_offset": 129
+  },
+  {
+    "end_offset": 157,
+    "file": "input.hack",
+    "name": "MyClass::foo",
+    "start_offset": 154
+  }
+]

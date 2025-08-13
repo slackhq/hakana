@@ -1,0 +1,14 @@
+[
+  {
+    "end_offset": 252,
+    "file": "input.hack",
+    "name": "Implementation",
+    "start_offset": 232
+  },
+  {
+    "end_offset": 309,
+    "file": "input.hack",
+    "name": "Implementation::getData",
+    "start_offset": 302
+  }
+]

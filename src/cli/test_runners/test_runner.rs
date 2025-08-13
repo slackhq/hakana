@@ -739,198 +739,31 @@ impl TestRunner {
 
         *total_time_in_analysis += result.0.time_in_analysis;
 
-        let input_file = format!("{}/input.hack", dir);
-        let positions_file = format!("{}/positions.txt", dir);
-
-        if !Path::new(&positions_file).exists() {
-            test_diagnostics.push((
-                dir,
-                "positions.txt file not found for goto-definition test".to_string(),
-            ));
-            return ("F".to_string(), Some(result.1), Some(result.0));
-        }
-
-        let positions_content = match fs::read_to_string(&positions_file) {
-            Ok(content) => content,
-            Err(_) => {
-                test_diagnostics.push((dir, "Could not read positions.txt file".to_string()));
+        // Generate definition_locations.json
+        let definition_locations_json = generate_definition_locations_json(&result.0, &result.1.interner);
+        let definition_locations_path = dir.clone() + "/definition_locations.json";
+        
+        // Check if expected definition_locations.json exists for validation
+        if Path::new(&definition_locations_path).exists() {
+            let expected_definition_locations = fs::read_to_string(&definition_locations_path)
+                .unwrap()
+                .trim()
+                .to_string();
+            
+            if expected_definition_locations.trim() != definition_locations_json.trim() {
+                test_diagnostics.push((dir.clone(), format_diff(&expected_definition_locations, &definition_locations_json)));
                 return ("F".to_string(), Some(result.1), Some(result.0));
             }
-        };
-
-        // Get the file path key for resolved_names lookup
-        let file_path_id = match result.1.interner.get(&input_file) {
-            Some(id) => id,
-            None => {
-                test_diagnostics.push((dir, "Input file not found in interner".to_string()));
-                return ("F".to_string(), Some(result.1), Some(result.0));
-            }
-        };
-
-        let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
-        let file_resolved_names = match result.1.resolved_names.get(&file_path_obj) {
-            Some(names) => names,
-            None => {
-                test_diagnostics.push((dir, "No resolved names found for input file".to_string()));
-                return ("F".to_string(), Some(result.1), Some(result.0));
-            }
-        };
-
-        let mut test_passed = true;
-        let mut error_messages = vec![];
-
-        // Read the input file to calculate positions
-        let file_contents = match fs::read_to_string(&input_file) {
-            Ok(contents) => contents,
-            Err(_) => {
-                test_diagnostics.push((dir, "Could not read input file".to_string()));
-                return ("F".to_string(), Some(result.1), Some(result.0));
-            }
-        };
-
-        for line in positions_content.lines() {
-            if line.starts_with('#') || line.trim().is_empty() {
-                continue;
-            }
-
-            let parts: Vec<&str> = line.split(':').collect();
-            if parts.len() < 3 {
-                error_messages.push(format!("Invalid position line format: {}", line));
-                test_passed = false;
-                continue;
-            }
-
-            let line_num: u32 = match parts[0].parse() {
-                Ok(num) => num,
-                Err(_) => {
-                    error_messages.push(format!("Invalid line number: {}", parts[0]));
-                    test_passed = false;
-                    continue;
-                }
-            };
-
-            let column_num: u32 = match parts[1].parse() {
-                Ok(num) => num,
-                Err(_) => {
-                    error_messages.push(format!("Invalid column number: {}", parts[1]));
-                    test_passed = false;
-                    continue;
-                }
-            };
-
-            let expected_class = parts[2..].join(":").trim().to_string();
-
-            // Convert line/column to byte offset
-            let offset = self.position_to_offset(&file_contents, line_num - 1, column_num);
-
-            let mut found_match = false;
-
-            // Check if there's a definition location at this position (for both symbols and members)
-            if let Some(file_definitions) = result.0.definition_locations.get(&file_path_obj) {
-                // Check for exact offset match
-                let offset_key = (offset as u32, offset as u32);
-                if let Some((symbol_id, member_id)) = file_definitions.get(&offset_key) {
-                    let symbol_name = result.1.interner.lookup(symbol_id);
-                    let member_name = if *member_id == StrId::EMPTY {
-                        ""
-                    } else {
-                        result.1.interner.lookup(member_id)
-                    };
-                    
-                    // Build the full name (e.g., "MyClass::doSomething" or just "MyClass")
-                    let full_name = if member_name.is_empty() {
-                        symbol_name.to_string()
-                    } else {
-                        format!("{}::{}", symbol_name, member_name)
-                    };
-                    
-                    if full_name == expected_class {
-                        found_match = true;
-                    }
-                } else {
-                    // Check for range matches
-                    for ((start_offset, end_offset), (symbol_id, member_id)) in file_definitions {
-                        if (offset as u32) >= *start_offset && (offset as u32) <= *end_offset {
-                            let symbol_name = result.1.interner.lookup(symbol_id);
-                            let member_name = if *member_id == StrId::EMPTY {
-                                ""
-                            } else {
-                                result.1.interner.lookup(member_id)
-                            };
-                            
-                            // Build the full name (e.g., "MyClass::doSomething" or just "MyClass")
-                            let full_name = if member_name.is_empty() {
-                                symbol_name.to_string()
-                            } else {
-                                format!("{}::{}", symbol_name, member_name)
-                            };
-                            
-                            if full_name == expected_class {
-                                found_match = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Fallback: check resolved names for symbols without "::" (legacy support)
-            if !found_match && !expected_class.contains("::") {
-                if let Some(resolved_name_id) = file_resolved_names.get(&(offset as u32)) {
-                    let resolved_name = result.1.interner.lookup(resolved_name_id);
-
-                    // Check if the resolved name matches expected (basic string comparison)
-                    if resolved_name == expected_class {
-                        // Also check if the class exists in the codebase
-                        if result
-                            .1
-                            .codebase
-                            .classlike_infos
-                            .contains_key(resolved_name_id)
-                        {
-                            found_match = true;
-                        } else {
-                            error_messages.push(format!("Class {} found in resolved_names but not in codebase at line {}, column {}", expected_class, line_num, column_num));
-                            test_passed = false;
-                            continue;
-                        }
-                    }
-                }
-            }
-
-            if !found_match {
-                error_messages.push(format!(
-                    "No definition found for {} at line {}, column {} (offset {})",
-                    expected_class, line_num, column_num, offset
-                ));
-                test_passed = false;
-            }
-        }
-
-        if test_passed {
-            (".".to_string(), Some(result.1), Some(result.0))
         } else {
-            test_diagnostics.push((dir, error_messages.join("\n")));
-            ("F".to_string(), Some(result.1), Some(result.0))
+            // Write definition_locations.json file if it doesn't exist
+            if let Err(e) = fs::write(&definition_locations_path, definition_locations_json) {
+                eprintln!("Warning: Failed to write definition_locations.json: {}", e);
+            }
         }
+
+        (".".to_string(), Some(result.1), Some(result.0))
     }
 
-    fn position_to_offset(&self, file_contents: &str, line: u32, character: u32) -> usize {
-        let lines: Vec<&str> = file_contents.lines().collect();
-        let mut offset = 0;
-
-        // Add offset for complete lines before the target line
-        for (_line_idx, line) in lines.iter().enumerate().take(line as usize) {
-            offset += line.len() + 1; // +1 for newline character
-        }
-
-        // Add offset for characters in the target line
-        if let Some(target_line) = lines.get(line as usize) {
-            offset += std::cmp::min(character as usize, target_line.len());
-        }
-
-        offset
-    }
 }
 
 fn augment_with_local_config(dir: &String, analysis_config: &mut config::Config) {

@@ -1,0 +1,14 @@
+[
+  {
+    "end_offset": 293,
+    "file": "input.hack",
+    "name": "MyNamespace\\NamespacedClass",
+    "start_offset": 272
+  },
+  {
+    "end_offset": 315,
+    "file": "input.hack",
+    "name": "MyNamespace\\NamespacedClass::method",
+    "start_offset": 309
+  }
+]
