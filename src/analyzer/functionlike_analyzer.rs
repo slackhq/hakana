@@ -728,6 +728,17 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut inferred_return_type = None;
 
         if let Some(expected_return_type) = &functionlike_storage.return_type {
+            add_symbol_references_with_location(
+                expected_return_type,
+                context.function_context.calling_functionlike_id,
+                &mut analysis_data,
+                if config.collect_goto_definition_locations {
+                    functionlike_storage.return_type_location
+                } else {
+                    None
+                },
+            );
+
             let mut expected_return_type = expected_return_type.clone();
             type_expander::expand_union(
                 statements_analyzer.codebase,
@@ -754,14 +765,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 },
                 &mut analysis_data.data_flow_graph,
                 &mut cost,
-            );
-
-            // Add symbol references and definition locations for return type
-            add_symbol_references_with_location(
-                &expected_return_type,
-                context.function_context.calling_functionlike_id,
-                &mut analysis_data,
-                functionlike_storage.return_type_location,
             );
 
             if let Some(name_location) = functionlike_storage.name_location {
@@ -1029,16 +1032,23 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     ) -> Result<(), AnalysisError> {
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {
-                add_symbol_references_with_location(
-                    param_type,
-                    context.function_context.calling_functionlike_id,
-                    analysis_data,
-                    param.signature_type_location,
-                );
-
                 if param_type.is_mixed() {
                     param_type.clone()
                 } else {
+                    add_symbol_references_with_location(
+                        param_type,
+                        context.function_context.calling_functionlike_id,
+                        analysis_data,
+                        if statements_analyzer
+                            .get_config()
+                            .collect_goto_definition_locations
+                        {
+                            param.signature_type_location
+                        } else {
+                            None
+                        },
+                    );
+
                     let mut param_type = param_type.clone();
                     let calling_class = context.function_context.calling_class;
 
@@ -1251,39 +1261,34 @@ fn add_symbol_references_with_location(
     for type_node in param_type.get_all_child_nodes() {
         if let hakana_code_info::t_union::TypeNode::Atomic(atomic) = type_node {
             match atomic {
-                TAtomic::TReference { name, .. }
-                | TAtomic::TClosureAlias {
-                    id: FunctionLikeIdentifier::Function(name),
-                } => {
-                    // Add definition location tracking for go-to-definition support
+                TAtomic::TNamedObject { name, .. } | TAtomic::TTypeAlias { name, .. } => {
                     if let Some(location) = type_location {
                         analysis_data.definition_locations.insert(
                             (location.start_offset, location.end_offset),
                             (*name, hakana_str::StrId::EMPTY),
                         );
                     }
-
-                    match calling_functionlike_id {
-                        Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                            analysis_data
-                                .symbol_references
-                                .add_symbol_reference_to_symbol(calling_function, *name, true);
-                        }
-                        Some(FunctionLikeIdentifier::Method(
-                            calling_classlike,
-                            calling_function,
-                        )) => {
-                            analysis_data
-                                .symbol_references
-                                .add_class_member_reference_to_symbol(
-                                    (calling_classlike, calling_function),
-                                    *name,
-                                    true,
-                                );
-                        }
-                        _ => {}
-                    }
                 }
+                TAtomic::TReference { name, .. }
+                | TAtomic::TClosureAlias {
+                    id: FunctionLikeIdentifier::Function(name),
+                } => match calling_functionlike_id {
+                    Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                        analysis_data
+                            .symbol_references
+                            .add_symbol_reference_to_symbol(calling_function, *name, true);
+                    }
+                    Some(FunctionLikeIdentifier::Method(calling_classlike, calling_function)) => {
+                        analysis_data
+                            .symbol_references
+                            .add_class_member_reference_to_symbol(
+                                (calling_classlike, calling_function),
+                                *name,
+                                true,
+                            );
+                    }
+                    _ => {}
+                },
 
                 TAtomic::TEnumLiteralCase {
                     enum_name: name,

@@ -1,5 +1,11 @@
 [
   {
+    "end_offset": 215,
+    "file": "input.hack",
+    "name": "Facebook\\XHP\\Core\\node",
+    "start_offset": 181
+  },
+  {
     "end_offset": 232,
     "file": "input.hack",
     "name": "Facebook\\XHP\\Core\\frag",
@@ -10,6 +16,12 @@
     "file": "input.hack",
     "name": "MyElement:::some-attr",
     "start_offset": 241
+  },
+  {
+    "end_offset": 292,
+    "file": "input.hack",
+    "name": "XHPChild",
+    "start_offset": 283
   },
   {
     "end_offset": 316,

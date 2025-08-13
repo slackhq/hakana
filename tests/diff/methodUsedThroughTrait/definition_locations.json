@@ -12,6 +12,12 @@
     "start_offset": 304
   },
   {
+    "end_offset": 361,
+    "file": "input.hack",
+    "name": "ParentClass",
+    "start_offset": 350
+  },
+  {
     "end_offset": 401,
     "file": "input.hack",
     "name": "ParentClass::doThing",

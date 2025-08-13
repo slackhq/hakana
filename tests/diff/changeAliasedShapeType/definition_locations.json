@@ -18,6 +18,12 @@
     "start_offset": 71
   },
   {
+    "end_offset": 142,
+    "file": "input.hack",
+    "name": "bar_t",
+    "start_offset": 137
+  },
+  {
     "end_offset": 178,
     "file": "input.hack",
     "name": "Foo::A",

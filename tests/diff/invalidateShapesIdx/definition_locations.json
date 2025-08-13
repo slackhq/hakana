@@ -6,6 +6,12 @@
     "start_offset": 39
   },
   {
+    "end_offset": 95,
+    "file": "bar.hack",
+    "name": "foo_t",
+    "start_offset": 90
+  },
+  {
     "end_offset": 124,
     "file": "bar.hack",
     "name": "HH\\Shapes",
