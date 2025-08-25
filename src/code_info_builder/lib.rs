@@ -186,6 +186,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 inferred_type: simple_type_inferer::infer(&gc.value, self.resolved_names),
                 unresolved_value: None,
                 is_abstract: false,
+                allow_non_exclusive_enum_values: false,
+                suppressed_issues: vec![],
             },
         );
 

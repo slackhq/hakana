@@ -566,6 +566,8 @@ pub(crate) fn scan(
     for class_const_node in &classlike_node.consts {
         visit_class_const_declaration(
             class_const_node,
+            comments,
+            all_custom_issues,
             resolved_names,
             &mut storage,
             file_source,
@@ -931,6 +933,8 @@ fn visit_xhp_attribute(
 
 fn visit_class_const_declaration(
     const_node: &aast::ClassConst<(), ()>,
+    comments: &Vec<(oxidized::tast::Pos, oxidized::prim_defs::Comment)>,
+    all_custom_issues: &FxHashSet<String>,
     resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
@@ -960,6 +964,22 @@ fn visit_class_const_declaration(
 
     let def_pos = HPos::new(&const_node.span, file_source.file_path);
 
+    let mut meta_start = MetaStart {
+        start_offset: def_pos.start_offset,
+        start_line: def_pos.start_line,
+        start_column: def_pos.start_column,
+    };
+
+    let mut suppressed_issues = vec![];
+
+    adjust_location_from_comments(
+        comments,
+        &mut meta_start,
+        file_source,
+        &mut suppressed_issues,
+        all_custom_issues,
+    );
+
     let name = interner.intern(const_node.id.1.clone());
 
     let uses_hash = get_uses_hash(
@@ -984,7 +1004,7 @@ fn visit_class_const_declaration(
         is_constant: true,
     });
 
-    let const_storage = ConstantInfo {
+    let mut const_storage = ConstantInfo {
         pos: def_pos,
         type_pos: supplied_type_location,
         provided_type,
@@ -997,7 +1017,17 @@ fn visit_class_const_declaration(
         },
         unresolved_value: None,
         is_abstract: matches!(const_node.kind, ClassConstKind::CCAbstract(..)),
+        allow_non_exclusive_enum_values: false, // Will be set below based on attributes
+        suppressed_issues: suppressed_issues,   // Will be set below based on attributes
     };
+
+    for user_attribute in &const_node.user_attributes {
+        let attribute_name = resolved_names[&(user_attribute.name.0.start_offset() as u32)];
+        if attribute_name == StrId::HAKANA_ALLOW_NON_EXCLUSIVE_ENUM_VALUES {
+            const_storage.allow_non_exclusive_enum_values = true;
+        }
+        // For now, skip complex suppression parsing - we'll add it later if needed
+    }
 
     classlike_storage.constants.insert(name, const_storage);
 }

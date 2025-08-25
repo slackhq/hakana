@@ -225,3 +225,61 @@ The `VariableDefinedOutsideIf` and `AsyncVariableDefinedOutsideIf` checks are im
 - Test foreach iterator variables (key and value variables)
 - Test if/else usage patterns
 - Always update both input.hack and output.txt files when adding test cases
+
+### Hakana Attributes and String Interning
+
+**String Interning for Hakana Attributes**:
+When implementing analysis that references Hakana-specific attributes (e.g., `<<Hakana\ExclusiveEnumValues>>`, `<<Hakana\AllowNonExclusiveEnumValues>>`), add them to `src/str/build.rs` in the interned strings list. This:
+- Ensures the strings are always available as `StrId` constants
+- Allows referencing them as `StrId::EXCLUSIVE_ENUM_VALUES` instead of calling `interner.lookup()`
+- Improves performance by avoiding string lookups during analysis
+- Makes the code more maintainable and less error-prone
+
+**Implementation Pattern**:
+1. Add attribute strings to `src/str/build.rs`
+2. Use the generated `StrId::CONSTANT_NAME` in analysis code
+3. Compare attributes using `attr.name == StrId::CONSTANT_NAME` instead of string comparisons
+
+**Example**:
+```rust
+// Instead of:
+let attr_name = interner.lookup(&attr.name);
+attr_name == "Hakana\\ExclusiveEnumValues"
+
+// Use:
+attr.name == StrId::HAKANA_EXCLUSIVE_ENUM_VALUES
+```
+
+**Note**: Hakana attribute constants are prefixed with `HAKANA_` in the generated StrId constants.
+
+### Enum Exclusivity Checking System
+
+**Overview**: Hakana provides a system to prevent copy-paste errors when implementing abstract class constants with enum types, ensuring each child class uses unique enum values when required.
+
+**Architecture**:
+- `<<Hakana\ExclusiveEnumValues>>` - Applied to enums to mark them as requiring exclusive usage
+- `<<Hakana\AllowNonExclusiveEnumValues>>` - Applied to abstract class constants to allow duplicate enum values
+- Two issue types: `NoEnumExclusivityAttribute` and `ExclusiveEnumValueReused`
+
+**Implementation Details**:
+- Enum exclusivity flag stored in `ConstantInfo.allow_non_exclusive_enum_values`
+- Detection logic runs in main analysis phase (not just unused symbol detection)
+- Uses pre-interned StrId constants for performance
+- Only applies to production code (excludes test classes via `is_production_code`)
+
+**Usage Patterns**:
+```hack
+// Exclusive enum (requires unique values in child classes)
+<<Hakana\ExclusiveEnumValues>>
+enum Priority: int { LOW = 1; HIGH = 2; }
+
+abstract class Task {
+    abstract const Priority TASK_PRIORITY;  // Will enforce exclusivity
+}
+
+// Non-exclusive override (allows duplicate values)
+abstract class Document {
+    <<Hakana\AllowNonExclusiveEnumValues>>
+    abstract const Category DOCUMENT_CATEGORY;  // Allows duplicate values
+}
+```

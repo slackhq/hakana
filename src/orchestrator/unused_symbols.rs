@@ -886,3 +886,150 @@ fn get_trait_users(
 
     base_set
 }
+
+pub(crate) fn check_enum_exclusivity(
+    analysis_result: &mut AnalysisResult,
+    codebase: &CodebaseInfo,
+    interner: &Interner,
+    config: &Config,
+) {
+    // First pass: collect all abstract class constants with enum types
+    let mut abstract_enum_constants: FxHashMap<StrId, FxHashMap<StrId, (StrId, HPos)>> =
+        FxHashMap::default();
+
+    for (class_name, class_info) in &codebase.classlike_infos {
+        if !class_info.is_abstract {
+            continue;
+        }
+
+        // Skip test code - for now, analyze all code
+        // if !class_info.is_production_code {
+        //     continue;
+        // }
+
+        for (const_name, const_info) in &class_info.constants {
+            if !const_info.is_abstract {
+                continue;
+            }
+
+            // Check if the constant has an enum type
+            if let Some(provided_type) = &const_info.provided_type {
+                for atomic_type in &provided_type.types {
+                    if let hakana_code_info::t_atomic::TAtomic::TEnum {
+                        name: enum_name, ..
+                    } = atomic_type
+                    {
+                        if let Some(enum_info) = codebase.classlike_infos.get(enum_name) {
+                            if matches!(
+                                enum_info.kind,
+                                hakana_code_info::codebase_info::symbols::SymbolKind::Enum
+                            ) {
+                                // Check if the constant allows non-exclusive enum values
+                                if const_info.allow_non_exclusive_enum_values {
+                                    // This constant explicitly allows non-exclusive values, skip checks
+                                    continue;
+                                }
+
+                                if const_info
+                                    .suppressed_issues
+                                    .iter()
+                                    .any(|(issue, _)| issue == &IssueKind::ExclusiveEnumValueReused)
+                                {
+                                    continue;
+                                }
+
+                                // Track this for exclusivity checking (we already know it has the exclusive attribute)
+                                abstract_enum_constants
+                                    .entry(*enum_name)
+                                    .or_default()
+                                    .insert(*const_name, (*class_name, const_info.pos));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Second pass: check for concrete implementations and detect exclusivity violations
+    for (enum_name, abstract_constants) in abstract_enum_constants {
+        for (abstract_const_name, (abstract_class, _abstract_pos)) in abstract_constants {
+            // Find all concrete implementations of this abstract constant
+            let mut implementations: FxHashMap<StrId, Vec<(StrId, HPos)>> = FxHashMap::default();
+
+            for (class_name, class_info) in &codebase.classlike_infos {
+                if class_info.is_abstract {
+                    continue;
+                }
+
+                if !class_info.is_production_code {
+                    continue;
+                }
+
+                // Check if this class extends the abstract class
+                if !class_info.all_parent_classes.contains(&abstract_class) {
+                    continue;
+                }
+
+                if let Some(const_info) = class_info.constants.get(&abstract_const_name) {
+                    if !const_info.is_abstract {
+                        // This is a concrete implementation, get the enum value
+                        if let Some(inferred_type) = &const_info.inferred_type {
+                            if let hakana_code_info::t_atomic::TAtomic::TEnumLiteralCase {
+                                enum_name: literal_enum_name,
+                                member_name,
+                                ..
+                            } = inferred_type
+                            {
+                                if *literal_enum_name == enum_name {
+                                    implementations
+                                        .entry(*member_name)
+                                        .or_default()
+                                        .push((*class_name, const_info.pos));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check for exclusivity violations
+            for (enum_value, using_classes) in &implementations {
+                if using_classes.len() > 1 {
+                    for (class_name, pos) in using_classes {
+                        let issue = Issue::new(
+                            IssueKind::ExclusiveEnumValueReused,
+                            format!(
+                                "Enum value {}::{} is used in multiple child classes for exclusive constant {}::{}. This value is also used in: {}. If this is intentional, add the <<Hakana\\AllowNonExclusiveEnumValues>> attribute to the abstract constant definition.",
+                                interner.lookup(&enum_name),
+                                interner.lookup(enum_value),
+                                interner.lookup(&abstract_class),
+                                interner.lookup(&abstract_const_name),
+                                using_classes
+                                    .iter()
+                                    .filter(|(other_class, _)| other_class != class_name)
+                                    .map(|(other_class, _)| interner.lookup(other_class))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            ),
+                            *pos,
+                            &None,
+                        );
+
+                        if config.can_add_issue(&issue) {
+                            *analysis_result
+                                .issue_counts
+                                .entry(issue.kind.clone())
+                                .or_insert(0) += 1;
+                            analysis_result
+                                .emitted_issues
+                                .entry(pos.file_path)
+                                .or_default()
+                                .push(issue);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

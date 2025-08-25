@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     code_location::HPos, functionlike_parameter::UnresolvedConstantComponent, t_atomic::TAtomic,
-    t_union::TUnion,
+    t_union::TUnion, issue::IssueKind,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -18,4 +18,8 @@ pub struct ConstantInfo {
     pub unresolved_value: Option<UnresolvedConstantComponent>,
 
     pub is_abstract: bool,
+
+    pub allow_non_exclusive_enum_values: bool,
+
+    pub suppressed_issues: Vec<(IssueKind, HPos)>,
 }

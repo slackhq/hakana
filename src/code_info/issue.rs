@@ -21,6 +21,7 @@ pub enum IssueKind {
     CustomIssue(Box<String>),
     DuplicateEnumValue,
     EmptyBlock,
+    ExclusiveEnumValueReused,
     ExtendFinalClass,
     FalsableReturnStatement,
     FalseArgument,
