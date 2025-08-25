@@ -188,6 +188,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 is_abstract: false,
                 allow_non_exclusive_enum_values: false,
                 suppressed_issues: vec![],
+                defining_class: StrId::EMPTY,
             },
         );
 

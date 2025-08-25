@@ -566,6 +566,7 @@ pub(crate) fn scan(
     for class_const_node in &classlike_node.consts {
         visit_class_const_declaration(
             class_const_node,
+            class_name,
             comments,
             all_custom_issues,
             resolved_names,
@@ -933,6 +934,7 @@ fn visit_xhp_attribute(
 
 fn visit_class_const_declaration(
     const_node: &aast::ClassConst<(), ()>,
+    class_name: &StrId,
     comments: &Vec<(oxidized::tast::Pos, oxidized::prim_defs::Comment)>,
     all_custom_issues: &FxHashSet<String>,
     resolved_names: &FxHashMap<u32, StrId>,
@@ -1017,8 +1019,9 @@ fn visit_class_const_declaration(
         },
         unresolved_value: None,
         is_abstract: matches!(const_node.kind, ClassConstKind::CCAbstract(..)),
-        allow_non_exclusive_enum_values: false, // Will be set below based on attributes
-        suppressed_issues: suppressed_issues,   // Will be set below based on attributes
+        allow_non_exclusive_enum_values: false,
+        suppressed_issues: suppressed_issues,
+        defining_class: *class_name,
     };
 
     for user_attribute in &const_node.user_attributes {
@@ -1026,7 +1029,6 @@ fn visit_class_const_declaration(
         if attribute_name == StrId::HAKANA_ALLOW_NON_EXCLUSIVE_ENUM_VALUES {
             const_storage.allow_non_exclusive_enum_values = true;
         }
-        // For now, skip complex suppression parsing - we'll add it later if needed
     }
 
     classlike_storage.constants.insert(name, const_storage);
