@@ -64,6 +64,8 @@ pub(crate) fn find_unused_definitions(
         return;
     }
 
+    check_enum_exclusivity(analysis_result, codebase, interner, &config);
+
     let referenced_symbols_and_members = analysis_result.symbol_references.back_references();
     let mut test_symbols = codebase
         .classlike_infos
@@ -887,7 +889,7 @@ fn get_trait_users(
     base_set
 }
 
-pub(crate) fn check_enum_exclusivity(
+fn check_enum_exclusivity(
     analysis_result: &mut AnalysisResult,
     codebase: &CodebaseInfo,
     interner: &Interner,

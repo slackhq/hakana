@@ -193,14 +193,6 @@ pub async fn scan_and_analyze_async(
 
     add_invalid_files(&scan_data, &mut analysis_result);
 
-    // Check enum exclusivity
-    unused_symbols::check_enum_exclusivity(
-        &mut analysis_result,
-        &scan_data.codebase,
-        &scan_data.interner,
-        &config,
-    );
-
     if config.find_unused_definitions {
         find_unused_definitions(
             &mut analysis_result,
@@ -366,14 +358,6 @@ pub fn scan_and_analyze<F: FnOnce()>(
     let mut scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
 
     add_invalid_files(&scan_data, &mut analysis_result);
-
-    // Check enum exclusivity
-    unused_symbols::check_enum_exclusivity(
-        &mut analysis_result,
-        &scan_data.codebase,
-        &scan_data.interner,
-        &config,
-    );
 
     if config.find_unused_definitions {
         find_unused_definitions(
