@@ -457,7 +457,7 @@ pub(crate) fn get_functionlike(
         if let aast::Stmt_::Return(expr) = &stmt.1 {
             if let Some(expr) = expr.as_ref() {
                 if let Some(function_id) =
-                    get_async_version(expr, resolved_names, &functionlike_info.params, interner)
+                    get_async_version(expr, resolved_names, &functionlike_info.params, interner, this_name)
                 {
                     functionlike_info.async_version = Some(function_id);
                 }
@@ -504,6 +504,7 @@ fn get_async_version(
     resolved_names: &FxHashMap<u32, StrId>,
     params: &[FunctionLikeParameter],
     interner: &mut ThreadedInterner,
+    current_class: Option<StrId>,
 ) -> Option<FunctionLikeIdentifier> {
     match &expr.2 {
         aast::Expr_::Call(call) => {
@@ -517,7 +518,7 @@ fn get_async_version(
                                 return None;
                             }
 
-                            return get_name_from_expr(resolved_names, interner, &call.func.2);
+                            return get_name_from_expr(resolved_names, interner, &call.func.2, current_class);
                         }
                     }
                 }
@@ -533,7 +534,7 @@ fn get_async_version(
                                     return None;
                                 }
 
-                                return get_name_from_expr(resolved_names, interner, &call.func.2);
+                                return get_name_from_expr(resolved_names, interner, &call.func.2, current_class);
                             }
                         }
                     }
@@ -550,6 +551,7 @@ fn get_name_from_expr(
     resolved_names: &FxHashMap<u32, StrId>,
     interner: &mut ThreadedInterner,
     func_name: &aast::Expr_<(), ()>,
+    current_class: Option<StrId>,
 ) -> Option<FunctionLikeIdentifier> {
     match func_name {
         aast::Expr_::Id(boxed_id) => {
@@ -568,6 +570,22 @@ fn get_name_from_expr(
                             interner.intern(rhs_expr.1.clone()),
                         ));
                     }
+                }
+            } else if let aast::ClassId_::CIself = &class_id.2 {
+                // Handle self::method() using current class context
+                if let Some(class_name) = current_class {
+                    return Some(FunctionLikeIdentifier::Method(
+                        class_name,
+                        interner.intern(rhs_expr.1.clone()),
+                    ));
+                }
+            } else if let aast::ClassId_::CIstatic = &class_id.2 {
+                // Handle static::method() using current class context
+                if let Some(class_name) = current_class {
+                    return Some(FunctionLikeIdentifier::Method(
+                        class_name,
+                        interner.intern(rhs_expr.1.clone()),
+                    ));
                 }
             }
         }

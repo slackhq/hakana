@@ -558,7 +558,21 @@ pub(crate) fn analyze(
                 }
             }
         }
-        _ => {}
+        _ => {
+            // Check for ImplicitAsioJoin - functions that have async versions
+            if let Some(async_version) = function_storage.async_version {
+                check_implicit_asio_join(
+                    statements_analyzer,
+                    pos,
+                    expr.0 .0,
+                    analysis_data,
+                    context,
+                    functionlike_id,
+                    async_version,
+                    is_sub_expression,
+                );
+            }
+        }
     }
 
     Ok(())
@@ -731,5 +745,125 @@ fn check_array_key_or_value_type(
                 );
             }
         }
+    }
+}
+
+pub(crate) fn check_implicit_asio_join(
+    statements_analyzer: &StatementsAnalyzer,
+    pos: &Pos,
+    name_pos: &Pos,
+    analysis_data: &mut FunctionAnalysisData,
+    context: &BlockContext,
+    functionlike_id: FunctionLikeIdentifier,
+    async_version: FunctionLikeIdentifier,
+    is_sub_expression: bool,
+) {
+    let issue = Issue::new(
+        IssueKind::ImplicitAsioJoin,
+        format!(
+            "Call to a {} {} that just wraps an async version {}",
+            if let FunctionLikeIdentifier::Method(_, _) = functionlike_id {
+                "method"
+            } else {
+                "function"
+            },
+            functionlike_id.to_string(statements_analyzer.interner),
+            get_async_version_name(
+                async_version,
+                functionlike_id,
+                context,
+                statements_analyzer.interner,
+                false
+            )
+            .unwrap_or_else(|| "unknown".to_string())
+        ),
+        statements_analyzer.get_hpos(pos),
+        &context.function_context.calling_functionlike_id,
+    );
+
+    let config = statements_analyzer.get_config();
+
+    if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+        // Only replace code that's not already covered by a FIXME
+        if !context
+            .function_context
+            .is_production(statements_analyzer.codebase)
+            || analysis_data.get_matching_hakana_fixme(&issue).is_none()
+        {
+            if let Some(replacement_fn) = get_async_version_name(
+                async_version,
+                functionlike_id,
+                context,
+                statements_analyzer.interner,
+                true,
+            ) {
+                let replacement = if context.inside_async {
+                    format!(
+                        "{}await {}",
+                        if is_sub_expression { "(" } else { "" },
+                        replacement_fn
+                    )
+                } else {
+                    format!("Asio\\join({}", replacement_fn)
+                };
+
+                analysis_data.add_replacement(
+                    (pos.start_offset() as u32, name_pos.end_offset() as u32),
+                    Replacement::Substitute(replacement),
+                );
+
+                if is_sub_expression || !context.inside_async {
+                    analysis_data.add_replacement(
+                        (pos.end_offset() as u32, pos.end_offset() as u32),
+                        Replacement::Substitute(")".to_string()),
+                    );
+                }
+            }
+        }
+    } else {
+        analysis_data.maybe_add_issue(issue, config, statements_analyzer.get_file_path_actual());
+    }
+}
+
+fn get_async_version_name(
+    async_version: FunctionLikeIdentifier,
+    functionlike_id: FunctionLikeIdentifier,
+    context: &BlockContext,
+    interner: &hakana_str::Interner,
+    localize_string: bool,
+) -> Option<String> {
+    match async_version {
+        FunctionLikeIdentifier::Function(id) => Some(
+            if localize_string {
+                "\\".to_string()
+            } else {
+                "".to_string()
+            } + interner.lookup(&id),
+        ),
+        FunctionLikeIdentifier::Method(mut class_name, method_name) => Some({
+            let mut is_local = false;
+
+            if let FunctionLikeIdentifier::Method(existing_class_name, _) = functionlike_id {
+                if class_name == StrId::SELF || class_name == StrId::STATIC {
+                    if context.function_context.calling_class != Some(existing_class_name) {
+                        class_name = existing_class_name;
+                    } else {
+                        is_local = true;
+                    }
+                }
+            }
+
+            format!(
+                "{}{}::{}",
+                if !is_local && localize_string {
+                    "\\"
+                } else {
+                    ""
+                },
+                interner.lookup(&class_name),
+                interner.lookup(&method_name)
+            )
+        }),
+        _ => None,
     }
 }

@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use hakana_code_info::analysis_result::Replacement;
+use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::TDict;
@@ -230,6 +231,22 @@ pub(crate) fn analyze(
         pos,
         method_name_pos,
     )?;
+
+    // Check for ImplicitAsioJoin - methods that have async versions
+    if let (Some(async_version), Some(method_name_pos)) =
+        (functionlike_storage.async_version, method_name_pos)
+    {
+        super::function_call_analyzer::check_implicit_asio_join(
+            statements_analyzer,
+            pos,
+            method_name_pos,
+            analysis_data,
+            context,
+            FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+            async_version,
+            false, // methods are not sub-expressions by default
+        );
+    }
 
     check_service_calls(
         statements_analyzer,

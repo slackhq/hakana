@@ -1,0 +1,31 @@
+abstract class A {
+    public static async function fetch_data_async(): Awaitable<int> {
+        return 42;
+    }
+
+    public static function fetch_data(): int {
+        return Asio\join(self::fetch_data_async());
+    }
+
+    public static function fetch_data2(): int {
+        return Asio\join(static::fetch_data_async());
+    }
+}
+
+class B extends A {}
+
+function caller(): int {
+    return Asio\join(\A::fetch_data_async());
+}
+
+async function async_caller(): Awaitable<int> {
+    return await \A::fetch_data_async();
+}
+
+function caller2(): int {
+    return Asio\join(\B::fetch_data_async());
+}
+
+async function async_caller2(): Awaitable<int> {
+    return await \B::fetch_data_async();
+}

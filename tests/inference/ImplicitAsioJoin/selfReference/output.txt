@@ -1,0 +1,1 @@
+ERROR: ImplicitAsioJoin - input.hack:13:12 - Call to a method TestClass::sync_method that just wraps an async version TestClass::async_method

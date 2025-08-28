@@ -1,0 +1,3 @@
+ERROR: UnnecessaryAsyncAnnotation - input.hack:1:16 - This function is marked async but has no async behaviour
+ERROR: ImplicitAsioJoin - input.hack:17:12 - Call to a method DataService::fetch_data that just wraps an async version DataService::fetch_data_async
+ERROR: ImplicitAsioJoin - input.hack:22:12 - Call to a method DataService::fetch_data that just wraps an async version DataService::fetch_data_async

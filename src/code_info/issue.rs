@@ -34,6 +34,7 @@ pub enum IssueKind {
     ImpossibleNullTypeComparison,
     ImpossibleTruthinessCheck,
     ImpossibleTypeComparison,
+    ImplicitAsioJoin,
     IncompatibleTypeParameters,
     InternalError,
     InvalidArgument,
