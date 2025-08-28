@@ -1,0 +1,3 @@
+ERROR: UnusedClass - input.hack:12:13 - Unused class, interface or enum EmailTask
+ERROR: UnusedClass - input.hack:16:13 - Unused class, interface or enum BackupTask
+ERROR: UnusedClass - input.hack:21:13 - Unused class, interface or enum NotificationTask

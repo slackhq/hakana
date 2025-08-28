@@ -1,0 +1,3 @@
+ERROR: UnusedClass - input.hack:12:13 - Unused class, interface or enum ContractDocument
+ERROR: UnusedClass - input.hack:16:13 - Unused class, interface or enum InvoiceDocument
+ERROR: UnusedClass - input.hack:20:13 - Unused class, interface or enum PersonalDocument

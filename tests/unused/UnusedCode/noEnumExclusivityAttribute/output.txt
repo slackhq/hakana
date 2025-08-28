@@ -1,0 +1,2 @@
+ERROR: UnusedClass - input.hack:12:13 - Unused class, interface or enum ActiveService
+ERROR: UnusedClass - input.hack:16:13 - Unused class, interface or enum InactiveService

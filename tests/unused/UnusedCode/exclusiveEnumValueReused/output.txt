@@ -1,2 +1,5 @@
+ERROR: UnusedClass - input.hack:12:13 - Unused class, interface or enum EmailTask
 ERROR: ExclusiveEnumValueReused - input.hack:13:5 - Enum value Priority::MEDIUM is used in multiple child classes for exclusive constant AbstractTask::TASK_PRIORITY. This value is also used in: BackupTask. If this is intentional, add the <<Hakana\AllowNonExclusiveEnumValues>> attribute to the abstract constant definition.
+ERROR: UnusedClass - input.hack:16:13 - Unused class, interface or enum BackupTask
 ERROR: ExclusiveEnumValueReused - input.hack:17:5 - Enum value Priority::MEDIUM is used in multiple child classes for exclusive constant AbstractTask::TASK_PRIORITY. This value is also used in: EmailTask. If this is intentional, add the <<Hakana\AllowNonExclusiveEnumValues>> attribute to the abstract constant definition.
+ERROR: UnusedClass - input.hack:20:13 - Unused class, interface or enum NotificationTask
