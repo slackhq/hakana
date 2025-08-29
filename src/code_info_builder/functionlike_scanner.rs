@@ -456,9 +456,13 @@ pub(crate) fn get_functionlike(
 
         if let aast::Stmt_::Return(expr) = &stmt.1 {
             if let Some(expr) = expr.as_ref() {
-                if let Some(function_id) =
-                    get_async_version(expr, resolved_names, &functionlike_info.params, interner, this_name)
-                {
+                if let Some(function_id) = get_async_version(
+                    expr,
+                    resolved_names,
+                    &functionlike_info.params,
+                    interner,
+                    this_name,
+                ) {
                     functionlike_info.async_version = Some(function_id);
                 }
             }
@@ -518,7 +522,12 @@ fn get_async_version(
                                 return None;
                             }
 
-                            return get_name_from_expr(resolved_names, interner, &call.func.2, current_class);
+                            return get_name_from_expr(
+                                resolved_names,
+                                interner,
+                                &call.func.2,
+                                current_class,
+                            );
                         }
                     }
                 }
@@ -534,7 +543,12 @@ fn get_async_version(
                                     return None;
                                 }
 
-                                return get_name_from_expr(resolved_names, interner, &call.func.2, current_class);
+                                return get_name_from_expr(
+                                    resolved_names,
+                                    interner,
+                                    &call.func.2,
+                                    current_class,
+                                );
                             }
                         }
                     }
@@ -586,6 +600,23 @@ fn get_name_from_expr(
                         class_name,
                         interner.intern(rhs_expr.1.clone()),
                     ));
+                }
+            }
+        }
+        aast::Expr_::ObjGet(boxed) => {
+            let (obj_expr, member_expr, _nullflavor, _prop_or_method) = &**boxed;
+
+            // Check if this is $this->method_name()
+            if let aast::Expr_::Lvar(var_id) = &obj_expr.2 {
+                if var_id.1 .1 == "$this" {
+                    if let aast::Expr_::Id(method_id) = &member_expr.2 {
+                        if let Some(class_name) = current_class {
+                            return Some(FunctionLikeIdentifier::Method(
+                                class_name,
+                                interner.intern(method_id.1.clone()),
+                            ));
+                        }
+                    }
                 }
             }
         }

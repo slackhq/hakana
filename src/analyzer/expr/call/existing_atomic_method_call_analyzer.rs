@@ -236,16 +236,20 @@ pub(crate) fn analyze(
     if let (Some(async_version), Some(method_name_pos)) =
         (functionlike_storage.async_version, method_name_pos)
     {
-        super::function_call_analyzer::check_implicit_asio_join(
-            statements_analyzer,
-            pos,
-            method_name_pos,
-            analysis_data,
-            context,
-            FunctionLikeIdentifier::Method(method_id.0, method_id.1),
-            async_version,
-            false, // methods are not sub-expressions by default
-        );
+        if let TAtomic::TNamedObject { name, .. } = lhs_type_part {
+            if !codebase.class_extends_or_implements(name, &StrId::XHP_CHILD) {
+                super::function_call_analyzer::check_implicit_asio_join(
+                    statements_analyzer,
+                    pos,
+                    method_name_pos,
+                    analysis_data,
+                    context,
+                    FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+                    async_version,
+                    false, // methods are not sub-expressions by default
+                );
+            }
+        }
     }
 
     check_service_calls(
