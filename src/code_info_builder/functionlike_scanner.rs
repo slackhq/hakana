@@ -421,6 +421,9 @@ pub(crate) fn get_functionlike(
             StrId::HAKANA_IGNORE_NORETURN_CALLS => {
                 functionlike_info.ignore_noreturn_calls = true;
             }
+            StrId::HAKANA_ALLOW_IMPLICIT_ASIO_JOIN => {
+                functionlike_info.allow_implicit_asio_join = true;
+            }
             _ => {}
         }
     }
@@ -451,7 +454,7 @@ pub(crate) fn get_functionlike(
         functionlike_info.specialize_call = true;
     }
 
-    if stmts.len() == 1 && !functionlike_info.is_async {
+    if stmts.len() == 1 && !functionlike_info.is_async && !functionlike_info.allow_implicit_asio_join {
         let stmt = &stmts[0];
 
         if let aast::Stmt_::Return(expr) = &stmt.1 {

@@ -246,6 +246,7 @@ fn main() -> Result<()> {
         "HH\\type_structure_for_alias",
         "HH\\varray",
         "HH\\vec",
+        "Hakana\\AllowImplicitAsioJoin",
         "Hakana\\AllowNonExclusiveEnumValues",
         "Hakana\\BannedFunction",
         "Hakana\\CallsDbAsioJoin",

@@ -181,6 +181,8 @@ pub struct FunctionLikeInfo {
     pub is_closure: bool,
 
     pub overriding: bool,
+
+    pub allow_implicit_asio_join: bool,
 }
 
 impl FunctionLikeInfo {
@@ -228,6 +230,7 @@ impl FunctionLikeInfo {
             ignore_noreturn_calls: false,
             transitive_service_calls: vec![],
             service_calls: vec![],
+            allow_implicit_asio_join: false,
         }
     }
 

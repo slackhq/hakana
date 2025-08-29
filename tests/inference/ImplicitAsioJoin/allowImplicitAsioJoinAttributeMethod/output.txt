@@ -1,0 +1,1 @@
+ERROR: UnnecessaryAsyncAnnotation - input.hack:2:20 - This function is marked async but has no async behaviour
