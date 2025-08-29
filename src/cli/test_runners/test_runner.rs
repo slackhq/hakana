@@ -858,8 +858,9 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
     }
 
     let mut test_folders = vec![];
-    let input_hack_path = test_or_test_dir.clone() + "/input.hack";
-    let output_txt_path = test_or_test_dir.clone() + "/output.txt";
+    let normalized_test_dir = test_or_test_dir.trim_end_matches('/');
+    let input_hack_path = normalized_test_dir.to_owned() + "/input.hack";
+    let output_txt_path = normalized_test_dir.to_owned() + "/output.txt";
 
     if Path::new(&input_hack_path).exists() {
         // This looks like a single test directory
@@ -870,7 +871,7 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                 test_or_test_dir
             ));
         }
-        test_folders.push(test_or_test_dir);
+        test_folders.push(normalized_test_dir.to_owned());
     } else {
         // Walk the directory to find test folders
         for entry in WalkDir::new(&test_or_test_dir)
