@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `cargo run --bin hakana test <path-to-test-dir>` - Run individual test directory
 - Test directories are organized under `tests/` with subdirectories for different test types
 - **IMPORTANT**: Unused variable analysis only runs for tests in `tests/unused/` directory
+- **IMPORTANT**: When working on scanning code (in `src/code_info_builder/`), use the `--no-cache` flag to ensure functions are always re-scanned: `cargo run --release --bin=hakana test --no-cache <path-to-test-dir>`
 
 ### Security Analysis
 - `cargo run --bin hakana security-check <path>` - Run security/taint analysis mode
