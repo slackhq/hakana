@@ -570,6 +570,7 @@ pub(crate) fn analyze(
                     functionlike_id,
                     async_version,
                     is_sub_expression,
+                    None,
                 );
             }
         }
@@ -757,6 +758,7 @@ pub(crate) fn check_implicit_asio_join(
     functionlike_id: FunctionLikeIdentifier,
     async_version: FunctionLikeIdentifier,
     is_sub_expression: bool,
+    lhs_var_id: Option<&String>,
 ) {
     let issue = Issue::new(
         IssueKind::ImplicitAsioJoin,
@@ -771,6 +773,7 @@ pub(crate) fn check_implicit_asio_join(
             get_async_version_name(
                 async_version,
                 functionlike_id,
+                lhs_var_id,
                 context,
                 statements_analyzer.interner,
                 false
@@ -793,6 +796,7 @@ pub(crate) fn check_implicit_asio_join(
             if let Some(replacement_fn) = get_async_version_name(
                 async_version,
                 functionlike_id,
+                lhs_var_id,
                 context,
                 statements_analyzer.interner,
                 true,
@@ -828,6 +832,7 @@ pub(crate) fn check_implicit_asio_join(
 fn get_async_version_name(
     async_version: FunctionLikeIdentifier,
     functionlike_id: FunctionLikeIdentifier,
+    lhs_var_id: Option<&String>,
     context: &BlockContext,
     interner: &hakana_str::Interner,
     localize_string: bool,
@@ -841,6 +846,14 @@ fn get_async_version_name(
             } + interner.lookup(&id),
         ),
         FunctionLikeIdentifier::Method(mut class_name, method_name) => Some({
+            // When autofixing instance method calls, ensure we invoke the async variant of the method
+            // on the original variable.
+            if let Some(lhs_var) = lhs_var_id {
+                if localize_string {
+                    return Some(format!("{}->{}", lhs_var, interner.lookup(&method_name)));
+                }
+            }
+
             let mut is_local = false;
 
             if let FunctionLikeIdentifier::Method(existing_class_name, _) = functionlike_id {
