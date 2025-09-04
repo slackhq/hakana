@@ -16,7 +16,7 @@ function caller(): int {
     return $obj->sync_method();
 }
 
-async function async caller(): int {
+async function async_caller(): int {
     $obj = new TestClass();
     // This should be fixed to await $obj->async_method() instead.
     return $obj->sync_method();
