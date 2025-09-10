@@ -890,18 +890,7 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                     let output_txt = path_str.to_owned() + "/output.txt";
                     let candidates_txt = path_str.to_owned() + "/candidates.txt";
 
-                    if Path::new(&input_hack).exists() && !path_str.contains("/diff/") {
-                        // Found a regular test directory - check if output.txt exists
-                        if !Path::new(&output_txt).exists()
-                            && !path_str.contains("/goto-definition/")
-                        {
-                            return Err(format!(
-                                "Test directory is missing required output.txt file: {}",
-                                path_str
-                            ));
-                        }
-                        test_folders.push(path_str.to_owned());
-                    } else if path_str.contains("/diff/")
+                    if path_str.contains("/diff/")
                         && Path::new(&(path_str.to_owned() + "/a")).is_dir()
                     {
                         // Found a diff test directory - check if output.txt exists
@@ -918,6 +907,17 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                         // Migration candidates tests use candidates.txt instead of output.txt
                         if !Path::new(&candidates_txt).exists() {
                             return Err(format!("Migration candidates test directory is missing required candidates.txt file: {}", path_str));
+                        }
+                        test_folders.push(path_str.to_owned());
+                    } else if Path::new(&input_hack).exists() {
+                        // Found a regular test directory - check if output.txt exists
+                        if !Path::new(&output_txt).exists()
+                            && !path_str.contains("/goto-definition/")
+                        {
+                            return Err(format!(
+                                "Test directory is missing required output.txt file: {}",
+                                path_str
+                            ));
                         }
                         test_folders.push(path_str.to_owned());
                     }
