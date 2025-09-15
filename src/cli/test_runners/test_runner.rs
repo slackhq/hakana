@@ -640,14 +640,14 @@ impl TestRunner {
         // Generate definition_locations.json
         let definition_locations_json = generate_definition_locations_json(&analysis_result, &run_data.interner);
         let definition_locations_path = dir.clone() + "/definition_locations.json";
-        
+
         // Check if expected definition_locations.json exists for validation
         if Path::new(&definition_locations_path).exists() {
             let expected_definition_locations = fs::read_to_string(&definition_locations_path)
                 .unwrap()
                 .trim()
                 .to_string();
-            
+
             if expected_definition_locations.trim() != definition_locations_json.trim() {
                 test_diagnostics.push((dir.clone(), format_diff(&expected_definition_locations, &definition_locations_json)));
                 return ("F".to_string(), Some(run_data), Some(analysis_result));
@@ -742,14 +742,14 @@ impl TestRunner {
         // Generate definition_locations.json
         let definition_locations_json = generate_definition_locations_json(&result.0, &result.1.interner);
         let definition_locations_path = dir.clone() + "/definition_locations.json";
-        
+
         // Check if expected definition_locations.json exists for validation
         if Path::new(&definition_locations_path).exists() {
             let expected_definition_locations = fs::read_to_string(&definition_locations_path)
                 .unwrap()
                 .trim()
                 .to_string();
-            
+
             if expected_definition_locations.trim() != definition_locations_json.trim() {
                 test_diagnostics.push((dir.clone(), format_diff(&expected_definition_locations, &definition_locations_json)));
                 return ("F".to_string(), Some(result.1), Some(result.0));
@@ -802,7 +802,7 @@ fn generate_definition_locations_json(analysis_result: &AnalysisResult, interner
 
     for (file_path, locations) in &analysis_result.definition_locations {
         let original_file_path_str = interner.lookup(&file_path.0);
-        
+
         // Extract just the filename for cleaner output
         let file_path_str = if let Some(workdir_pos) = original_file_path_str.find("/workdir/") {
             let file_name = &original_file_path_str[workdir_pos + 9..]; // Skip "/workdir/"
@@ -811,7 +811,7 @@ fn generate_definition_locations_json(analysis_result: &AnalysisResult, interner
             // Extract filename from any path
             original_file_path_str.split('/').last().unwrap_or(original_file_path_str).to_string()
         };
-        
+
         for ((start_offset, end_offset), (symbol_id, member_id)) in locations {
             let symbol_name = interner.lookup(symbol_id);
             let member_name = if *member_id == StrId::EMPTY {
@@ -819,13 +819,13 @@ fn generate_definition_locations_json(analysis_result: &AnalysisResult, interner
             } else {
                 interner.lookup(member_id)
             };
-            
+
             let name = if member_name.is_empty() {
                 symbol_name.to_string()
             } else {
                 format!("{}::{}", symbol_name, member_name)
             };
-            
+
             all_locations.push(json!({
                 "name": name,
                 "file": file_path_str,
@@ -841,7 +841,7 @@ fn generate_definition_locations_json(analysis_result: &AnalysisResult, interner
         let start_b = b["start_offset"].as_u64().unwrap();
         let end_a = a["end_offset"].as_u64().unwrap();
         let end_b = b["end_offset"].as_u64().unwrap();
-        
+
         start_a.cmp(&start_b).then(end_a.cmp(&end_b))
     });
 
@@ -890,34 +890,31 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                     let output_txt = path_str.to_owned() + "/output.txt";
                     let candidates_txt = path_str.to_owned() + "/candidates.txt";
 
-                    if Path::new(&input_hack).exists() && !path_str.contains("/diff/") {
-                        // Found a regular test directory - check if output.txt exists
-                        if !Path::new(&output_txt).exists()
+                    if path_str.contains("/diff/") {
+                        if Path::new(&(path_str.to_owned() + "/a")).is_dir() {
+                            // Found a diff test directory - check if output.txt exists
+                            if !Path::new(&output_txt).exists() {
+                                return Err(format!(
+                                    "Diff test directory is missing required output.txt file: {}",
+                                    path_str
+                                ));
+                            }
+                            test_folders.push(path_str.to_owned());
+                        }
+                    } else if Path::new(&input_hack).exists() {
+                        // Migration candidates tests use candidates.txt instead of output.txt
+                        if path_str.contains("/migration-candidates/")
+                            && !Path::new(&candidates_txt).exists()
+                        {
+                            return Err(format!("Migration candidates test directory is missing required candidates.txt file: {}", path_str));
+                        } else if !Path::new(&output_txt).exists()
                             && !path_str.contains("/goto-definition/")
                         {
+                            // Found a regular test directory - check if output.txt exists
                             return Err(format!(
                                 "Test directory is missing required output.txt file: {}",
                                 path_str
                             ));
-                        }
-                        test_folders.push(path_str.to_owned());
-                    } else if path_str.contains("/diff/")
-                        && Path::new(&(path_str.to_owned() + "/a")).is_dir()
-                    {
-                        // Found a diff test directory - check if output.txt exists
-                        if !Path::new(&output_txt).exists() {
-                            return Err(format!(
-                                "Diff test directory is missing required output.txt file: {}",
-                                path_str
-                            ));
-                        }
-                        test_folders.push(path_str.to_owned());
-                    } else if path_str.contains("/migration-candidates/")
-                        && Path::new(&input_hack).exists()
-                    {
-                        // Migration candidates tests use candidates.txt instead of output.txt
-                        if !Path::new(&candidates_txt).exists() {
-                            return Err(format!("Migration candidates test directory is missing required candidates.txt file: {}", path_str));
                         }
                         test_folders.push(path_str.to_owned());
                     }
