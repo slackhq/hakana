@@ -31,6 +31,7 @@ pub struct FunctionAnalysisData {
     pub replacements: BTreeMap<(u32, u32), Replacement>,
     pub insertions: BTreeMap<u32, Vec<String>>,
     pub current_stmt_offset: Option<StmtStart>,
+    pub current_stmt_end: Option<u32>,
     pub applicable_fixme_start: u32,
     pub expr_fixme_positions: FxHashMap<(u32, u32), StmtStart>,
     pub symbol_references: SymbolReferences,
@@ -64,6 +65,7 @@ impl FunctionAnalysisData {
         comments: &Vec<&(Pos, Comment)>,
         all_custom_issues: &FxHashSet<String>,
         current_stmt_offset: Option<StmtStart>,
+        current_stmt_end: Option<u32>,
         applicable_fixme_start: u32,
         hakana_fixme_or_ignores: Option<
             BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>>,
@@ -86,6 +88,7 @@ impl FunctionAnalysisData {
             replacements: BTreeMap::new(),
             insertions: BTreeMap::new(),
             current_stmt_offset,
+            current_stmt_end,
             applicable_fixme_start,
             hh_fixmes: file_source.hh_fixmes.clone(),
             symbol_references: SymbolReferences::new(),

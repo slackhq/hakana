@@ -56,6 +56,7 @@ pub(crate) fn analyze(
             add_newline: true,
         });
     }
+    analysis_data.current_stmt_end = Some(stmt.0.end_offset() as u32);
 
     if statements_analyzer.get_config().remove_fixmes {
         for (fixme_line, b) in analysis_data.hakana_fixme_or_ignores.iter_mut() {

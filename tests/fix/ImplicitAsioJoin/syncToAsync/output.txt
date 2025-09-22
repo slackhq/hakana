@@ -1,16 +1,32 @@
-async function fetch_data_async(): Awaitable<int> {
-    return 42;
+class Inner {
+    public function test(): void {
+        echo "test\n";
+    }
+}
+
+async function fetch_data_async(): Awaitable<Inner> {
+    return new Inner();
 }
 
 // This sync function just wraps the async version
-function fetch_data(): int {
+function fetch_data(): Inner {
     return Asio\join(fetch_data_async());
 }
 
-function caller(): int {
+function caller(): Inner {
     return Asio\join(\fetch_data_async()); // This should be fixed to Asio\join(fetch_data_async())
 }
 
-async function async_caller(): Awaitable<int> {
+async function async_caller(): Awaitable<Inner> {
     return (await \fetch_data_async()); // This should be fixed to await fetch_data_async()
+}
+
+function sync_nested(): void {
+    // This should be fixed to Asio\join(fetch_data_async())->foo()
+    Asio\join(\fetch_data_async())->foo();
+}
+
+async function async_nested(): Awaitable<void> {
+    // This should be fixed to (await fetch_data_async())->foo()
+    (await \fetch_data_async())->foo();
 }

@@ -247,7 +247,7 @@ pub(crate) fn analyze(
                     FunctionLikeIdentifier::Method(method_id.0, method_id.1),
                     async_version,
                     false, // methods are not sub-expressions by default
-                    lhs_var_id,
+                    lhs_expr,
                 );
             }
         }

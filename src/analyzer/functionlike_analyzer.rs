@@ -465,6 +465,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 None
             },
+            if let Some(parent_analysis_data) = &parent_analysis_data {
+                parent_analysis_data.current_stmt_end
+            } else {
+                None
+            },
             functionlike_storage.meta_start.start_offset,
             parent_analysis_data
                 .as_ref()
