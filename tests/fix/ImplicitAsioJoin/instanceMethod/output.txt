@@ -7,7 +7,11 @@ final class TestClass {
     // This sync method just wraps the async version
     public function sync_method(): int {
         return Asio\join($this->async_method());
-    } 
+    }
+
+    public static function factory(): TestClass {
+        return new self();
+    }
 }
 
 function caller(): int {
@@ -16,8 +20,28 @@ function caller(): int {
     return Asio\join($obj->async_method());
 }
 
+function caller_expr(): int {
+    // This should be fixed to Asio\join((new TestClass())->async_method()) instead.
+    return Asio\join((new TestClass())->async_method());
+}
+
+function factory_expr(): int {
+    // This should be fixed to Asio\join(TestClass::factory()->async_method()) instead.
+    return Asio\join(TestClass::factory()->async_method());
+}
+
 async function async_caller(): int {
     $obj = new TestClass();
     // This should be fixed to await $obj->async_method() instead.
     return await $obj->async_method();
+}
+
+async function async_caller_expr(): int {
+    // This should be fixed to await (new TestClass())->async_method() instead.
+    return await (new TestClass())->async_method();
+}
+
+async function async_factory_expr(): int {
+    // This should be fixed to await TestClass::factory()->async_method() instead.
+    return await TestClass::factory()->async_method();
 }

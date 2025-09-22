@@ -758,7 +758,7 @@ pub(crate) fn check_implicit_asio_join(
     functionlike_id: FunctionLikeIdentifier,
     async_version: FunctionLikeIdentifier,
     is_sub_expression: bool,
-    lhs_var_id: Option<&String>,
+    lhs_expr: Option<&aast::Expr<(), ()>>,
 ) {
     let issue = Issue::new(
         IssueKind::ImplicitAsioJoin,
@@ -773,7 +773,7 @@ pub(crate) fn check_implicit_asio_join(
             get_async_version_name(
                 async_version,
                 functionlike_id,
-                lhs_var_id,
+                lhs_expr,
                 context,
                 statements_analyzer.interner,
                 false
@@ -796,27 +796,47 @@ pub(crate) fn check_implicit_asio_join(
             if let Some(replacement_fn) = get_async_version_name(
                 async_version,
                 functionlike_id,
-                lhs_var_id,
+                lhs_expr,
                 context,
                 statements_analyzer.interner,
                 true,
             ) {
-                let replacement = if context.inside_async {
-                    format!(
-                        "{}await {}",
-                        if is_sub_expression { "(" } else { "" },
-                        replacement_fn
-                    )
+                // The await expression emitted by autofixing a sync wrapper may be part of a method chain.
+                // Try to account for this by seeing if the end of the current call also lines up with
+                // the end of the current statement.
+                let should_wrap_await = if let Some(current_stmt_end) = analysis_data.current_stmt_end {
+                    // offset by one to account for statement-closing comma
+                    is_sub_expression || (1 + pos.end_offset() as u32) != current_stmt_end
                 } else {
-                    format!("Asio\\join({}", replacement_fn)
+                    is_sub_expression
                 };
 
-                analysis_data.add_replacement(
-                    (pos.start_offset() as u32, name_pos.end_offset() as u32),
-                    Replacement::Substitute(replacement),
-                );
+                let await_or_join = if context.inside_async {
+                    format!(
+                        "{}await ",
+                        if should_wrap_await { "(" } else { "" },
+                    )
+                } else {
+                    "Asio\\join(".into()
+                };
 
-                if is_sub_expression || !context.inside_async {
+                analysis_data.insert_at(pos.start_offset() as u32, await_or_join);
+
+                // Instance methods may be invoked on an arbitrary left-hand side expression,
+                // e.g. (new FooClass()). Ensure we leave this untouched when converting the method call.
+                if lhs_expr.is_some() {
+                    analysis_data.add_replacement(
+                        (name_pos.start_offset() as u32, name_pos.end_offset() as u32),
+                        Replacement::Substitute(replacement_fn),
+                    );
+                } else {
+                    analysis_data.add_replacement(
+                        (pos.start_offset() as u32, name_pos.end_offset() as u32),
+                        Replacement::Substitute(replacement_fn),
+                    );
+                }
+
+                if should_wrap_await || !context.inside_async {
                     analysis_data.add_replacement(
                         (pos.end_offset() as u32, pos.end_offset() as u32),
                         Replacement::Substitute(")".to_string()),
@@ -832,7 +852,7 @@ pub(crate) fn check_implicit_asio_join(
 fn get_async_version_name(
     async_version: FunctionLikeIdentifier,
     functionlike_id: FunctionLikeIdentifier,
-    lhs_var_id: Option<&String>,
+    lhs_expr: Option<&aast::Expr<(), ()>>,
     context: &BlockContext,
     interner: &hakana_str::Interner,
     localize_string: bool,
@@ -848,9 +868,9 @@ fn get_async_version_name(
         FunctionLikeIdentifier::Method(mut class_name, method_name) => Some({
             // When autofixing instance method calls, ensure we invoke the async variant of the method
             // on the original variable.
-            if let Some(lhs_var) = lhs_var_id {
+            if let Some(_) = lhs_expr {
                 if localize_string {
-                    return Some(format!("{}->{}", lhs_var, interner.lookup(&method_name)));
+                    return Some(interner.lookup(&method_name).into());
                 }
             }
 
