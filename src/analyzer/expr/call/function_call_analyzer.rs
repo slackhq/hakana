@@ -836,13 +836,21 @@ pub(crate) fn check_implicit_asio_join(
                 // Instance methods may be invoked on an arbitrary left-hand side expression,
                 // e.g. (new FooClass()). Ensure we leave this untouched when converting the method call.
                 if lhs_expr.is_some() {
+                    // Convoluted LHS expressions such as long method chains may span multiple lines,
+                    // in which case the added await / Asio\join may be awkwardly split down the middle.
+                    // So, remove any newlines and leading whitespace within the wrapped expression
+                    // to make the result easier to read.
+                    analysis_data.add_replacement(
+                        (await_or_join_insert_offset + 1, (name_pos.start_offset() - 1) as u32),
+                        Replacement::RemoveNewlines
+                    );
                     analysis_data.add_replacement(
                         (name_pos.start_offset() as u32, name_pos.end_offset() as u32),
                         Replacement::Substitute(replacement_fn),
                     );
                 } else {
                     analysis_data.add_replacement(
-                        (pos.start_offset() as u32, name_pos.end_offset() as u32),
+                        (await_or_join_insert_offset, name_pos.end_offset() as u32),
                         Replacement::Substitute(replacement_fn),
                     );
                 }

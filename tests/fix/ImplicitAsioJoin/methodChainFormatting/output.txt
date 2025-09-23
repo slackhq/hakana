@@ -1,0 +1,40 @@
+final class R1 {
+    public static function create(): R1 {
+        return new R1();
+    }
+    public function getNext(): R2 {
+        return new R2();
+    }
+}
+
+final class R2 {
+    public async function async_method(): Awaitable<R3> {
+        await \HH\Asio\usleep(100000);
+        return new R3();
+    }
+
+    // This sync method just wraps the async version
+    public function sync_method(): R3 {
+        return Asio\join($this->async_method());
+    }
+}
+
+final class R3 {
+    public function final_method(): void {
+        echo "final\n";
+    }
+}
+
+function caller(): int {
+    // This should be fixed to Asio\join(R1::create()->getNext()->async_method()) instead,
+    // stripping newlines within the wrapped expression.
+    return Asio\join(R1::create()->getNext()->async_method())
+        ->final_method();
+}
+
+async function async_caller(): int {
+    // This should be fixed to (await R1::create()->getNext()->async_method()) instead,
+    // stripping newlines within the wrapped expression.
+    return (await R1::create()->getNext()->async_method())
+        ->final_method();
+}

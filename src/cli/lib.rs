@@ -10,6 +10,7 @@ use hakana_logger::{Logger, Verbosity};
 use hakana_str::Interner;
 use indexmap::IndexMap;
 use rand::Rng;
+use regex::Regex;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 use std::env;
@@ -17,7 +18,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
 use std::process::exit;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use test_runners::test_runner::TestRunner;
 
 pub mod test_runners;
@@ -1670,6 +1671,15 @@ fn replace_contents(
                 Replacement::Remove => {
                     file_contents = file_contents[..start as usize].to_string()
                         + &*file_contents[end as usize..].to_string();
+                }
+                Replacement::RemoveNewlines => {
+                    static REDUNDANT_NEWLINES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\n\s*").unwrap());
+
+                    let range = start as usize..end as usize;
+                    let segment = file_contents[range.clone()].to_string();
+                    let without_newlines = REDUNDANT_NEWLINES.replace_all(&segment, "");
+
+                    file_contents.replace_range(range, &without_newlines);
                 }
                 Replacement::TrimPrecedingWhitespace(beg_of_line) => {
                     let potential_whitespace =

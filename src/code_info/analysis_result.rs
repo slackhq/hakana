@@ -18,6 +18,8 @@ use crate::{
 #[derive(Clone, Debug)]
 pub enum Replacement {
     Remove,
+    // Remove newlines and leading whitespace within a given range.
+    RemoveNewlines,
     TrimPrecedingWhitespace(u32),
     TrimPrecedingWhitespaceAndTrailingComma(u32),
     TrimTrailingWhitespace(u32),
