@@ -801,7 +801,7 @@ pub(crate) fn check_implicit_asio_join(
                 statements_analyzer.interner,
                 true,
             ) {
-                // The await expression emitted by autofixing a sync wrapper may be part of a method chain.
+                // The await expression emitted by autofixing a sync wrapper may be part of an expression chain.
                 // Try to account for this by seeing if the end of the current call also lines up with
                 // the end of the current statement.
                 let should_wrap_await = if let Some(current_stmt_end) = analysis_data.current_stmt_end {
@@ -820,7 +820,18 @@ pub(crate) fn check_implicit_asio_join(
                     "Asio\\join(".into()
                 };
 
-                analysis_data.insert_at(pos.start_offset() as u32, await_or_join);
+                // Call analysis may run more than once for a given invocation,
+                // such as a variable of base type T that may be assigned subtype T' or T"
+                // in alternate loop branches. Guard against duplicate inserts resulting from this.
+                let await_or_join_insert_offset = pos.start_offset() as u32;
+                let should_insert = match analysis_data.insertions.get(&await_or_join_insert_offset) {
+                    Some(existing_insertions) => !existing_insertions.contains(&await_or_join),
+                    _ => true,
+                };
+
+                if should_insert {
+                    analysis_data.insert_at(await_or_join_insert_offset, await_or_join);
+                }
 
                 // Instance methods may be invoked on an arbitrary left-hand side expression,
                 // e.g. (new FooClass()). Ensure we leave this untouched when converting the method call.
@@ -866,8 +877,8 @@ fn get_async_version_name(
             } + interner.lookup(&id),
         ),
         FunctionLikeIdentifier::Method(mut class_name, method_name) => Some({
-            // When autofixing instance method calls, ensure we invoke the async variant of the method
-            // on the original variable.
+            // When autofixing instance method calls, we need to preserve the original LHS expression
+            // that the method is being invoked on, so only return the target method name.
             if let Some(_) = lhs_expr {
                 if localize_string {
                     return Some(interner.lookup(&method_name).into());
