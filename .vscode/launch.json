@@ -6,6 +6,9 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceRoot}/target/debug/hakana",
+            "sourceLanguages": [
+				"rust"
+			],
             "args": ["test", "${relativeFileDirname}"],
             "cwd": "${workspaceRoot}",
         }
