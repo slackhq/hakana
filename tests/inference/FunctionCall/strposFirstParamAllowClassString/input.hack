@@ -1,3 +1,3 @@
 function sayHello(string $needle): void {
-    if (strpos(DateTime::class, $needle)) {}
+    if (strpos(nameof DateTime, $needle)) {}
 }

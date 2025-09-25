@@ -1,6 +1,6 @@
 trait T {
     public function f(): void {
-        if (is_a(static::class, B::class, true)) { }
+        if (is_a(static::class, nameof B, true)) { }
     }
 }
 

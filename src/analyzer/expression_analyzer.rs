@@ -469,7 +469,6 @@ pub(crate) fn analyze(
         | aast::Expr_::Pair(_)
         | aast::Expr_::ETSplice(_)
         | aast::Expr_::Hole(_)
-        | aast::Expr_::Nameof(_)
         | aast::Expr_::Invalid(_) => {
             analysis_data.maybe_add_issue(
                 Issue::new(
@@ -482,6 +481,10 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual(),
             );
             //return Err(AnalysisError::UserError);
+        }
+        aast::Expr_::Nameof(_) => {
+            // The Hack typechecker already verifies that `nameof` was passed a valid classlike.
+            // Do nothing.
         }
         aast::Expr_::Package(_) => todo!(),
         aast::Expr_::Assign(boxed) => {
