@@ -482,9 +482,74 @@ pub(crate) fn analyze(
             );
             //return Err(AnalysisError::UserError);
         }
-        aast::Expr_::Nameof(_) => {
-            // The Hack typechecker already verifies that `nameof` was passed a valid classlike.
-            // Do nothing.
+        aast::Expr_::Nameof(class_id) => {
+            let resolved_class_name = {
+                let calling_class = context.function_context.calling_class;
+
+                let calling_class_info = calling_class
+                    .map(|calling_class_id| {
+                        statements_analyzer
+                            .codebase
+                            .classlike_infos
+                            .get(&calling_class_id)
+                    })
+                    .flatten();
+
+                // The RHS of a nameof expression always seems to be a CIexpr,
+                // even if a classname literal or a keyword like self/static/parent is passed.
+                if let aast::ClassId_::CIexpr(ci_expr) = &class_id.2 {
+                    if let aast::Expr_::Id(inner_class_id) = &ci_expr.2 {
+                        match inner_class_id.name() {
+                            "self" | "static" | "parent" => {
+                                // The Hack typechecker allows nameof self/parent/static outside of a class context.
+                                // This would probably be an error more often than not, so disallow it.
+                                if calling_class.is_none() {
+                                    analysis_data.maybe_add_issue(
+                                        Issue::new(
+                                            IssueKind::NameofUsedOutsideClassWithoutLiteral,
+                                            "nameof used outside of a class context with a non-literal target".to_string(),
+                                            statements_analyzer.get_hpos(&expr.1),
+                                            &context.function_context.calling_functionlike_id,
+                                        ),
+                                        statements_analyzer.get_config(),
+                                        statements_analyzer.get_file_path_actual()
+                                    );
+                                }
+
+                                // nameof parent in a class that has no parent is a typechecker error.
+                                if inner_class_id.name() == "parent" {
+                                    calling_class_info
+                                        .map(|i| i.direct_parent_class)
+                                        .flatten()
+                                        .map(|id| statements_analyzer.interner.lookup(&id))
+                                } else {
+                                    // self/static
+                                    calling_class.map(|calling_class_id| {
+                                        statements_analyzer.interner.lookup(&calling_class_id)
+                                    })
+                                }
+                            }
+                            // Anything else: nameof C where C is a classname literal.
+                            // C being invalid is already a typechecker error.
+                            class_name_literal => Some(class_name_literal),
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            };
+
+            let resolved_nameof_type =
+                resolved_class_name.map_or(TAtomic::TString, |s| TAtomic::TLiteralString {
+                    value: s.to_string(),
+                });
+
+            analysis_data.expr_types.insert(
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
+                Rc::new(wrap_atomic(resolved_nameof_type)),
+            );
         }
         aast::Expr_::Package(_) => todo!(),
         aast::Expr_::Assign(boxed) => {
