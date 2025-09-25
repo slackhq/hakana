@@ -23,6 +23,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, functionlike_analyzer};
+use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::classlike_info::ClassLikeInfo;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::data_flow::graph::GraphKind;
@@ -349,13 +350,23 @@ pub(crate) fn check_arguments_match(
             &mut param_type,
             codebase,
             statements_analyzer.get_file_path(),
-            arg_value_type,
+            arg_value_type.clone(),
             argument_offset,
             arg_expr.pos(),
             context,
             template_result,
             statements_analyzer,
             functionlike_id,
+        );
+
+        check_classname_passed_as_string(
+            statements_analyzer,
+            context,
+            analysis_data,
+            function_call_pos,
+            &param_type,
+            &arg_value_type,
+            arg,
         );
 
         param_types.insert(argument_offset, param_type);
@@ -1510,4 +1521,65 @@ pub(crate) fn get_template_types_for_class_member(
     }
 
     expanded_template_types
+}
+
+/// Check for expressions of type classname<T> used in a string context.
+///
+/// Presently, this only checks for and autofixes the by far the most common case
+/// of using a classname literal (i.e. C::class) as a parameter to a function that takes string.
+fn check_classname_passed_as_string(
+    statements_analyzer: &StatementsAnalyzer,
+    context: &BlockContext,
+    analysis_data: &mut FunctionAnalysisData,
+    function_call_pos: &Pos,
+    param_type: &TUnion,
+    arg_value_type: &TUnion,
+    arg: &aast::Argument<(), ()>,
+) {
+    let is_string_param = param_type.types.iter().any(|t| *t == TAtomic::TString);
+
+    if is_string_param {
+        if let Some(TAtomic::TLiteralClassname { name }) = arg_value_type
+            .types
+            .iter()
+            .find(|t| matches!(t, TAtomic::TLiteralClassname { name: _ }))
+        {
+            let class_name = statements_analyzer.interner.lookup(name);
+            let arg_pos = arg.to_expr_ref().pos();
+
+            let issue = Issue::new(
+                IssueKind::ClassnameUsedAsString,
+                format!(
+                    "Using {} in this position will lead to an implicit runtime conversion to string, please use \"nameof {}\" instead",
+                    class_name,
+                    class_name
+                ),
+                statements_analyzer.get_hpos(function_call_pos),
+                &context.function_context.calling_functionlike_id,
+            );
+
+            let config = statements_analyzer.get_config();
+
+            if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+                // Only replace code that's not already covered by a FIXME
+                if !context
+                    .function_context
+                    .is_production(statements_analyzer.codebase)
+                    || analysis_data.get_matching_hakana_fixme(&issue).is_none()
+                {
+                    let nameof_expr = format!("nameof {}", class_name);
+                    analysis_data.add_replacement(
+                        (arg_pos.start_offset() as u32, arg_pos.end_offset() as u32),
+                        Replacement::Substitute(nameof_expr),
+                    );
+                }
+            } else {
+                analysis_data.maybe_add_issue(
+                    issue,
+                    config,
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+    }
 }

@@ -17,6 +17,7 @@ pub enum IssueKind {
     AbstractInstantiation,
     BannedFunction,
     CannotInferGenericParam,
+    ClassnameUsedAsString,
     CloneInsideLoop,
     CustomIssue(Box<String>),
     DuplicateEnumValue,
