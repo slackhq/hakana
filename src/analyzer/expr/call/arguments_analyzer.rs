@@ -1567,7 +1567,7 @@ fn check_classname_passed_as_string(
                     .is_production(statements_analyzer.codebase)
                     || analysis_data.get_matching_hakana_fixme(&issue).is_none()
                 {
-                    let nameof_expr = format!("nameof {}", class_name);
+                    let nameof_expr = format!("nameof \\{}", class_name);
                     analysis_data.add_replacement(
                         (arg_pos.start_offset() as u32, arg_pos.end_offset() as u32),
                         Replacement::Substitute(nameof_expr),
