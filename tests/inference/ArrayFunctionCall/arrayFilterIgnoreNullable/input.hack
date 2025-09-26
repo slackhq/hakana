@@ -7,7 +7,7 @@ final class A {
         $arr = array_filter(
             static::getRows(),
             (A $row): bool ==> {
-                return is_a($row, static::class);
+                return is_a($row, nameof static);
             }
         );
     }
