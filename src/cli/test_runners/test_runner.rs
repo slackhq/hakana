@@ -515,6 +515,7 @@ impl TestRunner {
                         } else {
                             test_diagnostics.push((dir, format_diff("", &test_output.join(""))));
                         }
+                        *had_error = true;
                         ("F".to_string(), Some(run_data), Some(analysis_result))
                     }
                 }
@@ -638,7 +639,8 @@ impl TestRunner {
         let test_output = output;
 
         // Generate definition_locations.json
-        let definition_locations_json = generate_definition_locations_json(&analysis_result, &run_data.interner);
+        let definition_locations_json =
+            generate_definition_locations_json(&analysis_result, &run_data.interner);
         let definition_locations_path = dir.clone() + "/definition_locations.json";
 
         // Check if expected definition_locations.json exists for validation
@@ -649,7 +651,10 @@ impl TestRunner {
                 .to_string();
 
             if expected_definition_locations.trim() != definition_locations_json.trim() {
-                test_diagnostics.push((dir.clone(), format_diff(&expected_definition_locations, &definition_locations_json)));
+                test_diagnostics.push((
+                    dir.clone(),
+                    format_diff(&expected_definition_locations, &definition_locations_json),
+                ));
                 return ("F".to_string(), Some(run_data), Some(analysis_result));
             }
         } else {
@@ -740,7 +745,8 @@ impl TestRunner {
         *total_time_in_analysis += result.0.time_in_analysis;
 
         // Generate definition_locations.json
-        let definition_locations_json = generate_definition_locations_json(&result.0, &result.1.interner);
+        let definition_locations_json =
+            generate_definition_locations_json(&result.0, &result.1.interner);
         let definition_locations_path = dir.clone() + "/definition_locations.json";
 
         // Check if expected definition_locations.json exists for validation
@@ -751,7 +757,10 @@ impl TestRunner {
                 .to_string();
 
             if expected_definition_locations.trim() != definition_locations_json.trim() {
-                test_diagnostics.push((dir.clone(), format_diff(&expected_definition_locations, &definition_locations_json)));
+                test_diagnostics.push((
+                    dir.clone(),
+                    format_diff(&expected_definition_locations, &definition_locations_json),
+                ));
                 return ("F".to_string(), Some(result.1), Some(result.0));
             }
         } else {
@@ -763,7 +772,6 @@ impl TestRunner {
 
         (".".to_string(), Some(result.1), Some(result.0))
     }
-
 }
 
 fn augment_with_local_config(dir: &String, analysis_config: &mut config::Config) {
@@ -795,7 +803,10 @@ fn copy_recursively(source: impl AsRef<Path>, destination: impl AsRef<Path>) -> 
     Ok(())
 }
 
-fn generate_definition_locations_json(analysis_result: &AnalysisResult, interner: &Interner) -> String {
+fn generate_definition_locations_json(
+    analysis_result: &AnalysisResult,
+    interner: &Interner,
+) -> String {
     use serde_json::json;
 
     let mut all_locations = Vec::new();
@@ -809,7 +820,11 @@ fn generate_definition_locations_json(analysis_result: &AnalysisResult, interner
             file_name.to_string()
         } else {
             // Extract filename from any path
-            original_file_path_str.split('/').last().unwrap_or(original_file_path_str).to_string()
+            original_file_path_str
+                .split('/')
+                .last()
+                .unwrap_or(original_file_path_str)
+                .to_string()
         };
 
         for ((start_offset, end_offset), (symbol_id, member_id)) in locations {
