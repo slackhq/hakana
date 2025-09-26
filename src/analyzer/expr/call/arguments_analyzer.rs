@@ -1544,8 +1544,10 @@ fn check_classname_passed_as_string(
             .iter()
             .find(|t| matches!(t, TAtomic::TLiteralClassname { name: _ }))
         {
-            let class_name = statements_analyzer.interner.lookup(name);
-            let arg_pos = arg.to_expr_ref().pos();
+            let arg_expr = arg.to_expr_ref();
+
+            let class_name = get_class_name_from_expr(arg_expr)
+                .unwrap_or_else(|| statements_analyzer.interner.lookup(name));
 
             let issue = Issue::new(
                 IssueKind::ClassnameUsedAsString,
@@ -1567,7 +1569,8 @@ fn check_classname_passed_as_string(
                     .is_production(statements_analyzer.codebase)
                     || analysis_data.get_matching_hakana_fixme(&issue).is_none()
                 {
-                    let nameof_expr = format!("nameof \\{}", class_name);
+                    let arg_pos = arg_expr.pos();
+                    let nameof_expr = format!("nameof {}", class_name);
                     analysis_data.add_replacement(
                         (arg_pos.start_offset() as u32, arg_pos.end_offset() as u32),
                         Replacement::Substitute(nameof_expr),
@@ -1581,5 +1584,23 @@ fn check_classname_passed_as_string(
                 );
             }
         }
+    }
+}
+
+/// Extract the referenced class name from a classname literal expression in the form of C::class.
+/// Returns `None` if the class name cannot be determined.
+fn get_class_name_from_expr(expr: &aast::Expr<(), ()>) -> Option<&str> {
+    if let aast::Expr_::ClassConst(class_id) = &expr.2 {
+        if let aast::ClassId_::CIexpr(ci_expr) = &(**class_id).0 .2 {
+            if let aast::Expr_::Id(inner_class_id) = &ci_expr.2 {
+                Some(inner_class_id.name())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
     }
 }
