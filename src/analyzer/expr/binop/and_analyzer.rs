@@ -80,7 +80,7 @@ pub(crate) fn analyze<'expr>(
     let mut context_clauses = left_context
         .clauses
         .iter()
-        .map(|v| (&**v))
+        .map(|v| &**v)
         .collect::<Vec<_>>();
     context_clauses.extend(left_clauses.iter());
 

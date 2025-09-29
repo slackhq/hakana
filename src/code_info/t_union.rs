@@ -49,7 +49,7 @@ pub enum TypeNode<'a> {
 }
 
 impl<'a> TypeNode<'a> {
-    pub fn get_child_nodes(&self) -> Vec<TypeNode> {
+    pub fn get_child_nodes(&self) -> Vec<TypeNode<'_>> {
         match self {
             TypeNode::Union(union) => union.get_child_nodes(),
             TypeNode::Atomic(atomic) => atomic.get_child_nodes(),
@@ -58,7 +58,7 @@ impl<'a> TypeNode<'a> {
 }
 
 pub trait HasTypeNodes {
-    fn get_child_nodes(&self) -> Vec<TypeNode>;
+    fn get_child_nodes(&self) -> Vec<TypeNode<'_>>;
 }
 
 impl TUnion {
@@ -277,7 +277,7 @@ impl TUnion {
         false
     }
 
-    pub fn get_all_child_nodes(&self) -> Vec<TypeNode> {
+    pub fn get_all_child_nodes(&self) -> Vec<TypeNode<'_>> {
         let mut child_nodes = self.get_child_nodes();
         let mut all_child_nodes = vec![];
 
@@ -760,7 +760,7 @@ impl PartialEq for TUnion {
 }
 
 impl HasTypeNodes for TUnion {
-    fn get_child_nodes(&self) -> Vec<TypeNode> {
+    fn get_child_nodes(&self) -> Vec<TypeNode<'_>> {
         self.types.iter().map(TypeNode::Atomic).collect()
     }
 }

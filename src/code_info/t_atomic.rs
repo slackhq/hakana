@@ -1669,7 +1669,7 @@ impl TAtomic {
 }
 
 impl HasTypeNodes for TAtomic {
-    fn get_child_nodes(&self) -> Vec<TypeNode> {
+    fn get_child_nodes(&self) -> Vec<TypeNode<'_>> {
         match self {
             TAtomic::TDict(TDict {
                 params,

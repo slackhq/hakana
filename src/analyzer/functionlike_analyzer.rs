@@ -1770,7 +1770,7 @@ impl ScopeAnalyzer for FunctionLikeAnalyzer<'_> {
         self.file_analyzer.get_namespace()
     }
 
-    fn get_file_analyzer(&self) -> &FileAnalyzer {
+    fn get_file_analyzer(&self) -> &FileAnalyzer<'_> {
         self.file_analyzer
     }
 

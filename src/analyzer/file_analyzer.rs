@@ -122,7 +122,7 @@ impl<'a> FileAnalyzer<'a> {
         Ok(())
     }
 
-    pub fn get_file_source(&self) -> &FileSource {
+    pub fn get_file_source(&self) -> &FileSource<'_> {
         &self.file_source
     }
 }
