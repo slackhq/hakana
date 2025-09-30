@@ -23,7 +23,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Binaries
 - Main binary: `hakana` (src/main.rs)
-- Language server: `hakana-language-server` (src/lsp.rs)
+- Language server: `hakana-language-server` (src/lsp_daemon_client.rs) - daemon-based client
+- Daemon server: `hakana-daemon` (src/daemon.rs) - persistent analysis server
+- MCP server: `hakana-mcp-server` (src/mcp_server.rs) - Model Context Protocol server
 
 ## Architecture Overview
 

@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FileStatus {
     Unchanged(u64, u64),
     Added(u64, u64),
