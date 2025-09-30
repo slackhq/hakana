@@ -1,3 +1,5 @@
+// fun comment
+
 class MyClass {
     public function foo(): string {
         return "hello";

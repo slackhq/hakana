@@ -461,3 +461,7 @@ pub fn get_config(
 
     Ok(config)
 }
+
+#[cfg(test)]
+mod tests;
+
