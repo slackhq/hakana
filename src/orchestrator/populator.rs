@@ -370,10 +370,9 @@ fn populate_classlike_storage(
     symbol_references: &mut SymbolReferences,
     safe_symbols: &FxHashSet<StrId>,
 ) {
-    let mut storage = if let Some(storage) = codebase.classlike_infos.remove(classlike_name) {
-        storage
-    } else {
-        return;
+    let mut storage = match codebase.classlike_infos.remove(classlike_name) {
+        Some(storage) => storage,
+        _ => return,
     };
 
     if storage.is_populated {

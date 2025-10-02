@@ -55,7 +55,13 @@ pub(crate) fn analyze<'expr>(
         let tmp_if_body_context = left_context.if_body_context;
         left_context.if_body_context = None;
 
-        expression_analyzer::analyze(statements_analyzer, left, analysis_data, &mut left_context, true,)?;
+        expression_analyzer::analyze(
+            statements_analyzer,
+            left,
+            analysis_data,
+            &mut left_context,
+            true,
+        )?;
 
         left_context.if_body_context = tmp_if_body_context;
 
@@ -111,7 +117,7 @@ pub(crate) fn analyze<'expr>(
         context.function_context.calling_functionlike_id,
     );
 
-    let left_clauses = if let Ok(left_clauses) = formula_generator::get_formula(
+    let left_clauses = formula_generator::get_formula(
         left_cond_id,
         left_cond_id,
         left,
@@ -119,32 +125,26 @@ pub(crate) fn analyze<'expr>(
         analysis_data,
         true,
         false,
-    ) {
-        left_clauses
-    } else {
-        return Err(AnalysisError::UserError);
-    };
+    )
+    .map_err(|_| AnalysisError::UserError)?;
 
-    let mut negated_left_clauses =
-        if let Ok(good_clauses) = hakana_algebra::negate_formula(left_clauses) {
-            good_clauses
-        } else if let Ok(good_clauses) = formula_generator::get_formula(
-            left_cond_id,
-            left_cond_id,
-            &aast::Expr(
-                (),
-                left.pos().clone(),
-                aast::Expr_::Unop(Box::new((Uop::Unot, left.clone()))),
-            ),
-            &assertion_context,
-            analysis_data,
-            false,
-            false,
-        ) {
-            good_clauses
-        } else {
-            return Err(AnalysisError::UserError);
-        };
+    let mut negated_left_clauses = hakana_algebra::negate_formula(left_clauses)
+        .or_else(|_| {
+            formula_generator::get_formula(
+                left_cond_id,
+                left_cond_id,
+                &aast::Expr(
+                    (),
+                    left.pos().clone(),
+                    aast::Expr_::Unop(Box::new((Uop::Unot, left.clone()))),
+                ),
+                &assertion_context,
+                analysis_data,
+                false,
+                false,
+            )
+        })
+        .map_err(|_| AnalysisError::UserError)?;
 
     if !left_context.reconciled_expression_clauses.is_empty() {
         let left_reconciled_clauses_hashed = left_context

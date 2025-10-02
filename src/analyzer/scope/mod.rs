@@ -503,26 +503,24 @@ impl BlockContext {
 }
 
 fn should_keep_clause(clause: &Rc<Clause>, remove_var_id: &str, new_type: Option<&TUnion>) -> bool {
-    if let Some(possibilities) = clause
+    clause
         .possibilities
         .get(&ClauseKey::Name(VarName::new(remove_var_id.to_string())))
-    {
-        if possibilities.len() == 1 {
-            let assertion = possibilities.values().next().unwrap();
+        .map_or(true, |possibilities| {
+            if possibilities.len() == 1 {
+                let assertion = possibilities.values().next().unwrap();
 
-            if let Assertion::IsType(assertion_type) = assertion {
-                if let Some(new_type) = new_type {
-                    if new_type.is_single() {
-                        return new_type.get_single() == assertion_type;
+                if let Assertion::IsType(assertion_type) = assertion {
+                    if let Some(new_type) = new_type {
+                        if new_type.is_single() {
+                            return new_type.get_single() == assertion_type;
+                        }
                     }
                 }
             }
-        }
 
-        false
-    } else {
-        true
-    }
+            false
+        })
 }
 
 #[inline]
