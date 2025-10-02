@@ -167,10 +167,8 @@ pub(crate) fn analyze(
 
     if_scope.reasonable_clauses = ternary_clauses.into_iter().map(Rc::new).collect();
 
-    if let Ok(negated_if_clauses) = hakana_algebra::negate_formula(if_clauses) {
-        if_scope.negated_clauses = negated_if_clauses;
-    } else {
-        if_scope.negated_clauses = formula_generator::get_formula(
+    if_scope.negated_clauses = hakana_algebra::negate_formula(if_clauses).unwrap_or_else(|_| {
+        formula_generator::get_formula(
             cond_object_id,
             cond_object_id,
             &aast::Expr(
@@ -183,8 +181,8 @@ pub(crate) fn analyze(
             false,
             false,
         )
-        .unwrap_or_default();
-    }
+        .unwrap_or_default()
+    });
 
     let negated_clauses = hakana_algebra::simplify_cnf({
         let mut c = context.clauses.iter().map(|v| &**v).collect::<Vec<_>>();

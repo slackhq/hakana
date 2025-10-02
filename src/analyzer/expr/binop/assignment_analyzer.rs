@@ -710,23 +710,21 @@ fn handle_assignment_with_boolean_logic(
             IndexMap::from([(Assertion::Falsy.to_hash(), Assertion::Falsy)]),
         );
 
-        let assignment_clauses = if let Ok(assignment_clauses) =
-            hakana_algebra::combine_ored_clauses(
-                vec![Clause::new(
-                    possibilities,
-                    var_object_id,
-                    var_object_id,
-                    None,
-                    None,
-                    None,
-                )],
-                right_clauses.into_iter().map(|v| (*v).clone()).collect(),
-                cond_object_id,
-            ) {
+        let assignment_clauses = hakana_algebra::combine_ored_clauses(
+            vec![Clause::new(
+                possibilities,
+                var_object_id,
+                var_object_id,
+                None,
+                None,
+                None,
+            )],
+            right_clauses.into_iter().map(|v| (*v).clone()).collect(),
+            cond_object_id,
+        )
+        .map_or(vec![], |assignment_clauses| {
             assignment_clauses.into_iter().map(Rc::new).collect()
-        } else {
-            vec![]
-        };
+        });
 
         context.clauses.extend(assignment_clauses);
     }
