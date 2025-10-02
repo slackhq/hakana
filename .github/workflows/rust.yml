@@ -6,7 +6,7 @@ on:
     paths: ['src/**', 'tests/**', 'third-party/**', 'Cargo.toml', 'build.rs', 'init.sh', '.github/workflows/rust.yml']
   pull_request:
     branches: [ "main" ]
-    paths: ['src/**', 'tests/**', 'third-party/**', 'Cargo.toml', 'build.rs', 'init.sh']
+    paths: ['src/**', 'tests/**', 'third-party/**', 'Cargo.toml', 'build.rs', 'init.sh', '.github/workflows/rust.yml']
 
 env:
   CARGO_TERM_COLOR: always
@@ -28,4 +28,10 @@ jobs:
         eval $(opam env)
 
     - name: Build & Run tests
-      run: ./init.sh && cargo run --release --bin hakana test tests
+      run: |
+        ./init.sh
+        
+        cargo run --release --bin hakana test tests
+
+        # run Rust unit tests
+        cargo test --release --workspace
