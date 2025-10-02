@@ -779,7 +779,7 @@ fn handle_reqs(
             let require_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
             match &req.1 {
-                aast::RequireKind::RequireExtends => {
+                aast::RequireKind::RequireExtends | aast::RequireKind::RequireClass => {
                     storage.direct_parent_class = Some(require_name);
                     storage.all_parent_classes.push(require_name);
                     storage.required_classlikes.push(require_name);
@@ -789,7 +789,6 @@ fn handle_reqs(
                     storage.all_parent_interfaces.push(require_name);
                     storage.required_classlikes.push(require_name);
                 }
-                aast::RequireKind::RequireClass => todo!(),
                 aast::RequireKind::RequireThisAs => todo!(),
             };
 
