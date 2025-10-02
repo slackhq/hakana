@@ -404,7 +404,7 @@ fn handle_shapes_static_method(
 
                         for atomic_type in new_type.types.iter_mut() {
                             if let TAtomic::TDict(TDict {
-                                known_items: Some(ref mut known_items),
+                                known_items: Some(known_items),
                                 ..
                             }) = atomic_type
                             {

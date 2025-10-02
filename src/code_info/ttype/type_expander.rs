@@ -134,9 +134,9 @@ fn expand_atomic(
     *cost += 1;
 
     if let TAtomic::TDict(TDict {
-        ref mut known_items,
-        ref mut params,
-        ref mut shape_name,
+        known_items,
+        params,
+        shape_name,
         ..
     }) = return_type_part
     {
@@ -179,8 +179,8 @@ fn expand_atomic(
             *shape_name = None;
         }
     } else if let TAtomic::TVec(TVec {
-        ref mut known_items,
-        ref mut type_param,
+        known_items,
+        type_param,
         ..
     }) = return_type_part
     {
@@ -210,7 +210,7 @@ fn expand_atomic(
 
         return;
     } else if let TAtomic::TKeyset {
-        ref mut type_param, ..
+        type_param, ..
     } = return_type_part
     {
         expand_union(
@@ -224,7 +224,7 @@ fn expand_atomic(
         );
 
         return;
-    } else if let TAtomic::TAwaitable { ref mut value } = return_type_part {
+    } else if let TAtomic::TAwaitable { value } = return_type_part {
         expand_union(
             codebase,
             interner,
@@ -237,9 +237,9 @@ fn expand_atomic(
 
         return;
     } else if let TAtomic::TNamedObject {
-        ref mut name,
-        ref mut type_params,
-        ref mut is_this,
+        name,
+        type_params,
+        is_this,
         ..
     } = return_type_part
     {
@@ -288,7 +288,7 @@ fn expand_atomic(
         }
 
         return;
-    } else if let TAtomic::TClosure(ref mut closure) = return_type_part {
+    } else if let TAtomic::TClosure(closure) = return_type_part {
         if let Some(ref mut return_type) = closure.return_type {
             expand_union(
                 codebase,
@@ -316,7 +316,7 @@ fn expand_atomic(
         }
     } else if let TAtomic::TGenericParam {
         param_name,
-        ref mut as_type,
+        as_type,
         ..
     } = return_type_part
     {
@@ -340,10 +340,10 @@ fn expand_atomic(
 
         return;
     } else if let TAtomic::TClassname {
-        ref mut as_type, ..
+        as_type, ..
     }
     | TAtomic::TTypename {
-        ref mut as_type, ..
+        as_type, ..
     } = return_type_part
     {
         let mut atomic_return_type_parts = vec![];
@@ -365,13 +365,13 @@ fn expand_atomic(
         }
 
         return;
-    } else if let TAtomic::TEnumLiteralCase {
+    } else if let &mut TAtomic::TEnumLiteralCase {
         ref enum_name,
         ref mut as_type,
         ref mut underlying_type,
         ..
     }
-    | TAtomic::TEnum {
+    | &mut TAtomic::TEnum {
         name: ref enum_name,
         ref mut as_type,
         ref mut underlying_type,
@@ -409,7 +409,7 @@ fn expand_atomic(
         }
 
         return;
-    } else if let TAtomic::TMemberReference {
+    } else if let &mut TAtomic::TMemberReference {
         ref classlike_name,
         ref member_name,
     } = return_type_part

@@ -319,7 +319,7 @@ fn replace_atomic<'a>(
             ref mut params,
             ..
         }) => {
-            if let Some(ref mut known_items) = known_items {
+            if let Some(known_items) = known_items {
                 for (offset, (_, property)) in known_items {
                     let input_type_param = if let Some(TAtomic::TDict(TDict {
                         known_items: Some(ref input_known_items),
@@ -526,7 +526,7 @@ fn replace_atomic<'a>(
             remapped_params,
             ..
         } => {
-            if let Some(ref mut type_params) = type_params {
+            if let Some(type_params) = type_params {
                 let mapped_type_params = if let Some(TAtomic::TNamedObject {
                     type_params: Some(_),
                     ..
@@ -548,7 +548,7 @@ fn replace_atomic<'a>(
                     let input_type_param = match &input_type {
                         Some(input_inner) => match input_inner {
                             TAtomic::TNamedObject {
-                                type_params: Some(ref input_type_parts),
+                                type_params: Some(input_type_parts),
                                 ..
                             } => input_type_parts.get(offset).cloned(),
                             TAtomic::TDict(TDict { .. })
@@ -622,7 +622,7 @@ fn replace_atomic<'a>(
             ref name,
             ..
         } => {
-            if let Some(ref mut type_params) = type_params {
+            if let Some(type_params) = type_params {
                 let mapped_type_params = if let Some(TAtomic::TTypeAlias {
                     type_params: Some(input_type_params),
                     name: input_name,

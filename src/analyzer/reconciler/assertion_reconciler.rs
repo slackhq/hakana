@@ -858,8 +858,8 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (
-            TAtomic::TGenericParam { ref as_type, .. }
-            | TAtomic::TClassTypeConstant { ref as_type, .. },
+            TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TMixedWithFlags(_, _, _, true),
         ) => {
             let type_1_atomic = type_1_atomic.replace_template_extends(

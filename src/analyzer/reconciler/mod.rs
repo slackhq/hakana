@@ -404,7 +404,7 @@ fn adjust_array_type(
 
         match base_atomic_type {
             TAtomic::TDict(TDict {
-                ref mut known_items,
+                known_items,
                 ..
             }) => {
                 let dictkey = if has_string_offset {
@@ -426,7 +426,7 @@ fn adjust_array_type(
                 }
             }
             TAtomic::TVec(TVec {
-                ref mut known_items,
+                known_items,
                 ..
             }) => {
                 if let Ok(arraykey_offset) = arraykey_offset.parse::<usize>() {
