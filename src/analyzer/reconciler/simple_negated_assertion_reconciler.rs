@@ -1730,7 +1730,7 @@ fn reconcile_empty_countable(
                     acceptable_types.push(new_atomic);
                 }
             }
-            TAtomic::TGenericParam { ref as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. } => {
                 did_remove_type = true;
                 if !as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(reconcile_empty_countable(

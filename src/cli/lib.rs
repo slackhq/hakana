@@ -650,7 +650,7 @@ pub fn init(
                     Some(val.parse::<u64>().unwrap())
                 } else {
                     let mut rng = rand::thread_rng();
-                    Some(rng.gen())
+                    Some(rng.r#gen())
                 }
             } else {
                 None
@@ -1664,7 +1664,7 @@ fn replace_contents(
             .extend(insertion.into_iter().rev().map(Replacement::Substitute));
     }
 
-    for ((mut start, mut end), replacements) in replacements.iter().rev() {
+    for (&(mut start, mut end), replacements) in replacements.iter().rev() {
         for replacement in replacements {
             match replacement {
                 Replacement::Remove => {

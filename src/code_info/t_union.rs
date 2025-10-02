@@ -781,13 +781,13 @@ pub fn populate_union_type(
     let types = &mut t_union.types;
 
     for atomic in types.iter_mut() {
-        if let TAtomic::TClassname { ref mut as_type }
-        | TAtomic::TTypename { ref mut as_type }
+        if let TAtomic::TClassname { as_type }
+        | TAtomic::TTypename { as_type }
         | TAtomic::TGenericClassname {
-            ref mut as_type, ..
+            as_type, ..
         }
         | TAtomic::TGenericTypename {
-            ref mut as_type, ..
+            as_type, ..
         } = atomic
         {
             let mut new_as_type = (**as_type).clone();

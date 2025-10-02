@@ -1397,11 +1397,11 @@ impl TAtomic {
 
     pub fn add_intersection_type(&mut self, atomic: TAtomic) {
         if let TAtomic::TNamedObject {
-            ref mut extra_types,
+            extra_types,
             ..
         }
         | TAtomic::TGenericParam {
-            ref mut extra_types,
+            extra_types,
             ..
         } = self
         {
@@ -1480,7 +1480,7 @@ impl TAtomic {
     pub fn remove_placeholders(&mut self) {
         match self {
             TAtomic::TDict(TDict {
-                params: Some(ref mut params),
+                params: Some(params),
                 ..
             }) => {
                 if let TAtomic::TPlaceholder = params.0.get_single() {
@@ -1500,7 +1500,7 @@ impl TAtomic {
                 }
             }
             TAtomic::TKeyset {
-                ref mut type_param, ..
+                type_param, ..
             } => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
                     *type_param =
@@ -1508,8 +1508,8 @@ impl TAtomic {
                 }
             }
             TAtomic::TNamedObject {
-                ref mut name,
-                type_params: Some(ref mut type_params),
+                name,
+                type_params: Some(type_params),
                 ..
             } => {
                 if name == &StrId::KEYED_CONTAINER
@@ -1797,8 +1797,8 @@ pub fn populate_atomic_type(
 ) {
     match t_atomic {
         TAtomic::TDict(TDict {
-            ref mut params,
-            ref mut known_items,
+            params,
+            known_items,
             ..
         }) => {
             if let Some(params) = params {
@@ -1830,7 +1830,7 @@ pub fn populate_atomic_type(
                 }
             }
         }
-        TAtomic::TClosure(ref mut closure) => {
+        TAtomic::TClosure(closure) => {
             if let Some(ref mut return_type) = closure.return_type {
                 populate_union_type(
                     return_type,
@@ -1854,7 +1854,7 @@ pub fn populate_atomic_type(
             }
         }
         TAtomic::TKeyset {
-            ref mut type_param, ..
+            type_param, ..
         } => {
             populate_union_type(
                 type_param,
@@ -1865,8 +1865,8 @@ pub fn populate_atomic_type(
             );
         }
         TAtomic::TVec(TVec {
-            ref mut type_param,
-            ref mut known_items,
+            type_param,
+            known_items,
             ..
         }) => {
             populate_union_type(
@@ -1889,7 +1889,7 @@ pub fn populate_atomic_type(
                 }
             }
         }
-        TAtomic::TAwaitable { ref mut value, .. } => {
+        TAtomic::TAwaitable { value, .. } => {
             populate_union_type(
                 value,
                 codebase_symbols,
@@ -1900,12 +1900,12 @@ pub fn populate_atomic_type(
         }
         TAtomic::TNamedObject {
             name,
-            ref mut type_params,
+            type_params,
             ..
         }
         | TAtomic::TTypeAlias {
             name,
-            ref mut type_params,
+            type_params,
             ..
         } => {
             if let Some(type_params) = type_params {
@@ -1935,7 +1935,7 @@ pub fn populate_atomic_type(
             ReferenceSource::ClasslikeMember(in_signature, a, b) => symbol_references
                 .add_class_member_reference_to_symbol((*a, *b), *name, *in_signature),
         },
-        TAtomic::TReference {
+        &mut TAtomic::TReference {
             ref name,
             ref mut type_params,
         } => {
@@ -2004,7 +2004,7 @@ pub fn populate_atomic_type(
                 };
             }
         }
-        TAtomic::TMemberReference {
+        &mut TAtomic::TMemberReference {
             ref classlike_name,
             ref member_name,
         } => {
@@ -2051,7 +2051,7 @@ pub fn populate_atomic_type(
             );
         }
         TAtomic::TGenericParam {
-            ref mut as_type, ..
+            as_type, ..
         } => {
             populate_union_type(
                 as_type,
