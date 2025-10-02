@@ -36,6 +36,9 @@ namespace {
 		$c->string_method(C::class, 4);
 
 		classname_function(C::class);
+
+		$cls_var = C::class;
+		string_function($cls_var);
 	}
 }
 

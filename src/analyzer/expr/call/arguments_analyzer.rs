@@ -1539,49 +1539,50 @@ fn check_classname_passed_as_string(
     let is_string_param = param_type.types.iter().any(|t| *t == TAtomic::TString);
 
     if is_string_param {
-        if let Some(TAtomic::TLiteralClassname { name }) = arg_value_type
+        if let Some(TAtomic::TLiteralClassname { name: _ }) = arg_value_type
             .types
             .iter()
             .find(|t| matches!(t, TAtomic::TLiteralClassname { name: _ }))
         {
             let arg_expr = arg.to_expr_ref();
 
-            let class_name = get_class_name_from_expr(arg_expr)
-                .unwrap_or_else(|| statements_analyzer.interner.lookup(name));
+            // The RHS argument of `nameof` must be a classname literal;
+            // `nameof $some_var_holding_classname` does not typecheck.
+            if let Some(class_name) = get_class_name_from_classname_literal_expr(arg_expr) {
+                let issue = Issue::new(
+                    IssueKind::ClassnameUsedAsString,
+                    format!(
+                        "Using {} in this position will lead to an implicit runtime conversion to string, please use \"nameof {}\" instead",
+                        class_name,
+                        class_name
+                    ),
+                    statements_analyzer.get_hpos(function_call_pos),
+                    &context.function_context.calling_functionlike_id,
+                );
 
-            let issue = Issue::new(
-                IssueKind::ClassnameUsedAsString,
-                format!(
-                    "Using {} in this position will lead to an implicit runtime conversion to string, please use \"nameof {}\" instead",
-                    class_name,
-                    class_name
-                ),
-                statements_analyzer.get_hpos(function_call_pos),
-                &context.function_context.calling_functionlike_id,
-            );
+                let config = statements_analyzer.get_config();
 
-            let config = statements_analyzer.get_config();
-
-            if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
-                // Only replace code that's not already covered by a FIXME
-                if !context
-                    .function_context
-                    .is_production(statements_analyzer.codebase)
-                    || analysis_data.get_matching_hakana_fixme(&issue).is_none()
-                {
-                    let arg_pos = arg_expr.pos();
-                    let nameof_expr = format!("nameof {}", class_name);
-                    analysis_data.add_replacement(
-                        (arg_pos.start_offset() as u32, arg_pos.end_offset() as u32),
-                        Replacement::Substitute(nameof_expr),
+                if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+                    // Only replace code that's not already covered by a FIXME
+                    if !context
+                        .function_context
+                        .is_production(statements_analyzer.codebase)
+                        || analysis_data.get_matching_hakana_fixme(&issue).is_none()
+                    {
+                        let arg_pos = arg_expr.pos();
+                        let nameof_expr = format!("nameof {}", class_name);
+                        analysis_data.add_replacement(
+                            (arg_pos.start_offset() as u32, arg_pos.end_offset() as u32),
+                            Replacement::Substitute(nameof_expr),
+                        );
+                    }
+                } else {
+                    analysis_data.maybe_add_issue(
+                        issue,
+                        config,
+                        statements_analyzer.get_file_path_actual(),
                     );
                 }
-            } else {
-                analysis_data.maybe_add_issue(
-                    issue,
-                    config,
-                    statements_analyzer.get_file_path_actual(),
-                );
             }
         }
     }
@@ -1589,7 +1590,7 @@ fn check_classname_passed_as_string(
 
 /// Extract the referenced class name from a classname literal expression in the form of C::class.
 /// Returns `None` if the class name cannot be determined.
-fn get_class_name_from_expr(expr: &aast::Expr<(), ()>) -> Option<&str> {
+fn get_class_name_from_classname_literal_expr(expr: &aast::Expr<(), ()>) -> Option<&str> {
     if let aast::Expr_::ClassConst(class_id) = &expr.2 {
         if let aast::ClassId_::CIexpr(ci_expr) = &(**class_id).0 .2 {
             if let aast::Expr_::Id(inner_class_id) = &ci_expr.2 {
