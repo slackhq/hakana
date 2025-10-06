@@ -12,7 +12,7 @@ Cargo.toml:
 [package]
 name = "hakana-custom"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 build = "build.rs"
 
 [dependencies]

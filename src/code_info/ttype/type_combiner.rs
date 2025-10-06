@@ -809,7 +809,7 @@ fn scrape_type_properties(
 
         let object_type_key = get_combiner_key(fq_class_name, &type_params, codebase);
 
-        if let Some((_, ref existing_type_params)) =
+        if let Some((_, existing_type_params)) =
             combination.object_type_params.get(&object_type_key)
         {
             let mut new_type_params = Vec::new();

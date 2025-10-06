@@ -594,7 +594,7 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
     if clauses.is_empty() {
         let mut rng = rand::thread_rng();
 
-        let n2: u32 = rng.gen();
+        let n2: u32 = rng.r#gen();
         return Ok(vec![Clause::new(
             BTreeMap::new(),
             (n2, n2),
@@ -610,7 +610,7 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
     if impossible_clauses.is_empty() {
         let mut rng = rand::thread_rng();
 
-        let n2: u32 = rng.gen();
+        let n2: u32 = rng.r#gen();
         return Ok(vec![Clause::new(
             BTreeMap::new(),
             (n2, n2),
@@ -626,7 +626,7 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
     if negated.is_empty() {
         let mut rng = rand::thread_rng();
 
-        let n2: u32 = rng.gen();
+        let n2: u32 = rng.r#gen();
         return Ok(vec![Clause::new(
             BTreeMap::new(),
             (n2, n2),
