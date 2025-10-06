@@ -1,6 +1,8 @@
 use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
+use hakana_code_info::member_visibility::MemberVisibility;
+use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::union_type_comparator;
@@ -786,7 +788,12 @@ pub(crate) fn check_implicit_asio_join(
 
     let config = statements_analyzer.get_config();
 
-    if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+    // If the candidate method is not callable from the current context, report an issue but don't autofix,
+    // to make the optimization possibility known without emitting invalid code.
+    if config.issues_to_fix.contains(&issue.kind)
+        && !config.add_fixmes
+        && can_call_async_version(statements_analyzer, context, functionlike_id, async_version)
+    {
         // Only replace code that's not already covered by a FIXME
         if !context
             .function_context
@@ -804,18 +811,16 @@ pub(crate) fn check_implicit_asio_join(
                 // The await expression emitted by autofixing a sync wrapper may be part of an expression chain.
                 // Try to account for this by seeing if the end of the current call also lines up with
                 // the end of the current statement.
-                let should_wrap_await = if let Some(current_stmt_end) = analysis_data.current_stmt_end {
-                    // offset by one to account for statement-closing comma
-                    is_sub_expression || (1 + pos.end_offset() as u32) != current_stmt_end
-                } else {
-                    is_sub_expression
-                };
+                let should_wrap_await =
+                    if let Some(current_stmt_end) = analysis_data.current_stmt_end {
+                        // offset by one to account for statement-closing comma
+                        is_sub_expression || (1 + pos.end_offset() as u32) != current_stmt_end
+                    } else {
+                        is_sub_expression
+                    };
 
                 let await_or_join = if context.inside_async {
-                    format!(
-                        "{}await ",
-                        if should_wrap_await { "(" } else { "" },
-                    )
+                    format!("{}await ", if should_wrap_await { "(" } else { "" },)
                 } else {
                     "Asio\\join(".into()
                 };
@@ -824,7 +829,8 @@ pub(crate) fn check_implicit_asio_join(
                 // such as a variable of base type T that may be assigned subtype T' or T"
                 // in alternate loop branches. Guard against duplicate inserts resulting from this.
                 let await_or_join_insert_offset = pos.start_offset() as u32;
-                let should_insert = match analysis_data.insertions.get(&await_or_join_insert_offset) {
+                let should_insert = match analysis_data.insertions.get(&await_or_join_insert_offset)
+                {
                     Some(existing_insertions) => !existing_insertions.contains(&await_or_join),
                     _ => true,
                 };
@@ -909,5 +915,70 @@ fn get_async_version_name(
             )
         }),
         _ => None,
+    }
+}
+
+/// Check whether the possible async version of a sync function
+/// is callable (visible) from the current context.
+fn can_call_async_version(
+    statements_analyzer: &StatementsAnalyzer,
+    context: &BlockContext,
+    sync_version: FunctionLikeIdentifier,
+    async_version: FunctionLikeIdentifier,
+) -> bool {
+    // If the async version is a method, consider whether it's visible from the calling context.
+    if let Some(method_id) = async_version.as_method_identifier() {
+
+        // The sync method may have been called via a relative reference
+        // such as self/static/parent. Consult the sync version to determine what class this corresponds to.
+        let invocation_target_class = match method_id {
+            MethodIdentifier(StrId::SELF | StrId::STATIC, _) => sync_version
+                .as_method_identifier()
+                .map(|MethodIdentifier(cls, _)| cls),
+            MethodIdentifier(StrId::PARENT, _) => sync_version
+                .as_method_identifier()
+                .map(|MethodIdentifier(cls, _)| cls)
+                .map(|cls| statements_analyzer.codebase.classlike_infos.get(&cls))
+                .flatten()
+                .map(|cls| cls.direct_parent_class)
+                .flatten(),
+            MethodIdentifier(declaring_class, _) => Some(declaring_class),
+        };
+        let MethodIdentifier(_, method_name) = method_id;
+
+        invocation_target_class
+            .map(|appearing_class| {
+                statements_analyzer
+                    .codebase
+                    .classlike_infos
+                    .get(&appearing_class)
+            })
+            .flatten()
+            .map(|cls| cls.appearing_method_ids.get(&method_name))
+            .flatten()
+            .map(|declaring_class| {
+                let resolved_async_version_id = MethodIdentifier(*declaring_class, method_name);
+                let method_info = statements_analyzer
+                    .codebase
+                    .get_method(&resolved_async_version_id)
+                    .map(|method| method.method_info.as_ref())
+                    .flatten()?;
+
+                let calling_class = context.function_context.calling_class;
+
+                match method_info.visibility {
+                    MemberVisibility::Private => calling_class.map(|cls| cls.eq(&declaring_class)),
+                    MemberVisibility::Protected => calling_class.map(|cls| {
+                        statements_analyzer
+                            .codebase
+                            .class_extends_or_implements(&cls, &declaring_class)
+                    }),
+                    MemberVisibility::Public => Some(true),
+                }
+            })
+            .flatten()
+            .unwrap_or(false)
+    } else {
+        true
     }
 }

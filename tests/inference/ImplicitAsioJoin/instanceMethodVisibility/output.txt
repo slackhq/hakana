@@ -1,0 +1,6 @@
+ERROR: ImplicitAsioJoin - input.hack:16:20 - Call to a method B::sync_method that just wraps an async version A::prot_async_method
+ERROR: ImplicitAsioJoin - input.hack:16:43 - Call to a method C::sync_method that just wraps an async version C::priv_async_method
+ERROR: ImplicitAsioJoin - input.hack:36:29 - Call to a method C::sync_method that just wraps an async version self::priv_async_method
+ERROR: ImplicitAsioJoin - input.hack:45:16 - Call to a method B::sync_method that just wraps an async version A::prot_async_method
+ERROR: ImplicitAsioJoin - input.hack:45:36 - Call to a method B::sync_foo that just wraps an async version B::foo
+ERROR: ImplicitAsioJoin - input.hack:45:53 - Call to a method C::sync_method that just wraps an async version C::priv_async_method
