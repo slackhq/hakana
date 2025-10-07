@@ -4,6 +4,7 @@ use hakana_str::StrId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    EFFECT_PURE, GenericParent,
     attribute_info::AttributeInfo,
     code_location::HPos,
     codebase_info::CodebaseInfo,
@@ -15,7 +16,6 @@ use crate::{
     t_union::TUnion,
     taint::{SinkType, SourceType},
     type_resolution::TypeResolutionContext,
-    GenericParent, EFFECT_PURE,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

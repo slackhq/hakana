@@ -115,14 +115,21 @@ impl FunctionContext {
                     // Non-production code can call any service
                     return true;
                 }
-                functionlike_info.service_calls.iter().any(|s| s == service_name) 
+                functionlike_info
+                    .service_calls
+                    .iter()
+                    .any(|s| s == service_name)
                     || functionlike_info.is_request_handler
             }
             _ => false,
         }
     }
 
-    pub fn can_transitively_call_service(&self, codebase: &CodebaseInfo, service_name: &str) -> bool {
+    pub fn can_transitively_call_service(
+        &self,
+        codebase: &CodebaseInfo,
+        service_name: &str,
+    ) -> bool {
         let functionlike_info = self.get_functionlike_info(codebase);
 
         match functionlike_info {
@@ -131,8 +138,14 @@ impl FunctionContext {
                     // Non-production code can call any service
                     return true;
                 }
-                functionlike_info.transitive_service_calls.iter().any(|s| s == service_name)
-                    || functionlike_info.service_calls.iter().any(|s| s == service_name)
+                functionlike_info
+                    .transitive_service_calls
+                    .iter()
+                    .any(|s| s == service_name)
+                    || functionlike_info
+                        .service_calls
+                        .iter()
+                        .any(|s| s == service_name)
                     || functionlike_info.is_request_handler
             }
             _ => false,

@@ -628,8 +628,9 @@ pub fn is_contained_by(
             *input_name,
             StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY
         ) {
-            if let TAtomic::TKeyset { .. } | TAtomic::TVec(TVec { .. }) | TAtomic::TDict(TDict { .. }) =
-                container_type_part
+            if let TAtomic::TKeyset { .. }
+            | TAtomic::TVec(TVec { .. })
+            | TAtomic::TDict(TDict { .. }) = container_type_part
             {
                 atomic_comparison_result.type_coerced = Some(true);
 

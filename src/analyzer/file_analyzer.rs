@@ -2,16 +2,16 @@ use crate::config::Config;
 use crate::def_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::update_analysis_result_with_tast;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
+use hakana_code_info::FileSource;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::HPos;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::data_flow::graph::DataFlowGraph;
 use hakana_code_info::function_context::FunctionContext;
 use hakana_code_info::type_resolution::TypeResolutionContext;
-use hakana_code_info::FileSource;
 use hakana_str::{Interner, StrId};
 use oxidized::aast;
 use rustc_hash::FxHashMap;
@@ -79,7 +79,7 @@ impl<'a> FileAnalyzer<'a> {
         for declaration in program {
             if declaration.is_namespace() {
                 let namespace_declaration = declaration.as_namespace().unwrap();
-                self.namespace_name = Some(namespace_declaration.0 .1.to_string());
+                self.namespace_name = Some(namespace_declaration.0.1.to_string());
 
                 for namespace_statement in namespace_declaration.1 {
                     def_analyzer::analyze(
@@ -112,10 +112,7 @@ impl<'a> FileAnalyzer<'a> {
         update_analysis_result_with_tast(
             analysis_data,
             analysis_result,
-            &statements_analyzer
-                .file_analyzer
-                .file_source
-                .file_path,
+            &statements_analyzer.file_analyzer.file_source.file_path,
             false,
         );
 

@@ -12,7 +12,7 @@ use crate::{
     expression_analyzer, formula_generator,
     function_analysis_data::FunctionAnalysisData,
     reconciler,
-    scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
+    scope::{BlockContext, control_action::ControlAction, loop_scope::LoopScope},
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };

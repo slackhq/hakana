@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 
-use crate::{code_location::HPos, t_union::TUnion, GenericParent};
+use crate::{GenericParent, code_location::HPos, t_union::TUnion};
 use indexmap::IndexMap;
 
 pub mod inferred_type_replacer;

@@ -1,8 +1,8 @@
+use hakana_code_info::EFFECT_PURE;
 use hakana_code_info::code_location::{HPos, StmtStart};
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FnEffect;
 use hakana_code_info::ttype::get_arrayish_params;
-use hakana_code_info::EFFECT_PURE;
 use hakana_str::StrId;
 use rustc_hash::FxHashSet;
 
@@ -14,9 +14,9 @@ use crate::expr::expression_identifier::{
 };
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::scope::BlockContext;
 use crate::scope::control_action::ControlAction;
 use crate::scope::loop_scope::LoopScope;
-use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::{
@@ -72,7 +72,13 @@ pub(crate) fn analyze(
 
     match &stmt.1 {
         aast::Stmt_::Expr(boxed) => {
-            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context, false)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                boxed,
+                analysis_data,
+                context,
+                false,
+            )?;
 
             if statements_analyzer.get_config().find_unused_expressions {
                 detect_unused_statement_expressions(
@@ -155,7 +161,13 @@ pub(crate) fn analyze(
         aast::Stmt_::Throw(boxed) => {
             context.inside_throw = true;
 
-            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context, false)?;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                boxed,
+                analysis_data,
+                context,
+                false,
+            )?;
 
             context.control_actions.insert(ControlAction::End);
 
@@ -176,7 +188,7 @@ pub(crate) fn analyze(
         }
         aast::Stmt_::Awaitall(boxed) => {
             analyze_awaitall(
-                (&boxed.0, &boxed.1 .0),
+                (&boxed.0, &boxed.1.0),
                 statements_analyzer,
                 analysis_data,
                 context,
@@ -451,7 +463,7 @@ fn has_unused_must_use(
             }
         }
         aast::Expr_::Await(await_expr) => {
-            return has_unused_must_use(await_expr, statements_analyzer, analysis_data)
+            return has_unused_must_use(await_expr, statements_analyzer, analysis_data);
         }
         _ => (),
     }
@@ -476,8 +488,8 @@ fn analyze_awaitall(
     if !boxed.0.is_empty() {
         let first_assignment = &boxed.0[0];
         let last_assignment = boxed.0.last().unwrap();
-        let concurrent_block_start = first_assignment.0 .0.start_offset() as u32;
-        let concurrent_block_end = last_assignment.1 .1.end_offset() as u32;
+        let concurrent_block_start = first_assignment.0.0.start_offset() as u32;
+        let concurrent_block_end = last_assignment.1.1.end_offset() as u32;
         analysis_data
             .concurrent_block_boundaries
             .push((concurrent_block_start, concurrent_block_end));

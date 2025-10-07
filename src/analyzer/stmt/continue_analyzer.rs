@@ -3,7 +3,7 @@ use std::rc::Rc;
 use hakana_code_info::ttype::combine_union_types;
 use rustc_hash::FxHashSet;
 
-use crate::scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext};
+use crate::scope::{BlockContext, control_action::ControlAction, loop_scope::LoopScope};
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,

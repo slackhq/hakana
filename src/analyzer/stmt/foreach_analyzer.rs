@@ -6,21 +6,24 @@ use crate::{
     },
     expression_analyzer,
     function_analysis_data::FunctionAnalysisData,
-    scope::{loop_scope::LoopScope, BlockContext},
+    scope::{BlockContext, loop_scope::LoopScope},
     scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
-use hakana_code_info::{t_atomic::TVec, ttype::{
-    add_optional_union_type, add_union_type, combine_optional_union_types, get_arraykey, get_int,
-    get_literal_int, get_literal_string, get_mixed_any, get_nothing,
-}};
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
     var_name::VarName,
+};
+use hakana_code_info::{
+    t_atomic::TVec,
+    ttype::{
+        add_optional_union_type, add_union_type, combine_optional_union_types, get_arraykey,
+        get_int, get_literal_int, get_literal_string, get_mixed_any, get_nothing,
+    },
 };
 use hakana_str::StrId;
 use itertools::Itertools;
@@ -134,9 +137,11 @@ pub(crate) fn analyze(
         value_expr.pos().start_offset() as u32,
         value_expr.pos().end_offset() as u32,
     );
-    
+
     // Store for_loop_init_bounds for variable scoping analysis
-    analysis_data.for_loop_init_boundaries.push(foreach_context.for_loop_init_bounds);
+    analysis_data
+        .for_loop_init_boundaries
+        .push(foreach_context.for_loop_init_bounds);
 
     assignment_analyzer::analyze(
         statements_analyzer,
@@ -154,11 +159,13 @@ pub(crate) fn analyze(
     let prev_loop_bounds = foreach_context.loop_bounds;
     foreach_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
     // Store loop bounds for variable scoping analysis
-    analysis_data.loop_boundaries.push(foreach_context.loop_bounds);
+    analysis_data
+        .loop_boundaries
+        .push(foreach_context.loop_bounds);
 
     loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.2 .0,
+        &stmt.2.0,
         vec![],
         vec![],
         &mut LoopScope::new(context.locals.clone()),

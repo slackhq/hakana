@@ -16,13 +16,13 @@ use crate::expr::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
-use crate::scope::{var_has_root, BlockContext};
+use crate::scope::{BlockContext, var_has_root};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
-use hakana_algebra::clause::ClauseKey;
 use hakana_algebra::Clause;
+use hakana_algebra::clause::ClauseKey;
 use hakana_code_info::ast::get_id_name;
 use hakana_code_info::code_location::StmtStart;
 use hakana_code_info::data_flow::graph::GraphKind;
@@ -308,7 +308,7 @@ pub(crate) fn analyze(
         aast::Expr_::ClassConst(boxed) => {
             class_constant_fetch_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, (&boxed.1 .0, &boxed.1 .1)),
+                (&boxed.0, (&boxed.1.0, &boxed.1.1)),
                 &expr.1,
                 analysis_data,
                 context,
@@ -439,7 +439,7 @@ pub(crate) fn analyze(
         aast::Expr_::ValCollection(boxed) => {
             collection_analyzer::analyze_vals(
                 statements_analyzer,
-                &boxed.0 .1,
+                &boxed.0.1,
                 &boxed.2,
                 expr.pos(),
                 analysis_data,
@@ -449,7 +449,7 @@ pub(crate) fn analyze(
         aast::Expr_::KeyValCollection(boxed) => {
             collection_analyzer::analyze_keyvals(
                 statements_analyzer,
-                &boxed.0 .1,
+                &boxed.0.1,
                 &boxed.2,
                 expr.pos(),
                 analysis_data,
@@ -486,13 +486,12 @@ pub(crate) fn analyze(
             let resolved_class_name = {
                 let calling_class = context.function_context.calling_class;
 
-                let calling_class_info = calling_class
-                    .and_then(|calling_class_id| {
-                        statements_analyzer
-                            .codebase
-                            .classlike_infos
-                            .get(&calling_class_id)
-                    });
+                let calling_class_info = calling_class.and_then(|calling_class_id| {
+                    statements_analyzer
+                        .codebase
+                        .classlike_infos
+                        .get(&calling_class_id)
+                });
 
                 // The RHS of a nameof expression always seems to be a CIexpr,
                 // even if a classname literal or a keyword like self/static/parent is passed.

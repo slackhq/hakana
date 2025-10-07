@@ -1,9 +1,9 @@
-use hakana_logger::Logger;
-use hakana_logger::Verbosity;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
+use hakana_logger::Logger;
+use hakana_logger::Verbosity;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use itertools::Itertools;
@@ -202,8 +202,8 @@ fn find_paths_to_sinks(
                         logger.log_sync(&format!(
                             "   - {} in {}:{}",
                             top_file.1,
-                            top_file.0 .0.get_relative_path(interner, &config.root_dir),
-                            top_file.0 .1,
+                            top_file.0.0.get_relative_path(interner, &config.root_dir),
+                            top_file.0.1,
                         ));
                     }
                 }

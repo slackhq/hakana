@@ -19,7 +19,7 @@ pub(crate) fn analyze(
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
         context.inside_negation = !context.inside_negation;
     }
-    expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context, true,)?;
+    expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context, true)?;
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
         context.inside_negation = !context.inside_negation;
     }

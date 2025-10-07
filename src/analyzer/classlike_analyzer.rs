@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::file_analyzer::FileAnalyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::functionlike_analyzer::{update_analysis_result_with_tast, FunctionLikeAnalyzer};
+use crate::functionlike_analyzer::{FunctionLikeAnalyzer, update_analysis_result_with_tast};
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;

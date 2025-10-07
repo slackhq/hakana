@@ -6,7 +6,7 @@ use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonR
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::template::standin_type_replacer::get_relevant_bounds;
 use hakana_code_info::{
-    GenericParent, EFFECT_CAN_THROW, EFFECT_IMPURE, EFFECT_PURE, EFFECT_WRITE_PROPS,
+    EFFECT_CAN_THROW, EFFECT_IMPURE, EFFECT_PURE, EFFECT_WRITE_PROPS, GenericParent,
 };
 use hakana_str::StrId;
 use itertools::Itertools;

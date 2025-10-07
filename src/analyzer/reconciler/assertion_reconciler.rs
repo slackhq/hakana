@@ -858,8 +858,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (
-            TAtomic::TGenericParam { as_type, .. }
-            | TAtomic::TClassTypeConstant { as_type, .. },
+            TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TMixedWithFlags(_, _, _, true),
         ) => {
             let type_1_atomic = type_1_atomic.replace_template_extends(
@@ -1202,7 +1201,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_1_name,
                 type_1_member_name,
                 type_2_atomic,
-            )
+            );
         }
         (
             TAtomic::TInt,
@@ -1217,7 +1216,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_2_name,
                 type_2_member_name,
                 type_1_atomic,
-            )
+            );
         }
         (
             TAtomic::TEnum {
@@ -1290,7 +1289,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_params: Some(vec![type_params[0].clone(), intersected]),
                 as_type: as_type.clone(),
                 newtype: true,
-            })
+            });
         }
         (
             _,
@@ -1314,7 +1313,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_params: Some(vec![type_params[0].clone(), intersected]),
                 as_type: as_type.clone(),
                 newtype: true,
-            })
+            });
         }
         (
             TAtomic::TTypeAlias {
@@ -1338,7 +1337,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_params: type_params.clone(),
                 as_type: Some(Box::new(intersected)),
                 newtype: *newtype,
-            })
+            });
         }
         (
             _,
@@ -1362,7 +1361,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_params: type_params.clone(),
                 as_type: Some(Box::new(intersected)),
                 newtype: *newtype,
-            })
+            });
         }
         (
             TAtomic::TNamedObject {
@@ -1422,7 +1421,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_2_dict,
                 pos,
                 did_remove_type,
-            )
+            );
         }
         (
             TAtomic::TVec(TVec {

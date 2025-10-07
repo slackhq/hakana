@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
-use hakana_algebra::clause::ClauseKey;
 use hakana_algebra::Clause;
+use hakana_algebra::clause::ClauseKey;
+use hakana_code_info::FileSource;
 use hakana_code_info::symbol_references::ReferenceSource;
 use hakana_code_info::var_name::VarName;
-use hakana_code_info::FileSource;
 use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
 };

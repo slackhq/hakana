@@ -7,7 +7,7 @@ use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{get_arrayish_params, get_void};
-use hakana_code_info::{VarId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
+use hakana_code_info::{EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, VarId};
 use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
@@ -17,8 +17,8 @@ use crate::expr::call_analyzer::{apply_effects, check_template_result};
 use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_analyzer};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
-use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
+use crate::scope::control_action::ControlAction;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
@@ -48,7 +48,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     is_sub_expression: bool,
 ) -> Result<(), AnalysisError> {
-    let name = expr.0 .1;
+    let name = expr.0.1;
 
     let resolved_names = statements_analyzer.file_analyzer.resolved_names;
 
@@ -93,7 +93,7 @@ pub(crate) fn analyze(
 
     let name = if name == "\\in_array" {
         StrId::IN_ARRAY
-    } else if let Some(fq_name) = resolved_names.get(&(expr.0 .0.start_offset() as u32)) {
+    } else if let Some(fq_name) = resolved_names.get(&(expr.0.0.start_offset() as u32)) {
         *fq_name
     } else {
         return Err(AnalysisError::InternalError(
@@ -117,7 +117,7 @@ pub(crate) fn analyze(
                     Issue::new(
                         IssueKind::NonExistentFunction,
                         format!("Function {} is not defined", interned_name),
-                        statements_analyzer.get_hpos(expr.0 .0),
+                        statements_analyzer.get_hpos(expr.0.0),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -146,10 +146,7 @@ pub(crate) fn analyze(
             .collect_goto_definition_locations
         {
             analysis_data.definition_locations.insert(
-                (
-                    expr.0 .0.start_offset() as u32,
-                    expr.0 .0.end_offset() as u32,
-                ),
+                (expr.0.0.start_offset() as u32, expr.0.0.end_offset() as u32),
                 (name, StrId::EMPTY),
             );
         }
@@ -177,7 +174,7 @@ pub(crate) fn analyze(
         context,
         &mut template_result,
         pos,
-        Some(expr.0 .0),
+        Some(expr.0.0),
     )?;
 
     apply_effects(
@@ -537,7 +534,7 @@ pub(crate) fn analyze(
                         || analysis_data.get_matching_hakana_fixme(&issue).is_none()
                     {
                         analysis_data.add_replacement(
-                            (pos.start_offset() as u32, expr.0 .0.end_offset() as u32 + 1),
+                            (pos.start_offset() as u32, expr.0.0.end_offset() as u32 + 1),
                             Replacement::Substitute(format!(
                                 "{}await ",
                                 if is_sub_expression { "(" } else { "" }
@@ -566,7 +563,7 @@ pub(crate) fn analyze(
                 check_implicit_asio_join(
                     statements_analyzer,
                     pos,
-                    expr.0 .0,
+                    expr.0.0,
                     analysis_data,
                     context,
                     functionlike_id,

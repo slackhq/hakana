@@ -1,7 +1,7 @@
 use super::{control_analyzer::BreakContext, loop_analyzer};
 use crate::{
     function_analysis_data::FunctionAnalysisData,
-    scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
+    scope::{BlockContext, control_action::ControlAction, loop_scope::LoopScope},
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -15,7 +15,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let while_true = match &stmt.0 .2 {
+    let while_true = match &stmt.0.2 {
         aast::Expr_::True => true,
         aast::Expr_::Int(value) => value.parse::<i64>().unwrap() > 0,
         _ => false,
@@ -42,11 +42,13 @@ pub(crate) fn analyze(
     while_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
 
     // Store loop bounds for variable scoping analysis
-    analysis_data.loop_boundaries.push(while_context.loop_bounds);
+    analysis_data
+        .loop_boundaries
+        .push(while_context.loop_bounds);
 
     let inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.1 .0,
+        &stmt.1.0,
         get_and_expressions(stmt.0),
         vec![],
         &mut loop_scope,

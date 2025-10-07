@@ -1,8 +1,8 @@
-use hakana_logger::Logger;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::issue::Issue;
 use hakana_code_info::symbol_references::SymbolReferences;
+use hakana_logger::Logger;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;

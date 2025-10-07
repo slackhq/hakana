@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attribute_info::AttributeInfo, code_location::HPos, issue::IssueKind, t_atomic::TAtomic,
-    t_union::TUnion, taint::SinkType, VarId,
+    VarId, attribute_info::AttributeInfo, code_location::HPos, issue::IssueKind, t_atomic::TAtomic,
+    t_union::TUnion, taint::SinkType,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

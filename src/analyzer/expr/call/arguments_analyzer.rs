@@ -6,7 +6,7 @@ use hakana_code_info::code_location::{FilePath, StmtStart};
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::ttype::template::standin_type_replacer::StandinOpts;
-use hakana_code_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
+use hakana_code_info::{EFFECT_WRITE_LOCAL, GenericParent, VarId};
 
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::taint::SinkType;
@@ -31,9 +31,9 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::t_union::{populate_union_type, TUnion};
+use hakana_code_info::t_union::{TUnion, populate_union_type};
 use hakana_code_info::ttype::template::{
-    self, inferred_type_replacer, standin_type_replacer, TemplateBound, TemplateResult,
+    self, TemplateBound, TemplateResult, inferred_type_replacer, standin_type_replacer,
 };
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
@@ -74,12 +74,12 @@ pub(crate) fn check_arguments_match(
     if !type_args.is_empty() {
         for (i, type_arg) in type_args.iter().enumerate() {
             let mut param_type = get_type_from_hint(
-                &type_arg.1 .1,
+                &type_arg.1.1,
                 context.function_context.calling_class,
                 statements_analyzer.get_type_resolution_context(),
                 statements_analyzer.file_analyzer.resolved_names,
                 *statements_analyzer.get_file_path(),
-                type_arg.1 .0.start_offset() as u32,
+                type_arg.1.0.start_offset() as u32,
             )
             .unwrap();
 
@@ -1551,8 +1551,7 @@ fn check_classname_passed_as_string(
                     IssueKind::ClassnameUsedAsString,
                     format!(
                         "Using {} in this position will lead to an implicit runtime conversion to string, please use \"nameof {}\" instead",
-                        class_name,
-                        class_name
+                        class_name, class_name
                     ),
                     statements_analyzer.get_hpos(function_call_pos),
                     &context.function_context.calling_functionlike_id,
@@ -1590,7 +1589,7 @@ fn check_classname_passed_as_string(
 /// Returns `None` if the class name cannot be determined.
 fn get_class_name_from_classname_literal_expr(expr: &aast::Expr<(), ()>) -> Option<&str> {
     if let aast::Expr_::ClassConst(class_id) = &expr.2 {
-        if let aast::ClassId_::CIexpr(ci_expr) = &(**class_id).0 .2 {
+        if let aast::ClassId_::CIexpr(ci_expr) = &(**class_id).0.2 {
             if let aast::Expr_::Id(inner_class_id) = &ci_expr.2 {
                 Some(inner_class_id.name())
             } else {

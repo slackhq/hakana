@@ -9,7 +9,7 @@ use std::{collections::BTreeMap, num::ParseIntError, sync::Arc};
 pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) -> Option<TAtomic> {
     match &expr.2 {
         aast::Expr_::ArrayGet(_) => None,
-        aast::Expr_::ClassConst(boxed) => match &boxed.0 .2 {
+        aast::Expr_::ClassConst(boxed) => match &boxed.0.2 {
             aast::ClassId_::CIexpr(lhs_expr) => {
                 if let aast::Expr_::Id(id) = &lhs_expr.2 {
                     match id.1.as_str() {
@@ -18,13 +18,13 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
                             let name_string =
                                 *resolved_names.get(&(id.0.start_offset() as u32)).unwrap();
 
-                            if boxed.1 .1 == "class" {
+                            if boxed.1.1 == "class" {
                                 Some(TAtomic::TLiteralClassname { name: name_string })
                             } else {
                                 Some(TAtomic::TMemberReference {
                                     classlike_name: name_string,
                                     member_name: *resolved_names
-                                        .get(&(boxed.1 .0.start_offset() as u32))
+                                        .get(&(boxed.1.0.start_offset() as u32))
                                         .unwrap(),
                                 })
                             }
@@ -79,7 +79,7 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
                 }
             }
 
-            match boxed.0 .1 {
+            match boxed.0.1 {
                 oxidized::tast::VcKind::Vec => Some(TAtomic::TVec(TVec {
                     known_count: Some(entries.len()),
                     known_items: Some(entries),
@@ -94,7 +94,7 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
             let mut known_items = BTreeMap::new();
 
             for entry_field in &boxed.2 {
-                if let aast::Expr_::String(key_value) = &entry_field.0 .2 {
+                if let aast::Expr_::String(key_value) = &entry_field.0.2 {
                     let value_type = infer(&entry_field.1, resolved_names);
 
                     if let Some(value_type) = value_type {
@@ -111,7 +111,7 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
             }
 
             if known_items.len() < 100 {
-                match boxed.0 .1 {
+                match boxed.0.1 {
                     oxidized::tast::KvcKind::Dict => Some(TAtomic::TDict(TDict {
                         non_empty: !known_items.is_empty(),
                         known_items: Some(known_items),
@@ -209,7 +209,7 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
         aast::Expr_::String2(..) => todo!(),
         aast::Expr_::PrefixedString(data) => {
             if data.0 == "re" {
-                if let aast::Expr_::String(value) = &data.1 .2 {
+                if let aast::Expr_::String(value) = &data.1.2 {
                     return Some(get_atomic_for_prefix_regex_string(value.to_string()));
                 } else {
                     return None;

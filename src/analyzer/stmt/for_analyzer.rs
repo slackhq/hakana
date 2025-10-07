@@ -3,7 +3,7 @@ use oxidized::{aast, tast::Pos};
 use crate::{
     expression_analyzer,
     function_analysis_data::FunctionAnalysisData,
-    scope::{loop_scope::LoopScope, BlockContext},
+    scope::{BlockContext, loop_scope::LoopScope},
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -53,7 +53,7 @@ pub(crate) fn analyze(
 
     loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.3 .0,
+        &stmt.3.0,
         if let Some(cond_expr) = stmt.1 {
             vec![cond_expr]
         } else {

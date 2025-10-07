@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 use crate::{
     expression_analyzer,
-    scope::{if_scope::IfScope, BlockContext},
+    scope::{BlockContext, if_scope::IfScope},
     scope_analyzer::ScopeAnalyzer,
     stmt_analyzer::AnalysisError,
 };

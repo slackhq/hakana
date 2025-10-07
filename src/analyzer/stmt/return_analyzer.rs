@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
+use crate::scope::control_action::ControlAction;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};

@@ -1,10 +1,11 @@
 use crate::scope::{
-    control_action::ControlAction, loop_scope::LoopScope, BlockContext, FinallyScope,
+    BlockContext, FinallyScope, control_action::ControlAction, loop_scope::LoopScope,
 };
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
+use hakana_code_info::VarId;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::{
     DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind,
@@ -12,7 +13,6 @@ use hakana_code_info::data_flow::node::{
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::ttype::{combine_union_types, get_named_object};
 use hakana_code_info::var_name::VarName;
-use hakana_code_info::VarId;
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
@@ -46,7 +46,7 @@ pub(crate) fn analyze(
     let assigned_var_ids = context.assigned_var_ids.clone();
     context.assigned_var_ids = FxHashMap::default();
 
-    statements_analyzer.analyze(&stmt.0 .0, analysis_data, context, loop_scope)?;
+    statements_analyzer.analyze(&stmt.0.0, analysis_data, context, loop_scope)?;
 
     context.has_returned = false;
     try_context.has_returned = false;
@@ -55,7 +55,7 @@ pub(crate) fn analyze(
         codebase,
         statements_analyzer.interner,
         statements_analyzer.file_analyzer.resolved_names,
-        &stmt.0 .0,
+        &stmt.0.0,
         analysis_data,
         vec![],
         true,
@@ -128,19 +128,19 @@ pub(crate) fn analyze(
         }
 
         let catch_classlike_name =
-            if let Some(name) = resolved_names.get(&(catch.0 .0.start_offset() as u32)) {
+            if let Some(name) = resolved_names.get(&(catch.0.0.start_offset() as u32)) {
                 name
             } else {
                 return Err(AnalysisError::InternalError(
                     "Could not resolve catch classlike name".to_string(),
-                    statements_analyzer.get_hpos(&catch.0 .0),
+                    statements_analyzer.get_hpos(&catch.0.0),
                 ));
             };
 
         // discard all clauses because crazy stuff may have happened in try block
         catch_context.clauses = vec![];
 
-        let catch_var_id = &catch.1 .1 .1;
+        let catch_var_id = &catch.1.1.1;
 
         let mut catch_type = get_named_object(*catch_classlike_name, None);
 
@@ -156,7 +156,7 @@ pub(crate) fn analyze(
             DataFlowNode::get_for_variable_source(
                 VariableSourceKind::Default,
                 VarId(statements_analyzer.interner.get(catch_var_id).unwrap()),
-                statements_analyzer.get_hpos(&catch.1 .0),
+                statements_analyzer.get_hpos(&catch.1.0),
                 false,
                 true,
                 false,
@@ -166,7 +166,7 @@ pub(crate) fn analyze(
         } else {
             DataFlowNode::get_for_lvar(
                 VarId(statements_analyzer.interner.get(catch_var_id).unwrap()),
-                statements_analyzer.get_hpos(&catch.1 .0),
+                statements_analyzer.get_hpos(&catch.1.0),
             )
         };
 
@@ -175,7 +175,7 @@ pub(crate) fn analyze(
             .add_node(new_parent_node.clone());
 
         if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
-            let pos = statements_analyzer.get_hpos(&catch.1 .0);
+            let pos = statements_analyzer.get_hpos(&catch.1.0);
 
             let assignment_node = DataFlowNode {
                 id: DataFlowNodeId::UnlabelledSink(pos.file_path, pos.start_offset, pos.end_offset),
@@ -202,14 +202,14 @@ pub(crate) fn analyze(
         let old_catch_assigned_var_ids = catch_context.assigned_var_ids.clone();
 
         catch_context.assigned_var_ids = FxHashMap::default();
-        statements_analyzer.analyze(&catch.2 .0, analysis_data, &mut catch_context, loop_scope)?;
+        statements_analyzer.analyze(&catch.2.0, analysis_data, &mut catch_context, loop_scope)?;
 
         // recalculate in case there's a nothing function call
         let catch_actions = control_analyzer::get_control_actions(
             codebase,
             statements_analyzer.interner,
             statements_analyzer.file_analyzer.resolved_names,
-            &catch.2 .0,
+            &catch.2.0,
             analysis_data,
             vec![],
             true,
@@ -311,7 +311,7 @@ pub(crate) fn analyze(
             }
 
             statements_analyzer.analyze(
-                &stmt.2 .0,
+                &stmt.2.0,
                 analysis_data,
                 &mut finally_context,
                 loop_scope,
@@ -323,7 +323,7 @@ pub(crate) fn analyze(
                 codebase,
                 statements_analyzer.interner,
                 statements_analyzer.file_analyzer.resolved_names,
-                &stmt.2 .0,
+                &stmt.2.0,
                 analysis_data,
                 vec![],
                 true,

@@ -6,13 +6,13 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    GenericParent,
     attribute_info::AttributeInfo,
     classlike_info::Variance,
     code_location::{FilePath, HPos},
     t_atomic::DictKey,
     t_union::TUnion,
     taint::SourceType,
-    GenericParent,
 };
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

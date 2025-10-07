@@ -2,7 +2,7 @@ use crate::{
     codebase_info::Symbols,
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
-    t_atomic::{populate_atomic_type, DictKey, TAtomic},
+    t_atomic::{DictKey, TAtomic, populate_atomic_type},
 };
 use derivative::Derivative;
 use hakana_str::{Interner, StrId};
@@ -783,12 +783,8 @@ pub fn populate_union_type(
     for atomic in types.iter_mut() {
         if let TAtomic::TClassname { as_type }
         | TAtomic::TTypename { as_type }
-        | TAtomic::TGenericClassname {
-            as_type, ..
-        }
-        | TAtomic::TGenericTypename {
-            as_type, ..
-        } = atomic
+        | TAtomic::TGenericClassname { as_type, .. }
+        | TAtomic::TGenericTypename { as_type, .. } = atomic
         {
             let mut new_as_type = (**as_type).clone();
             populate_atomic_type(

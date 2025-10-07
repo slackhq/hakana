@@ -3,9 +3,9 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_code_info::EFFECT_IMPURE;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::{extend_dataflow_uniquely, get_mixed_any};
-use hakana_code_info::EFFECT_IMPURE;
 use oxidized::aast;
 use std::rc::Rc;
 

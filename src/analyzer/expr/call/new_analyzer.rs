@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hakana_code_info::classlike_info::Variance;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
-use hakana_code_info::{GenericParent, EFFECT_WRITE_GLOBALS};
+use hakana_code_info::{EFFECT_WRITE_GLOBALS, GenericParent};
 
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
@@ -22,7 +22,7 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::t_union::{populate_union_type, TUnion};
+use hakana_code_info::t_union::{TUnion, populate_union_type};
 use hakana_code_info::ttype::template::{self, TemplateBound, TemplateResult};
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any, get_named_object, get_nothing, get_placeholder,
@@ -53,7 +53,7 @@ pub(crate) fn analyze(
 
     let mut can_extend = false;
 
-    let lhs_type = match &expr.0 .2 {
+    let lhs_type = match &expr.0.2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
                 let name_string = id.1.clone();
@@ -343,10 +343,7 @@ fn analyze_named_constructor(
         .collect_goto_definition_locations
     {
         analysis_data.definition_locations.insert(
-            (
-                expr.0 .1.start_offset() as u32,
-                expr.0 .1.end_offset() as u32,
-            ),
+            (expr.0.1.start_offset() as u32, expr.0.1.end_offset() as u32),
             (classlike_name, StrId::EMPTY),
         );
     }
@@ -368,10 +365,7 @@ fn analyze_named_constructor(
             .collect_goto_definition_locations
         {
             analysis_data.definition_locations.insert(
-                (
-                    expr.0 .1.start_offset() as u32,
-                    expr.0 .1.end_offset() as u32,
-                ),
+                (expr.0.1.start_offset() as u32, expr.0.1.end_offset() as u32),
                 (declaring_method_id.0, declaring_method_id.1),
             );
         }
@@ -423,12 +417,12 @@ fn analyze_named_constructor(
             for (i, (template_name, base_type_map)) in storage.template_types.iter().enumerate() {
                 let mut param_type = if let Some(type_arg) = expr.1.get(i) {
                     get_type_from_hint(
-                        &type_arg.1 .1,
+                        &type_arg.1.1,
                         context.function_context.calling_class,
                         statements_analyzer.get_type_resolution_context(),
                         statements_analyzer.file_analyzer.resolved_names,
                         *statements_analyzer.get_file_path(),
-                        type_arg.1 .0.start_offset() as u32,
+                        type_arg.1.0.start_offset() as u32,
                     )
                     .unwrap()
                 } else {
@@ -597,12 +591,12 @@ fn analyze_named_constructor(
                 if !expr.1.is_empty() {
                     for type_arg in expr.1.iter() {
                         let mut param_type = get_type_from_hint(
-                            &type_arg.1 .1,
+                            &type_arg.1.1,
                             context.function_context.calling_class,
                             statements_analyzer.get_type_resolution_context(),
                             statements_analyzer.file_analyzer.resolved_names,
                             *statements_analyzer.get_file_path(),
-                            type_arg.1 .0.start_offset() as u32,
+                            type_arg.1.0.start_offset() as u32,
                         )
                         .unwrap();
 

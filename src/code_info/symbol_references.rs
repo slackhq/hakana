@@ -53,7 +53,7 @@ impl SymbolReferences {
     pub fn print(&self, interner: &Interner) {
         for (a, bb) in &self.symbol_references_to_symbols {
             for b in bb {
-                if a.0 .0 > 10665 {
+                if a.0.0 > 10665 {
                     println!(
                         "{}::{} to {}::{}",
                         interner.lookup(&a.0),
@@ -66,7 +66,7 @@ impl SymbolReferences {
         }
         for (a, bb) in &self.symbol_references_to_symbols_in_signature {
             for b in bb {
-                if a.0 .0 > 10665 {
+                if a.0.0 > 10665 {
                     println!(
                         "{}::{} sig to {}::{}",
                         interner.lookup(&a.0),

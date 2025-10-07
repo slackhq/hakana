@@ -4,7 +4,7 @@ use hakana_str::StrId;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{t_union::TUnion, GenericParent};
+use crate::{GenericParent, t_union::TUnion};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TypeResolutionContext {

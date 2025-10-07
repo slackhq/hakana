@@ -3,6 +3,11 @@ use std::sync::Arc;
 use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
+use hakana_code_info::EFFECT_IMPURE;
+use hakana_code_info::EFFECT_IMPURE_DB;
+use hakana_code_info::FileSource;
+use hakana_code_info::GenericParent;
+use hakana_code_info::VarId;
 use hakana_code_info::attribute_info::AttributeInfo;
 use hakana_code_info::classlike_info::ClassLikeInfo;
 use hakana_code_info::code_location::HPos;
@@ -13,8 +18,8 @@ use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::functionlike_info::MetaStart;
 use hakana_code_info::functionlike_parameter::DefaultType;
 use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
-use hakana_code_info::issue::get_issue_from_comment;
 use hakana_code_info::issue::IssueKind;
+use hakana_code_info::issue::get_issue_from_comment;
 use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::method_info::MethodInfo;
 use hakana_code_info::t_atomic::TAtomic;
@@ -22,11 +27,6 @@ use hakana_code_info::taint::string_to_sink_types;
 use hakana_code_info::taint::string_to_source_types;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::type_resolution::TypeResolutionContext;
-use hakana_code_info::FileSource;
-use hakana_code_info::GenericParent;
-use hakana_code_info::VarId;
-use hakana_code_info::EFFECT_IMPURE;
-use hakana_code_info::EFFECT_IMPURE_DB;
 use hakana_str::{StrId, ThreadedInterner};
 use oxidized::aast;
 use oxidized::aast::Stmt;
@@ -255,23 +255,23 @@ pub(crate) fn get_functionlike(
 
     for where_hint in where_constraints {
         let where_first = get_type_from_hint(
-            &where_hint.0 .1,
+            &where_hint.0.1,
             this_name,
             type_context,
             resolved_names,
             file_source.file_path,
-            where_hint.0 .0.start_offset() as u32,
+            where_hint.0.0.start_offset() as u32,
         )
         .unwrap()
         .get_single_owned();
 
         let where_second = get_type_from_hint(
-            &where_hint.2 .1,
+            &where_hint.2.1,
             this_name,
             type_context,
             resolved_names,
             file_source.file_path,
-            where_hint.2 .0.start_offset() as u32,
+            where_hint.2.0.start_offset() as u32,
         )
         .unwrap();
 
@@ -454,7 +454,10 @@ pub(crate) fn get_functionlike(
         functionlike_info.specialize_call = true;
     }
 
-    if stmts.len() == 1 && !functionlike_info.is_async && !functionlike_info.allow_implicit_asio_join {
+    if stmts.len() == 1
+        && !functionlike_info.is_async
+        && !functionlike_info.allow_implicit_asio_join
+    {
         let stmt = &stmts[0];
 
         if let aast::Stmt_::Return(expr) = &stmt.1 {
@@ -537,11 +540,11 @@ fn get_async_version(
             }
         }
         aast::Expr_::Pipe(boxed) => {
-            if let aast::Expr_::Call(call) = &boxed.2 .2 {
+            if let aast::Expr_::Call(call) = &boxed.2.2 {
                 if let aast::Expr_::Id(boxed_id) = &call.func.2 {
                     if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
                         if fn_id == &StrId::ASIO_JOIN && call.args.len() == 1 {
-                            if let aast::Expr_::Call(call) = &boxed.1 .2 {
+                            if let aast::Expr_::Call(call) = &boxed.1.2 {
                                 if !is_async_call_is_same_as_sync(&call.args, params, interner) {
                                     return None;
                                 }
@@ -611,7 +614,7 @@ fn get_name_from_expr(
 
             // Check if this is $this->method_name()
             if let aast::Expr_::Lvar(var_id) = &obj_expr.2 {
-                if var_id.1 .1 == "$this" {
+                if var_id.1.1 == "$this" {
                     if let aast::Expr_::Id(method_id) = &member_expr.2 {
                         if let Some(class_name) = current_class {
                             return Some(FunctionLikeIdentifier::Method(
@@ -636,7 +639,7 @@ fn is_async_call_is_same_as_sync(
     for (offset, arg) in call_args.iter().enumerate() {
         if let aast::Expr_::Lvar(id) = &arg.to_expr_ref().2 {
             if let Some(param) = params.get(offset) {
-                if interner.lookup(param.name.0) != id.1 .1 {
+                if interner.lookup(param.name.0) != id.1.1 {
                     return false;
                 }
             } else {
@@ -710,7 +713,7 @@ fn convert_param_nodes(
                 location.start_offset = param_type.0.start_offset() as u32;
                 location.start_line = param_type.0.line() as u32;
                 location.start_column = (location.start_offset as usize
-                    - param_type.0.to_start_and_end_lnum_bol_offset().0 .1)
+                    - param_type.0.to_start_and_end_lnum_bol_offset().0.1)
                     as u16;
             }
 

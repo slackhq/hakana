@@ -14,7 +14,13 @@ pub(crate) struct TypeCombination {
     pub has_object_top_type: bool,
 
     pub enum_types: FxHashMap<StrId, (Option<Arc<TAtomic>>, Option<Arc<TAtomic>>)>,
-    pub enum_value_types: FxHashMap<StrId, (usize, FxHashMap<StrId, (Option<Arc<TAtomic>>, Option<Arc<TAtomic>>)>)>,
+    pub enum_value_types: FxHashMap<
+        StrId,
+        (
+            usize,
+            FxHashMap<StrId, (Option<Arc<TAtomic>>, Option<Arc<TAtomic>>)>,
+        ),
+    >,
 
     pub object_type_params: FxHashMap<String, (StrId, Vec<TUnion>)>,
 

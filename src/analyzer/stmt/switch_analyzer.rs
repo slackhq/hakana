@@ -17,8 +17,8 @@ use crate::{
     function_analysis_data::FunctionAnalysisData,
     reconciler::negated_assertion_reconciler,
     scope::{
-        control_action::ControlAction, loop_scope::LoopScope, switch_scope::SwitchScope,
-        BlockContext,
+        BlockContext, control_action::ControlAction, loop_scope::LoopScope,
+        switch_scope::SwitchScope,
     },
     scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
@@ -57,12 +57,12 @@ pub(crate) fn analyze(
     ) {
         switch_var_id
     } else {
-        let switch_var_id = format!("$-tmp_switch-{}", stmt.0 .1.start_offset());
+        let switch_var_id = format!("$-tmp_switch-{}", stmt.0.1.start_offset());
 
         context.locals.insert(
             VarName::new(switch_var_id.clone()),
             analysis_data
-                .get_rc_expr_type(&stmt.0 .1)
+                .get_rc_expr_type(&stmt.0.1)
                 .cloned()
                 .unwrap_or(Rc::new(get_mixed_any())),
         );
@@ -76,9 +76,9 @@ pub(crate) fn analyze(
 
         Some(aast::Expr(
             (),
-            stmt.0 .1.clone(),
+            stmt.0.1.clone(),
             aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
-                stmt.0 .1.clone(),
+                stmt.0.1.clone(),
                 (0, switch_var_id.clone()),
             ))),
         ))
@@ -121,7 +121,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             Some(&case.0),
             case.0.pos(),
-            case.1 .0.clone(),
+            case.1.0.clone(),
             &previous_empty_cases,
             analysis_data,
             context,
@@ -143,7 +143,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             None,
             &default_case.0,
-            default_case.1 .0.clone(),
+            default_case.1.0.clone(),
             &previous_empty_cases,
             analysis_data,
             context,
@@ -159,7 +159,7 @@ pub(crate) fn analyze(
     } else {
         let case_cond_types = cases
             .iter()
-            .map(|a| analysis_data.get_rc_expr_type(a.1 .0.pos()))
+            .map(|a| analysis_data.get_rc_expr_type(a.1.0.pos()))
             .collect::<Vec<_>>();
         if case_cond_types.iter().all(|t| t.is_some()) {
             let case_cond_type = TUnion::new(

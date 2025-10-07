@@ -6,6 +6,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
+use hakana_code_info::EFFECT_READ_PROPS;
 use hakana_code_info::ast::get_id_name;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::issue::{Issue, IssueKind};
@@ -16,7 +17,6 @@ use hakana_code_info::ttype::{
     type_expander::{self, StaticClassType},
 };
 use hakana_code_info::var_name::VarName;
-use hakana_code_info::EFFECT_READ_PROPS;
 use oxidized::ast;
 use oxidized::{
     aast::{self, ClassGetExpr, ClassId},
@@ -288,7 +288,7 @@ fn analyze_variable_static_property_fetch(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let stmt_class_type = if let aast::ClassId_::CIexpr(stmt_class_expr) = &expr.0 .2 {
+    let stmt_class_type = if let aast::ClassId_::CIexpr(stmt_class_expr) = &expr.0.2 {
         let was_inside_general_use = context.inside_general_use;
         context.inside_general_use = true;
 

@@ -6,11 +6,12 @@ pub mod simple_negated_assertion_reconciler;
 
 use crate::{
     function_analysis_data::FunctionAnalysisData,
-    scope::{var_has_root, BlockContext},
+    scope::{BlockContext, var_has_root},
     scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::{
+    VarId,
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -19,7 +20,6 @@ use hakana_code_info::{
     t_atomic::{DictKey, TAtomic, TDict, TVec},
     t_union::TUnion,
     var_name::VarName,
-    VarId,
 };
 use hakana_code_info::{
     code_location::FilePath,
@@ -403,10 +403,7 @@ fn adjust_array_type(
         }
 
         match base_atomic_type {
-            TAtomic::TDict(TDict {
-                known_items,
-                ..
-            }) => {
+            TAtomic::TDict(TDict { known_items, .. }) => {
                 let dictkey = if has_string_offset {
                     DictKey::String(arraykey_offset.clone())
                 } else if let Ok(arraykey_value) = arraykey_offset.parse::<u64>() {
@@ -425,10 +422,7 @@ fn adjust_array_type(
                     )]));
                 }
             }
-            TAtomic::TVec(TVec {
-                known_items,
-                ..
-            }) => {
+            TAtomic::TVec(TVec { known_items, .. }) => {
                 if let Ok(arraykey_offset) = arraykey_offset.parse::<usize>() {
                     if let Some(known_items) = known_items {
                         known_items.insert(arraykey_offset, (false, result_type.clone()));
@@ -845,7 +839,8 @@ fn get_value_for_key(
                                 *possibly_undefined = true;
                             }
                         }
-                    } else if let TAtomic::TVec(TVec { known_items, .. }) = &existing_key_type_part {
+                    } else if let TAtomic::TVec(TVec { known_items, .. }) = &existing_key_type_part
+                    {
                         let known_item = if INTEGER_REGEX.is_match(&array_key) {
                             if let Some(known_items) = known_items {
                                 let key_parts_key = array_key.parse::<usize>().unwrap();

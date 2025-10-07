@@ -2,11 +2,11 @@ use std::cell::RefCell;
 use std::{collections::BTreeMap, rc::Rc};
 
 use control_action::ControlAction;
-use hakana_algebra::clause::ClauseKey;
 use hakana_algebra::Clause;
+use hakana_algebra::clause::ClauseKey;
+use hakana_code_info::EFFECT_PURE;
 use hakana_code_info::function_context::FunctionContext;
 use hakana_code_info::var_name::VarName;
-use hakana_code_info::EFFECT_PURE;
 use hakana_code_info::{assertion::Assertion, t_union::TUnion};
 use rustc_hash::{FxHashMap, FxHashSet};
 

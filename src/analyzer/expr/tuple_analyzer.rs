@@ -4,6 +4,7 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::t_atomic::TVec;
+use hakana_code_info::ttype::{get_mixed_any, get_nothing, wrap_atomic};
 use hakana_code_info::{
     data_flow::{
         graph::GraphKind,
@@ -13,7 +14,6 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_code_info::ttype::{get_mixed_any, get_nothing, wrap_atomic};
 use oxidized::{aast, ast_defs::Pos};
 
 use std::collections::BTreeMap;
@@ -30,7 +30,13 @@ pub(crate) fn analyze(
     let mut known_items = BTreeMap::new();
     for (i, value_expr) in tuple_fields.iter().enumerate() {
         // Now check types of the values
-        expression_analyzer::analyze(statements_analyzer, value_expr, analysis_data, context, true)?;
+        expression_analyzer::analyze(
+            statements_analyzer,
+            value_expr,
+            analysis_data,
+            context,
+            true,
+        )?;
 
         let value_item_type = analysis_data
             .get_expr_type(value_expr.pos())

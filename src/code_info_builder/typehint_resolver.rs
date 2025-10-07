@@ -1,3 +1,6 @@
+use hakana_code_info::EFFECT_IMPURE;
+use hakana_code_info::EFFECT_PURE;
+use hakana_code_info::GenericParent;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::functionlike_parameter::FnParameter;
 use hakana_code_info::t_atomic::DictKey;
@@ -11,9 +14,6 @@ use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::get_nothing;
 use hakana_code_info::ttype::wrap_atomic;
 use hakana_code_info::type_resolution::TypeResolutionContext;
-use hakana_code_info::GenericParent;
-use hakana_code_info::EFFECT_IMPURE;
-use hakana_code_info::EFFECT_PURE;
 use hakana_str::StrId;
 use oxidized::aast::Hint;
 use oxidized::aast::Hint_;

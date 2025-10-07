@@ -28,9 +28,9 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.codebase;
 
-    let const_name = expr.1 .1;
+    let const_name = expr.1.1;
     let mut is_static = false;
-    let classlike_name = match &expr.0 .2 {
+    let classlike_name = match &expr.0.2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
                 match get_id_name(

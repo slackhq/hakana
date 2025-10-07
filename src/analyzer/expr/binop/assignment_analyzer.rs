@@ -1,12 +1,12 @@
 use hakana_algebra::clause::ClauseKey;
+use hakana_code_info::EFFECT_WRITE_LOCAL;
+use hakana_code_info::VarId;
 use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::data_flow::node::VariableSourceKind;
 use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::var_name::VarName;
-use hakana_code_info::VarId;
-use hakana_code_info::EFFECT_WRITE_LOCAL;
 use hakana_str::StrId;
 use indexmap::IndexMap;
 use std::collections::BTreeMap;

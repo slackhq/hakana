@@ -488,7 +488,10 @@ pub(crate) fn find_unused_definitions(
                                     interner.lookup(method_name_ptr)
                                 ),
                                 functionlike_storage.name_location.unwrap(),
-                                &Some(FunctionLikeIdentifier::Method(*classlike_name, *method_name_ptr)),
+                                &Some(FunctionLikeIdentifier::Method(
+                                    *classlike_name,
+                                    *method_name_ptr,
+                                )),
                             );
 
                             add_testonly_issue(
@@ -1006,23 +1009,23 @@ fn check_enum_exclusivity(
             if using_classes.len() > 1 {
                 for (class_name, pos) in using_classes {
                     let issue = Issue::new(
-                            IssueKind::ExclusiveEnumValueReused,
-                            format!(
-                                "Enum value {}::{} is used in multiple child classes for exclusive constant {}::{}. This value is also used in: {}. If this is intentional, add the <<Hakana\\AllowNonExclusiveEnumValues>> attribute to the abstract constant definition.",
-                                interner.lookup(&enum_name),
-                                interner.lookup(enum_value),
-                                interner.lookup(&abstract_class_name),
-                                interner.lookup(&abstract_const_name),
-                                using_classes
-                                    .iter()
-                                    .filter(|(other_class, _)| other_class != class_name)
-                                    .map(|(other_class, _)| interner.lookup(other_class))
-                                    .collect::<Vec<_>>()
-                                    .join(", ")
-                            ),
-                            *pos,
-                            &None,
-                        );
+                        IssueKind::ExclusiveEnumValueReused,
+                        format!(
+                            "Enum value {}::{} is used in multiple child classes for exclusive constant {}::{}. This value is also used in: {}. If this is intentional, add the <<Hakana\\AllowNonExclusiveEnumValues>> attribute to the abstract constant definition.",
+                            interner.lookup(&enum_name),
+                            interner.lookup(enum_value),
+                            interner.lookup(&abstract_class_name),
+                            interner.lookup(&abstract_const_name),
+                            using_classes
+                                .iter()
+                                .filter(|(other_class, _)| other_class != class_name)
+                                .map(|(other_class, _)| interner.lookup(other_class))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ),
+                        *pos,
+                        &None,
+                    );
 
                     if config.can_add_issue(&issue) {
                         *analysis_result

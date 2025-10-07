@@ -136,9 +136,7 @@ pub(crate) fn check_for_paradox(
                     }
 
                     paradox_message += ") contradicts a previously-established condition (";
-                    paradox_message += clause_1
-                        .to_string(statements_analyzer.interner)
-                        .as_str();
+                    paradox_message += clause_1.to_string(statements_analyzer.interner).as_str();
                     paradox_message += ")";
 
                     analysis_data.maybe_add_issue(

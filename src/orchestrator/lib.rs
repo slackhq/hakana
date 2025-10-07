@@ -1,7 +1,7 @@
 pub(crate) mod populator;
 
 use analyzer::analyze_files;
-use diff::{mark_safe_symbols_from_diff, CachedAnalysis};
+use diff::{CachedAnalysis, mark_safe_symbols_from_diff};
 use file::{FileStatus, VirtualFileSystem};
 use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_analyzer::config::Config;
@@ -21,15 +21,15 @@ use oxidized::scoured_comments::ScouredComments;
 use populator::populate_codebase;
 use rust_embed::RustEmbed;
 use rustc_hash::{FxHashMap, FxHashSet};
-use scanner::{scan_files, ScanFilesResult};
+use scanner::{ScanFilesResult, scan_files};
 use std::fs;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 #[cfg(not(target_arch = "wasm32"))]
-use tower_lsp::lsp_types::MessageType;
-#[cfg(not(target_arch = "wasm32"))]
 use tower_lsp::Client;
+#[cfg(not(target_arch = "wasm32"))]
+use tower_lsp::lsp_types::MessageType;
 use unused_symbols::find_unused_definitions;
 
 mod analyzer;

@@ -8,7 +8,7 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::{DataFlowNode, VariableSourceKind};
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::var_name::VarName;
-use hakana_code_info::{VarId, EFFECT_IMPURE, EFFECT_PURE};
+use hakana_code_info::{EFFECT_IMPURE, EFFECT_PURE, VarId};
 use hakana_str::StrId;
 use oxidized::{aast, aast_defs, ast_defs::Pos};
 
@@ -22,7 +22,7 @@ pub(crate) fn analyze(
     expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context, false)?;
 
     let mut pipe_expr_type = analysis_data
-        .get_expr_type(&expr.1 .1)
+        .get_expr_type(&expr.1.1)
         .cloned()
         .unwrap_or(get_mixed_any());
 
@@ -48,10 +48,7 @@ pub(crate) fn analyze(
 
     context.pipe_var_effects = *analysis_data
         .expr_effects
-        .get(&(
-            expr.1 .1.start_offset() as u32,
-            expr.1 .1.end_offset() as u32,
-        ))
+        .get(&(expr.1.1.start_offset() as u32, expr.1.1.end_offset() as u32))
         .unwrap_or(&EFFECT_PURE);
 
     let analyzed_ok =
@@ -63,7 +60,7 @@ pub(crate) fn analyze(
     analysis_data.set_rc_expr_type(
         pos,
         analysis_data
-            .get_rc_expr_type(&expr.2 .1)
+            .get_rc_expr_type(&expr.2.1)
             .cloned()
             .unwrap_or(Rc::new(get_mixed_any())),
     );
@@ -72,10 +69,7 @@ pub(crate) fn analyze(
         (pos.start_offset() as u32, pos.end_offset() as u32),
         *analysis_data
             .expr_effects
-            .get(&(
-                expr.2 .1.start_offset() as u32,
-                expr.2 .1.end_offset() as u32,
-            ))
+            .get(&(expr.2.1.start_offset() as u32, expr.2.1.end_offset() as u32))
             .unwrap_or(&EFFECT_IMPURE),
     );
 

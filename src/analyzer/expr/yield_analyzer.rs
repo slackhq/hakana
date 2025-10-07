@@ -28,7 +28,13 @@ pub(crate) fn analyze(
         aast::Afield::AFvalue(value_expr) | aast::Afield::AFkvalue(_, value_expr) => value_expr,
     };
 
-    expression_analyzer::analyze(statements_analyzer, value_expr, analysis_data, context, true)?;
+    expression_analyzer::analyze(
+        statements_analyzer,
+        value_expr,
+        analysis_data,
+        context,
+        true,
+    )?;
 
     if let Some(expr_type) = analysis_data.get_expr_type(value_expr.pos()) {
         analysis_data.inferred_yield_type = Some(add_optional_union_type(

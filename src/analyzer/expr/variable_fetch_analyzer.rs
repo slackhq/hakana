@@ -5,6 +5,7 @@ use crate::{
 };
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::{
+    EFFECT_READ_GLOBALS, VarId,
     code_location::HPos,
     data_flow::{
         graph::GraphKind,
@@ -13,7 +14,6 @@ use hakana_code_info::{
     },
     issue::{Issue, IssueKind},
     t_union::TUnion,
-    VarId, EFFECT_READ_GLOBALS,
 };
 use oxidized::{ast_defs::Pos, tast::Lid};
 use std::rc::Rc;
@@ -25,11 +25,11 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    if !context.has_variable(&lid.1 .1) {
+    if !context.has_variable(&lid.1.1) {
         analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::UndefinedVariable,
-                format!("Cannot find referenced variable {}", &lid.1 .1),
+                format!("Cannot find referenced variable {}", &lid.1.1),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
@@ -43,7 +43,7 @@ pub(crate) fn analyze(
             (pos.start_offset() as u32, pos.end_offset() as u32),
             EFFECT_READ_GLOBALS,
         );
-    } else if let Some(var_type) = context.locals.get(lid.1 .1.as_str()) {
+    } else if let Some(var_type) = context.locals.get(lid.1.1.as_str()) {
         if var_type.parent_nodes.len() > 1
             && !context.inside_loop_exprs
             && context.for_loop_init_bounds.0 == 0
@@ -113,7 +113,7 @@ pub(crate) fn analyze(
 
         analysis_data.set_expr_type(pos, var_type);
 
-        if lid.1 .1 == "$$" {
+        if lid.1.1 == "$$" {
             analysis_data.expr_effects.insert(
                 (pos.start_offset() as u32, pos.end_offset() as u32),
                 context.pipe_var_effects,
@@ -142,7 +142,7 @@ fn add_dataflow_to_variable(
         let pos = statements_analyzer.get_hpos(pos);
 
         let assignment_node = DataFlowNode {
-            id: if let Some(var_id) = statements_analyzer.interner.get(&lid.1 .1) {
+            id: if let Some(var_id) = statements_analyzer.interner.get(&lid.1.1) {
                 DataFlowNodeId::Var(
                     VarId(var_id),
                     pos.file_path,
@@ -151,7 +151,7 @@ fn add_dataflow_to_variable(
                 )
             } else {
                 DataFlowNodeId::LocalString(
-                    lid.1 .1.to_string(),
+                    lid.1.1.to_string(),
                     pos.file_path,
                     pos.start_offset,
                     pos.end_offset,

@@ -7,11 +7,11 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::issue::IssueKind;
 use hakana_logger::Logger;
-use hakana_orchestrator::wasm::get_single_file_codebase;
 use hakana_orchestrator::SuccessfulScanData;
+use hakana_orchestrator::wasm::get_single_file_codebase;
 use hakana_str::{Interner, StrId};
-use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use rand::seq::SliceRandom;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use serde_json;
@@ -921,7 +921,10 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                         if path_str.contains("/migration-candidates/")
                             && !Path::new(&candidates_txt).exists()
                         {
-                            return Err(format!("Migration candidates test directory is missing required candidates.txt file: {}", path_str));
+                            return Err(format!(
+                                "Migration candidates test directory is missing required candidates.txt file: {}",
+                                path_str
+                            ));
                         } else if !Path::new(&output_txt).exists()
                             && !path_str.contains("/goto-definition/")
                         {
