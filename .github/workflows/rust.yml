@@ -17,7 +17,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
+      with:
+        submodules: 'true'
 
     # Step to install OCaml compiler and dependencies
     - name: Install OCaml
