@@ -928,7 +928,6 @@ fn can_call_async_version(
 ) -> bool {
     // If the async version is a method, consider whether it's visible from the calling context.
     if let Some(method_id) = async_version.as_method_identifier() {
-
         // The sync method may have been called via a relative reference
         // such as self/static/parent. Consult the sync version to determine what class this corresponds to.
         let invocation_target_class = match method_id {
@@ -938,31 +937,26 @@ fn can_call_async_version(
             MethodIdentifier(StrId::PARENT, _) => sync_version
                 .as_method_identifier()
                 .map(|MethodIdentifier(cls, _)| cls)
-                .map(|cls| statements_analyzer.codebase.classlike_infos.get(&cls))
-                .flatten()
-                .map(|cls| cls.direct_parent_class)
-                .flatten(),
+                .and_then(|cls| statements_analyzer.codebase.classlike_infos.get(&cls))
+                .and_then(|cls| cls.direct_parent_class),
             MethodIdentifier(declaring_class, _) => Some(declaring_class),
         };
         let MethodIdentifier(_, method_name) = method_id;
 
         invocation_target_class
-            .map(|appearing_class| {
+            .and_then(|appearing_class| {
                 statements_analyzer
                     .codebase
                     .classlike_infos
                     .get(&appearing_class)
             })
-            .flatten()
-            .map(|cls| cls.appearing_method_ids.get(&method_name))
-            .flatten()
-            .map(|declaring_class| {
+            .and_then(|cls| cls.appearing_method_ids.get(&method_name))
+            .and_then(|declaring_class| {
                 let resolved_async_version_id = MethodIdentifier(*declaring_class, method_name);
                 let method_info = statements_analyzer
                     .codebase
                     .get_method(&resolved_async_version_id)
-                    .map(|method| method.method_info.as_ref())
-                    .flatten()?;
+                    .and_then(|method| method.method_info.as_ref())?;
 
                 let calling_class = context.function_context.calling_class;
 
@@ -976,7 +970,6 @@ fn can_call_async_version(
                     MemberVisibility::Public => Some(true),
                 }
             })
-            .flatten()
             .unwrap_or(false)
     } else {
         true
