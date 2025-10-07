@@ -1,15 +1,15 @@
 use crate::file::get_file_contents_hash;
-use crate::{get_aast_for_path, update_progressbar, SuccessfulScanData};
+use crate::{SuccessfulScanData, get_aast_for_path, update_progressbar};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
-use hakana_logger::Logger;
+use hakana_code_info::FileSource;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::{FilePath, HPos};
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::file_info::ParserError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
-use hakana_code_info::FileSource;
+use hakana_logger::Logger;
 use hakana_str::{Interner, StrId};
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast;
@@ -175,7 +175,9 @@ fn analyze_file(
                 && get_file_contents_hash(&str_path).unwrap_or(0) != *file_hash
             {
                 analysis_result.has_invalid_hack_files = true;
-                analysis_result.changed_during_analysis_files.insert(file_path);
+                analysis_result
+                    .changed_during_analysis_files
+                    .insert(file_path);
                 analysis_result.emitted_issues.insert(
                     file_path,
                     vec![Issue::new(

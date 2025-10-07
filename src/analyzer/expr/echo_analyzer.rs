@@ -11,7 +11,7 @@ use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::get_mixed_any;
-use hakana_code_info::{VarId, EFFECT_IMPURE};
+use hakana_code_info::{EFFECT_IMPURE, VarId};
 use hakana_str::StrId;
 use oxidized::aast;
 use oxidized::ast_defs::Pos;

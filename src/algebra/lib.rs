@@ -333,10 +333,12 @@ pub fn get_truths_from_formula(
 
                 truths.insert(
                     var_name.clone(),
-                    vec![possible_types
-                        .into_iter()
-                        .map(|(_, v)| v.clone())
-                        .collect::<Vec<_>>()],
+                    vec![
+                        possible_types
+                            .into_iter()
+                            .map(|(_, v)| v.clone())
+                            .collect::<Vec<_>>(),
+                    ],
                 );
 
                 if let Some(creating_conditional_id) = creating_conditional_id {

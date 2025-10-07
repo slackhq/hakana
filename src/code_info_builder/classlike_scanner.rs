@@ -2,23 +2,23 @@ use std::sync::Arc;
 
 use hakana_aast_helper::Uses;
 use hakana_str::{StrId, ThreadedInterner};
-use no_pos_hash::{position_insensitive_hash, Hasher, NoPosHash};
+use no_pos_hash::{Hasher, NoPosHash, position_insensitive_hash};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use hakana_code_info::{
+    FileSource, GenericParent,
     ast_signature::DefSignatureNode,
     attribute_info::AttributeInfo,
     class_constant_info::ConstantInfo,
     classlike_info::{ClassConstantType, ClassLikeInfo, Variance},
     code_location::HPos,
-    codebase_info::{symbols::SymbolKind, CodebaseInfo},
+    codebase_info::{CodebaseInfo, symbols::SymbolKind},
     functionlike_info::MetaStart,
     member_visibility::MemberVisibility,
     property_info::{PropertyInfo, PropertyKind},
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
-    FileSource, GenericParent,
 };
 use oxidized::{
     aast::{self, ClassConstKind},
@@ -110,13 +110,7 @@ pub(crate) fn scan(
             signature_end = type_param_node.name.0.end_offset() as u32;
 
             if !type_param_node.constraints.is_empty() {
-                signature_end = type_param_node
-                    .constraints
-                    .last()
-                    .unwrap()
-                    .1
-                     .0
-                    .end_offset() as u32;
+                signature_end = type_param_node.constraints.last().unwrap().1.0.end_offset() as u32;
             }
 
             let first_constraint = type_param_node.constraints.first();
@@ -775,7 +769,7 @@ fn handle_reqs(
     file_source: &FileSource,
 ) {
     for req in &classlike_node.reqs {
-        if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
+        if let oxidized::tast::Hint_::Happly(name, params) = &*req.0.1 {
             let require_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
             match &req.1 {
@@ -828,7 +822,7 @@ fn visit_xhp_attribute(
     all_uses: &Uses,
 ) {
     let mut attribute_type_location = None;
-    let mut attribute_type = if let Some(hint) = &xhp_attribute.0 .1 {
+    let mut attribute_type = if let Some(hint) = &xhp_attribute.0.1 {
         attribute_type_location = Some(HPos::new(&hint.0, file_source.file_path));
         get_type_from_hint(
             &hint.1,
@@ -858,7 +852,7 @@ fn visit_xhp_attribute(
 
     let mut stmt_pos = HPos::new(&xhp_attribute.1.span, file_source.file_path);
 
-    if let Some(type_hint) = &xhp_attribute.0 .1 {
+    if let Some(type_hint) = &xhp_attribute.0.1 {
         let (line, bol, offset) = type_hint.0.to_start_and_end_lnum_bol_offset().0;
         stmt_pos.start_offset = offset as u32;
         stmt_pos.start_line = line as u32;

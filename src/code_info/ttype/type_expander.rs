@@ -209,10 +209,7 @@ fn expand_atomic(
         }
 
         return;
-    } else if let TAtomic::TKeyset {
-        type_param, ..
-    } = return_type_part
-    {
+    } else if let TAtomic::TKeyset { type_param, .. } = return_type_part {
         expand_union(
             codebase,
             interner,
@@ -339,12 +336,8 @@ fn expand_atomic(
         );
 
         return;
-    } else if let TAtomic::TClassname {
-        as_type, ..
-    }
-    | TAtomic::TTypename {
-        as_type, ..
-    } = return_type_part
+    } else if let TAtomic::TClassname { as_type, .. } | TAtomic::TTypename { as_type, .. } =
+        return_type_part
     {
         let mut atomic_return_type_parts = vec![];
         expand_atomic(

@@ -19,7 +19,7 @@ use hakana_code_info::ttype::{
     get_literal_string, get_mixed, get_mixed_any, get_mixed_vec, get_nothing, get_null, get_object,
     get_string, get_vec, template, type_expander, wrap_atomic,
 };
-use hakana_code_info::{GenericParent, VarId, EFFECT_IMPURE};
+use hakana_code_info::{EFFECT_IMPURE, GenericParent, VarId};
 use hakana_str::{Interner, StrId};
 use oxidized::aast::Argument;
 use rustc_hash::FxHashMap;

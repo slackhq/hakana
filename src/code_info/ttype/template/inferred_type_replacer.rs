@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
+    GenericParent,
     codebase_info::CodebaseInfo,
     t_atomic::{TAtomic, TDict, TVec},
     t_union::TUnion,
-    GenericParent,
 };
 use hakana_str::StrId;
 use indexmap::IndexMap;
@@ -13,8 +13,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::ttype::{get_nothing, type_combiner, wrap_atomic};
 
 use super::{
-    standin_type_replacer::{self, get_most_specific_type_from_bounds},
     TemplateBound, TemplateResult,
+    standin_type_replacer::{self, get_most_specific_type_from_bounds},
 };
 
 pub fn replace(

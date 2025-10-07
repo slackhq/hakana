@@ -75,7 +75,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &if_stmt.1 .0,
+                    &if_stmt.1.0,
                     analysis_data,
                     break_context.clone(),
                     return_is_exit,
@@ -91,7 +91,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &if_stmt.2 .0,
+                    &if_stmt.2.0,
                     analysis_data,
                     break_context.clone(),
                     return_is_exit,
@@ -147,7 +147,7 @@ pub(crate) fn get_control_actions(
                 // check for infinite loop behaviour
                 match &stmt.1 {
                     aast::Stmt_::While(boxed) => {
-                        if let Some(expr_type) = analysis_data.get_expr_type(&boxed.0 .1) {
+                        if let Some(expr_type) = analysis_data.get_expr_type(&boxed.0.1) {
                             if expr_type.is_always_truthy() {
                                 //infinite while loop that only return don't have an exit path
                                 let loop_only_ends = control_actions
@@ -310,7 +310,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &stmt.0 .0,
+                    &stmt.0.0,
                     analysis_data,
                     break_context.clone(),
                     return_is_exit,
@@ -332,7 +332,7 @@ pub(crate) fn get_control_actions(
                             codebase,
                             interner,
                             resolved_names,
-                            &catch.2 .0,
+                            &catch.2.0,
                             analysis_data,
                             break_context.clone(),
                             return_is_exit,
@@ -373,7 +373,7 @@ pub(crate) fn get_control_actions(
                         codebase,
                         interner,
                         resolved_names,
-                        &stmt.2 .0,
+                        &stmt.2.0,
                         analysis_data,
                         break_context.clone(),
                         return_is_exit,
@@ -424,7 +424,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &boxed.1 .0,
+                    &boxed.1.0,
                     analysis_data,
                     break_context.clone(),
                     return_is_exit,

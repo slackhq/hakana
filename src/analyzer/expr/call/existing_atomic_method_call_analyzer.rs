@@ -11,13 +11,13 @@ use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
 };
 use hakana_code_info::var_name::VarName;
+use hakana_code_info::{EFFECT_WRITE_LOCAL, GenericParent, VarId};
 use hakana_code_info::{
     assertion::Assertion,
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_code_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
 use hakana_str::StrId;
 use indexmap::IndexMap;
 use oxidized::{aast, ast_defs::Pos};

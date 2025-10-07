@@ -4,8 +4,8 @@ use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    code_location::HPos, codebase_info::symbols::SymbolKind, functionlike_info::MetaStart,
-    issue::IssueKind, t_atomic::TAtomic, t_union::TUnion, GenericParent,
+    GenericParent, code_location::HPos, codebase_info::symbols::SymbolKind,
+    functionlike_info::MetaStart, issue::IssueKind, t_atomic::TAtomic, t_union::TUnion,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};

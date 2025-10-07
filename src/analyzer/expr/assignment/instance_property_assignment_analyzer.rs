@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
 use hakana_code_info::{
+    EFFECT_WRITE_PROPS,
     codebase_info::CodebaseInfo,
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     function_context::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    EFFECT_WRITE_PROPS,
 };
 use hakana_code_info::{
     ttype::{
@@ -181,7 +181,7 @@ pub(crate) fn analyze(
                 //     has_valid_assignment_value_type = true;
                 // }
                 invalid_assignment_value_types.insert(
-                    &assigned_property.1 .1,
+                    &assigned_property.1.1,
                     class_property_type.get_id(Some(statements_analyzer.interner)),
                 );
             } else {
@@ -273,7 +273,7 @@ pub(crate) fn analyze_regular_assignment(
                         IssueKind::MixedAnyPropertyAssignment,
                         lhs_var_id.unwrap_or("data".to_string())
                             + " of type mixed cannot be assigned.",
-                        statements_analyzer.get_hpos(&expr.1 .1),
+                        statements_analyzer.get_hpos(&expr.1.1),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -285,7 +285,7 @@ pub(crate) fn analyze_regular_assignment(
                         IssueKind::MixedPropertyAssignment,
                         lhs_var_id.unwrap_or("data".to_string())
                             + " of type mixed cannot be assigned.",
-                        statements_analyzer.get_hpos(&expr.1 .1),
+                        statements_analyzer.get_hpos(&expr.1.1),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -301,7 +301,7 @@ pub(crate) fn analyze_regular_assignment(
                 Issue::new(
                     IssueKind::NullablePropertyAssignment,
                     lhs_var_id.unwrap_or("data".to_string()) + " of type null cannot be assigned.",
-                    statements_analyzer.get_hpos(&expr.1 .1),
+                    statements_analyzer.get_hpos(&expr.1.1),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -316,7 +316,7 @@ pub(crate) fn analyze_regular_assignment(
                     IssueKind::NullablePropertyAssignment,
                     lhs_var_id.clone().unwrap_or("data".to_string())
                         + " with possibly null type cannot be assigned.",
-                    statements_analyzer.get_hpos(&expr.1 .1),
+                    statements_analyzer.get_hpos(&expr.1.1),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -402,7 +402,7 @@ pub(crate) fn analyze_atomic_assignment(
         _ => return None,
     };
 
-    let prop_name = if let aast::Expr_::Id(id) = &expr.1 .2 {
+    let prop_name = if let aast::Expr_::Id(id) = &expr.1.2 {
         if let Some(prop_name) = statements_analyzer.interner.get(&id.1) {
             prop_name
         } else {

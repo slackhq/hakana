@@ -3,18 +3,18 @@ use std::rc::Rc;
 use crate::expr::expression_identifier;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
+use crate::scope::control_action::ControlAction;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_code_info::EFFECT_WRITE_PROPS;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
-use hakana_code_info::EFFECT_WRITE_PROPS;
 use oxidized::aast;
 use oxidized::pos::Pos;
 
@@ -36,7 +36,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context, true)?;
 
-    if let aast::Expr_::Id(_) = &expr.1 .2 {
+    if let aast::Expr_::Id(_) = &expr.1.2 {
         // do nothing
     } else {
         let was_in_general_use = context.inside_general_use;

@@ -342,7 +342,13 @@ fn analyze_vals_item(
     let key_item_type = get_literal_int(offset.try_into().unwrap());
 
     // Now check types of the values
-    expression_analyzer::analyze(statements_analyzer, item_value, analysis_data, context, true)?;
+    expression_analyzer::analyze(
+        statements_analyzer,
+        item_value,
+        analysis_data,
+        context,
+        true,
+    )?;
 
     array_creation_info.effects |= analysis_data
         .expr_effects

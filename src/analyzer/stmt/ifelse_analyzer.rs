@@ -1,13 +1,13 @@
 use crate::{
     scope::{
-        control_action::ControlAction, if_scope::IfScope, loop_scope::LoopScope, BlockContext,
+        BlockContext, control_action::ControlAction, if_scope::IfScope, loop_scope::LoopScope,
     },
     stmt_analyzer::AnalysisError,
 };
 use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
 use hakana_code_info::{
-    analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS,
-    EFFECT_READ_PROPS,
+    EFFECT_PURE, EFFECT_READ_GLOBALS, EFFECT_READ_PROPS, analysis_result::Replacement,
+    issue::IssueKind,
 };
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -175,7 +175,7 @@ pub(crate) fn analyze(
             cond_object_id,
             &aast::Expr(
                 (),
-                stmt.0 .1.clone(),
+                stmt.0.1.clone(),
                 aast::Expr_::Unop(Box::new((Uop::Unot, stmt.0.clone()))),
             ),
             &assertion_context,
@@ -364,10 +364,7 @@ pub(crate) fn analyze(
     {
         let effects = analysis_data
             .expr_effects
-            .get(&(
-                stmt.0 .1.start_offset() as u32,
-                stmt.0 .1.end_offset() as u32,
-            ))
+            .get(&(stmt.0.1.start_offset() as u32, stmt.0.1.end_offset() as u32))
             .unwrap_or(&0);
 
         if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS = *effects {
@@ -382,7 +379,7 @@ pub(crate) fn analyze(
             if !analysis_data.add_replacement(
                 (
                     stmt_pos.start_offset() as u32,
-                    stmt.0 .1.start_offset() as u32,
+                    stmt.0.1.start_offset() as u32,
                 ),
                 Replacement::Remove,
             ) {
@@ -390,7 +387,7 @@ pub(crate) fn analyze(
             }
 
             analysis_data.add_replacement(
-                (stmt.0 .1.end_offset() as u32, stmt_pos.end_offset() as u32),
+                (stmt.0.1.end_offset() as u32, stmt_pos.end_offset() as u32),
                 Replacement::Substitute(";".to_string()),
             );
         }

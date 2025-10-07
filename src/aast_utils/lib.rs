@@ -59,7 +59,7 @@ pub fn get_aast_for_path_and_contents(
                     pos: HPos::new(&pos, FilePath(StrId::EMPTY)),
                 },
                 _ => ParserError::NotAHackFile,
-            })
+            });
         }
     };
 
@@ -99,7 +99,7 @@ pub fn get_aast_for_path_and_contents(
         match comment {
             Comment::CmtLine(_) => {
                 let mut offsets = pos.to_start_and_end_lnum_bol_offset();
-                offsets.0 .2 -= 2;
+                offsets.0.2 -= 2;
                 *pos = Pos::from_lnum_bol_offset(relative_path.clone(), offsets.0, offsets.1);
             }
             Comment::CmtBlock(text) => {
@@ -107,13 +107,13 @@ pub fn get_aast_for_path_and_contents(
                 let newline_count = text.as_bytes().iter().filter(|&&c| c == b'\n').count();
                 let comment_length = text.len();
 
-                offsets.0 .0 -= newline_count;
-                offsets.0 .2 -= comment_length + 2;
+                offsets.0.0 -= newline_count;
+                offsets.0.2 -= comment_length + 2;
                 if newline_count > 0 {
                     // we lose the true bol here for the comment, which is a shame
-                    offsets.0 .1 = offsets.0 .2;
+                    offsets.0.1 = offsets.0.2;
                 }
-                offsets.1 .2 += 1;
+                offsets.1.2 += 1;
                 *pos = Pos::from_lnum_bol_offset(relative_path.clone(), offsets.0, offsets.1);
             }
         }

@@ -1,13 +1,13 @@
 use crate::{config::Config, scope::CaseScope};
+use hakana_code_info::FileSource;
 use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::code_location::StmtStart;
 use hakana_code_info::ttype::template::TemplateBound;
-use hakana_code_info::FileSource;
 use hakana_code_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind, WholeProgramKind},
     functionlike_info::FunctionLikeInfo,
-    issue::{get_issue_from_comment, Issue, IssueKind},
+    issue::{Issue, IssueKind, get_issue_from_comment},
     symbol_references::SymbolReferences,
     t_union::TUnion,
 };
@@ -255,7 +255,7 @@ impl FunctionAnalysisData {
                             && (issue.kind == IssueKind::UnusedAssignmentStatement
                                 || issue.kind == IssueKind::UnusedInoutAssignment))
                     {
-                        return Some((line_issue.1 .0, line_issue.1 .1));
+                        return Some((line_issue.1.0, line_issue.1.1));
                     }
                 }
             }
@@ -406,7 +406,7 @@ impl FunctionAnalysisData {
                     },
                     4249 | 4250 => match &issue_kind {
                         IssueKind::RedundantKeyCheck | IssueKind::ImpossibleKeyCheck => {
-                            return true
+                            return true;
                         }
                         _ => false,
                     },
@@ -592,7 +592,7 @@ impl FunctionAnalysisData {
             for line_issue in hakana_fixme_or_ignores.1 {
                 if !self
                     .matched_ignore_positions
-                    .contains(&(line_issue.1 .0, line_issue.1 .1))
+                    .contains(&(line_issue.1.0, line_issue.1.1))
                 {
                     unused_fixme_positions.push(line_issue.1);
                 }

@@ -1,6 +1,6 @@
 use oxidized::{
     aast,
-    aast_visitor::{visit, AstParams, Node, Visitor},
+    aast_visitor::{AstParams, Node, Visitor, visit},
 };
 
 use crate::function_analysis_data::FunctionAnalysisData;

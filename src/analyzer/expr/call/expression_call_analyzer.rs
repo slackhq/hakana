@@ -5,8 +5,8 @@ use crate::expr::call::arguments_analyzer;
 use crate::expr::call_analyzer::apply_effects;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
+use crate::scope::control_action::ControlAction;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::code_location::HPos;
@@ -16,7 +16,7 @@ use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::template::TemplateResult;
-use hakana_code_info::{VarId, EFFECT_CAN_THROW};
+use hakana_code_info::{EFFECT_CAN_THROW, VarId};
 use hakana_str::StrId;
 use indexmap::IndexMap;
 use oxidized::ast::CallExpr;
@@ -31,7 +31,13 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
-    expression_analyzer::analyze(statements_analyzer, &expr.func, analysis_data, context, true)?;
+    expression_analyzer::analyze(
+        statements_analyzer,
+        &expr.func,
+        analysis_data,
+        context,
+        true,
+    )?;
     context.inside_general_use = was_inside_general_use;
 
     let lhs_type = analysis_data
@@ -57,7 +63,7 @@ pub(crate) fn analyze(
             );
             let existing_storage = codebase
                 .functionlike_infos
-                .get(&(closure.closure_id.0 .0, StrId(closure.closure_id.1)));
+                .get(&(closure.closure_id.0.0, StrId(closure.closure_id.1)));
 
             let mut effects = closure.effects;
 

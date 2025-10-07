@@ -14,7 +14,7 @@ use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::{TAtomic, TVec};
 use hakana_code_info::t_union::TUnion;
-use hakana_code_info::taint::{string_to_sink_types, SinkType};
+use hakana_code_info::taint::{SinkType, string_to_sink_types};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{

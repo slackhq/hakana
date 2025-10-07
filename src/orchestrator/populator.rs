@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
 use hakana_analyzer::config::Config;
+use hakana_code_info::GenericParent;
 use hakana_code_info::classlike_info::{ClassConstantType, ClassLikeInfo};
 use hakana_code_info::codebase_info::symbols::SymbolKind;
 use hakana_code_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::symbol_references::{ReferenceSource, SymbolReferences};
-use hakana_code_info::t_atomic::{populate_atomic_type, TAtomic};
-use hakana_code_info::t_union::{populate_union_type, TUnion};
-use hakana_code_info::GenericParent;
+use hakana_code_info::t_atomic::{TAtomic, populate_atomic_type};
+use hakana_code_info::t_union::{TUnion, populate_union_type};
 use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};

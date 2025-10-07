@@ -5,10 +5,10 @@ use hakana_str::Interner;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    VarId,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
     taint::SinkType,
-    VarId,
 };
 use core::hash::Hash;
 
@@ -94,14 +94,14 @@ impl Assertion {
                 if let Some(interner) = interner {
                     format!("remove-some-taints-{}", interner.lookup(&key.0))
                 } else {
-                    format!("remove-some-taints-{}", key.0 .0)
+                    format!("remove-some-taints-{}", key.0.0)
                 }
             }
             Assertion::DontRemoveTaints(key, _) => {
                 if let Some(interner) = interner {
                     format!("!remove-some-taints-{}", interner.lookup(&key.0))
                 } else {
-                    format!("!remove-some-taints-{}", key.0 .0)
+                    format!("!remove-some-taints-{}", key.0.0)
                 }
             }
         }

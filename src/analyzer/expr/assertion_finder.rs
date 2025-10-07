@@ -259,11 +259,13 @@ fn get_is_assertions(
     if let Some(var_name) = var_name {
         if_types.insert(
             var_name,
-            vec![is_type
-                .types
-                .into_iter()
-                .map(Assertion::IsType)
-                .collect::<Vec<Assertion>>()],
+            vec![
+                is_type
+                    .types
+                    .into_iter()
+                    .map(Assertion::IsType)
+                    .collect::<Vec<Assertion>>(),
+            ],
         );
     } else {
         match is_type.get_single() {

@@ -10,21 +10,21 @@ use hakana_code_info::issue::IssueKind;
 use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{get_bool, get_int, get_mixed_any, get_string};
+use hakana_code_info::{FileSource, GenericParent};
 use hakana_code_info::{
     ast_signature::DefSignatureNode, class_constant_info::ConstantInfo, classlike_info::Variance,
     code_location::HPos, codebase_info::CodebaseInfo, t_atomic::TAtomic,
     taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
     type_resolution::TypeResolutionContext,
 };
-use hakana_code_info::{FileSource, GenericParent};
 use hakana_str::{StrId, ThreadedInterner};
-use no_pos_hash::{position_insensitive_hash, Hasher};
+use no_pos_hash::{Hasher, position_insensitive_hash};
 use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;
 use oxidized::tast;
 use oxidized::{
     aast,
-    aast_visitor::{visit, AstParams, Node, Visitor},
+    aast_visitor::{AstParams, Node, Visitor, visit},
     ast_defs,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -69,9 +69,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_def(&mut self, c: &mut Context, p: &aast::Def<(), ()>) -> Result<(), ()> {
         match p {
             aast::Def::Namespace(ns) => {
-                if !ns.0 .1.is_empty() {
-                    c.namespace_position =
-                        Some((ns.0 .0.start_offset() - 10, ns.0 .0.end_offset()));
+                if !ns.0.1.is_empty() {
+                    c.namespace_position = Some((ns.0.0.start_offset() - 10, ns.0.0.end_offset()));
                 }
             }
             aast::Def::NamespaceUse(uses) => {
@@ -238,12 +237,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
             let constraint_type = if let Some(k) = constraint {
                 get_type_from_hint(
-                    &k.1 .1,
+                    &k.1.1,
                     None,
                     &type_context,
                     self.resolved_names,
                     self.file_source.file_path,
-                    k.1 .0.start_offset() as u32,
+                    k.1.0.start_offset() as u32,
                 )
                 .unwrap()
             } else {
@@ -670,7 +669,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 }
             }
             aast::Expr_::ObjGet(boxed) => {
-                if let aast::Expr_::Id(id) = &boxed.1 .2 {
+                if let aast::Expr_::Id(id) = &boxed.1.2 {
                     self.interner.intern(id.1.clone());
                 }
             }

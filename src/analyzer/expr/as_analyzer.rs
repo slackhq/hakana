@@ -6,6 +6,7 @@ use crate::stmt_analyzer::AnalysisError;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use hakana_code_info::EFFECT_IMPURE;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::wrap_atomic;
@@ -14,7 +15,6 @@ use hakana_code_info::ttype::{
     type_expander::{self, TypeExpansionOptions},
 };
 use hakana_code_info::var_name::VarName;
-use hakana_code_info::EFFECT_IMPURE;
 use hakana_code_info::{data_flow::graph::DataFlowGraph, t_union::populate_union_type};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_str::StrId;
@@ -82,7 +82,7 @@ pub(crate) fn analyze<'expr>(
     {
         replacement_left = get_fake_as_var(left, statements_analyzer, analysis_data, context);
     } else if let aast::Expr_::Lvar(var) = root_expr.2 {
-        if var.1 .1 == "$$" {
+        if var.1.1 == "$$" {
             replacement_left = get_fake_as_var(left, statements_analyzer, analysis_data, context);
         }
     }

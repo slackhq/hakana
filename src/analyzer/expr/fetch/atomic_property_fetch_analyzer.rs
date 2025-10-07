@@ -9,16 +9,16 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
-    template::{inferred_type_replacer, TemplateResult},
+    template::{TemplateResult, inferred_type_replacer},
     type_expander::{self, StaticClassType},
 };
+use hakana_code_info::{GenericParent, VarId};
 use hakana_code_info::{
     classlike_info::ClassLikeInfo,
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_code_info::{GenericParent, VarId};
 use hakana_str::StrId;
 use indexmap::IndexMap;
 use oxidized::{aast::Expr, ast_defs::Pos};
@@ -143,10 +143,7 @@ pub(crate) fn analyze(
         .collect_goto_definition_locations
     {
         analysis_data.definition_locations.insert(
-            (
-                expr.1 .1.start_offset() as u32,
-                expr.1 .1.end_offset() as u32,
-            ),
+            (expr.1.1.start_offset() as u32, expr.1.1.end_offset() as u32),
             (declaring_property_class, prop_name),
         );
     }

@@ -1,3 +1,4 @@
+use crate::{GenericParent, function_context::FunctionLikeIdentifier};
 use crate::{
     classlike_info::Variance,
     code_location::{FilePath, HPos},
@@ -6,7 +7,6 @@ use crate::{
     t_atomic::{TAtomic, TVec},
     t_union::TUnion,
 };
-use crate::{function_context::FunctionLikeIdentifier, GenericParent};
 use crate::{
     t_atomic::TDict,
     ttype::{
@@ -23,7 +23,7 @@ use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::Arc;
 
-use super::{inferred_type_replacer, TemplateBound, TemplateResult};
+use super::{TemplateBound, TemplateResult, inferred_type_replacer};
 
 #[derive(Copy, Clone, Debug)]
 pub struct StandinOpts {

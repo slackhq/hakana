@@ -1,6 +1,6 @@
 use crate::code_location::FilePath;
 use crate::ttype::wrap_atomic;
-use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, GenericParent};
+use crate::{GenericParent, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
 

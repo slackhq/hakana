@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::data_flow::node::DataFlowNode;
-use crate::{t_atomic::TAtomic, t_union::TUnion};
 use crate::ttype::template::TemplateBound;
+use crate::{t_atomic::TAtomic, t_union::TUnion};
 
 #[derive(Debug)]
 pub struct TypeComparisonResult {

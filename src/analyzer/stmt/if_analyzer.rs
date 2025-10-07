@@ -3,7 +3,7 @@ use crate::reconciler;
 use crate::scope::control_action::ControlAction;
 use crate::scope::loop_scope::LoopScope;
 use crate::scope::var_has_root;
-use crate::scope::{if_scope::IfScope, BlockContext};
+use crate::scope::{BlockContext, if_scope::IfScope};
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
@@ -115,21 +115,23 @@ pub(crate) fn analyze(
     if_context.possibly_assigned_var_ids.clear();
 
     // Track if block boundaries for variable scoping analysis
-    if let Some(first_stmt) = stmt.1 .0.first() {
-        if let Some(last_stmt) = stmt.1 .0.last() {
+    if let Some(first_stmt) = stmt.1.0.first() {
+        if let Some(last_stmt) = stmt.1.0.last() {
             let if_block_start = first_stmt.0.start_offset() as u32;
             let if_block_end = last_stmt.0.end_offset() as u32;
-            analysis_data.if_block_boundaries.push((if_block_start, if_block_end));
+            analysis_data
+                .if_block_boundaries
+                .push((if_block_start, if_block_end));
         }
     }
-    
-    statements_analyzer.analyze(&stmt.1 .0, analysis_data, if_context, loop_scope)?;
+
+    statements_analyzer.analyze(&stmt.1.0, analysis_data, if_context, loop_scope)?;
 
     let final_actions = control_analyzer::get_control_actions(
         codebase,
         statements_analyzer.interner,
         statements_analyzer.file_analyzer.resolved_names,
-        &stmt.1 .0,
+        &stmt.1.0,
         analysis_data,
         Vec::new(),
         true,

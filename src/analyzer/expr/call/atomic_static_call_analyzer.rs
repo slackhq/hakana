@@ -1,9 +1,9 @@
 use hakana_code_info::{
+    EFFECT_IMPURE,
     classlike_info::ClassLikeInfo,
     function_context::FunctionContext,
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
-    EFFECT_IMPURE,
 };
 use hakana_str::StrId;
 use oxidized::{aast, ast_defs::Pos};
@@ -16,7 +16,7 @@ use crate::{
 
 use super::{
     atomic_method_call_analyzer::{
-        handle_method_call_on_named_object, AtomicMethodCallAnalysisResult,
+        AtomicMethodCallAnalysisResult, handle_method_call_on_named_object,
     },
     existing_atomic_method_call_analyzer,
 };
@@ -48,7 +48,7 @@ pub(crate) fn analyze(
         name, extra_types, ..
     } = &lhs_type_part
     {
-        if let aast::ClassId_::CIexpr(lhs_expr) = &expr.0 .2 {
+        if let aast::ClassId_::CIexpr(lhs_expr) = &expr.0.2 {
             if !matches!(&lhs_expr.2, aast::Expr_::Id(_)) {
                 return handle_method_call_on_named_object(
                     result,
@@ -62,10 +62,10 @@ pub(crate) fn analyze(
                         lhs_expr,
                         &aast::Expr::new(
                             (),
-                            expr.1 .0.clone(),
+                            expr.1.0.clone(),
                             aast::Expr_::Id(Box::new(oxidized::ast::Id(
-                                expr.0 .1.clone(),
-                                expr.1 .1.clone(),
+                                expr.0.1.clone(),
+                                expr.1.1.clone(),
                             ))),
                         ),
                         (expr.2),
@@ -126,17 +126,14 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.codebase;
 
-    let method_name = statements_analyzer.interner.get(&expr.1 .1);
+    let method_name = statements_analyzer.interner.get(&expr.1.1);
 
     if statements_analyzer
         .get_config()
         .collect_goto_definition_locations
     {
         analysis_data.definition_locations.insert(
-            (
-                expr.0 .1.start_offset() as u32,
-                expr.0 .1.end_offset() as u32,
-            ),
+            (expr.0.1.start_offset() as u32, expr.0.1.end_offset() as u32),
             (classlike_name, StrId::EMPTY),
         );
     }
@@ -182,7 +179,7 @@ pub(crate) fn analyze(
                 format!(
                     "Method {}::{} does not exist",
                     statements_analyzer.interner.lookup(&classlike_name),
-                    &expr.1 .1
+                    &expr.1.1
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
@@ -224,7 +221,7 @@ pub(crate) fn analyze(
         (expr.2, expr.3, expr.4),
         lhs_type_part,
         pos,
-        Some(&expr.1 .0),
+        Some(&expr.1.0),
         analysis_data,
         context,
         None,

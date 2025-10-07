@@ -4,13 +4,13 @@ use std::rc::Rc;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler::{self, assertion_reconciler};
 use crate::scope::if_scope::IfScope;
-use crate::scope::{var_has_root, BlockContext};
+use crate::scope::{BlockContext, var_has_root};
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::{self, add_branch_dataflow};
 use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
-use hakana_algebra::clause::ClauseKey;
 use hakana_algebra::Clause;
+use hakana_algebra::clause::ClauseKey;
 use hakana_code_info::assertion::Assertion;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any};
 use oxidized::aast;
@@ -173,7 +173,7 @@ pub(crate) fn analyze(
             cond_object_id,
             &aast::Expr(
                 (),
-                expr.0 .1.clone(),
+                expr.0.1.clone(),
                 aast::Expr_::Unop(Box::new((Uop::Unot, expr.0.clone()))),
             ),
             &assertion_context,

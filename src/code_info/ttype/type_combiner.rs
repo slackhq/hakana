@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     classlike_info::Variance,
     code_location::FilePath,
-    codebase_info::{symbols::SymbolKind, CodebaseInfo},
+    codebase_info::{CodebaseInfo, symbols::SymbolKind},
     t_atomic::{DictKey, TAtomic, TDict, TVec},
     t_union::TUnion,
 };

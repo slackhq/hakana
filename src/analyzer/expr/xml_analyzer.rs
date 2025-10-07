@@ -4,6 +4,8 @@ use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_code_info::EFFECT_IMPURE;
+use hakana_code_info::EFFECT_PURE;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::DataFlowNode;
@@ -17,8 +19,6 @@ use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::SinkType;
 use hakana_code_info::ttype::get_named_object;
-use hakana_code_info::EFFECT_IMPURE;
-use hakana_code_info::EFFECT_PURE;
 use hakana_str::StrId;
 use itertools::Itertools;
 use oxidized::aast;
@@ -44,7 +44,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let resolved_names = statements_analyzer.file_analyzer.resolved_names;
     let xhp_class_name =
-        if let Some(resolved_name) = resolved_names.get(&(boxed.0 .0.start_offset() as u32)) {
+        if let Some(resolved_name) = resolved_names.get(&(boxed.0.0.start_offset() as u32)) {
             resolved_name
         } else {
             return Err(AnalysisError::InternalError(
@@ -65,8 +65,8 @@ pub(crate) fn analyze(
     {
         analysis_data.definition_locations.insert(
             (
-                boxed.0 .0.start_offset() as u32,
-                boxed.0 .0.end_offset() as u32,
+                boxed.0.0.start_offset() as u32,
+                boxed.0.0.end_offset() as u32,
             ),
             (*xhp_class_name, StrId::EMPTY),
         );

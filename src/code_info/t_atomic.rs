@@ -1,11 +1,11 @@
+use crate::GenericParent;
 use crate::code_location::FilePath;
 use crate::functionlike_identifier::FunctionLikeIdentifier;
 use crate::functionlike_parameter::FnParameter;
 use crate::symbol_references::{ReferenceSource, SymbolReferences};
-use crate::GenericParent;
 use crate::{
-    codebase_info::{symbols::SymbolKind, Symbols},
-    t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
+    codebase_info::{Symbols, symbols::SymbolKind},
+    t_union::{HasTypeNodes, TUnion, TypeNode, populate_union_type},
 };
 use derivative::Derivative;
 use hakana_str::{Interner, StrId};
@@ -71,11 +71,11 @@ impl TDict {
                     format!("shape-from({})", interner.lookup(&shape_name.0),)
                 }
             } else if let Some(shape_member_name) = &shape_name.1 {
-                format!("shape-from({}::{})", shape_name.0 .0, shape_member_name.0)
+                format!("shape-from({}::{})", shape_name.0.0, shape_member_name.0)
             } else {
                 refs.push(shape_name.0);
 
-                format!("shape-from({})", shape_name.0 .0)
+                format!("shape-from({})", shape_name.0.0)
             };
         }
 
@@ -1396,14 +1396,8 @@ impl TAtomic {
     }
 
     pub fn add_intersection_type(&mut self, atomic: TAtomic) {
-        if let TAtomic::TNamedObject {
-            extra_types,
-            ..
-        }
-        | TAtomic::TGenericParam {
-            extra_types,
-            ..
-        } = self
+        if let TAtomic::TNamedObject { extra_types, .. }
+        | TAtomic::TGenericParam { extra_types, .. } = self
         {
             if let Some(extra_types) = extra_types {
                 extra_types.push(atomic);
@@ -1499,9 +1493,7 @@ impl TAtomic {
                     )]));
                 }
             }
-            TAtomic::TKeyset {
-                type_param, ..
-            } => {
+            TAtomic::TKeyset { type_param, .. } => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
                     *type_param =
                         Box::new(TUnion::new(vec![TAtomic::TArraykey { from_any: true }]));
@@ -1853,9 +1845,7 @@ pub fn populate_atomic_type(
                 }
             }
         }
-        TAtomic::TKeyset {
-            type_param, ..
-        } => {
+        TAtomic::TKeyset { type_param, .. } => {
             populate_union_type(
                 type_param,
                 codebase_symbols,
@@ -1899,14 +1889,10 @@ pub fn populate_atomic_type(
             );
         }
         TAtomic::TNamedObject {
-            name,
-            type_params,
-            ..
+            name, type_params, ..
         }
         | TAtomic::TTypeAlias {
-            name,
-            type_params,
-            ..
+            name, type_params, ..
         } => {
             if let Some(type_params) = type_params {
                 for type_param in type_params {
@@ -2050,9 +2036,7 @@ pub fn populate_atomic_type(
                 force,
             );
         }
-        TAtomic::TGenericParam {
-            as_type, ..
-        } => {
+        TAtomic::TGenericParam { as_type, .. } => {
             populate_union_type(
                 as_type,
                 codebase_symbols,

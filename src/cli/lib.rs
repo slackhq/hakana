@@ -1,4 +1,4 @@
-use clap::{arg, Command};
+use clap::{Command, arg};
 use hakana_analyzer::config::{self};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::{
@@ -1218,7 +1218,11 @@ fn do_codegen(
         if !errors.is_empty() {
             println!(
                 "\nCodegen verification failed.\n\nUse hakana codegen --overwrite to regenerate\n\n{}\n\n",
-                errors.into_iter().map(|(k, v)| format!("Error: {}\n - {}", k, v)).collect::<Vec<_>>().join("\n")
+                errors
+                    .into_iter()
+                    .map(|(k, v)| format!("Error: {}\n - {}", k, v))
+                    .collect::<Vec<_>>()
+                    .join("\n")
             );
             exit(1);
         }

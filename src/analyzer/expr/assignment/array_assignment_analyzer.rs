@@ -8,6 +8,7 @@ use hakana_code_info::ttype::{
 };
 use hakana_code_info::var_name::VarName;
 use hakana_code_info::{
+    VarId,
     codebase_info::CodebaseInfo,
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
@@ -16,7 +17,6 @@ use hakana_code_info::{
     },
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
-    VarId,
 };
 use hakana_str::StrId;
 use oxidized::{
@@ -45,9 +45,9 @@ pub(crate) fn analyze(
     let mut root_array_expr = (expr.0, expr.1, pos);
     let mut array_exprs = Vec::new();
 
-    while let aast::Expr_::ArrayGet(boxed) = &root_array_expr.0 .2 {
+    while let aast::Expr_::ArrayGet(boxed) = &root_array_expr.0.2 {
         array_exprs.push(root_array_expr);
-        root_array_expr = (&boxed.0, boxed.1.as_ref(), &root_array_expr.0 .1);
+        root_array_expr = (&boxed.0, boxed.1.as_ref(), &root_array_expr.0.1);
     }
 
     array_exprs.push(root_array_expr);

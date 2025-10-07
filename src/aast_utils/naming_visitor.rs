@@ -31,8 +31,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         match p {
             aast::Def::Namespace(ns) => {
-                if !ns.0 .1.is_empty() {
-                    nc.start_namespace(ns.0 .1.clone());
+                if !ns.0.1.is_empty() {
+                    nc.start_namespace(ns.0.1.clone());
                 }
             }
             aast::Def::NamespaceUse(uses) => {
@@ -224,8 +224,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 let result = e.recurse(nc, self);
 
                 self.resolved_names.insert(
-                    boxed.1 .0.start_offset() as u32,
-                    self.interner.intern(boxed.1 .1.clone()),
+                    boxed.1.0.start_offset() as u32,
+                    self.interner.intern(boxed.1.1.clone()),
                 );
 
                 result
@@ -273,7 +273,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_lid(&mut self, nc: &mut NameContext<'ast>, p: &'ast aast::Lid) -> Result<(), ()> {
-        let var_id = self.interner.intern_str(&p.1 .1);
+        let var_id = self.interner.intern_str(&p.1.1);
         if nc.in_class_id {
             self.resolved_names
                 .insert(p.0.start_offset() as u32, var_id);

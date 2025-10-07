@@ -1,6 +1,6 @@
 use oxidized::{
     aast::{self, Argument},
-    aast_visitor::{visit, AstParams, Node, Visitor},
+    aast_visitor::{AstParams, Node, Visitor, visit},
     ast_defs::{self},
 };
 

@@ -157,7 +157,7 @@ impl TaintedNode {
         for specialization in self
             .specialized_calls
             .iter()
-            .map(|t| format!("{}:{}", t.0 .0 .0 .0, t.0 .1))
+            .map(|t| format!("{}:{}", t.0.0.0.0, t.0.1))
             .collect::<BTreeSet<_>>()
         {
             id += "-";

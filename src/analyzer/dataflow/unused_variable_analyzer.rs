@@ -1,15 +1,15 @@
+use hakana_code_info::EFFECT_PURE;
+use hakana_code_info::EFFECT_READ_GLOBALS;
+use hakana_code_info::EFFECT_READ_PROPS;
 use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::code_location::HPos;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::data_flow::node::VariableSourceKind;
 use hakana_code_info::data_flow::path::PathKind;
-use hakana_code_info::EFFECT_PURE;
-use hakana_code_info::EFFECT_READ_GLOBALS;
-use hakana_code_info::EFFECT_READ_PROPS;
 use oxidized::{
     aast,
-    aast_visitor::{visit, AstParams, Node, Visitor},
+    aast_visitor::{AstParams, Node, Visitor, visit},
 };
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
@@ -138,7 +138,8 @@ pub fn check_variables_scoped_incorrectly(
             }
         });
 
-        if all_sources_outside_if && !any_source_in_foreach_init && !any_source_in_concurrent_block {
+        if all_sources_outside_if && !any_source_in_foreach_init && !any_source_in_concurrent_block
+        {
             for source in &sources {
                 if matches!(
                     source.kind,
@@ -562,7 +563,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         if let aast::Stmt_::If(boxed) = &stmt.1 {
             self.in_single_block =
-                boxed.1 .0.len() == 1 && matches!(boxed.1 .0[0].1, aast::Stmt_::Expr(_));
+                boxed.1.0.len() == 1 && matches!(boxed.1.0[0].1, aast::Stmt_::Expr(_));
 
             let result = boxed.1.recurse(analysis_data, self);
             if result.is_err() {
@@ -571,7 +572,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             }
 
             self.in_single_block =
-                boxed.2 .0.len() == 1 && matches!(boxed.2 .0[0].1, aast::Stmt_::Expr(_));
+                boxed.2.0.len() == 1 && matches!(boxed.2.0[0].1, aast::Stmt_::Expr(_));
             let result = boxed.2.recurse(analysis_data, self);
             self.in_single_block = false;
             return result;
@@ -590,8 +591,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     let expression_effects = analysis_data
                         .expr_effects
                         .get(&(
-                            boxed.2 .1.start_offset() as u32,
-                            boxed.2 .1.end_offset() as u32,
+                            boxed.2.1.start_offset() as u32,
+                            boxed.2.1.end_offset() as u32,
                         ))
                         .unwrap_or(&0);
 
@@ -613,13 +614,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         analysis_data.add_replacement(
                             (
                                 stmt.0.start_offset() as u32,
-                                boxed.2 .1.start_offset() as u32,
+                                boxed.2.1.start_offset() as u32,
                             ),
                             Replacement::Remove,
                         );
 
                         // remove trailing array fetches
-                        if let aast::Expr_::ArrayGet(array_get) = &boxed.2 .2 {
+                        if let aast::Expr_::ArrayGet(array_get) = &boxed.2.2 {
                             if let Some(array_offset_expr) = &array_get.1 {
                                 let array_offset_effects = analysis_data
                                     .expr_effects

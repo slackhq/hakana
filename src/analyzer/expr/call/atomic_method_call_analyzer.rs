@@ -117,7 +117,7 @@ pub(crate) fn analyze(
                                 lhs_type_part.get_id(Some(statements_analyzer.interner))
                             )
                         },
-                        statements_analyzer.get_hpos(&expr.0 .1),
+                        statements_analyzer.get_hpos(&expr.0.1),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -146,7 +146,7 @@ pub(crate) fn analyze(
                             lhs_type_part.get_id(Some(statements_analyzer.interner))
                         )
                     },
-                    statements_analyzer.get_hpos(&expr.0 .1),
+                    statements_analyzer.get_hpos(&expr.0.1),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -227,7 +227,7 @@ pub(crate) fn handle_method_call_on_named_object(
         }
     }
 
-    if let aast::Expr_::Id(boxed) = &expr.1 .2 {
+    if let aast::Expr_::Id(boxed) = &expr.1.2 {
         result.has_valid_method_call_type = true;
 
         let method_name = if let Some(method_name) = statements_analyzer.interner.get(&boxed.1) {

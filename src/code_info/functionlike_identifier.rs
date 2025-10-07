@@ -30,7 +30,7 @@ impl FunctionLikeIdentifier {
                 )
             }
             FunctionLikeIdentifier::Closure(file_name, offset) => {
-                format!("{}:{}", file_name.0 .0, offset)
+                format!("{}:{}", file_name.0.0, offset)
             }
         }
     }
@@ -42,7 +42,7 @@ impl FunctionLikeIdentifier {
                 format!("{}::{}", fq_classlike_name.0, method_name.0)
             }
             FunctionLikeIdentifier::Closure(file_name, offset) => {
-                format!("{}::{}", file_name.0 .0, offset)
+                format!("{}::{}", file_name.0.0, offset)
             }
         }
     }
@@ -53,9 +53,7 @@ impl FunctionLikeIdentifier {
             FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => {
                 (*fq_classlike_name, *method_name)
             }
-            FunctionLikeIdentifier::Closure(file_name, offset) => {
-                (file_name .0, StrId(*offset))
-            }
+            FunctionLikeIdentifier::Closure(file_name, offset) => (file_name.0, StrId(*offset)),
         }
     }
 }

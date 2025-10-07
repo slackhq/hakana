@@ -8,7 +8,7 @@ use crate::{
     formula_generator,
     function_analysis_data::FunctionAnalysisData,
     reconciler,
-    scope::{loop_scope::LoopScope, BlockContext},
+    scope::{BlockContext, loop_scope::LoopScope},
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -36,10 +36,7 @@ pub(crate) fn analyze(
         }
     }
 
-    let cond_id = (
-        stmt.1 .1.start_offset() as u32,
-        stmt.1 .1.end_offset() as u32,
-    );
+    let cond_id = (stmt.1.1.start_offset() as u32, stmt.1.1.end_offset() as u32);
 
     let assertion_context = statements_analyzer.get_assertion_context(
         context.function_context.calling_class,
@@ -76,7 +73,7 @@ pub(crate) fn analyze(
 
     let mut inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.0 .0,
+        &stmt.0.0,
         get_and_expressions(stmt.1),
         vec![],
         &mut loop_scope,

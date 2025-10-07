@@ -1,12 +1,12 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope::control_action::ControlAction;
 use crate::scope::BlockContext;
+use crate::scope::control_action::ControlAction;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_code_info::EFFECT_WRITE_PROPS;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
-use hakana_code_info::EFFECT_WRITE_PROPS;
 use hakana_str::StrId;
 use oxidized::aast;
 use oxidized::pos::Pos;
@@ -33,7 +33,7 @@ pub(crate) fn analyze(
 
     let resolved_names = statements_analyzer.file_analyzer.resolved_names;
 
-    let lhs_type = match &expr.0 .2 {
+    let lhs_type = match &expr.0.2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
                 let name = if let Some(name) = resolved_names.get(&(id.0.start_offset() as u32)) {

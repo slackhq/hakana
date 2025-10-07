@@ -9,8 +9,8 @@ use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::data_flow::graph::GraphKind;
-use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_code_info::ttype::get_mixed_any;
+use hakana_reflector::typehint_resolver::get_type_from_hint;
 use oxidized::aast;
 
 pub(crate) fn analyze(
@@ -21,7 +21,13 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    expression_analyzer::analyze(statements_analyzer, inner_expr, analysis_data, context, true,)?;
+    expression_analyzer::analyze(
+        statements_analyzer,
+        inner_expr,
+        analysis_data,
+        context,
+        true,
+    )?;
 
     let expr_type = analysis_data
         .get_rc_expr_type(inner_expr.pos())

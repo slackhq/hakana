@@ -1,9 +1,9 @@
 use std::hash::{Hash, Hasher};
 
+use crate::VarId;
 use crate::code_location::FilePath;
 use crate::function_context::FunctionLikeIdentifier;
 use crate::method_identifier::MethodIdentifier;
-use crate::VarId;
 use crate::{
     code_location::HPos,
     taint::{SinkType, SourceType},
@@ -58,13 +58,13 @@ impl DataFlowNodeId {
         match self {
             DataFlowNodeId::String(str) => str.clone(),
             DataFlowNodeId::LocalString(str, file_path, start_offset, end_offset) => {
-                format!("{}-{}:{}-{}", str, file_path.0 .0, start_offset, end_offset)
+                format!("{}-{}:{}-{}", str, file_path.0.0, start_offset, end_offset)
             }
             DataFlowNodeId::Param(var_id, file_path, start_offset, end_offset) => {
                 format!(
                     "param-{}-{}:{}-{}",
                     interner.lookup(&var_id.0),
-                    file_path.0 .0,
+                    file_path.0.0,
                     start_offset,
                     end_offset
                 )
@@ -73,7 +73,7 @@ impl DataFlowNodeId {
                 format!(
                     "{}-{}:{}-{}",
                     interner.lookup(&var_id.0),
-                    file_path.0 .0,
+                    file_path.0.0,
                     start_offset,
                     end_offset
                 )
@@ -83,24 +83,24 @@ impl DataFlowNodeId {
                     "{} narrowed to {}-{}:{}",
                     var_id,
                     interner.lookup(symbol),
-                    file_path.0 .0,
+                    file_path.0.0,
                     start_offset
                 )
             }
             DataFlowNodeId::ArrayAssignment(file_path, start_offset, end_offset) => {
                 format!(
                     "array-assignment-{}:{}-{}",
-                    file_path.0 .0, start_offset, end_offset
+                    file_path.0.0, start_offset, end_offset
                 )
             }
             DataFlowNodeId::ArrayItem(key_value, file_path, start_offset, end_offset) => {
                 format!(
                     "array[{}]-{}:{}-{}",
-                    key_value, file_path.0 .0, start_offset, end_offset
+                    key_value, file_path.0.0, start_offset, end_offset
                 )
             }
             DataFlowNodeId::Return(file_path, start_offset, end_offset) => {
-                format!("return-{}:{}-{}", file_path.0 .0, start_offset, end_offset)
+                format!("return-{}:{}-{}", file_path.0.0, start_offset, end_offset)
             }
             DataFlowNodeId::CallTo(functionlike_id) => {
                 format!("call to {}", functionlike_id.to_string(interner))
@@ -109,7 +109,7 @@ impl DataFlowNodeId {
                 format!(
                     "call to {}-{}:{}",
                     functionlike_id.to_string(interner),
-                    file_path.0 .0,
+                    file_path.0.0,
                     start_offset
                 )
             }
@@ -128,7 +128,7 @@ impl DataFlowNodeId {
                 "{}::${}-{}:{}-{}",
                 interner.lookup(classlike_name),
                 interner.lookup(property_name),
-                file_path.0 .0,
+                file_path.0.0,
                 start_offset,
                 end_offset
             ),
@@ -145,7 +145,7 @@ impl DataFlowNodeId {
                     "out {}#{}-{}:{}",
                     functionlike_id.to_string(interner),
                     (arg + 1),
-                    file_path.0 .0,
+                    file_path.0.0,
                     start_offset
                 )
             }
@@ -162,7 +162,7 @@ impl DataFlowNodeId {
                     "{}#{}-{}:{}",
                     functionlike_id.to_string(interner),
                     (arg + 1),
-                    file_path.0 .0,
+                    file_path.0.0,
                     start_offset
                 )
             }
@@ -171,7 +171,7 @@ impl DataFlowNodeId {
                     "{}->{}-{}:{}",
                     interner.lookup(&lhs_var_id.0),
                     interner.lookup(property_name),
-                    file_path.0 .0,
+                    file_path.0.0,
                     start_offset,
                 )
             }
@@ -185,7 +185,7 @@ impl DataFlowNodeId {
                     "$this in {} before {}-{}:{}",
                     interner.lookup(&method_id.0),
                     interner.lookup(&method_id.1),
-                    file_path.0 .0,
+                    file_path.0.0,
                     start_offset,
                 )
             }
@@ -199,7 +199,7 @@ impl DataFlowNodeId {
                     "$this in {} after {}-{}:{}",
                     interner.lookup(&method_id.0),
                     interner.lookup(&method_id.1),
-                    file_path.0 .0,
+                    file_path.0.0,
                     start_offset,
                 )
             }
@@ -209,7 +209,7 @@ impl DataFlowNodeId {
             }
             DataFlowNodeId::Composition(file_path, start_offset, end_offset) => format!(
                 "composition-{}:{}-{}",
-                file_path.0 .0, start_offset, end_offset
+                file_path.0.0, start_offset, end_offset
             ),
             DataFlowNodeId::ReferenceTo(functionlike_id) => {
                 format!("fnref-{}", functionlike_id.to_string(interner))
@@ -219,11 +219,11 @@ impl DataFlowNodeId {
             }
             DataFlowNodeId::UnlabelledSink(file_path, start_offset, end_offset) => format!(
                 "unlabelled-sink-{}:{}-{}",
-                file_path.0 .0, start_offset, end_offset
+                file_path.0.0, start_offset, end_offset
             ),
             DataFlowNodeId::InstanceMethodCall(file_path, start_offset, end_offset) => format!(
                 "instance-method-call-{}:{}-{}",
-                file_path.0 .0, start_offset, end_offset
+                file_path.0.0, start_offset, end_offset
             ),
         }
     }
