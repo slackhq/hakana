@@ -26,11 +26,13 @@ jobs:
         sudo apt-get install -y ocaml opam
         opam init --disable-sandboxing -y
         eval $(opam env)
-
+    
+    - name: Init repository
+      run: ./init.sh
+    - name: Check formatting
+      run: cargo fmt --check
     - name: Build & Run tests
       run: |
-        ./init.sh
-        
         cargo run --release --bin hakana test tests
 
         # run Rust unit tests
