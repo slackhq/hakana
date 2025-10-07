@@ -1,5 +1,5 @@
-use std::error::Error;
-use std::path::Path;
+use std::io::Cursor;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -7,18 +7,19 @@ use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::HPos;
-use hakana_orchestrator::file::FileStatus;
 #[cfg(target_arch = "wasm32")]
 use hakana_orchestrator::SuccessfulScanData;
+use hakana_orchestrator::file::FileStatus;
 #[cfg(not(target_arch = "wasm32"))]
-use hakana_orchestrator::{scan_and_analyze_async, SuccessfulScanData};
+use hakana_orchestrator::{SuccessfulScanData, scan_and_analyze_async};
 use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer};
+use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 #[derive(Debug)]
 pub struct Backend {
@@ -80,11 +81,7 @@ impl LanguageServer for Backend {
                         save: Some(TextDocumentSyncSaveOptions::Supported(true)),
                     },
                 )),
-                definition_provider: if cfg!(target_os = "linux") {
-                    None
-                } else {
-                    Some(OneOf::Left(true))
-                },
+                definition_provider: Some(OneOf::Left(true)),
                 ..ServerCapabilities::default()
             },
             ..InitializeResult::default()
@@ -428,7 +425,7 @@ pub fn get_config(
     plugins: Vec<Box<dyn CustomHook>>,
     cwd: &String,
     interner: &mut Interner,
-) -> std::result::Result<Config, Box<dyn Error>> {
+) -> std::result::Result<Config, String> {
     let mut all_custom_issues = vec![];
 
     for analysis_hook in &plugins {
@@ -447,7 +444,7 @@ pub fn get_config(
     config.find_unused_definitions = true;
     config.ignore_mixed_issues = true;
     config.ast_diff = true;
-    config.collect_goto_definition_locations = !cfg!(target_os = "linux");
+    config.collect_goto_definition_locations = true;
 
     config.hooks = plugins;
 
@@ -456,12 +453,58 @@ pub fn get_config(
     let config_path = Path::new(&config_path_str);
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path, interner)?;
+        config
+            .update_from_file(cwd, config_path, interner)
+            .map_err(|err| format!("Config error: {err}"))?;
     }
 
     Ok(config)
 }
 
+pub async fn serve<Reader, Writer>(
+    reader: Reader,
+    writer: Writer,
+    current_dir: std::io::Result<PathBuf>,
+) where
+    Reader: AsyncRead + Unpin,
+    Writer: AsyncWrite,
+{
+    let mut stderr = tokio::io::stderr();
+
+    let cwd = if let Ok(current_dir) = current_dir {
+        if let Some(str) = current_dir.to_str() {
+            str.to_string()
+        } else {
+            stderr
+                .write_all_buf(&mut Cursor::new(b"Passed current directory is malformed"))
+                .await
+                .ok();
+            return;
+        }
+    } else {
+        stderr
+            .write_all_buf(&mut Cursor::new(
+                b"Current working directory could not be determined",
+            ))
+            .await
+            .ok();
+        return;
+    };
+
+    let mut interner = Interner::default();
+
+    let config = match get_config(vec![], &cwd, &mut interner) {
+        Ok(config) => config,
+        Err(msg) => {
+            stderr.write_all_buf(&mut Cursor::new(msg)).await.ok();
+            return;
+        }
+    };
+
+    let (service, socket) = LspService::new(|client| Backend::new(client, config, interner));
+
+    Server::new(reader, writer, socket).serve(service).await;
+}
+
 #[cfg(test)]
 mod tests;
-
