@@ -64,14 +64,12 @@ pub(crate) fn check_arguments_match(
     let functionlike_params = &functionlike_info.params;
     // todo handle map and filter
 
-    let calling_classlike_storage = calling_classlike
-        .map(|calling_classlike| {
-            statements_analyzer
-                .codebase
-                .classlike_infos
-                .get(&calling_classlike.0)
-        })
-        .flatten();
+    let calling_classlike_storage = calling_classlike.and_then(|calling_classlike| {
+        statements_analyzer
+            .codebase
+            .classlike_infos
+            .get(&calling_classlike.0)
+    });
 
     if !type_args.is_empty() {
         for (i, type_arg) in type_args.iter().enumerate() {

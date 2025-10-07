@@ -487,13 +487,12 @@ pub(crate) fn analyze(
                 let calling_class = context.function_context.calling_class;
 
                 let calling_class_info = calling_class
-                    .map(|calling_class_id| {
+                    .and_then(|calling_class_id| {
                         statements_analyzer
                             .codebase
                             .classlike_infos
                             .get(&calling_class_id)
-                    })
-                    .flatten();
+                    });
 
                 // The RHS of a nameof expression always seems to be a CIexpr,
                 // even if a classname literal or a keyword like self/static/parent is passed.
@@ -519,8 +518,7 @@ pub(crate) fn analyze(
                                 // nameof parent in a class that has no parent is a typechecker error.
                                 if inner_class_id.name() == "parent" {
                                     calling_class_info
-                                        .map(|i| i.direct_parent_class)
-                                        .flatten()
+                                        .and_then(|i| i.direct_parent_class)
                                         .map(|id| statements_analyzer.interner.lookup(&id))
                                 } else {
                                     // self/static
