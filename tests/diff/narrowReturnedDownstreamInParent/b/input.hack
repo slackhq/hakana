@@ -12,6 +12,7 @@ abstract class A {
 }
 
 abstract class B extends A {
+    <<__Override>>
     public function bar(): string {
         return "hello";
     }

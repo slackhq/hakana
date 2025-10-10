@@ -2,6 +2,7 @@ abstract class Foo {
     public function bar() : void {}
 }
 final class Bar extends Foo{
+    <<__Override>>
     public function bar() : void {}
 }
 

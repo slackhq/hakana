@@ -9,6 +9,7 @@ interface HasFooNode {
 }
 
 final class FooNode extends Node implements HasFooNode {
+    <<__Override>>
     public static function foo(): void {}
 }
 

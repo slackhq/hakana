@@ -1,4 +1,5 @@
 abstract class MemoizableParent implements IMemoizeParam {
+    <<__Override>>
     public function getInstanceKey(): string {
 		return 'a';
 	}

@@ -7,6 +7,7 @@ abstract class Foobar {
 }
 
 final class MyFooBar extends Foobar {
+    <<__Override>>
     protected function inner(): void {
         // Do nothing
     }

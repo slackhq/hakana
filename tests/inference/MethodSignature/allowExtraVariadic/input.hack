@@ -3,6 +3,7 @@ interface I {
 }
 
 final class C implements I {
+    <<__Override>>
     public function f(string $a = "a", int $b = 1, float ...$rest): void {}
 }
 

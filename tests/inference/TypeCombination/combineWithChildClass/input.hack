@@ -5,6 +5,7 @@ abstract class Result<+T, +TErr> {
 
 final class ResultOk<+T> extends Result<T, nothing> {
 	public function __construct(private T $t) {}
+	<<__Override>>
 	public function get(): T {
 		return $this->t;
 	}
@@ -12,6 +13,7 @@ final class ResultOk<+T> extends Result<T, nothing> {
 
 final class ResultError extends Result<nothing, string> {
 	public function __construct(private string $message) {}
+    <<__Override>>
     public function get(): nothing {
 		throw new \Exception('bad');
 	}

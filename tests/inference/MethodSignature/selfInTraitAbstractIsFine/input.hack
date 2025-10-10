@@ -5,6 +5,7 @@ trait SomeTrait {
 final class SomeClass {
     use SomeTrait;
 
+    <<__Override>>
     public function a(SomeClass $b): SomeClass {
         return $this;
     }

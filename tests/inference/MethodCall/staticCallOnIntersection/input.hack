@@ -5,6 +5,7 @@ interface I {
 }
 
 final class AChild extends A implements I {
+    <<__Override>>
     public static function foo(): void {}
 }
 

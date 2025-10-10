@@ -30,6 +30,7 @@ abstract class BHandler extends InputHandler<my_args_t> {}
 abstract class CHandler extends InputHandler<my_args_t> {}
 
 final class MyHandler extends BHandler {
+    <<__Override>>
     public function getResult(my_args_t $args) {
         B::handle($args);
     }

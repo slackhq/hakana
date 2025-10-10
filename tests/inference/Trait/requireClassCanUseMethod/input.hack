@@ -15,6 +15,7 @@ trait T1 {
 final class B extends A {
   use T1;
 
+  <<__Override>>
   public function getStr(): string {
     return "a";
   }

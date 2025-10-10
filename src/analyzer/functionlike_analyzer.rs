@@ -240,6 +240,38 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             ));
         };
 
+        // Check for missing __Override attribute
+        if classlike_storage.overridden_method_ids.contains_key(&method_name) {
+            let has_override_attribute = functionlike_storage
+                .attributes
+                .iter()
+                .any(|a| a.name == StrId::OVERRIDE);
+
+            let is_constructor = method_name == StrId::CONSTRUCT;
+            let is_private = if let Some(method_info) = &functionlike_storage.method_info {
+                method_info.visibility == hakana_code_info::member_visibility::MemberVisibility::Private
+            } else {
+                false
+            };
+
+            if !has_override_attribute && !is_constructor && !is_private {
+                analysis_result.issue_counts.entry(IssueKind::MissingOverrideAttribute).and_modify(|e| *e += 1).or_insert(1);
+
+                let file_path = self.file_analyzer.file_source.file_path;
+                analysis_result.emitted_issues.entry(file_path).or_insert_with(Vec::new).push(
+                    Issue::new(
+                        IssueKind::MissingOverrideAttribute,
+                        format!(
+                            "Method {} overrides a parent method but is missing the <<__Override>> attribute",
+                            self.interner.lookup(&method_name)
+                        ),
+                        HPos::new(&stmt.name.0, self.file_analyzer.file_source.file_path),
+                        &Some(FunctionLikeIdentifier::Method(classlike_storage.name, method_name)),
+                    ),
+                );
+            }
+        }
+
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
             functionlike_storage

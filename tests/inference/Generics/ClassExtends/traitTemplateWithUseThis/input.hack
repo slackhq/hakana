@@ -11,6 +11,7 @@ abstract class A {
 }
 
 final class B extends A {  
+    <<__Override>>
     protected static function getInner(): B {
         return new B();
     }

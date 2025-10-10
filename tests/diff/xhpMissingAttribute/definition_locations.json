@@ -1,32 +1,32 @@
 [
   {
-    "end_offset": 215,
+    "end_offset": 234,
     "file": "input.hack",
     "name": "Facebook\\XHP\\Core\\node",
-    "start_offset": 181
-  },
-  {
-    "end_offset": 232,
-    "file": "input.hack",
-    "name": "Facebook\\XHP\\Core\\frag",
-    "start_offset": 228
+    "start_offset": 200
   },
   {
     "end_offset": 251,
     "file": "input.hack",
-    "name": "MyElement:::some-attr",
-    "start_offset": 241
+    "name": "Facebook\\XHP\\Core\\frag",
+    "start_offset": 247
   },
   {
-    "end_offset": 292,
+    "end_offset": 270,
+    "file": "input.hack",
+    "name": "MyElement:::some-attr",
+    "start_offset": 260
+  },
+  {
+    "end_offset": 311,
     "file": "input.hack",
     "name": "XHPChild",
-    "start_offset": 283
+    "start_offset": 302
   },
   {
-    "end_offset": 316,
+    "end_offset": 335,
     "file": "input.hack",
     "name": "MyElement",
-    "start_offset": 307
+    "start_offset": 326
   }
 ]

@@ -5,12 +5,14 @@ interface IHasName {
 
 final class HasName implements IHasName {
   public function __construct(private string $name)[] {}
+  <<__Override>>
   public function name(): string {
     return $this->name;
   }
 }
 
 final class ConstName implements IHasName {
+  <<__Override>>
   public function name(): string {
     return "bar";
   }

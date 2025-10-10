@@ -11,6 +11,7 @@ function getPdo() : AsyncMysqlConnection {
 }
 
 final class AChild extends A {
+    <<__Override>>
     public static function loadPartial(string $sink) : void {
         getPdo()->query("select * from foo where bar = " . $sink);
     }

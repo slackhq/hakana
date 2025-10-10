@@ -13,6 +13,7 @@ abstract class Result<+T, +TErr> {
 
 final class ResultOk<+T> extends Result<T, nothing> {
 	public function __construct(private T $t) {}
+	<<__Override>>
 	public function get(): T {
 		return $this->t;
 	}
@@ -20,6 +21,7 @@ final class ResultOk<+T> extends Result<T, nothing> {
 
 final class ResultError extends Result<nothing, string> {
 	public function __construct(private string $message) {}
+    <<__Override>>
     public function get(): T {
 		throw new \Exception('bad');
 	}
@@ -50,6 +52,7 @@ type my_args_t = shape('a' => string);
 abstract class BHandler extends InputHandler<my_args_t> {}
 
 final class MyHandler extends BHandler {
+    <<__Override>>
     public async function getResult(my_args_t $args): Awaitable<Result<string>> {
         return new ResultOk($args['a']);
     }
