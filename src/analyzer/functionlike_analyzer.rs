@@ -241,7 +241,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         };
 
         // Check for missing __Override attribute
-        if classlike_storage.overridden_method_ids.contains_key(&method_name) {
+        if classlike_storage
+            .overridden_method_ids
+            .contains_key(&method_name)
+        {
             let has_override_attribute = functionlike_storage
                 .attributes
                 .iter()
@@ -249,13 +252,18 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             let is_constructor = method_name == StrId::CONSTRUCT;
             let is_private = if let Some(method_info) = &functionlike_storage.method_info {
-                method_info.visibility == hakana_code_info::member_visibility::MemberVisibility::Private
+                method_info.visibility
+                    == hakana_code_info::member_visibility::MemberVisibility::Private
             } else {
                 false
             };
 
             if !has_override_attribute && !is_constructor && !is_private {
-                analysis_result.issue_counts.entry(IssueKind::MissingOverrideAttribute).and_modify(|e| *e += 1).or_insert(1);
+                analysis_result
+                    .issue_counts
+                    .entry(IssueKind::MissingOverrideAttribute)
+                    .and_modify(|e| *e += 1)
+                    .or_insert(1);
 
                 let file_path = self.file_analyzer.file_source.file_path;
                 analysis_result.emitted_issues.entry(file_path).or_insert_with(Vec::new).push(
