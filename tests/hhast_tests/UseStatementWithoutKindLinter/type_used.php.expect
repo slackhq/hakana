@@ -1,0 +1,17 @@
+[
+    {
+        "blame": "\nuse Herp\\Derp;\n",
+        "blame_pretty": "\nuse Herp\\Derp;\n",
+        "description": "Use `use type` or `use namespace`"
+    },
+    {
+        "blame": "use Foo\\{Bar, Baz};\n",
+        "blame_pretty": "use Foo\\{Bar, Baz};\n",
+        "description": "Use `use type` or `use namespace`"
+    },
+    {
+        "blame": "use Foo\\Bat;\n",
+        "blame_pretty": "use Foo\\Bat;\n",
+        "description": "Use `use type` or `use namespace`"
+    }
+]

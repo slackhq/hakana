@@ -1,0 +1,14 @@
+<<__ConsistentConstruct>>
+class Consistent {
+  public function __construct() {}
+}
+
+final class Dyn extends Consistent {
+  public function _(): void {
+    $cls = Dyn::class;
+    new $cls();
+    new static();
+    new parent();
+    new self();
+  }
+}

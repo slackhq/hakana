@@ -1,0 +1,37 @@
+[
+    {
+        "blame": "  if (true) $something++;\n",
+        "blame_pretty": "  if (true) $something++;\n",
+        "description": "if statement without braces"
+    },
+    {
+        "blame": "else $something++;\n",
+        "blame_pretty": "else $something++;\n",
+        "description": "else clause without braces"
+    },
+    {
+        "blame": "if (true) $something++;\n",
+        "blame_pretty": "if (true) $something++;\n",
+        "description": "if statement without braces"
+    },
+    {
+        "blame": "  do $something; while(true);\n",
+        "blame_pretty": "  do $something; while(true);\n",
+        "description": "do statement without braces"
+    },
+    {
+        "blame": "  foreach(vec[] as $_) $something++;\n",
+        "blame_pretty": "  foreach(vec[] as $_) $something++;\n",
+        "description": "foreach statement without braces"
+    },
+    {
+        "blame": "  for(;;) $something++;\n",
+        "blame_pretty": "  for(;;) $something++;\n",
+        "description": "for statement without braces"
+    },
+    {
+        "blame": "  while(true) $something++;\n",
+        "blame_pretty": "  while(true) $something++;\n",
+        "description": "while statement without braces"
+    }
+]

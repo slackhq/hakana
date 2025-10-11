@@ -1,0 +1,12 @@
+[
+    {
+        "blame": "\/**\n * Copyright (c) 2016, Facebook, Inc.\n * All rights reserved.\n *\n * This source code is licensed under the MIT license found in the\n * LICENSE file in the root directory of this source tree.\n *\n *\/\n\n\/\/ PreIf\nif (foo())\n  \/\/ StartIf\n  \/* pre bar *\/ bar(); \/* post bar *\/\n\/\/ PreElse\nelse\n  \/\/ StartIf\n  \/* pre baz *\/ baz(); \/* post baz *\/\n",
+        "blame_pretty": "\nif (foo())\n  \/\/ StartIf\n  \/* pre bar *\/ bar(); \/* post bar *\/\n\/\/ PreElse\nelse\n  \/\/ StartIf\n  \/* pre baz *\/ baz(); \/* post baz *\/\n",
+        "description": "if statement without braces"
+    },
+    {
+        "blame": "\/\/ PreElse\nelse\n  \/\/ StartIf\n  \/* pre baz *\/ baz(); \/* post baz *\/\n",
+        "blame_pretty": "\nelse\n  \/\/ StartIf\n  \/* pre baz *\/ baz(); \/* post baz *\/\n",
+        "description": "else clause without braces"
+    }
+]

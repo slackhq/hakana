@@ -1,0 +1,6 @@
+function _(): void {
+  new Exception();
+  new LogicException();
+  new Some\Exception();
+  new ClassWithMyCustomSuffix();
+}

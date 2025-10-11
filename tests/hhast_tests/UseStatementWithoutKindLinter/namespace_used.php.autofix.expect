@@ -1,0 +1,7 @@
+<?hh // strict
+
+use namespace Herp\Derp;
+use namespace Foo\{Bar, Baz};
+
+Derp\herp('hello, world');
+Bar\baz('hello, world');
