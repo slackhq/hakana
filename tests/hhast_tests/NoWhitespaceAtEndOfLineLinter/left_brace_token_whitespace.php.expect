@@ -1,0 +1,7 @@
+[
+    {
+        "blame": "function test() {    ",
+        "blame_pretty": "function test() {    ",
+        "description": "Line 10 has 4 trailing whitespace character(s)"
+    }
+]

@@ -1,0 +1,12 @@
+[
+    {
+        "blame": "    if (foo())\n      bar();\n    else\n      baz();\n",
+        "blame_pretty": "    if (foo())\n      bar();\n    else\n      baz();\n",
+        "description": "if statement without braces"
+    },
+    {
+        "blame": "    else\n      baz();\n",
+        "blame_pretty": "    else\n      baz();\n",
+        "description": "else clause without braces"
+    }
+]

@@ -1,0 +1,7 @@
+[
+    {
+        "blame": "print('foo');    ",
+        "blame_pretty": "print('foo');    ",
+        "description": "Line 10 has 4 trailing whitespace character(s)"
+    }
+]

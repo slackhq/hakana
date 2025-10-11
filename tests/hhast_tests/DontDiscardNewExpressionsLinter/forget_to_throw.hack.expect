@@ -1,0 +1,22 @@
+[
+    {
+        "blame": "  new Exception(); ",
+        "blame_pretty": "  new Exception(); ",
+        "description": "You are discarding the result of a `new` expression. It looks like you are constructing an Exception. Did you intend to throw it?"
+    },
+    {
+        "blame": "  new LogicException(); ",
+        "blame_pretty": "  new LogicException(); ",
+        "description": "You are discarding the result of a `new` expression. It looks like you are constructing an Exception. Did you intend to throw it?"
+    },
+    {
+        "blame": "  new Some\\Exception(); ",
+        "blame_pretty": "  new Some\\Exception(); ",
+        "description": "You are discarding the result of a `new` expression. It looks like you are constructing an Exception. Did you intend to throw it?"
+    },
+    {
+        "blame": "  new ClassWithMyCustomSuffix(); ",
+        "blame_pretty": "  new ClassWithMyCustomSuffix(); ",
+        "description": "You are discarding the result of a `new` expression. If you are intentionally discarding it, consider assigning it to `$_`. If you are running this constructor for its side-effects, consider restructuring that class/constructor."
+    }
+]

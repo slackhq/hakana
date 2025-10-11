@@ -1,0 +1,10 @@
+function all_statement_types(): void {
+  $something = 0;
+  if (true) $something++;
+  if (true) {} else $something++;
+  if (true) {} else if (true) $something++;
+  do $something; while(true);
+  foreach(vec[] as $_) $something++;
+  for(;;) $something++;
+  while(true) $something++;
+}
