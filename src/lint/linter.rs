@@ -116,10 +116,7 @@ impl LinterRegistry {
     }
 
     pub fn hhast_names(&self) -> Vec<&'static str> {
-        self.linters
-            .iter()
-            .filter_map(|l| l.hhast_name())
-            .collect()
+        self.linters.iter().filter_map(|l| l.hhast_name()).collect()
     }
 }
 

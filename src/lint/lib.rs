@@ -58,7 +58,10 @@ use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
 pub fn parse_file<'a>(
     arena: &'a bumpalo::Bump,
     source: &SourceText<'a>,
-) -> (PositionedSyntax<'a>, Vec<parser_core_types::syntax_error::SyntaxError>) {
+) -> (
+    PositionedSyntax<'a>,
+    Vec<parser_core_types::syntax_error::SyntaxError>,
+) {
     let mut env = parser_core_types::parser_env::ParserEnv::default();
     // Enable XHP support
     env.enable_xhp_class_modifier = true;

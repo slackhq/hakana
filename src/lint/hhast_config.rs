@@ -278,15 +278,13 @@ mod tests {
         };
 
         // Should be enabled for non-test files
-        assert!(config.is_linter_enabled(
-            "Facebook\\HHAST\\NoEmptyStatementsLinter",
-            "src/foo.hack"
-        ));
+        assert!(
+            config.is_linter_enabled("Facebook\\HHAST\\NoEmptyStatementsLinter", "src/foo.hack")
+        );
 
         // Should be disabled for test files
-        assert!(!config.is_linter_enabled(
-            "Facebook\\HHAST\\NoEmptyStatementsLinter",
-            "tests/foo.hack"
-        ));
+        assert!(
+            !config.is_linter_enabled("Facebook\\HHAST\\NoEmptyStatementsLinter", "tests/foo.hack")
+        );
     }
 }

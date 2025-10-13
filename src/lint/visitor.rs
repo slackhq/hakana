@@ -11,43 +11,151 @@ use parser_core_types::syntax_by_ref::syntax_variant_generated::*;
 #[allow(unused_variables)]
 pub trait SyntaxVisitor<'a> {
     // Top-level declarations
-    fn visit_script(&mut self, node: &'a ScriptChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_end_of_file(&mut self, node: &'a EndOfFileChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
+    fn visit_script(
+        &mut self,
+        node: &'a ScriptChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_end_of_file(
+        &mut self,
+        node: &'a EndOfFileChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
 
     // Namespace and imports
-    fn visit_namespace_declaration(&mut self, node: &'a NamespaceDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_namespace_use_declaration(&mut self, node: &'a NamespaceUseDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
+    fn visit_namespace_declaration(
+        &mut self,
+        node: &'a NamespaceDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_namespace_use_declaration(
+        &mut self,
+        node: &'a NamespaceUseDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
 
     // Classes and interfaces
-    fn visit_classish_declaration(&mut self, node: &'a ClassishDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_classish_body(&mut self, node: &'a ClassishBodyChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
+    fn visit_classish_declaration(
+        &mut self,
+        node: &'a ClassishDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_classish_body(
+        &mut self,
+        node: &'a ClassishBodyChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
 
     // Functions and methods
-    fn visit_function_declaration(&mut self, node: &'a FunctionDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_methodish_declaration(&mut self, node: &'a MethodishDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_anonymous_function(&mut self, node: &'a AnonymousFunctionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_lambda_expression(&mut self, node: &'a LambdaExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
+    fn visit_function_declaration(
+        &mut self,
+        node: &'a FunctionDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_methodish_declaration(
+        &mut self,
+        node: &'a MethodishDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_anonymous_function(
+        &mut self,
+        node: &'a AnonymousFunctionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_lambda_expression(
+        &mut self,
+        node: &'a LambdaExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
 
     // Statements
-    fn visit_compound_statement(&mut self, node: &'a CompoundStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_expression_statement(&mut self, node: &'a ExpressionStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_if_statement(&mut self, node: &'a IfStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_while_statement(&mut self, node: &'a WhileStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_for_statement(&mut self, node: &'a ForStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_foreach_statement(&mut self, node: &'a ForeachStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_do_statement(&mut self, node: &'a DoStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_switch_statement(&mut self, node: &'a SwitchStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_return_statement(&mut self, node: &'a ReturnStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_throw_statement(&mut self, node: &'a ThrowStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_try_statement(&mut self, node: &'a TryStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
+    fn visit_compound_statement(
+        &mut self,
+        node: &'a CompoundStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_expression_statement(
+        &mut self,
+        node: &'a ExpressionStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_if_statement(
+        &mut self,
+        node: &'a IfStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_while_statement(
+        &mut self,
+        node: &'a WhileStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_for_statement(
+        &mut self,
+        node: &'a ForStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_foreach_statement(
+        &mut self,
+        node: &'a ForeachStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_do_statement(
+        &mut self,
+        node: &'a DoStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_switch_statement(
+        &mut self,
+        node: &'a SwitchStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_return_statement(
+        &mut self,
+        node: &'a ReturnStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_throw_statement(
+        &mut self,
+        node: &'a ThrowStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_try_statement(
+        &mut self,
+        node: &'a TryStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
 
     // Expressions
-    fn visit_binary_expression(&mut self, node: &'a BinaryExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_prefix_unary_expression(&mut self, node: &'a PrefixUnaryExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_function_call_expression(&mut self, node: &'a FunctionCallExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_member_selection_expression(&mut self, node: &'a MemberSelectionExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_variable_expression(&mut self, node: &'a VariableExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
-    fn visit_literal_expression(&mut self, node: &'a LiteralExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>) {}
+    fn visit_binary_expression(
+        &mut self,
+        node: &'a BinaryExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_prefix_unary_expression(
+        &mut self,
+        node: &'a PrefixUnaryExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_function_call_expression(
+        &mut self,
+        node: &'a FunctionCallExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_member_selection_expression(
+        &mut self,
+        node: &'a MemberSelectionExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_variable_expression(
+        &mut self,
+        node: &'a VariableExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
+    fn visit_literal_expression(
+        &mut self,
+        node: &'a LiteralExpressionChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
+    ) {
+    }
 
     // Generic node visitor - called for every node
     fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {}

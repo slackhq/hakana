@@ -103,15 +103,16 @@ impl TestRunner {
         for _ in 0..(repeat + 1) {
             for test_folder in test_folders.clone() {
                 // Only create cache directory for non-hhast tests and actual directories
-                let cache_dir = if !test_folder.contains("/hhast_tests/") && Path::new(&test_folder).is_dir() {
-                    let cache_dir = format!("{}/.hakana_cache", test_folder);
-                    if !Path::new(&cache_dir).is_dir() && fs::create_dir(&cache_dir).is_err() {
-                        panic!("could not create aast cache directory");
-                    }
-                    Some(cache_dir)
-                } else {
-                    None
-                };
+                let cache_dir =
+                    if !test_folder.contains("/hhast_tests/") && Path::new(&test_folder).is_dir() {
+                        let cache_dir = format!("{}/.hakana_cache", test_folder);
+                        if !Path::new(&cache_dir).is_dir() && fs::create_dir(&cache_dir).is_err() {
+                            panic!("could not create aast cache directory");
+                        }
+                        Some(cache_dir)
+                    } else {
+                        None
+                    };
 
                 let needs_fresh_codebase = test_folder.to_ascii_lowercase().contains("xhp");
 
@@ -277,11 +278,7 @@ impl TestRunner {
         let config = Arc::new(analysis_config);
 
         if dir.contains("/hhast_tests/") {
-            return self.run_linter_test(
-                dir,
-                had_error,
-                test_diagnostics,
-            );
+            return self.run_linter_test(dir, had_error, test_diagnostics);
         }
 
         if dir.contains("/goto-definition/") {
@@ -796,11 +793,26 @@ impl TestRunner {
 
         // Determine which linter to use based on directory name
         let all_linters: Vec<(&str, &dyn hakana_lint::Linter)> = vec![
-            ("MustUseBracesForControlFlowLinter", &examples::must_use_braces_for_control_flow::MustUseBracesForControlFlowLinter),
-            ("DontDiscardNewExpressionsLinter", &examples::dont_discard_new_expressions::DontDiscardNewExpressionsLinter),
-            ("NoEmptyStatementsLinter", &examples::no_empty_statements::NoEmptyStatementsLinter),
-            ("NoWhitespaceAtEndOfLineLinter", &examples::no_whitespace_at_end_of_line::NoWhitespaceAtEndOfLineLinter),
-            ("UseStatementWithoutKindLinter", &examples::use_statement_without_kind::UseStatementWithoutKindLinter),
+            (
+                "MustUseBracesForControlFlowLinter",
+                &examples::must_use_braces_for_control_flow::MustUseBracesForControlFlowLinter,
+            ),
+            (
+                "DontDiscardNewExpressionsLinter",
+                &examples::dont_discard_new_expressions::DontDiscardNewExpressionsLinter,
+            ),
+            (
+                "NoEmptyStatementsLinter",
+                &examples::no_empty_statements::NoEmptyStatementsLinter,
+            ),
+            (
+                "NoWhitespaceAtEndOfLineLinter",
+                &examples::no_whitespace_at_end_of_line::NoWhitespaceAtEndOfLineLinter,
+            ),
+            (
+                "UseStatementWithoutKindLinter",
+                &examples::use_statement_without_kind::UseStatementWithoutKindLinter,
+            ),
         ];
 
         // Find the linter that matches the directory name
@@ -848,7 +860,8 @@ impl TestRunner {
             let entries = match fs::read_dir(&dir) {
                 Ok(entries) => entries,
                 Err(e) => {
-                    test_diagnostics.push((dir.clone(), format!("Failed to read directory: {}", e)));
+                    test_diagnostics
+                        .push((dir.clone(), format!("Failed to read directory: {}", e)));
                     *had_error = true;
                     return ("F".to_string(), None, None);
                 }
@@ -918,23 +931,19 @@ impl TestRunner {
             };
 
             // Run linters
-            let result = match hakana_lint::run_linters(
-                &in_path,
-                &input_contents,
-                &linters,
-                &config,
-            ) {
-                Ok(r) => r,
-                Err(e) => {
-                    test_diagnostics.push((
-                        format!("{}/{}", dir, test_name),
-                        format!("Linter error: {}", e),
-                    ));
-                    *had_error = true;
-                    all_passed = false;
-                    continue;
-                }
-            };
+            let result =
+                match hakana_lint::run_linters(&in_path, &input_contents, &linters, &config) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        test_diagnostics.push((
+                            format!("{}/{}", dir, test_name),
+                            format!("Linter error: {}", e),
+                        ));
+                        *had_error = true;
+                        all_passed = false;
+                        continue;
+                    }
+                };
 
             // Extract expected descriptions from JSON
             let expected_descriptions: Vec<String> = expected_errors
@@ -956,7 +965,10 @@ impl TestRunner {
             // Compare error descriptions
             if expected_descriptions != actual_descriptions {
                 errors_output.push_str(&format!("\n=== {} ===\n", test_name));
-                errors_output.push_str(&format!("Expected {} errors:\n", expected_descriptions.len()));
+                errors_output.push_str(&format!(
+                    "Expected {} errors:\n",
+                    expected_descriptions.len()
+                ));
                 for desc in &expected_descriptions {
                     errors_output.push_str(&format!("  - {}\n", desc));
                 }
@@ -1009,7 +1021,9 @@ impl TestRunner {
                     }
                 };
 
-                let actual_autofix = autofix_result.modified_source.unwrap_or(input_contents.clone());
+                let actual_autofix = autofix_result
+                    .modified_source
+                    .unwrap_or(input_contents.clone());
 
                 // Compare autofix output
                 if expected_autofix != actual_autofix {
@@ -1193,7 +1207,9 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                                 .filter_map(|e| {
                                     let file_path = e.path();
                                     let file_name = file_path.to_string_lossy().to_string();
-                                    if file_name.ends_with(".php.in") || file_name.ends_with(".hack.in") {
+                                    if file_name.ends_with(".php.in")
+                                        || file_name.ends_with(".hack.in")
+                                    {
                                         // Remove the ".in" extension to get the base test name
                                         let base_name = file_name
                                             .trim_end_matches(".php.in")

@@ -1910,10 +1910,7 @@ fn do_lint(sub_matches: &clap::ArgMatches, root_dir: &str, had_error: &mut bool)
 
     for (i, path) in files_to_lint.into_iter().enumerate() {
         let group = i % group_size;
-        path_groups
-            .entry(group)
-            .or_insert_with(Vec::new)
-            .push(path);
+        path_groups.entry(group).or_insert_with(Vec::new).push(path);
     }
 
     let mut handles = vec![];
@@ -1969,7 +1966,10 @@ fn do_lint(sub_matches: &clap::ArgMatches, root_dir: &str, had_error: &mut bool)
                 let contents = match fs::read_to_string(&path) {
                     Ok(c) => c,
                     Err(e) => {
-                        lint_output.lock().unwrap().push(format!("Error reading {}: {}", path_str, e));
+                        lint_output
+                            .lock()
+                            .unwrap()
+                            .push(format!("Error reading {}: {}", path_str, e));
                         continue;
                     }
                 };
@@ -1999,17 +1999,26 @@ fn do_lint(sub_matches: &clap::ArgMatches, root_dir: &str, had_error: &mut bool)
                                 match fs::write(&path, fixed_source) {
                                     Ok(_) => {
                                         *total_fixed.lock().unwrap() += 1;
-                                        lint_output.lock().unwrap().push(format!("Fixed: {}", relative_path));
+                                        lint_output
+                                            .lock()
+                                            .unwrap()
+                                            .push(format!("Fixed: {}", relative_path));
                                     }
                                     Err(e) => {
-                                        lint_output.lock().unwrap().push(format!("Error writing fixes to {}: {}", path_str, e));
+                                        lint_output.lock().unwrap().push(format!(
+                                            "Error writing fixes to {}: {}",
+                                            path_str, e
+                                        ));
                                     }
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        lint_output.lock().unwrap().push(format!("Error linting {}: {}", path_str, e));
+                        lint_output
+                            .lock()
+                            .unwrap()
+                            .push(format!("Error linting {}: {}", path_str, e));
                     }
                 }
             }

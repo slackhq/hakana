@@ -154,7 +154,7 @@ mod tests {
     fn test_apply_deletion() {
         let source = "hello beautiful world";
         let mut edits = EditSet::new();
-        edits.add(Edit::delete(5, 16));  // Delete " beautiful"
+        edits.add(Edit::delete(5, 16)); // Delete " beautiful"
 
         let result = edits.apply(source).unwrap();
         assert_eq!(result, "helloworld");
