@@ -1,0 +1,1 @@
+ERROR: MissingOverrideAttribute - input.hack:6:21 - Method Child::foo overrides a parent method but is missing the <<__Override>> attribute

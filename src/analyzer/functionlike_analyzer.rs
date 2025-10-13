@@ -123,6 +123,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &stmt.fun.body.fb_ast.0,
             analysis_result,
             None,
+            false,
         )?;
         Ok(())
     }
@@ -185,6 +186,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &stmt.body.fb_ast.0,
             analysis_result,
             Some(analysis_data),
+            false,
         )?;
 
         if if let Some(existing_return_type) = &lambda_storage.return_type {
@@ -238,6 +240,29 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 "Cannot resolve function storage".to_string(),
                 HPos::new(&stmt.name.0, self.file_analyzer.file_source.file_path),
             ));
+        };
+
+        // Check for missing __Override attribute
+        let is_missing_override_attribute = if classlike_storage
+            .overridden_method_ids
+            .contains_key(&method_name)
+        {
+            let has_override_attribute = functionlike_storage
+                .attributes
+                .iter()
+                .any(|a| a.name == StrId::OVERRIDE);
+
+            let is_constructor = method_name == StrId::CONSTRUCT;
+            let is_private = if let Some(method_info) = &functionlike_storage.method_info {
+                method_info.visibility
+                    == hakana_code_info::member_visibility::MemberVisibility::Private
+            } else {
+                false
+            };
+
+            !has_override_attribute && !is_constructor && !is_private
+        } else {
+            false
         };
 
         let mut statements_analyzer = StatementsAnalyzer::new(
@@ -322,6 +347,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &stmt.body.fb_ast.0,
             analysis_result,
             None,
+            is_missing_override_attribute,
         )?;
 
         Ok(())
@@ -434,6 +460,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         fb_ast: &Vec<aast::Stmt<(), ()>>,
         analysis_result: &mut AnalysisResult,
         parent_analysis_data: Option<&mut FunctionAnalysisData>,
+        is_missing_override_attribute: bool,
     ) -> Result<(Option<TUnion>, u8), AnalysisError> {
         context.inside_async = functionlike_storage.is_async;
 
@@ -488,6 +515,23 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         if let Some(issue_filter) = &statements_analyzer.get_config().allowed_issues {
             analysis_data.issue_filter = Some(issue_filter.clone());
+        }
+
+        // Check for missing __Override attribute
+        if is_missing_override_attribute {
+            analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::MissingOverrideAttribute,
+                format!(
+                    "Method {} overrides a parent method but is missing the <<__Override>> attribute",
+                    functionlike_id.to_string(self.interner)
+                ),
+                functionlike_storage.name_location.unwrap(),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
         }
 
         let mut cost = 0;

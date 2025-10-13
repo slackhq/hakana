@@ -59,6 +59,7 @@ pub enum IssueKind {
     MissingFinalOrAbstract,
     MissingIndirectServiceCallsAttribute,
     MissingInoutToken,
+    MissingOverrideAttribute,
     MissingRequiredXhpAttribute,
     MixedAnyArgument,
     MixedAnyArrayAccess,
