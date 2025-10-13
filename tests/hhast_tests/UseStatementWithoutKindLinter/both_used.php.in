@@ -1,0 +1,10 @@
+<?hh // strict
+
+use Herp\Derp;
+use Foo\{Bar, Baz};
+
+Derp\herp();
+new Derp();
+
+Bar\baz();
+new Baz();

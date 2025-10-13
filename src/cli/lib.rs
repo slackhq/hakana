@@ -453,6 +453,38 @@ pub fn init(
                             .help("File to save output to"),
                     ),
             )
+            .subcommand(
+                Command::new("lint")
+                    .about("Runs linters on Hack code (HHAST-compatible)")
+                    .arg(arg!(--"root" <PATH>).required(false).help(
+                        "The root directory that Hakana runs in. Defaults to the current directory",
+                    ))
+                    .arg(
+                        arg!(--"config" <PATH>)
+                            .required(false)
+                            .help("Path to hhast-lint.json config file — defaults to ./hhast-lint.json"),
+                    )
+                    .arg(
+                        arg!(--"threads" <COUNT>)
+                            .required(false)
+                            .help("How many threads to use"),
+                    )
+                    .arg(
+                        arg!(--"fix")
+                            .required(false)
+                            .help("Apply auto-fixes where available"),
+                    )
+                    .arg(
+                        arg!(--"debug")
+                            .required(false)
+                            .help("Add output for debugging"),
+                    )
+                    .arg(
+                        arg!([PATH] "Optional file or directory to lint (defaults to config roots)")
+                            .required(false)
+                            .multiple(true),
+                    ),
+            )
             .get_matches();
 
     let cwd = (env::current_dir()).unwrap().to_str().unwrap().to_string();
@@ -669,6 +701,9 @@ pub fn init(
         }
         Some(("find-executable", sub_matches)) => {
             do_find_executable(sub_matches, &root_dir, &cwd, threads, logger);
+        }
+        Some(("lint", sub_matches)) => {
+            do_lint(sub_matches, &root_dir, &mut had_error);
         }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
     }
@@ -1733,4 +1768,285 @@ fn replace_contents(
     }
 
     file_contents
+}
+
+/// Convert byte offset to line and column number
+fn offset_to_line_column(source: &str, offset: usize) -> (usize, usize) {
+    let mut line = 1;
+    let mut column = 1;
+
+    for (i, ch) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
+
+    (line, column)
+}
+
+fn do_lint(sub_matches: &clap::ArgMatches, root_dir: &str, had_error: &mut bool) {
+    use hakana_lint::{HhastLintConfig, examples};
+    use rustc_hash::FxHashMap;
+    use std::path::PathBuf;
+    use std::sync::Mutex;
+    use walkdir::WalkDir;
+
+    let config_path = sub_matches
+        .value_of("config")
+        .unwrap_or(&format!("{}/hhast-lint.json", root_dir))
+        .to_string();
+
+    let apply_fixes = sub_matches.is_present("fix");
+
+    // Load HHAST lint configuration
+    let hhast_config = if Path::new(&config_path).exists() {
+        match HhastLintConfig::from_file(Path::new(&config_path)) {
+            Ok(config) => config,
+            Err(e) => {
+                println!("Error loading lint config: {}", e);
+                *had_error = true;
+                return;
+            }
+        }
+    } else {
+        println!(
+            "No hhast-lint.json found at {}. Using default configuration.",
+            config_path
+        );
+        HhastLintConfig::default()
+    };
+
+    let hhast_config = Arc::new(hhast_config);
+
+    // Build linter registry with all available linters
+    let mut registry = hakana_lint::linter::LinterRegistry::new();
+    registry.register(Box::new(
+        examples::no_empty_statements::NoEmptyStatementsLinter,
+    ));
+    registry.register(Box::new(
+        examples::no_whitespace_at_end_of_line::NoWhitespaceAtEndOfLineLinter,
+    ));
+    registry.register(Box::new(
+        examples::use_statement_without_kind::UseStatementWithoutKindLinter,
+    ));
+    registry.register(Box::new(
+        examples::dont_discard_new_expressions::DontDiscardNewExpressionsLinter,
+    ));
+    registry.register(Box::new(
+        examples::must_use_braces_for_control_flow::MustUseBracesForControlFlowLinter,
+    ));
+    registry.register(Box::new(examples::no_await_in_loop::NoAwaitInLoopLinter));
+
+    let registry = Arc::new(registry);
+
+    // Determine files to lint
+    let paths_to_lint: Vec<String> = if let Some(paths) = sub_matches.values_of("PATH") {
+        // Use explicitly provided paths
+        paths.map(|s| s.to_string()).collect()
+    } else if !hhast_config.roots.is_empty() {
+        // Use roots from config
+        hhast_config
+            .roots
+            .iter()
+            .map(|r| format!("{}/{}", root_dir, r))
+            .collect()
+    } else {
+        // Default to root_dir
+        vec![root_dir.to_string()]
+    };
+
+    // Collect all files to lint
+    let mut files_to_lint = Vec::new();
+    for base_path in paths_to_lint {
+        for entry in WalkDir::new(&base_path)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+
+            let path_str = path.to_string_lossy();
+            if !path_str.ends_with(".hack") && !path_str.ends_with(".php") {
+                continue;
+            }
+
+            files_to_lint.push(path.to_path_buf());
+        }
+    }
+
+    if files_to_lint.is_empty() {
+        println!("\nNo files to lint.");
+        return;
+    }
+
+    let total_errors = Arc::new(Mutex::new(0usize));
+    let total_files = Arc::new(Mutex::new(0usize));
+    let total_fixed = Arc::new(Mutex::new(0usize));
+    let lint_output = Arc::new(Mutex::new(Vec::new()));
+
+    // Determine number of threads from CLI
+    let threads = if let Some(val) = sub_matches.value_of("threads").map(|f| f.to_string()) {
+        val.parse::<usize>().unwrap_or(8)
+    } else {
+        8
+    };
+
+    let mut group_size = threads;
+
+    if files_to_lint.len() < 4 * group_size {
+        group_size = 1;
+    }
+
+    let mut path_groups: FxHashMap<usize, Vec<PathBuf>> = FxHashMap::default();
+
+    for (i, path) in files_to_lint.into_iter().enumerate() {
+        let group = i % group_size;
+        path_groups
+            .entry(group)
+            .or_insert_with(Vec::new)
+            .push(path);
+    }
+
+    let mut handles = vec![];
+
+    let root_dir = root_dir.to_string();
+
+    for (_, path_group) in path_groups {
+        let hhast_config = hhast_config.clone();
+        let registry = registry.clone();
+        let total_errors = total_errors.clone();
+        let total_files = total_files.clone();
+        let total_fixed = total_fixed.clone();
+        let lint_output = lint_output.clone();
+        let root_dir = root_dir.clone();
+
+        let handle = std::thread::spawn(move || {
+            let lint_config = hakana_lint::LintConfig {
+                allow_auto_fix: apply_fixes,
+                apply_auto_fix: apply_fixes,
+                enabled_linters: Vec::new(),
+                disabled_linters: Vec::new(),
+            };
+
+            for path in path_group {
+                let path_str = path.to_string_lossy();
+
+                // Make path relative to root_dir for pattern matching
+                let relative_path = if let Ok(rel) = path.strip_prefix(&root_dir) {
+                    rel.to_string_lossy().to_string()
+                } else {
+                    path_str.to_string()
+                };
+
+                // Determine which linters to run for this file
+                let mut file_linters: Vec<&dyn hakana_lint::Linter> = Vec::new();
+
+                for linter in registry.all() {
+                    if let Some(hhast_name) = linter.hhast_name() {
+                        if hhast_config.is_linter_enabled(hhast_name, &relative_path) {
+                            file_linters.push(linter.as_ref());
+                        }
+                    } else {
+                        // No HHAST name, run unconditionally
+                        file_linters.push(linter.as_ref());
+                    }
+                }
+
+                if file_linters.is_empty() {
+                    continue;
+                }
+
+                // Read file contents
+                let contents = match fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        lint_output.lock().unwrap().push(format!("Error reading {}: {}", path_str, e));
+                        continue;
+                    }
+                };
+
+                *total_files.lock().unwrap() += 1;
+
+                // Run linters
+                match hakana_lint::run_linters(&path, &contents, &file_linters, &lint_config) {
+                    Ok(result) => {
+                        // Collect errors
+                        if !result.errors.is_empty() {
+                            *total_errors.lock().unwrap() += result.errors.len();
+                            for error in &result.errors {
+                                // Convert offset to line/column
+                                let (line, column) =
+                                    offset_to_line_column(&contents, error.start_offset);
+                                lint_output.lock().unwrap().push(format!(
+                                    "{}:{}:{}: {} - {}",
+                                    relative_path, line, column, error.severity, error.message
+                                ));
+                            }
+                        }
+
+                        // Apply fixes if requested and available
+                        if apply_fixes {
+                            if let Some(fixed_source) = result.modified_source {
+                                match fs::write(&path, fixed_source) {
+                                    Ok(_) => {
+                                        *total_fixed.lock().unwrap() += 1;
+                                        lint_output.lock().unwrap().push(format!("Fixed: {}", relative_path));
+                                    }
+                                    Err(e) => {
+                                        lint_output.lock().unwrap().push(format!("Error writing fixes to {}: {}", path_str, e));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        lint_output.lock().unwrap().push(format!("Error linting {}: {}", path_str, e));
+                    }
+                }
+            }
+        });
+
+        handles.push(handle);
+    }
+
+    // Wait for all threads to complete
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    // Print all output
+    let output = lint_output.lock().unwrap();
+    for line in output.iter() {
+        println!("{}", line);
+    }
+
+    let final_errors = *total_errors.lock().unwrap();
+    let final_files = *total_files.lock().unwrap();
+    let final_fixed = *total_fixed.lock().unwrap();
+
+    if final_errors > 0 {
+        *had_error = true;
+    }
+
+    // Print summary
+    if final_errors > 0 {
+        println!(
+            "\nFound {} lint issue(s) in {} file(s)",
+            final_errors, final_files
+        );
+        if apply_fixes && final_fixed > 0 {
+            println!("Fixed {} file(s)", final_fixed);
+        }
+    } else {
+        println!("\nNo lint issues found! Checked {} file(s).", final_files);
+    }
 }

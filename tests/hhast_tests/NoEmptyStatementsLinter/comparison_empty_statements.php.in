@@ -1,0 +1,8 @@
+<?hh
+
+function comparison_empty_statements(): void {
+  3 < 4;
+  3 <= 4;
+  3 > 4;
+  3 >= 4;
+}

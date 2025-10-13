@@ -102,18 +102,23 @@ impl TestRunner {
 
         for _ in 0..(repeat + 1) {
             for test_folder in test_folders.clone() {
-                let cache_dir = format!("{}/.hakana_cache", test_folder);
-
-                if !Path::new(&cache_dir).is_dir() && fs::create_dir(&cache_dir).is_err() {
-                    panic!("could not create aast cache directory");
-                }
+                // Only create cache directory for non-hhast tests and actual directories
+                let cache_dir = if !test_folder.contains("/hhast_tests/") && Path::new(&test_folder).is_dir() {
+                    let cache_dir = format!("{}/.hakana_cache", test_folder);
+                    if !Path::new(&cache_dir).is_dir() && fs::create_dir(&cache_dir).is_err() {
+                        panic!("could not create aast cache directory");
+                    }
+                    Some(cache_dir)
+                } else {
+                    None
+                };
 
                 let needs_fresh_codebase = test_folder.to_ascii_lowercase().contains("xhp");
 
                 let test_result = self.run_test_in_dir(
                     test_folder,
                     logger.clone(),
-                    if use_cache { Some(&cache_dir) } else { None },
+                    if use_cache { cache_dir.as_ref() } else { None },
                     had_error,
                     &mut test_diagnostics,
                     build_checksum,
@@ -270,6 +275,14 @@ impl TestRunner {
         logger.log_debug_sync(&format!("running test {}", dir));
 
         let config = Arc::new(analysis_config);
+
+        if dir.contains("/hhast_tests/") {
+            return self.run_linter_test(
+                dir,
+                had_error,
+                test_diagnostics,
+            );
+        }
 
         if dir.contains("/goto-definition/") {
             return self.run_goto_definition_test(
@@ -772,6 +785,249 @@ impl TestRunner {
 
         (".".to_string(), Some(result.1), Some(result.0))
     }
+
+    fn run_linter_test(
+        &self,
+        dir: String,
+        had_error: &mut bool,
+        test_diagnostics: &mut Vec<(String, String)>,
+    ) -> (String, Option<SuccessfulScanData>, Option<AnalysisResult>) {
+        use hakana_lint::examples;
+
+        // Determine which linter to use based on directory name
+        let all_linters: Vec<(&str, &dyn hakana_lint::Linter)> = vec![
+            ("MustUseBracesForControlFlowLinter", &examples::must_use_braces_for_control_flow::MustUseBracesForControlFlowLinter),
+            ("DontDiscardNewExpressionsLinter", &examples::dont_discard_new_expressions::DontDiscardNewExpressionsLinter),
+            ("NoEmptyStatementsLinter", &examples::no_empty_statements::NoEmptyStatementsLinter),
+            ("NoWhitespaceAtEndOfLineLinter", &examples::no_whitespace_at_end_of_line::NoWhitespaceAtEndOfLineLinter),
+            ("UseStatementWithoutKindLinter", &examples::use_statement_without_kind::UseStatementWithoutKindLinter),
+        ];
+
+        // Find the linter that matches the directory name
+        let linters: Vec<&dyn hakana_lint::Linter> = all_linters
+            .iter()
+            .filter(|(name, _)| dir.contains(name))
+            .map(|(_, linter)| *linter)
+            .collect();
+
+        if linters.is_empty() {
+            test_diagnostics.push((
+                dir.clone(),
+                format!("No matching linter found for directory: {}", dir),
+            ));
+            *had_error = true;
+            return ("F".to_string(), None, None);
+        }
+
+        let config = hakana_lint::LintConfig {
+            allow_auto_fix: false,
+            apply_auto_fix: false,
+            enabled_linters: Vec::new(),
+            disabled_linters: Vec::new(),
+        };
+
+        // Check if dir is a specific test file (without extension) or a directory
+        let in_files = if dir.ends_with(".php") || dir.ends_with(".hack") {
+            // Remove extension if provided
+            let base_path = dir.trim_end_matches(".php").trim_end_matches(".hack");
+            vec![
+                format!("{}.php.in", base_path),
+                format!("{}.hack.in", base_path),
+            ]
+            .into_iter()
+            .filter(|p| Path::new(p).exists())
+            .map(|p| std::path::PathBuf::from(p))
+            .collect::<Vec<_>>()
+        } else if Path::new(&format!("{}.php.in", dir)).exists() {
+            // Specific test file basename provided (e.g., tests/hhast_tests/NoWhitespaceAtEndOfLineLinter/left_brace_token_whitespace)
+            vec![std::path::PathBuf::from(format!("{}.php.in", dir))]
+        } else if Path::new(&format!("{}.hack.in", dir)).exists() {
+            vec![std::path::PathBuf::from(format!("{}.hack.in", dir))]
+        } else {
+            // Find all .in files in the directory
+            let entries = match fs::read_dir(&dir) {
+                Ok(entries) => entries,
+                Err(e) => {
+                    test_diagnostics.push((dir.clone(), format!("Failed to read directory: {}", e)));
+                    *had_error = true;
+                    return ("F".to_string(), None, None);
+                }
+            };
+
+            let mut in_files = vec![];
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                let file_name = path.to_string_lossy().to_string();
+                if file_name.ends_with(".php.in") || file_name.ends_with(".hack.in") {
+                    in_files.push(path);
+                }
+            }
+
+            in_files
+        };
+
+        if in_files.is_empty() {
+            test_diagnostics.push((dir.clone(), "No .in files found".to_string()));
+            *had_error = true;
+            return ("F".to_string(), None, None);
+        }
+
+        let mut in_files = in_files;
+        in_files.sort();
+        let mut all_passed = true;
+        let mut errors_output = String::new();
+
+        // Run linters on each .in file
+        for in_path in in_files {
+            let test_name = in_path.file_name().unwrap().to_string_lossy().to_string();
+
+            // Read input file
+            let input_contents = match fs::read_to_string(&in_path) {
+                Ok(contents) => contents,
+                Err(e) => {
+                    test_diagnostics.push((
+                        format!("{}/{}", dir, test_name),
+                        format!("Failed to read input file: {}", e),
+                    ));
+                    *had_error = true;
+                    all_passed = false;
+                    continue;
+                }
+            };
+
+            // Read expected errors from .expect file
+            let expect_path = in_path.to_string_lossy().replace(".in", ".expect");
+            let expected_errors: Vec<serde_json::Value> = if Path::new(&expect_path).exists() {
+                match fs::read_to_string(&expect_path) {
+                    Ok(json_str) => match serde_json::from_str(&json_str) {
+                        Ok(json) => json,
+                        Err(e) => {
+                            test_diagnostics.push((
+                                format!("{}/{}", dir, test_name),
+                                format!("Failed to parse .expect file: {}", e),
+                            ));
+                            *had_error = true;
+                            all_passed = false;
+                            continue;
+                        }
+                    },
+                    Err(_) => vec![],
+                }
+            } else {
+                vec![]
+            };
+
+            // Run linters
+            let result = match hakana_lint::run_linters(
+                &in_path,
+                &input_contents,
+                &linters,
+                &config,
+            ) {
+                Ok(r) => r,
+                Err(e) => {
+                    test_diagnostics.push((
+                        format!("{}/{}", dir, test_name),
+                        format!("Linter error: {}", e),
+                    ));
+                    *had_error = true;
+                    all_passed = false;
+                    continue;
+                }
+            };
+
+            // Extract expected descriptions from JSON
+            let expected_descriptions: Vec<String> = expected_errors
+                .iter()
+                .filter_map(|err| {
+                    err.get("description")
+                        .and_then(|d| d.as_str())
+                        .map(|s| s.to_string())
+                })
+                .collect();
+
+            // Extract actual descriptions
+            let actual_descriptions: Vec<String> = result
+                .errors
+                .iter()
+                .map(|err| err.message.clone())
+                .collect();
+
+            // Compare error descriptions
+            if expected_descriptions != actual_descriptions {
+                errors_output.push_str(&format!("\n=== {} ===\n", test_name));
+                errors_output.push_str(&format!("Expected {} errors:\n", expected_descriptions.len()));
+                for desc in &expected_descriptions {
+                    errors_output.push_str(&format!("  - {}\n", desc));
+                }
+                errors_output.push_str(&format!("Got {} errors:\n", actual_descriptions.len()));
+                for desc in &actual_descriptions {
+                    errors_output.push_str(&format!("  - {}\n", desc));
+                }
+                all_passed = false;
+            }
+
+            // Test autofix if .autofix.expect file exists
+            let autofix_expect_path = in_path.to_string_lossy().replace(".in", ".autofix.expect");
+            if Path::new(&autofix_expect_path).exists() {
+                let expected_autofix = match fs::read_to_string(&autofix_expect_path) {
+                    Ok(content) => content,
+                    Err(e) => {
+                        test_diagnostics.push((
+                            format!("{}/{}", dir, test_name),
+                            format!("Failed to read .autofix.expect file: {}", e),
+                        ));
+                        *had_error = true;
+                        all_passed = false;
+                        continue;
+                    }
+                };
+
+                // Run linters with autofix enabled
+                let autofix_config = hakana_lint::LintConfig {
+                    allow_auto_fix: true,
+                    apply_auto_fix: true,
+                    enabled_linters: Vec::new(),
+                    disabled_linters: Vec::new(),
+                };
+
+                let autofix_result = match hakana_lint::run_linters(
+                    &in_path,
+                    &input_contents,
+                    &linters,
+                    &autofix_config,
+                ) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        test_diagnostics.push((
+                            format!("{}/{}", dir, test_name),
+                            format!("Autofix linter error: {}", e),
+                        ));
+                        *had_error = true;
+                        all_passed = false;
+                        continue;
+                    }
+                };
+
+                let actual_autofix = autofix_result.modified_source.unwrap_or(input_contents.clone());
+
+                // Compare autofix output
+                if expected_autofix != actual_autofix {
+                    errors_output.push_str(&format!("\n=== {} (autofix) ===\n", test_name));
+                    errors_output.push_str(&format_diff(&expected_autofix, &actual_autofix));
+                    all_passed = false;
+                }
+            }
+        }
+
+        if all_passed {
+            (".".to_string(), None, None)
+        } else {
+            test_diagnostics.push((dir, errors_output));
+            *had_error = true;
+            ("F".to_string(), None, None)
+        }
+    }
 }
 
 fn augment_with_local_config(dir: &String, analysis_config: &mut config::Config) {
@@ -864,6 +1120,21 @@ fn generate_definition_locations_json(
 }
 
 fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String> {
+    let mut test_folders = vec![];
+    let normalized_test_dir = test_or_test_dir.trim_end_matches('/');
+
+    // Check if this is a specific HHAST test file (with or without extension)
+    if normalized_test_dir.contains("/hhast_tests/") {
+        // Try to find a matching .in file
+        let php_in_path = format!("{}.php.in", normalized_test_dir);
+        let hack_in_path = format!("{}.hack.in", normalized_test_dir);
+
+        if Path::new(&php_in_path).exists() || Path::new(&hack_in_path).exists() {
+            // This is a specific test file - return just this one
+            return Ok(vec![normalized_test_dir.to_owned()]);
+        }
+    }
+
     // Check if the specified test directory exists
     if !Path::new(&test_or_test_dir).exists() {
         return Err(format!(
@@ -872,8 +1143,6 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
         ));
     }
 
-    let mut test_folders = vec![];
-    let normalized_test_dir = test_or_test_dir.trim_end_matches('/');
     let input_hack_path = normalized_test_dir.to_owned() + "/input.hack";
     let output_txt_path = normalized_test_dir.to_owned() + "/output.txt";
 
@@ -915,6 +1184,29 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                                 ));
                             }
                             test_folders.push(path_str.to_owned());
+                        }
+                    } else if path_str.contains("/hhast_tests/") {
+                        // For HHAST tests, enumerate individual test files (not directories)
+                        if let Ok(entries) = fs::read_dir(path_str) {
+                            let mut in_files: Vec<String> = entries
+                                .filter_map(|e| e.ok())
+                                .filter_map(|e| {
+                                    let file_path = e.path();
+                                    let file_name = file_path.to_string_lossy().to_string();
+                                    if file_name.ends_with(".php.in") || file_name.ends_with(".hack.in") {
+                                        // Remove the ".in" extension to get the base test name
+                                        let base_name = file_name
+                                            .trim_end_matches(".php.in")
+                                            .trim_end_matches(".hack.in");
+                                        Some(base_name.to_string())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+
+                            in_files.sort();
+                            test_folders.extend(in_files);
                         }
                     } else if Path::new(&input_hack).exists() {
                         // Migration candidates tests use candidates.txt instead of output.txt

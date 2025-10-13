@@ -18,6 +18,7 @@ hakana-analyzer = { path = "src/analyzer" }
 hakana-str = { path = "src/str" }
 hakana-language-server = { path = "src/language_server" }
 hakana-orchestrator = { path = "src/orchestrator" }
+hakana-lint = { path = "src/lint" }
 executable-finder = { path = "src/executable_code_finder" }
 mimalloc = { version = "*", default-features = false }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
@@ -33,6 +34,7 @@ members = [
     "src/code_info_builder",
     "src/orchestrator",
     "src/language_server",
+    "src/lint",
     "src/logger",
     "src/js_interop",
     "src/executable_code_finder",

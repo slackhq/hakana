@@ -1,0 +1,124 @@
+<?hh // strict
+/*
+ *  Copyright (c) 2017-present, Facebook, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the MIT license found in the
+ *  LICENSE file in the root directory of this source tree.
+ *
+ */
+
+function foo(): void {
+  some_function();
+  ;
+  ;
+
+  // leading comment
+  ;
+
+  ; // trailing comment
+
+  // leading
+  /* kinda sorta looks like a statement */ ;
+}
+;
+
+function empty_exprs($a, $b, $dict, $key): void {
+  "a";
+  $a;
+  $a.$b;
+  $a + $b;
+  "a"."b";
+  $a.$b;
+  $a && $b;
+  $dict[$key];
+  vec[1, 2, 3];
+  dict['a' => 1, 'b' => 2];
+  keyset[1, 2, 3];
+  ($a);
+  ($a.$b);
+  ('a');
+  ($a, $b) ==> $a + $b;
+  function($a, $b) {
+    return $a + $b;
+  };
+  (int)$a;
+  isset($a);
+
+  varray[1, 2, 3];
+  darray['a' => 1, 'b' => 2];
+
+  $a is int;
+  $a is MyClass;
+}
+
+function empty_binary_expr(int $a, int $b): void {
+  $a && $b;
+  $a & $b;
+  $a || $b;
+  $a | $b;
+  $a ^ $b;
+  $a.$b;
+  $a >> $b;
+  $a > $b;
+  $a == 1;
+  $a === 1;
+  $a != 1;
+  $a !== 1;
+  $a <=> $b;
+  $a << $b;
+  $a < $b;
+  $a - $b;
+  $a % $b;
+  $a + $b;
+  $a ?: $b;
+  $a ?? $b;
+  $a / $b;
+  $a ** $b;
+  $a * $b;
+}
+
+function not_empty_exprs(): void {
+  side_effect();
+  new MyClass();
+  throw new RuntimeException();
+
+  $i = 0;
+
+  // Prefix/postfix
+  $i++;
+  $i--;
+  ++$i;
+  --$i;
+
+  // Arithmetic
+  $i += 1;
+  $i -= 1;
+  $i *= 1;
+  $i /= 1;
+  $i %= 1;
+  $i **= 1;
+
+  // Bitwise
+  $i = 1;
+  $i &= 1;
+  $i |= 1;
+  $i ^= 1;
+  $i <<= 1;
+  $i >>= 1;
+
+  $i ??= 5;
+  $i .= 1;
+
+  list($a, $b) = varray[1, 2];
+
+  ($i = 0);
+
+  $i as int;
+  fn1() |> fn2($$);
+
+  $fn = () ==> 'a';
+  $fn = () ==> {
+    return 'a';
+  };
+}

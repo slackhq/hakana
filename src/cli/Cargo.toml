@@ -10,6 +10,7 @@ hakana-logger = { path = "../logger" }
 hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
 hakana-language-server = { path = "../language_server" }
+hakana-lint = { path = "../lint" }
 executable-finder = { path = "../executable_code_finder" }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 walkdir = "2"

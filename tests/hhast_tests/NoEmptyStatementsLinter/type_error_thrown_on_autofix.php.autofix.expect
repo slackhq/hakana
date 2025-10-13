@@ -1,0 +1,24 @@
+<?hh
+// HHAST_IGNORE_ALL[5581] HHAST_IGNORE_ALL[5622] HHAST_IGNORE_ALL[5623] HHAST_IGNORE_ERROR[5624] because the error code is not the interested in this example
+
+function no_side_effects(): void {
+  if ("NO SIDE EFFECTS") {}
+
+  $please_do_not_delete_me = side_effect();
+}
+
+function with_operator(): void {
+  if (1 === 1) {}
+
+  $please_do_not_delete_me = side_effect();
+}
+
+function with_side_effects(): void {
+  if (side_effect()) {}
+
+  $please_do_not_delete_me = side_effect();
+}
+
+function side_effect(): null {
+  return null;
+}

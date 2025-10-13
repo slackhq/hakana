@@ -1,0 +1,22 @@
+[
+    {
+        "blame": "  3 < 4;\n",
+        "blame_pretty": "  3 < 4;\n",
+        "description": "This statement includes an expression that has no effect"
+    },
+    {
+        "blame": "  3 <= 4;\n",
+        "blame_pretty": "  3 <= 4;\n",
+        "description": "This statement includes an expression that has no effect"
+    },
+    {
+        "blame": "  3 > 4;\n",
+        "blame_pretty": "  3 > 4;\n",
+        "description": "This statement includes an expression that has no effect"
+    },
+    {
+        "blame": "  3 >= 4;\n",
+        "blame_pretty": "  3 >= 4;\n",
+        "description": "This statement includes an expression that has no effect"
+    }
+]

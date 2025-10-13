@@ -1,0 +1,4 @@
+function _(): void {
+  new DeleteMyFiles();
+  new Some\DeleteMyFiles();
+}

@@ -1,0 +1,19 @@
+[package]
+name = "hakana-lint"
+version = "0.1.0"
+edition = "2024"
+autoexamples = false
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
+positioned_by_ref_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/api/cargo/positioned_by_ref_parser" }
+relative_path = { path = "../../third-party/hhvm/hphp/hack/src/utils/rust/relative_path" }
+bumpalo = { version = "3.11" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rustc-hash = "2.0"
+
+[dev-dependencies]
