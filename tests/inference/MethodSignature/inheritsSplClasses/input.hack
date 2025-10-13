@@ -5,6 +5,7 @@ use SplSubject;
 
 final class Observer implements \SplObserver
 {
+    <<__Override>>
     public function update(SplSubject $subject)
     {
     }
@@ -12,14 +13,17 @@ final class Observer implements \SplObserver
 
 final class Subject implements \SplSubject
 {
+    <<__Override>>
     public function attach(SplObserver $observer)
     {
     }
 
+    <<__Override>>
     public function detach(SplObserver $observer)
     {
     }
 
+    <<__Override>>
     public function notify()
     {
     }

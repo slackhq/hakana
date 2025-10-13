@@ -11,10 +11,12 @@ abstract class A {
 final class B extends A {
 	const type T = vec<string>;
 	
+	<<__Override>>
 	public function getValueInner(): this::T {
 		return vec["a"];
 	}
 	
+	<<__Override>>
 	public function getValue(): this::T {
 		$value = parent::getValue();
 		$first = C\first($value);

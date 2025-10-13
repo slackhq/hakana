@@ -6,6 +6,7 @@ interface IHasDefault {
 }
 
 trait HasDefault implements IHasDefault {
+    <<__Override>>
     public function isDefault(mixed $v): bool {
         return static::getDefault() == $v;
     }
@@ -14,6 +15,7 @@ trait HasDefault implements IHasDefault {
 final class FooNode extends Node {
     use HasDefault;
     
+    <<__Override>>
     public static function getDefault(): mixed {
         return '';
     }

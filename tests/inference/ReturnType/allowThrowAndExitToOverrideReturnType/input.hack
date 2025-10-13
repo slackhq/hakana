@@ -3,6 +3,7 @@ interface Foo {
 }
 
 final class Bar implements Foo {
+    <<__Override>>
     public function doFoo(): int {
       print "Error\n";
       exit(1);
@@ -10,6 +11,7 @@ final class Bar implements Foo {
 }
 
 final class Baz implements Foo {
+    <<__Override>>
     public function doFoo(): int {
         throw new \Exception("bad");
     }

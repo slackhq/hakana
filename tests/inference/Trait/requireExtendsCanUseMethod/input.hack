@@ -5,6 +5,7 @@ abstract class A {
 }
 
 abstract class B extends A {
+  <<__Override>>
   public function getStr(): string {
     return "a";
   }

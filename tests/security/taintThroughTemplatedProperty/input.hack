@@ -8,6 +8,7 @@ abstract class Result<+T, +TErr> {
 final class ResultOk<+T> extends Result<T, nothing> {
 	public function __construct(private T $t) {}
 
+	<<__Override>>
 	public function get(): T {
 		return $this->t;
 	}

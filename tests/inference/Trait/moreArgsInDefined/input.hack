@@ -9,6 +9,7 @@ trait T {
 final class A {
     use T;
 
+    <<__Override>>
     public function foo(string $s = null) : void {
 
     }

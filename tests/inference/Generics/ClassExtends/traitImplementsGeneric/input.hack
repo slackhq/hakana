@@ -17,6 +17,7 @@ abstract class Base {
 final class Concrete extends Base {
     use MyTrait<string>;
 
+    <<__Override>>
     public function takesVec(vec<string> $v): void {}
 }
 

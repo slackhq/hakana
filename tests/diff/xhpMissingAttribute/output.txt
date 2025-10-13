@@ -1,3 +1,3 @@
-ERROR: UnusedPublicOrProtectedMethod - input.hack:6:33 - Unused public or protected method MyElement::renderAsync
-ERROR: UnusedFunction - input.hack:11:10 - Unused function foo
-ERROR: MissingRequiredXhpAttribute - input.hack:12:12 - XHP class MyElement is missing a required attribute: some-attr
+ERROR: UnusedInheritedMethod - input.hack:7:33 - Unused inherited method MyElement::renderAsync
+ERROR: UnusedFunction - input.hack:12:10 - Unused function foo
+ERROR: MissingRequiredXhpAttribute - input.hack:13:12 - XHP class MyElement is missing a required attribute: some-attr

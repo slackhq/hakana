@@ -5,6 +5,7 @@ interface F {
 abstract class G implements F {}
 
 final class H extends G {
+    <<__Override>>
     public function m(): F {
         return $this;
     }

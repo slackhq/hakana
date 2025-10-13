@@ -7,6 +7,7 @@ interface B extends A {
 }
 
 final class C implements B {
+    <<__Override>>
     public function foo(string $a = "") : void {}
 }
 
