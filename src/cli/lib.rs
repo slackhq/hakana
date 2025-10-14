@@ -1791,7 +1791,12 @@ fn offset_to_line_column(source: &str, offset: usize) -> (usize, usize) {
     (line, column)
 }
 
-fn do_lint(sub_matches: &clap::ArgMatches, root_dir: &str, had_error: &mut bool, custom_linters: Vec<Box<dyn hakana_lint::Linter>>) {
+fn do_lint(
+    sub_matches: &clap::ArgMatches,
+    root_dir: &str,
+    had_error: &mut bool,
+    custom_linters: Vec<Box<dyn hakana_lint::Linter>>,
+) {
     use hakana_lint::{HhastLintConfig, examples};
     use rustc_hash::FxHashMap;
     use std::path::PathBuf;
