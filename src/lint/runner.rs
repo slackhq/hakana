@@ -146,15 +146,12 @@ fn is_suppressed(
     let (end_line, _) = offset_to_line_column(source, error.end_offset);
 
     // The actual error token is somewhere in the range [start_line, end_line]
-    // Check if any line in this range has a suppression on the previous line
-    // HHAST suppression comments on line N suppress errors on line N+1
+    // Check if any line in this range has a suppression:
+    // 1. On the same line (inline comment: /* HHAST_IGNORE_ERROR[Linter] */)
+    // 2. On the previous line (HHAST suppression comments on line N suppress errors on line N+1)
     for line in start_line..=end_line {
-        if line == 0 {
-            continue; // No previous line to check
-        }
-        let previous_line = line - 1;
-
-        if let Some(linters) = suppressions.single_instance.get(&previous_line) {
+        // Check for suppression on the same line (inline comments)
+        if let Some(linters) = suppressions.single_instance.get(&line) {
             // Empty string means suppress all linters
             if linters.contains("") {
                 return true;
@@ -163,6 +160,23 @@ fn is_suppressed(
             // Check if this specific linter is suppressed
             if is_linter_in_set(linters, linter_name, hhast_name) {
                 return true;
+            }
+        }
+
+        // Check for suppression on the previous line
+        if line > 0 {
+            let previous_line = line - 1;
+
+            if let Some(linters) = suppressions.single_instance.get(&previous_line) {
+                // Empty string means suppress all linters
+                if linters.contains("") {
+                    return true;
+                }
+
+                // Check if this specific linter is suppressed
+                if is_linter_in_set(linters, linter_name, hhast_name) {
+                    return true;
+                }
             }
         }
     }
