@@ -17,5 +17,6 @@ fn main() {
         vec![],
         header.as_str(),
         &TestRunner(Box::new(CoreHooksProvider {})),
+        vec![],
     );
 }

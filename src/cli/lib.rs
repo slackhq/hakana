@@ -28,6 +28,7 @@ pub fn init(
     codegen_hooks: Vec<Box<dyn CustomHook>>,
     header: &str,
     test_runner: &TestRunner,
+    custom_linters: Vec<Box<dyn hakana_lint::Linter>>,
 ) {
     println!("{}\n", header);
 
@@ -703,7 +704,7 @@ pub fn init(
             do_find_executable(sub_matches, &root_dir, &cwd, threads, logger);
         }
         Some(("lint", sub_matches)) => {
-            do_lint(sub_matches, &root_dir, &mut had_error);
+            do_lint(sub_matches, &root_dir, &mut had_error, custom_linters);
         }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
     }
@@ -1790,7 +1791,7 @@ fn offset_to_line_column(source: &str, offset: usize) -> (usize, usize) {
     (line, column)
 }
 
-fn do_lint(sub_matches: &clap::ArgMatches, root_dir: &str, had_error: &mut bool) {
+fn do_lint(sub_matches: &clap::ArgMatches, root_dir: &str, had_error: &mut bool, custom_linters: Vec<Box<dyn hakana_lint::Linter>>) {
     use hakana_lint::{HhastLintConfig, examples};
     use rustc_hash::FxHashMap;
     use std::path::PathBuf;
@@ -1842,6 +1843,11 @@ fn do_lint(sub_matches: &clap::ArgMatches, root_dir: &str, had_error: &mut bool)
         examples::must_use_braces_for_control_flow::MustUseBracesForControlFlowLinter,
     ));
     registry.register(Box::new(examples::no_await_in_loop::NoAwaitInLoopLinter));
+
+    // Register custom linters
+    for linter in custom_linters {
+        registry.register(linter);
+    }
 
     let registry = Arc::new(registry);
 
