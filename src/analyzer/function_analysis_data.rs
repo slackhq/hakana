@@ -285,145 +285,7 @@ impl FunctionAnalysisData {
                         continue;
                     }
                 }
-                if match *hack_error {
-                    // Unify error
-                    4110 => matches!(
-                        issue_kind,
-                        IssueKind::FalsableReturnStatement
-                            | IssueKind::FalseArgument
-                            | IssueKind::ImpossibleAssignment
-                            | IssueKind::InvalidArgument
-                            | IssueKind::InvalidReturnStatement
-                            | IssueKind::InvalidReturnType
-                            | IssueKind::InvalidReturnValue
-                            | IssueKind::LessSpecificArgument
-                            | IssueKind::LessSpecificNestedArgumentType
-                            | IssueKind::LessSpecificNestedReturnStatement
-                            | IssueKind::LessSpecificReturnStatement
-                            | IssueKind::MixedArgument
-                            | IssueKind::MixedArrayAccess
-                            | IssueKind::MixedArrayAssignment
-                            | IssueKind::MixedMethodCall
-                            | IssueKind::MixedReturnStatement
-                            | IssueKind::MixedPropertyAssignment
-                            | IssueKind::MixedPropertyTypeCoercion
-                            | IssueKind::PropertyTypeCoercion
-                            | IssueKind::NonNullableReturnType
-                            | IssueKind::NullablePropertyAssignment
-                            | IssueKind::NullableReturnStatement
-                            | IssueKind::NullableReturnValue
-                            | IssueKind::PossiblyFalseArgument
-                            | IssueKind::PossiblyInvalidArgument
-                            | IssueKind::InvalidPropertyAssignmentValue
-                            | IssueKind::LessSpecificNestedAnyReturnStatement
-                            | IssueKind::LessSpecificNestedAnyArgumentType
-                    ),
-                    // type inference failed
-                    4297 => matches!(
-                        issue_kind,
-                        IssueKind::MixedAnyArgument
-                            | IssueKind::MixedAnyArrayAccess
-                            | IssueKind::MixedAnyArrayAssignment
-                            | IssueKind::MixedAnyArrayOffset
-                            | IssueKind::MixedAnyAssignment
-                            | IssueKind::MixedAnyMethodCall
-                            | IssueKind::MixedAnyPropertyAssignment
-                            | IssueKind::MixedAnyPropertyTypeCoercion
-                            | IssueKind::MixedAnyReturnStatement
-                            | IssueKind::MixedArgument
-                            | IssueKind::MixedArrayAccess
-                            | IssueKind::MixedArrayAssignment
-                            | IssueKind::MixedArrayOffset
-                            | IssueKind::MixedMethodCall
-                            | IssueKind::MixedPropertyAssignment
-                            | IssueKind::MixedPropertyTypeCoercion
-                            | IssueKind::MixedReturnStatement
-                    ),
-                    // RequiredFieldIsOptional
-                    4163 => match &issue_kind {
-                        IssueKind::InvalidArgument
-                        | IssueKind::InvalidReturnStatement
-                        | IssueKind::InvalidReturnType
-                        | IssueKind::InvalidReturnValue
-                        | IssueKind::LessSpecificArgument
-                        | IssueKind::LessSpecificNestedArgumentType
-                        | IssueKind::LessSpecificNestedReturnStatement
-                        | IssueKind::LessSpecificReturnStatement
-                        | IssueKind::PropertyTypeCoercion
-                        | IssueKind::PossiblyInvalidArgument => true,
-                        _ => false,
-                    },
-                    4324 => match &issue_kind {
-                        IssueKind::InvalidArgument | IssueKind::PossiblyInvalidArgument => true,
-                        _ => false,
-                    },
-                    4063 => match &issue_kind {
-                        IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess => true,
-                        _ => false,
-                    },
-                    4064 => match &issue_kind {
-                        IssueKind::PossiblyNullPropertyFetch => true,
-                        _ => false,
-                    },
-                    4005 => match &issue_kind {
-                        IssueKind::MixedArrayAccess => true,
-                        _ => false,
-                    },
-                    2049 => match &issue_kind {
-                        IssueKind::NonExistentMethod
-                        | IssueKind::NonExistentFunction
-                        | IssueKind::NonExistentClass => true,
-                        _ => false,
-                    },
-                    // missing member
-                    4053 => match &issue_kind {
-                        IssueKind::NonExistentMethod | IssueKind::NonExistentXhpAttribute => true,
-                        _ => false,
-                    },
-                    // missing shape field or shape field unknown
-                    4057 | 4138 => match &issue_kind {
-                        IssueKind::InvalidArgument
-                        | IssueKind::PossiblyInvalidArgument
-                        | IssueKind::LessSpecificArgument
-                        | IssueKind::LessSpecificReturnStatement
-                        | IssueKind::InvalidReturnStatement => true,
-                        _ => false,
-                    },
-                    4062 => match &issue_kind {
-                        IssueKind::MixedMethodCall => true,
-                        _ => false,
-                    },
-                    4321 | 4108 => match &issue_kind {
-                        IssueKind::UndefinedStringArrayOffset
-                        | IssueKind::UndefinedIntArrayOffset
-                        | IssueKind::ImpossibleNonnullEntryCheck => true,
-                        _ => false,
-                    },
-                    4165 => match &issue_kind {
-                        IssueKind::PossiblyUndefinedStringArrayOffset
-                        | IssueKind::PossiblyUndefinedIntArrayOffset => true,
-                        _ => false,
-                    },
-                    4249 | 4250 => match &issue_kind {
-                        IssueKind::RedundantKeyCheck | IssueKind::ImpossibleKeyCheck => {
-                            return true;
-                        }
-                        _ => false,
-                    },
-                    4107 => match &issue_kind {
-                        IssueKind::NonExistentFunction => true,
-                        _ => false,
-                    },
-                    4104 => match &issue_kind {
-                        IssueKind::TooFewArguments => true,
-                        _ => false,
-                    },
-                    4019 => match &issue_kind {
-                        IssueKind::NonExhaustiveSwitchStatement => true,
-                        _ => false,
-                    },
-                    _ => false,
-                } {
+                if hack_error_covers_issue(*hack_error, issue_kind) {
                     self.previously_used_fixme_positions
                         .insert(fixme_offsets, (issue_start_offset, issue_end_offset));
                     return true;
@@ -631,6 +493,128 @@ impl FunctionAnalysisData {
             .entry(insertion_point)
             .or_default()
             .push(replacement);
+    }
+}
+
+fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
+    match hack_error {
+        // Unify error
+        4110 => matches!(
+            issue_kind,
+            IssueKind::FalsableReturnStatement
+                | IssueKind::FalseArgument
+                | IssueKind::ImpossibleAssignment
+                | IssueKind::InvalidArgument
+                | IssueKind::InvalidReturnStatement
+                | IssueKind::InvalidReturnType
+                | IssueKind::InvalidReturnValue
+                | IssueKind::LessSpecificArgument
+                | IssueKind::LessSpecificNestedArgumentType
+                | IssueKind::LessSpecificNestedReturnStatement
+                | IssueKind::LessSpecificReturnStatement
+                | IssueKind::MixedArgument
+                | IssueKind::MixedArrayAccess
+                | IssueKind::MixedArrayAssignment
+                | IssueKind::MixedMethodCall
+                | IssueKind::MixedReturnStatement
+                | IssueKind::MixedPropertyAssignment
+                | IssueKind::MixedPropertyTypeCoercion
+                | IssueKind::PropertyTypeCoercion
+                | IssueKind::NonNullableReturnType
+                | IssueKind::NullablePropertyAssignment
+                | IssueKind::NullableReturnStatement
+                | IssueKind::NullableReturnValue
+                | IssueKind::PossiblyFalseArgument
+                | IssueKind::PossiblyInvalidArgument
+                | IssueKind::InvalidPropertyAssignmentValue
+                | IssueKind::LessSpecificNestedAnyReturnStatement
+                | IssueKind::LessSpecificNestedAnyArgumentType
+        ),
+        // Type inference failed
+        4297 => matches!(
+            issue_kind,
+            IssueKind::MixedAnyArgument
+                | IssueKind::MixedAnyArrayAccess
+                | IssueKind::MixedAnyArrayAssignment
+                | IssueKind::MixedAnyArrayOffset
+                | IssueKind::MixedAnyAssignment
+                | IssueKind::MixedAnyMethodCall
+                | IssueKind::MixedAnyPropertyAssignment
+                | IssueKind::MixedAnyPropertyTypeCoercion
+                | IssueKind::MixedAnyReturnStatement
+                | IssueKind::MixedArgument
+                | IssueKind::MixedArrayAccess
+                | IssueKind::MixedArrayAssignment
+                | IssueKind::MixedArrayOffset
+                | IssueKind::MixedMethodCall
+                | IssueKind::MixedPropertyAssignment
+                | IssueKind::MixedPropertyTypeCoercion
+                | IssueKind::MixedReturnStatement
+        ),
+        // RequiredFieldIsOptional
+        4163 => matches!(
+            issue_kind,
+            IssueKind::InvalidArgument
+                | IssueKind::InvalidReturnStatement
+                | IssueKind::InvalidReturnType
+                | IssueKind::InvalidReturnValue
+                | IssueKind::LessSpecificArgument
+                | IssueKind::LessSpecificNestedArgumentType
+                | IssueKind::LessSpecificNestedReturnStatement
+                | IssueKind::LessSpecificReturnStatement
+                | IssueKind::PropertyTypeCoercion
+                | IssueKind::PossiblyInvalidArgument
+        ),
+        4324 => matches!(
+            issue_kind,
+            IssueKind::InvalidArgument | IssueKind::PossiblyInvalidArgument
+        ),
+        4063 => matches!(
+            issue_kind,
+            IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess
+        ),
+        4064 => matches!(issue_kind, IssueKind::PossiblyNullPropertyFetch),
+        4005 => matches!(issue_kind, IssueKind::MixedArrayAccess),
+        2049 => matches!(
+            issue_kind,
+            IssueKind::NonExistentMethod
+                | IssueKind::NonExistentFunction
+                | IssueKind::NonExistentClass
+        ),
+        // Missing member
+        4053 => matches!(
+            issue_kind,
+            IssueKind::NonExistentMethod | IssueKind::NonExistentXhpAttribute
+        ),
+        // Missing shape field or shape field unknown
+        4057 | 4138 => matches!(
+            issue_kind,
+            IssueKind::InvalidArgument
+                | IssueKind::PossiblyInvalidArgument
+                | IssueKind::LessSpecificArgument
+                | IssueKind::LessSpecificReturnStatement
+                | IssueKind::InvalidReturnStatement
+        ),
+        4062 => matches!(issue_kind, IssueKind::MixedMethodCall),
+        4321 | 4108 => matches!(
+            issue_kind,
+            IssueKind::UndefinedStringArrayOffset
+                | IssueKind::UndefinedIntArrayOffset
+                | IssueKind::ImpossibleNonnullEntryCheck
+        ),
+        4165 => matches!(
+            issue_kind,
+            IssueKind::PossiblyUndefinedStringArrayOffset
+                | IssueKind::PossiblyUndefinedIntArrayOffset
+        ),
+        4249 | 4250 => matches!(
+            issue_kind,
+            IssueKind::RedundantKeyCheck | IssueKind::ImpossibleKeyCheck
+        ),
+        4107 => matches!(issue_kind, IssueKind::NonExistentFunction),
+        4104 => matches!(issue_kind, IssueKind::TooFewArguments),
+        4019 => matches!(issue_kind, IssueKind::NonExhaustiveSwitchStatement),
+        _ => false,
     }
 }
 
