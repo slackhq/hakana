@@ -418,6 +418,10 @@ impl FunctionAnalysisData {
                         IssueKind::TooFewArguments => true,
                         _ => false,
                     },
+                    4019 => match &issue_kind {
+                        IssueKind::NonExhaustiveSwitchStatement => true,
+                        _ => false,
+                    },
                     _ => false,
                 } {
                     self.previously_used_fixme_positions
