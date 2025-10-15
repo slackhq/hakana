@@ -2,7 +2,7 @@ use crate::{
     codebase_info::Symbols,
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
-    t_atomic::{DictKey, TAtomic, populate_atomic_type},
+    t_atomic::{DictKey, TAtomic, TVec, populate_atomic_type},
 };
 use derivative::Derivative;
 use hakana_str::{Interner, StrId};
@@ -459,14 +459,34 @@ impl TUnion {
 
     pub fn all_literals(&self) -> bool {
         self.types.iter().all(|atomic| {
-            matches!(
+            if matches!(
                 atomic,
                 TAtomic::TLiteralString { .. }
                     | TAtomic::TLiteralInt { .. }
                     | TAtomic::TStringWithFlags(_, _, true)
                     | TAtomic::TEnumLiteralCase { .. }
                     | TAtomic::TEnum { .. }
-            )
+                    | TAtomic::TNull
+                    | TAtomic::TFalse
+                    | TAtomic::TTrue
+            ) {
+                true
+            } else {
+                if let TAtomic::TVec(TVec {
+                    known_items: Some(known_items),
+                    type_param,
+                    ..
+                }) = atomic
+                {
+                    if type_param.is_nothing() {
+                        known_items.iter().all(|(_, t)| t.1.all_literals())
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
         })
     }
 

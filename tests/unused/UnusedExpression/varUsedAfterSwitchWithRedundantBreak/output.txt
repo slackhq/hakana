@@ -1,1 +1,2 @@
+ERROR: NonEnumSwitchValue - input.hack:2:13 - Switch statement without default case does not match all possible values of ?string
 ERROR: UselessControlFlow - input.hack:11:13 - This control flow is unnecessary

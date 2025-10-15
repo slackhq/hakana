@@ -620,7 +620,11 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
         ),
         4107 => matches!(issue_kind, IssueKind::NonExistentFunction),
         4104 => matches!(issue_kind, IssueKind::TooFewArguments),
-        4019 | 4489 => matches!(issue_kind, IssueKind::NonExhaustiveSwitchStatement),
+        4019 => matches!(issue_kind, IssueKind::NonExhaustiveSwitchStatement),
+        4489 => matches!(
+            issue_kind,
+            IssueKind::NonExhaustiveSwitchStatement | IssueKind::NonEnumSwitchValue
+        ),
         _ => false,
     }
 }

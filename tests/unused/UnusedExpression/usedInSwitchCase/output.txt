@@ -1,0 +1,1 @@
+NonEnumSwitchValue - input.hack:5:13 - Switch statement without default case does not match all possible values of string

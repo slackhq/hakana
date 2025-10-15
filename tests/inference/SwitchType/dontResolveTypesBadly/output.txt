@@ -1,0 +1,1 @@
+ERROR: NonEnumSwitchValue - input.hack:3:9 - Switch statement without default case does not match all possible values of int

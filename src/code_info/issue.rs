@@ -92,6 +92,7 @@ pub enum IssueKind {
     NonExistentProperty,
     NonExistentType,
     NonExistentXhpAttribute,
+    NonEnumSwitchValue,
     NonNullableReturnType,
     NothingReturn,
     NoValue,

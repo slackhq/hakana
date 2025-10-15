@@ -1,0 +1,1 @@
+ERROR: NonEnumSwitchValue - input.hack:7:12 - Switch statement without default case does not match all possible values of classname<A>

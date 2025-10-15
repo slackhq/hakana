@@ -4,6 +4,6 @@ function foo(string $s) : string {
             return "hello";
 
         case "b":
-        return "goodbye";
+            return "goodbye";
     }
 }

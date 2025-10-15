@@ -1,0 +1,1 @@
+ERROR: NonEnumSwitchValue - input.hack:2:13 - Switch statement without default case does not match all possible values of ?string

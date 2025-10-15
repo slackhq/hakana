@@ -86,6 +86,29 @@ pub(crate) fn analyze(
         None
     };
 
+    if stmt.2.is_none() {
+        if let Some(switch_var_type) = analysis_data.get_rc_expr_type(&stmt.0.1) {
+            if !switch_var_type.is_any()
+                && !switch_var_type.is_nothing()
+                && !switch_var_type.all_literals()
+            {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::NonEnumSwitchValue,
+                        format!(
+                            "Switch statement without default case does not match all possible values of {}",
+                            switch_var_type.get_id(Some(statements_analyzer.interner))
+                        ),
+                        statements_analyzer.get_hpos(stmt.0.pos()),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+    }
+
     let original_context = context.clone();
 
     let has_default = stmt.2.is_some();
