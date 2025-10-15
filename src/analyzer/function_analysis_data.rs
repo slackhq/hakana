@@ -285,6 +285,17 @@ impl FunctionAnalysisData {
                         continue;
                     }
                 }
+
+                if matches!(
+                    (issue_kind, hack_error),
+                    (
+                        IssueKind::RedundantKeyCheck | IssueKind::ImpossibleKeyCheck,
+                        4249 | 4250
+                    )
+                ) {
+                    return true;
+                }
+
                 if hack_error_covers_issue(*hack_error, issue_kind) {
                     self.previously_used_fixme_positions
                         .insert(fixme_offsets, (issue_start_offset, issue_end_offset));
@@ -606,10 +617,6 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
             issue_kind,
             IssueKind::PossiblyUndefinedStringArrayOffset
                 | IssueKind::PossiblyUndefinedIntArrayOffset
-        ),
-        4249 | 4250 => matches!(
-            issue_kind,
-            IssueKind::RedundantKeyCheck | IssueKind::ImpossibleKeyCheck
         ),
         4107 => matches!(issue_kind, IssueKind::NonExistentFunction),
         4104 => matches!(issue_kind, IssueKind::TooFewArguments),
