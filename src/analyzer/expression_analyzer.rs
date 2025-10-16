@@ -519,16 +519,34 @@ pub(crate) fn analyze(
                                     calling_class_info
                                         .and_then(|i| i.direct_parent_class)
                                         .map(|id| statements_analyzer.interner.lookup(&id))
+                                        .map(|str| str.to_string())
                                 } else {
                                     // self/static
-                                    calling_class.map(|calling_class_id| {
-                                        statements_analyzer.interner.lookup(&calling_class_id)
-                                    })
+                                    calling_class
+                                        .map(|calling_class_id| {
+                                            statements_analyzer.interner.lookup(&calling_class_id)
+                                        })
+                                        .map(|str| str.to_string())
                                 }
                             }
-                            // Anything else: nameof C where C is a classname literal.
+                            // Anything else: nameof C where C is a possibly
+                            // namespace-relative classname literal.
                             // C being invalid is already a typechecker error.
-                            class_name_literal => Some(class_name_literal),
+                            class_name_literal => {
+                                if class_name_literal.starts_with("\\") {
+                                    Some(class_name_literal[1..].to_string())
+                                } else {
+                                    // Resolve namespace-relative classname references.
+                                    statements_analyzer
+                                        .get_namespace()
+                                        .as_ref()
+                                        .filter(|namespace| !namespace.is_empty())
+                                        .map(|namespace| {
+                                            namespace.to_owned() + "\\" + class_name_literal
+                                        })
+                                        .or_else(|| Some(class_name_literal.to_string()))
+                                }
+                            }
                         }
                     } else {
                         None
