@@ -70,22 +70,7 @@ pub(crate) fn analyze(
             }
         }
         aast::Def::Constant(boxed) => {
-            let mut function_context = FunctionContext::new();
-            function_context.calling_class = Some(
-                if let Some(resolved_name) = statements_analyzer
-                    .file_analyzer
-                    .resolved_names
-                    .get(&(boxed.name.pos().start_offset() as u32))
-                {
-                    *resolved_name
-                } else {
-                    return Err(InternalError(
-                        "Could not resolve constant name".to_string(),
-                        statements_analyzer.get_hpos(boxed.name.pos()),
-                    ));
-                },
-            );
-
+            let function_context = FunctionContext::new();
             let mut context = BlockContext::new(function_context);
 
             if let Err(AnalysisError::InternalError(error, pos)) = expression_analyzer::analyze(
