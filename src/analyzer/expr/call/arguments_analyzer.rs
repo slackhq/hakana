@@ -17,13 +17,13 @@ use crate::expr::binop::assignment_analyzer;
 use crate::expr::call_analyzer::get_generic_param_for_offset;
 use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
+use crate::expr::fetch::class_constant_fetch_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, functionlike_analyzer};
-use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::classlike_info::ClassLikeInfo;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::data_flow::graph::GraphKind;
@@ -361,7 +361,6 @@ pub(crate) fn check_arguments_match(
             statements_analyzer,
             context,
             analysis_data,
-            function_call_pos,
             &param_type,
             &arg_value_type,
             arg,
@@ -1529,7 +1528,6 @@ fn check_classname_passed_as_string(
     statements_analyzer: &StatementsAnalyzer,
     context: &BlockContext,
     analysis_data: &mut FunctionAnalysisData,
-    function_call_pos: &Pos,
     param_type: &TUnion,
     arg_value_type: &TUnion,
     arg: &aast::Argument<(), ()>,
@@ -1537,68 +1535,12 @@ fn check_classname_passed_as_string(
     let is_string_param = param_type.types.iter().any(|t| *t == TAtomic::TString);
 
     if is_string_param {
-        if let Some(TAtomic::TLiteralClassname { name: _ }) = arg_value_type
-            .types
-            .iter()
-            .find(|t| matches!(t, TAtomic::TLiteralClassname { name: _ }))
-        {
-            let arg_expr = arg.to_expr_ref();
-
-            // The RHS argument of `nameof` must be a classname literal;
-            // `nameof $some_var_holding_classname` does not typecheck.
-            if let Some(class_name) = get_class_name_from_classname_literal_expr(arg_expr) {
-                let issue = Issue::new(
-                    IssueKind::ClassnameUsedAsString,
-                    format!(
-                        "Using {} in this position will lead to an implicit runtime conversion to string, please use \"nameof {}\" instead",
-                        class_name, class_name
-                    ),
-                    statements_analyzer.get_hpos(function_call_pos),
-                    &context.function_context.calling_functionlike_id,
-                );
-
-                let config = statements_analyzer.get_config();
-
-                if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
-                    // Only replace code that's not already covered by a FIXME
-                    if !context
-                        .function_context
-                        .is_production(statements_analyzer.codebase)
-                        || analysis_data.get_matching_hakana_fixme(&issue).is_none()
-                    {
-                        let arg_pos = arg_expr.pos();
-                        let nameof_expr = format!("nameof {}", class_name);
-                        analysis_data.add_replacement(
-                            (arg_pos.start_offset() as u32, arg_pos.end_offset() as u32),
-                            Replacement::Substitute(nameof_expr),
-                        );
-                    }
-                } else {
-                    analysis_data.maybe_add_issue(
-                        issue,
-                        config,
-                        statements_analyzer.get_file_path_actual(),
-                    );
-                }
-            }
-        }
-    }
-}
-
-/// Extract the referenced class name from a classname literal expression in the form of C::class.
-/// Returns `None` if the class name cannot be determined.
-fn get_class_name_from_classname_literal_expr(expr: &aast::Expr<(), ()>) -> Option<&str> {
-    if let aast::Expr_::ClassConst(class_id) = &expr.2 {
-        if let aast::ClassId_::CIexpr(ci_expr) = &(**class_id).0.2 {
-            if let aast::Expr_::Id(inner_class_id) = &ci_expr.2 {
-                Some(inner_class_id.name())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
+        class_constant_fetch_analyzer::check_classname_used_as_string(
+            statements_analyzer,
+            context,
+            analysis_data,
+            arg_value_type,
+            arg.to_expr_ref(),
+        );
     }
 }
