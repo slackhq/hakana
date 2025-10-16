@@ -1,0 +1,11 @@
+namespace Foo;
+
+final class A {}
+
+const keyset<classname<A>> CLASS_KEYSET  = keyset[
+    nameof A
+];
+
+const dict<classname<A>, int> CLASS_DICT = dict[
+    nameof A => 5,
+];

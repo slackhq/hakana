@@ -1,0 +1,2 @@
+ERROR: ClassnameUsedAsString - input.hack:6:5 - Using A in this position will lead to an implicit runtime conversion to string, please use "nameof A" instead
+ERROR: ClassnameUsedAsString - input.hack:10:5 - Using A in this position will lead to an implicit runtime conversion to string, please use "nameof A" instead
