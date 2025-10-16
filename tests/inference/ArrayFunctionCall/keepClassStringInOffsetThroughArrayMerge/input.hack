@@ -7,7 +7,7 @@ final class A {
     }
 
     public function handle(): void {
-        $b = dict[A::class => "d"];
+        $b = dict[nameof A => "d"];
         $this->a = array_merge($this->a, $b);
     }
 }

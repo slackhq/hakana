@@ -20,6 +20,7 @@ use oxidized::{
     tast::{KvcKind, VcKind},
 };
 
+use crate::expr::fetch::class_constant_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
@@ -372,6 +373,18 @@ fn analyze_vals_item(
         array_creation_info,
     );
 
+    // Using a classname type inside a keyset<string> or keyset<classname<C>>
+    // is a typechecker error in new Hack.
+    if matches!(container_type, VcKind::Keyset) {
+        class_constant_fetch_analyzer::check_classname_used_as_string(
+            statements_analyzer,
+            context,
+            analysis_data,
+            &value_item_type,
+            item_value,
+        );
+    }
+
     if key_item_type.is_single() && key_item_type.has_int() && matches!(container_type, VcKind::Vec)
     {
         array_creation_info
@@ -400,19 +413,20 @@ fn analyze_keyvals_item(
     container_type: &KvcKind,
     analysis_data: &mut FunctionAnalysisData,
 ) -> Result<(), AnalysisError> {
+    let oxidized::tast::Field(key, value) = &item;
     // Analyze type for key
-    expression_analyzer::analyze(statements_analyzer, &item.0, analysis_data, context, true)?;
+    expression_analyzer::analyze(statements_analyzer, key, analysis_data, context, true)?;
 
     array_creation_info.effects |= analysis_data
         .expr_effects
         .get(&(
-            item.0.pos().start_offset() as u32,
-            item.0.pos().end_offset() as u32,
+            key.pos().start_offset() as u32,
+            key.pos().end_offset() as u32,
         ))
         .unwrap_or(&0);
 
     let key_item_type = analysis_data
-        .get_expr_type(item.0.pos())
+        .get_expr_type(key.pos())
         .cloned()
         .unwrap_or(get_arraykey(true));
 
@@ -420,23 +434,35 @@ fn analyze_keyvals_item(
         statements_analyzer,
         &key_item_type,
         analysis_data,
-        item.0.pos(),
+        key.pos(),
         array_creation_info,
     );
 
+    // Using a classname type as the key of a dict<string, T> or dict<classname<C>, T>
+    // is a typechecker error in new Hack.
+    if matches!(container_type, KvcKind::Dict) {
+        class_constant_fetch_analyzer::check_classname_used_as_string(
+            statements_analyzer,
+            context,
+            analysis_data,
+            &key_item_type,
+            key,
+        );
+    }
+
     // Now check types of the values
-    expression_analyzer::analyze(statements_analyzer, &item.1, analysis_data, context, true)?;
+    expression_analyzer::analyze(statements_analyzer, value, analysis_data, context, true)?;
 
     array_creation_info.effects |= analysis_data
         .expr_effects
         .get(&(
-            item.1.pos().start_offset() as u32,
-            item.1.pos().end_offset() as u32,
+            value.pos().start_offset() as u32,
+            value.pos().end_offset() as u32,
         ))
         .unwrap_or(&0);
 
     let value_item_type = analysis_data
-        .get_expr_type(item.1.pos())
+        .get_expr_type(value.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
 
@@ -445,7 +471,7 @@ fn analyze_keyvals_item(
         &value_item_type,
         analysis_data,
         &key_item_type,
-        &item.1,
+        value,
         array_creation_info,
     );
 

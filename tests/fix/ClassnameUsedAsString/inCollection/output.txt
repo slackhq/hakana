@@ -1,0 +1,49 @@
+namespace Foo {
+	final class A {}
+
+    function namespaced_keyset(): keyset<string> {
+        return keyset[nameof A];
+    }
+
+    function namespaced_dict(): dict<string, int> {
+        return dict[nameof A => 1];
+    }
+}
+
+namespace {
+	abstract class B {}
+
+	final class C extends B {}
+
+	function in_string_keyset(): keyset<string> {
+		return keyset[
+			nameof Foo\A,
+			nameof B,
+		];
+	}
+
+	function in_classname_keyset(): keyset<classname<B>> {
+		return keyset[
+			nameof B,
+			nameof C,
+		];
+	}
+
+	function as_dict_key(): dict<string, int> {
+		return dict[
+			nameof Foo\A => 1,
+			nameof B => 2,
+		];
+	}
+
+	function as_dict_classname_key(): dict<classname<B>, int> {
+		return dict[
+			nameof B => 1,
+			nameof C => 2,
+		];
+	}
+
+    function valid(): vec<classname<B>> {
+		return vec[B::class];
+	}
+}
