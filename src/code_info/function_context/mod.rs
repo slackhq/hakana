@@ -72,17 +72,14 @@ impl FunctionContext {
 
         match functionlike_info {
             Some(functionlike_info) => functionlike_info.is_production_code,
-            _ => {
-                if let Some(calling_class) = self.calling_class {
-                    codebase
-                        .classlike_infos
-                        .get(&calling_class)
-                        .unwrap()
-                        .is_production_code
-                } else {
-                    false
-                }
-            }
+            _ => self
+                .calling_class
+                .and_then(|calling_class| codebase.classlike_infos.get(&calling_class))
+                // The calling class ID may not actually point to a valid class
+                // because we set it to a fake ID when analyzing global constants.
+                .map_or(false, |calling_class_info| {
+                    calling_class_info.is_production_code
+                }),
         }
     }
 
