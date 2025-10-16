@@ -1,0 +1,10 @@
+ERROR: ClassnameUsedAsString - input.hack:5:23 - Using A in this position will lead to an implicit runtime conversion to string, please use "nameof A" instead
+ERROR: ClassnameUsedAsString - input.hack:9:21 - Using A in this position will lead to an implicit runtime conversion to string, please use "nameof A" instead
+ERROR: ClassnameUsedAsString - input.hack:20:4 - Using Foo\A in this position will lead to an implicit runtime conversion to string, please use "nameof Foo\A" instead
+ERROR: ClassnameUsedAsString - input.hack:21:4 - Using B in this position will lead to an implicit runtime conversion to string, please use "nameof B" instead
+ERROR: ClassnameUsedAsString - input.hack:27:4 - Using B in this position will lead to an implicit runtime conversion to string, please use "nameof B" instead
+ERROR: ClassnameUsedAsString - input.hack:28:4 - Using C in this position will lead to an implicit runtime conversion to string, please use "nameof C" instead
+ERROR: ClassnameUsedAsString - input.hack:34:4 - Using Foo\A in this position will lead to an implicit runtime conversion to string, please use "nameof Foo\A" instead
+ERROR: ClassnameUsedAsString - input.hack:35:4 - Using B in this position will lead to an implicit runtime conversion to string, please use "nameof B" instead
+ERROR: ClassnameUsedAsString - input.hack:41:4 - Using B in this position will lead to an implicit runtime conversion to string, please use "nameof B" instead
+ERROR: ClassnameUsedAsString - input.hack:42:4 - Using C in this position will lead to an implicit runtime conversion to string, please use "nameof C" instead
