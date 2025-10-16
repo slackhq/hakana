@@ -16,6 +16,7 @@ pub mod expression_identifier;
 pub(crate) mod fetch;
 pub(crate) mod include_analyzer;
 pub(crate) mod isset_analyzer;
+pub(crate) mod nameof_analyzer;
 pub(crate) mod pipe_analyzer;
 pub(crate) mod prefixed_string_analyzer;
 pub(crate) mod shape_analyzer;
