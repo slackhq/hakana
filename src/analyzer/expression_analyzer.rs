@@ -11,8 +11,8 @@ use crate::expr::fetch::{
 use crate::expr::{
     as_analyzer, await_analyzer, binop_analyzer, call_analyzer, cast_analyzer, closure_analyzer,
     collection_analyzer, const_fetch_analyzer, expression_identifier, include_analyzer,
-    nameof_analyzer, pipe_analyzer, prefixed_string_analyzer, shape_analyzer, ternary_analyzer,
-    tuple_analyzer, unop_analyzer, variable_fetch_analyzer, xml_analyzer, yield_analyzer,
+    pipe_analyzer, prefixed_string_analyzer, shape_analyzer, ternary_analyzer, tuple_analyzer,
+    unop_analyzer, variable_fetch_analyzer, xml_analyzer, yield_analyzer,
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
@@ -483,7 +483,70 @@ pub(crate) fn analyze(
             //return Err(AnalysisError::UserError);
         }
         aast::Expr_::Nameof(class_id) => {
-            nameof_analyzer::analyze(statements_analyzer, analysis_data, context, expr, class_id);
+            let resolved_class_name = {
+                let calling_class = context.function_context.calling_class;
+
+                let calling_class_info = calling_class.and_then(|calling_class_id| {
+                    statements_analyzer
+                        .codebase
+                        .classlike_infos
+                        .get(&calling_class_id)
+                });
+
+                // The RHS of a nameof expression always seems to be a CIexpr,
+                // even if a classname literal or a keyword like self/static/parent is passed.
+                if let aast::ClassId_::CIexpr(ci_expr) = &class_id.2 {
+                    if let aast::Expr_::Id(inner_class_id) = &ci_expr.2 {
+                        match inner_class_id.name() {
+                            "self" | "static" | "parent" => {
+                                // The Hack typechecker allows nameof self/parent/static outside of a class context.
+                                // This would probably be an error more often than not, so disallow it.
+                                if calling_class.is_none() {
+                                    analysis_data.maybe_add_issue(
+                                        Issue::new(
+                                            IssueKind::NameofUsedOutsideClassWithoutLiteral,
+                                            "nameof used outside of a class context with a non-literal target".to_string(),
+                                            statements_analyzer.get_hpos(&expr.1),
+                                            &context.function_context.calling_functionlike_id,
+                                        ),
+                                        statements_analyzer.get_config(),
+                                        statements_analyzer.get_file_path_actual()
+                                    );
+                                }
+
+                                // nameof parent in a class that has no parent is a typechecker error.
+                                if inner_class_id.name() == "parent" {
+                                    calling_class_info
+                                        .and_then(|i| i.direct_parent_class)
+                                        .map(|id| statements_analyzer.interner.lookup(&id))
+                                } else {
+                                    // self/static
+                                    calling_class.map(|calling_class_id| {
+                                        statements_analyzer.interner.lookup(&calling_class_id)
+                                    })
+                                }
+                            }
+                            // Anything else: nameof C where C is a classname literal.
+                            // C being invalid is already a typechecker error.
+                            class_name_literal => Some(class_name_literal),
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            };
+
+            let resolved_nameof_type =
+                resolved_class_name.map_or(TAtomic::TString, |s| TAtomic::TLiteralString {
+                    value: s.to_string(),
+                });
+
+            analysis_data.expr_types.insert(
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
+                Rc::new(wrap_atomic(resolved_nameof_type)),
+            );
         }
         aast::Expr_::Package(_) => todo!(),
         aast::Expr_::Assign(boxed) => {
