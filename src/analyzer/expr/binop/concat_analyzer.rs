@@ -1,3 +1,4 @@
+use crate::expr::fetch::class_constant_fetch_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -33,8 +34,13 @@ pub(crate) fn analyze<'expr>(
         )?;
     }
 
-    let result_type =
-        analyze_concat_nodes(concat_nodes, statements_analyzer, analysis_data, stmt_pos);
+    let result_type = analyze_concat_nodes(
+        concat_nodes,
+        statements_analyzer,
+        analysis_data,
+        context,
+        stmt_pos,
+    );
 
     // todo handle more string type combinations
 
@@ -47,6 +53,7 @@ pub(crate) fn analyze_concat_nodes(
     concat_nodes: Vec<&aast::Expr<(), ()>>,
     statements_analyzer: &StatementsAnalyzer<'_>,
     analysis_data: &mut FunctionAnalysisData,
+    context: &mut BlockContext,
     stmt_pos: &aast::Pos,
 ) -> TUnion {
     let mut all_literals = true;
@@ -80,10 +87,13 @@ pub(crate) fn analyze_concat_nodes(
                 has_query = true;
             }
         } else {
-            let expr_type = analysis_data.expr_types.get(&(
-                concat_node.pos().start_offset() as u32,
-                concat_node.pos().end_offset() as u32,
-            ));
+            let expr_type = analysis_data
+                .expr_types
+                .get(&(
+                    concat_node.pos().start_offset() as u32,
+                    concat_node.pos().end_offset() as u32,
+                ))
+                .map(|t| t.clone());
 
             if let Some(expr_type) = expr_type {
                 let mut local_nonempty_string = true;
@@ -128,6 +138,14 @@ pub(crate) fn analyze_concat_nodes(
                         }
                     }
                 }
+
+                class_constant_fetch_analyzer::check_classname_used_as_string(
+                    statements_analyzer,
+                    context,
+                    analysis_data,
+                    &expr_type,
+                    concat_node,
+                );
 
                 if local_nonempty_string {
                     nonempty_string = true;

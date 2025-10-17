@@ -348,6 +348,7 @@ pub(crate) fn analyze(
                 exprs.iter().collect(),
                 statements_analyzer,
                 analysis_data,
+                context,
                 expr.pos(),
             );
 
