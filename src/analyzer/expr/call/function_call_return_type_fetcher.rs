@@ -443,6 +443,7 @@ fn handle_special_functions(
                             args,
                             statements_analyzer,
                             analysis_data,
+                            context,
                             pos,
                         ));
                     }
@@ -464,6 +465,7 @@ fn handle_special_functions(
                             args,
                             statements_analyzer,
                             analysis_data,
+                            context,
                             pos,
                         ));
                     }
@@ -703,6 +705,7 @@ fn handle_str_format(
     args: &[aast::Argument<(), ()>],
     statements_analyzer: &StatementsAnalyzer<'_>,
     analysis_data: &mut FunctionAnalysisData,
+    context: &mut BlockContext,
     pos: &Pos,
 ) -> TUnion {
     let mut escaped = false;
@@ -763,7 +766,13 @@ fn handle_str_format(
         }
     }
 
-    analyze_concat_nodes(concat_args, statements_analyzer, analysis_data, pos)
+    analyze_concat_nodes(
+        concat_args,
+        statements_analyzer,
+        analysis_data,
+        context,
+        pos,
+    )
 }
 
 fn get_type_structure_type(

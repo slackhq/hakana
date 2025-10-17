@@ -1,0 +1,20 @@
+namespace N {
+    final class A {
+        public const VALID = 'valid';
+        public static string $foo = 'valid';
+    }
+
+    function test(): string {
+        $s = A::VALID . 'bar' . nameof A . 'baz' . A::$foo;
+        $s .= \sprintf("%d %s", 5, nameof A);
+        $s .= \HH\Lib\Str\format("foo %s", nameof \B);
+        return $s;
+    }
+}
+
+namespace {
+    final class B {}
+    function test(): string {
+        return nameof B . "test" . nameof N\A;
+    }
+}
