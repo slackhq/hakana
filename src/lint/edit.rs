@@ -1,6 +1,7 @@
 //! Text edit representation for auto-fixes
 
 use std::fmt;
+use std::path::PathBuf;
 
 /// A single text edit (replacement at a byte range)
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,10 +41,51 @@ impl fmt::Display for Edit {
     }
 }
 
+/// A file operation (creation, deletion, etc.)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileOperation {
+    /// Type of operation
+    pub op_type: FileOpType,
+    /// Target file path (relative to the original file or absolute)
+    pub path: PathBuf,
+    /// Content for file creation
+    pub content: Option<String>,
+}
+
+/// Type of file operation
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileOpType {
+    /// Create a new file
+    Create,
+    /// Delete an existing file
+    Delete,
+}
+
+impl FileOperation {
+    /// Create a new file operation
+    pub fn create_file(path: PathBuf, content: String) -> Self {
+        Self {
+            op_type: FileOpType::Create,
+            path,
+            content: Some(content),
+        }
+    }
+
+    /// Delete a file operation
+    pub fn delete_file(path: PathBuf) -> Self {
+        Self {
+            op_type: FileOpType::Delete,
+            path,
+            content: None,
+        }
+    }
+}
+
 /// A set of edits that can be applied to a file
 #[derive(Debug, Clone, Default)]
 pub struct EditSet {
     edits: Vec<Edit>,
+    file_operations: Vec<FileOperation>,
 }
 
 impl EditSet {
@@ -66,7 +108,22 @@ impl EditSet {
 
     /// Check if the edit set is empty
     pub fn is_empty(&self) -> bool {
-        self.edits.is_empty()
+        self.edits.is_empty() && self.file_operations.is_empty()
+    }
+
+    /// Add a file operation to the set
+    pub fn add_file_operation(&mut self, operation: FileOperation) {
+        self.file_operations.push(operation);
+    }
+
+    /// Get all file operations
+    pub fn file_operations(&self) -> &[FileOperation] {
+        &self.file_operations
+    }
+
+    /// Check if there are any file operations
+    pub fn has_file_operations(&self) -> bool {
+        !self.file_operations.is_empty()
     }
 
     /// Apply all edits to a source string

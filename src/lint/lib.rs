@@ -43,7 +43,7 @@ pub mod runner;
 pub mod visitor;
 
 pub use context::LintContext;
-pub use edit::{Edit, EditSet};
+pub use edit::{Edit, EditSet, FileOpType, FileOperation};
 pub use error::{LintError, Severity};
 pub use hhast_config::{HhastLintConfig, map_hhast_linter_to_hakana};
 pub use linter::Linter;

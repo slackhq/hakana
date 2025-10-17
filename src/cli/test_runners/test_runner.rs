@@ -29,6 +29,7 @@ use walkdir::WalkDir;
 
 pub trait HooksProvider {
     fn get_hooks_for_test(&self, dir: &str) -> Vec<Box<dyn CustomHook>>;
+    fn get_linters_for_test(&self, dir: &str) -> Vec<Box<dyn hakana_lint::Linter>>;
 }
 
 fn format_diff(expected: &str, actual: &str) -> String {
@@ -789,40 +790,10 @@ impl TestRunner {
         had_error: &mut bool,
         test_diagnostics: &mut Vec<(String, String)>,
     ) -> (String, Option<SuccessfulScanData>, Option<AnalysisResult>) {
-        use hakana_lint::examples;
+        // Get linters from the provider
+        let provided_linters = self.0.get_linters_for_test(&dir);
 
-        // Determine which linter to use based on directory name
-        let all_linters: Vec<(&str, &dyn hakana_lint::Linter)> = vec![
-            (
-                "MustUseBracesForControlFlowLinter",
-                &examples::must_use_braces_for_control_flow::MustUseBracesForControlFlowLinter,
-            ),
-            (
-                "DontDiscardNewExpressionsLinter",
-                &examples::dont_discard_new_expressions::DontDiscardNewExpressionsLinter,
-            ),
-            (
-                "NoEmptyStatementsLinter",
-                &examples::no_empty_statements::NoEmptyStatementsLinter,
-            ),
-            (
-                "NoWhitespaceAtEndOfLineLinter",
-                &examples::no_whitespace_at_end_of_line::NoWhitespaceAtEndOfLineLinter,
-            ),
-            (
-                "UseStatementWithoutKindLinter",
-                &examples::use_statement_without_kind::UseStatementWithoutKindLinter,
-            ),
-        ];
-
-        // Find the linter that matches the directory name
-        let linters: Vec<&dyn hakana_lint::Linter> = all_linters
-            .iter()
-            .filter(|(name, _)| dir.contains(name))
-            .map(|(_, linter)| *linter)
-            .collect();
-
-        if linters.is_empty() {
+        if provided_linters.is_empty() {
             test_diagnostics.push((
                 dir.clone(),
                 format!("No matching linter found for directory: {}", dir),
@@ -830,6 +801,12 @@ impl TestRunner {
             *had_error = true;
             return ("F".to_string(), None, None);
         }
+
+        // Convert Box<dyn Linter> to &dyn Linter references
+        let linters: Vec<&dyn hakana_lint::Linter> = provided_linters
+            .iter()
+            .map(|linter| linter.as_ref())
+            .collect();
 
         let config = hakana_lint::LintConfig {
             allow_auto_fix: false,

@@ -48,6 +48,9 @@ pub struct LintResult {
 
     /// The modified source code (if fixes were applied)
     pub modified_source: Option<String>,
+
+    /// File operations to perform (create/delete files)
+    pub file_operations: Vec<super::FileOperation>,
 }
 
 impl LintResult {
@@ -303,6 +306,7 @@ pub fn run_linters(
     // Apply auto-fixes if requested
     let mut fixes_applied = false;
     let mut modified_source = None;
+    let mut file_operations = Vec::new();
 
     if config.apply_auto_fix && config.allow_auto_fix {
         let mut edits = super::EditSet::new();
@@ -311,6 +315,8 @@ pub fn run_linters(
                 for edit in fix.edits() {
                     edits.add(edit);
                 }
+                // Collect file operations
+                file_operations.extend(fix.file_operations().iter().cloned());
             }
         }
 
@@ -332,6 +338,7 @@ pub fn run_linters(
         errors: all_errors,
         fixes_applied,
         modified_source,
+        file_operations,
     })
 }
 

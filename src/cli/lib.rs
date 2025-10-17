@@ -2006,6 +2006,72 @@ fn do_lint(
 
                         // Apply fixes if requested and available
                         if apply_fixes {
+                            let mut file_ops_applied = false;
+
+                            // Apply file operations (create/delete files)
+                            if !result.file_operations.is_empty() {
+                                for file_op in &result.file_operations {
+                                    match &file_op.op_type {
+                                        hakana_lint::FileOpType::Create => {
+                                            if let Some(ref content) = file_op.content {
+                                                // Resolve relative paths relative to the source file's directory
+                                                let target_path = if file_op.path.is_absolute() {
+                                                    file_op.path.clone()
+                                                } else if let Some(parent) = path.parent() {
+                                                    parent.join(&file_op.path)
+                                                } else {
+                                                    file_op.path.clone()
+                                                };
+
+                                                match fs::write(&target_path, content) {
+                                                    Ok(_) => {
+                                                        lint_output.lock().unwrap().push(format!(
+                                                            "Created: {}",
+                                                            target_path.display()
+                                                        ));
+                                                        file_ops_applied = true;
+                                                    }
+                                                    Err(e) => {
+                                                        lint_output.lock().unwrap().push(format!(
+                                                            "Error creating {}: {}",
+                                                            target_path.display(),
+                                                            e
+                                                        ));
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        hakana_lint::FileOpType::Delete => {
+                                            let target_path = if file_op.path.is_absolute() {
+                                                file_op.path.clone()
+                                            } else if let Some(parent) = path.parent() {
+                                                parent.join(&file_op.path)
+                                            } else {
+                                                file_op.path.clone()
+                                            };
+
+                                            match fs::remove_file(&target_path) {
+                                                Ok(_) => {
+                                                    lint_output.lock().unwrap().push(format!(
+                                                        "Deleted: {}",
+                                                        target_path.display()
+                                                    ));
+                                                    file_ops_applied = true;
+                                                }
+                                                Err(e) => {
+                                                    lint_output.lock().unwrap().push(format!(
+                                                        "Error deleting {}: {}",
+                                                        target_path.display(),
+                                                        e
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Apply text edits to the source file
                             if let Some(fixed_source) = result.modified_source {
                                 match fs::write(&path, fixed_source) {
                                     Ok(_) => {
@@ -2022,6 +2088,9 @@ fn do_lint(
                                         ));
                                     }
                                 }
+                            } else if file_ops_applied {
+                                // If we only did file operations, count that as a fix
+                                *total_fixed.lock().unwrap() += 1;
                             }
                         }
                     }
