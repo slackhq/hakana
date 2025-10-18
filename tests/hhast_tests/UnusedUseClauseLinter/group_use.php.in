@@ -1,0 +1,25 @@
+<?hh
+
+use namespace Foo\{UnusedFirst, B, C};
+use namespace Foo\{A, UnusedMid, C};
+use namespace Foo\{A, B, UnusedLast};
+
+use namespace Foo\{
+    UnusedFirst,
+    B,
+    C,
+};
+use namespace Foo\{
+    A,
+    UnusedMid,
+    C,
+};
+use namespace Foo\{
+    A,
+    B,
+    UnusedLast,
+};
+
+A\foo();
+B\bar();
+C\baz();

@@ -1,0 +1,17 @@
+[
+    {
+        "blame": "\nuse namespace HH\\Lib\\{C, Str};\n",
+        "blame_pretty": "\nuse namespace HH\\Lib\\{C, Str};\n",
+        "description": "`Str` is not used"
+    },
+    {
+        "blame": "use namespace HH\\Lib\\C, HH\\Lib\\Str;\n",
+        "blame_pretty": "use namespace HH\\Lib\\C, HH\\Lib\\Str;\n",
+        "description": "`Str` is not used"
+    },
+    {
+        "blame": "use namespace HH\\Lib\\{\n  C,\n  Str,\n};\n",
+        "blame_pretty": "use namespace HH\\Lib\\{\n  C,\n  Str,\n};\n",
+        "description": "`Str` is not used"
+    }
+]

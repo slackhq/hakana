@@ -19,6 +19,7 @@ impl HooksProvider for CoreHooksProvider {
             Box::new(examples::dont_discard_new_expressions::DontDiscardNewExpressionsLinter),
             Box::new(examples::no_empty_statements::NoEmptyStatementsLinter),
             Box::new(examples::no_whitespace_at_end_of_line::NoWhitespaceAtEndOfLineLinter),
+            Box::new(examples::unused_use_clause::UnusedUseClauseLinter::new()),
             Box::new(examples::use_statement_without_kind::UseStatementWithoutKindLinter),
         ];
 

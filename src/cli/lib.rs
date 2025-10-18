@@ -1963,6 +1963,7 @@ fn do_lint(
         examples::must_use_braces_for_control_flow::MustUseBracesForControlFlowLinter,
     ));
     registry.register(Box::new(examples::no_await_in_loop::NoAwaitInLoopLinter));
+    registry.register(Box::new(examples::unused_use_clause::UnusedUseClauseLinter::new()));
 
     // Register custom linters
     for linter in custom_linters {

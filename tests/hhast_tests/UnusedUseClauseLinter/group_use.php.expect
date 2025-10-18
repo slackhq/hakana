@@ -1,0 +1,32 @@
+[
+    {
+        "blame": "\nuse namespace Foo\\{UnusedFirst, B, C};\n",
+        "blame_pretty": "\nuse namespace Foo\\{UnusedFirst, B, C};\n",
+        "description": "`UnusedFirst` is not used"
+    },
+    {
+        "blame": "use namespace Foo\\{A, UnusedMid, C};\n",
+        "blame_pretty": "use namespace Foo\\{A, UnusedMid, C};\n",
+        "description": "`UnusedMid` is not used"
+    },
+    {
+        "blame": "use namespace Foo\\{A, B, UnusedLast};\n",
+        "blame_pretty": "use namespace Foo\\{A, B, UnusedLast};\n",
+        "description": "`UnusedLast` is not used"
+    },
+    {
+        "blame": "\nuse namespace Foo\\{\n    UnusedFirst,\n    B,\n    C,\n};\n",
+        "blame_pretty": "\nuse namespace Foo\\{\n    UnusedFirst,\n    B,\n    C,\n};\n",
+        "description": "`UnusedFirst` is not used"
+    },
+    {
+        "blame": "use namespace Foo\\{\n    A,\n    UnusedMid,\n    C,\n};\n",
+        "blame_pretty": "use namespace Foo\\{\n    A,\n    UnusedMid,\n    C,\n};\n",
+        "description": "`UnusedMid` is not used"
+    },
+    {
+        "blame": "use namespace Foo\\{\n    A,\n    B,\n    UnusedLast,\n};\n",
+        "blame_pretty": "use namespace Foo\\{\n    A,\n    B,\n    UnusedLast,\n};\n",
+        "description": "`UnusedLast` is not used"
+    }
+]

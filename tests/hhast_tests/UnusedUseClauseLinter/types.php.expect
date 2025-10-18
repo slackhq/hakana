@@ -1,0 +1,7 @@
+[
+    {
+        "blame": "\nuse type Foo\\{\n  GenericConstraint,\n  GenericParentClass,\n  GenericType,\n  InstanceOfType,\n  InstantiatedClass,\n  ParameterType,\n  ParentClass,\n  ParentClassGeneric,\n  ReturnType,\n  Unused,\n  UserAttribute,\n  UsedAsType,\n  UsedIsType,\n  UsedTrait,\n};\n",
+        "blame_pretty": "\nuse type Foo\\{\n  GenericConstraint,\n  GenericParentClass,\n  GenericType,\n  InstanceOfType,\n  InstantiatedClass,\n  ParameterType,\n  ParentClass,\n  ParentClassGeneric,\n  ReturnType,\n  Unused,\n  UserAttribute,\n  UsedAsType,\n  UsedIsType,\n  UsedTrait,\n};\n",
+        "description": "`Unused` is not used"
+    }
+]

@@ -1,0 +1,10 @@
+<?hh
+
+use namespace HH\Lib\{C, Str};
+use namespace HH\Lib\C, HH\Lib\Str;
+use namespace HH\Lib\{
+  C,
+  Str,
+};
+
+C\foo();

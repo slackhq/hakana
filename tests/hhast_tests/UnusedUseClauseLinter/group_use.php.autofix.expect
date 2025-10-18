@@ -1,0 +1,22 @@
+<?hh
+
+use namespace Foo\{B, C};
+use namespace Foo\{A, C};
+use namespace Foo\{A, B};
+
+use namespace Foo\{
+    B,
+    C,
+};
+use namespace Foo\{
+    A,
+    C,
+};
+use namespace Foo\{
+    A,
+    B,
+};
+
+A\foo();
+B\bar();
+C\baz();

@@ -1,0 +1,7 @@
+<?hh
+
+use namespace HH\Lib\C;
+use namespace HH\Lib\C;
+use namespace HH\Lib\C;
+
+C\foo();

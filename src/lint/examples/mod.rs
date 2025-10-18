@@ -21,6 +21,7 @@ pub mod must_use_braces_for_control_flow;
 pub mod no_await_in_loop;
 pub mod no_empty_statements;
 pub mod no_whitespace_at_end_of_line;
+pub mod unused_use_clause;
 pub mod use_statement_without_kind;
 
 pub use dont_discard_new_expressions::DontDiscardNewExpressionsLinter;
@@ -28,6 +29,7 @@ pub use must_use_braces_for_control_flow::MustUseBracesForControlFlowLinter;
 pub use no_await_in_loop::NoAwaitInLoopLinter;
 pub use no_empty_statements::NoEmptyStatementsLinter;
 pub use no_whitespace_at_end_of_line::NoWhitespaceAtEndOfLineLinter;
+pub use unused_use_clause::UnusedUseClauseLinter;
 pub use use_statement_without_kind::UseStatementWithoutKindLinter;
 
 /// Get all built-in example linters
@@ -38,6 +40,7 @@ pub fn all_example_linters() -> Vec<Box<dyn crate::Linter>> {
         Box::new(NoAwaitInLoopLinter::new()),
         Box::new(NoEmptyStatementsLinter::new()),
         Box::new(NoWhitespaceAtEndOfLineLinter::new()),
+        Box::new(UnusedUseClauseLinter::new()),
         Box::new(UseStatementWithoutKindLinter::new()),
     ]
 }

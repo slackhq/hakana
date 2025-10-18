@@ -1,0 +1,44 @@
+<?hh
+
+use type Foo\{
+  GenericConstraint,
+  GenericParentClass,
+  GenericType,
+  InstanceOfType,
+  InstantiatedClass,
+  ParameterType,
+  ParentClass,
+  ParentClassGeneric,
+  ReturnType,
+  Unused,
+  UserAttribute,
+  UsedAsType,
+  UsedIsType,
+  UsedTrait,
+};
+
+function foo(ParameterType $in): ReturnType {
+  return $in is InstanceOfType;
+}
+
+class Class1<T as GenericType> {
+  use UsedTrait;
+}
+
+class Class2 extends ParentClass {
+}
+
+class Class3 extends GenericParentClass<ParentClassGeneric> {
+}
+
+class Class4<T as GenericConstraint> {
+}
+
+<<UserAttribute>>
+class Class5 {}
+
+function myfun(): void {
+  $_ = new InstantiatedClass();
+  $_ = 123 as UsedAsType;
+  $_ = 456 is UsedIsType;
+}
