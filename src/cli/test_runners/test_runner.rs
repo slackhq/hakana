@@ -1008,6 +1008,60 @@ impl TestRunner {
                     errors_output.push_str(&format_diff(&expected_autofix, &actual_autofix));
                     all_passed = false;
                 }
+
+                // Check for file operations if .autofix.files.expect exists
+                let files_expect_path = in_path
+                    .to_string_lossy()
+                    .replace(".in", ".autofix.files.expect");
+                if Path::new(&files_expect_path).exists() {
+                    let expected_files_json = match fs::read_to_string(&files_expect_path) {
+                        Ok(content) => content,
+                        Err(e) => {
+                            test_diagnostics.push((
+                                format!("{}/{}", dir, test_name),
+                                format!("Failed to read .autofix.files.expect: {}", e),
+                            ));
+                            *had_error = true;
+                            all_passed = false;
+                            continue;
+                        }
+                    };
+
+                    // Parse expected file operations as JSON
+                    let expected_files: serde_json::Value =
+                        match serde_json::from_str(&expected_files_json) {
+                            Ok(json) => json,
+                            Err(e) => {
+                                test_diagnostics.push((
+                                    format!("{}/{}", dir, test_name),
+                                    format!("Failed to parse .autofix.files.expect: {}", e),
+                                ));
+                                *had_error = true;
+                                all_passed = false;
+                                continue;
+                            }
+                        };
+
+                    // Build actual file operations as JSON
+                    let mut actual_files = serde_json::json!({});
+                    for file_op in &autofix_result.file_operations {
+                        let file_name = file_op.path.to_string_lossy().to_string();
+                        if let Some(ref content) = file_op.content {
+                            actual_files[file_name] = serde_json::json!(content);
+                        }
+                    }
+
+                    // Compare file operations
+                    if expected_files != actual_files {
+                        errors_output
+                            .push_str(&format!("\n=== {} (autofix files) ===\n", test_name));
+                        errors_output.push_str(&format_diff(
+                            &serde_json::to_string_pretty(&expected_files).unwrap(),
+                            &serde_json::to_string_pretty(&actual_files).unwrap(),
+                        ));
+                        all_passed = false;
+                    }
+                }
             }
         }
 

@@ -476,6 +476,11 @@ pub fn init(
                             .help("Apply auto-fixes where available"),
                     )
                     .arg(
+                        arg!(--"no-codeowners")
+                            .required(false)
+                            .help("Skip files that have codeowners (listed in CODEOWNERS file)"),
+                    )
+                    .arg(
                         arg!(--"debug")
                             .required(false)
                             .help("Add output for debugging"),
@@ -1791,6 +1796,97 @@ fn offset_to_line_column(source: &str, offset: usize) -> (usize, usize) {
     (line, column)
 }
 
+/// Parse CODEOWNERS file and return patterns and exact file paths
+fn parse_codeowners_files(root_dir: &str) -> (Vec<glob::Pattern>, FxHashSet<String>) {
+    let mut codeowner_patterns = Vec::new();
+    let mut exact_files = FxHashSet::default();
+
+    let codeowners_path = format!("{}/.github/CODEOWNERS", root_dir);
+    let codeowners_content = match fs::read_to_string(&codeowners_path) {
+        Ok(content) => content,
+        Err(_) => {
+            // Try alternate location
+            let alt_path = format!("{}/CODEOWNERS", root_dir);
+            match fs::read_to_string(&alt_path) {
+                Ok(content) => content,
+                Err(_) => return (codeowner_patterns, exact_files), // No CODEOWNERS file found
+            }
+        }
+    };
+
+    for line in codeowners_content.lines() {
+        let line = line.trim();
+
+        // Skip empty lines and comments
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        // Parse line: "pattern @owner1 @owner2..."
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.is_empty() {
+            continue;
+        }
+
+        let pattern = parts[0];
+
+        // Check if there are any owners specified
+        if parts.len() < 2 {
+            continue;
+        }
+
+        // Process pattern
+        if pattern.contains('*') || pattern.contains('?') || pattern.contains('[') {
+            // Glob pattern - compile it
+            // Convert CODEOWNERS pattern to glob pattern
+            let glob_pattern = if pattern.starts_with('/') {
+                // Absolute pattern from root
+                pattern.to_string()
+            } else if pattern.starts_with("**/") {
+                // Already in glob format
+                pattern.to_string()
+            } else {
+                // Relative pattern - match anywhere in tree
+                format!("**/{}", pattern)
+            };
+
+            if let Ok(compiled) = glob::Pattern::new(&glob_pattern) {
+                codeowner_patterns.push(compiled);
+            }
+        } else if pattern.ends_with('/') {
+            // Directory pattern with trailing slash - match all files under this directory
+            let dir_pattern = if pattern.starts_with('/') {
+                format!("{}**", pattern)
+            } else {
+                format!("**/{pattern}**")
+            };
+
+            if let Ok(compiled) = glob::Pattern::new(&dir_pattern) {
+                codeowner_patterns.push(compiled);
+            }
+        } else {
+            // Could be either an exact file or a directory without trailing slash
+            // Add both interpretations:
+            // 1. Exact file match
+            if pattern.starts_with('/') {
+                exact_files.insert(pattern.to_string());
+                // Also add as directory pattern (match all files under it)
+                if let Ok(compiled) = glob::Pattern::new(&format!("{}/**", pattern)) {
+                    codeowner_patterns.push(compiled);
+                }
+            } else {
+                exact_files.insert(format!("/{}", pattern));
+                // Also add as directory pattern
+                if let Ok(compiled) = glob::Pattern::new(&format!("**/{pattern}/**")) {
+                    codeowner_patterns.push(compiled);
+                }
+            }
+        }
+    }
+
+    (codeowner_patterns, exact_files)
+}
+
 fn do_lint(
     sub_matches: &clap::ArgMatches,
     root_dir: &str,
@@ -1809,6 +1905,14 @@ fn do_lint(
         .to_string();
 
     let apply_fixes = sub_matches.is_present("fix");
+    let skip_codeowners = sub_matches.is_present("no-codeowners");
+
+    // Parse CODEOWNERS file if skip_codeowners is enabled
+    let (codeowner_patterns, codeowner_exact_files) = if skip_codeowners {
+        parse_codeowners_files(root_dir)
+    } else {
+        (Vec::new(), FxHashSet::default())
+    };
 
     // Load HHAST lint configuration
     let hhast_config = if Path::new(&config_path).exists() {
@@ -1874,6 +1978,7 @@ fn do_lint(
 
     // Collect all files to lint
     let mut files_to_lint = Vec::new();
+    let mut skipped_codeowner_files = 0;
     for base_path in paths_to_lint {
         for entry in WalkDir::new(&base_path)
             .follow_links(true)
@@ -1890,8 +1995,38 @@ fn do_lint(
                 continue;
             }
 
+            // Skip files with codeowners if requested
+            if skip_codeowners {
+                let relative_path = if let Ok(rel) = path.strip_prefix(&root_dir) {
+                    format!("/{}", rel.to_string_lossy())
+                } else {
+                    path_str.to_string()
+                };
+
+                // Check exact file match
+                let has_codeowner = codeowner_exact_files.contains(&relative_path)
+                    // Check glob patterns
+                    || codeowner_patterns.iter().any(|pattern| {
+                        // Try matching with and without leading slash
+                        pattern.matches(&relative_path)
+                            || pattern.matches(relative_path.trim_start_matches('/'))
+                    });
+
+                if has_codeowner {
+                    skipped_codeowner_files += 1;
+                    continue;
+                }
+            }
+
             files_to_lint.push(path.to_path_buf());
         }
+    }
+
+    if skip_codeowners && skipped_codeowner_files > 0 {
+        println!(
+            "Skipped {} file(s) with codeowners",
+            skipped_codeowner_files
+        );
     }
 
     if files_to_lint.is_empty() {

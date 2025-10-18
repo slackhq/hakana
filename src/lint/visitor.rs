@@ -33,6 +33,15 @@ pub trait SyntaxVisitor<'a> {
         node: &'a NamespaceUseDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
     ) {
     }
+    fn visit_namespace_group_use_declaration(
+        &mut self,
+        node: &'a NamespaceGroupUseDeclarationChildren<
+            'a,
+            PositionedToken<'a>,
+            PositionedValue<'a>,
+        >,
+    ) {
+    }
 
     // Classes and interfaces
     fn visit_classish_declaration(
@@ -185,6 +194,10 @@ pub fn walk<'a, V: SyntaxVisitor<'a>>(visitor: &mut V, node: &'a PositionedSynta
         }
         SyntaxVariant::NamespaceUseDeclaration(x) => {
             visitor.visit_namespace_use_declaration(x);
+            walk(visitor, &x.clauses);
+        }
+        SyntaxVariant::NamespaceGroupUseDeclaration(x) => {
+            visitor.visit_namespace_group_use_declaration(x);
             walk(visitor, &x.clauses);
         }
         SyntaxVariant::ClassishDeclaration(x) => {
