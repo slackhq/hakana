@@ -476,6 +476,12 @@ pub fn init(
                             .help("Apply auto-fixes where available"),
                     )
                     .arg(
+                        arg!(--"linter" <NAME>)
+                            .required(false)
+                            .multiple(true)
+                            .help("Run specific linter(s) by HHAST name or kebab-case name"),
+                    )
+                    .arg(
                         arg!(--"no-codeowners")
                             .required(false)
                             .help("Skip files that have codeowners (listed in CODEOWNERS file)"),
@@ -1907,6 +1913,11 @@ fn do_lint(
     let apply_fixes = sub_matches.is_present("fix");
     let skip_codeowners = sub_matches.is_present("no-codeowners");
 
+    // Get specific linters to run (if provided)
+    let specific_linters = Arc::new(sub_matches
+        .values_of("linter")
+        .map(|values| values.map(|s| s.to_string()).collect::<FxHashSet<_>>()));
+
     // Parse CODEOWNERS file if skip_codeowners is enabled
     let (codeowner_patterns, codeowner_exact_files) = if skip_codeowners {
         parse_codeowners_files(root_dir)
@@ -1915,7 +1926,7 @@ fn do_lint(
     };
 
     // Load HHAST lint configuration
-    let hhast_config = if Path::new(&config_path).exists() {
+    let mut hhast_config = if Path::new(&config_path).exists() {
         match HhastLintConfig::from_file(Path::new(&config_path)) {
             Ok(config) => config,
             Err(e) => {
@@ -1957,6 +1968,31 @@ fn do_lint(
     for linter in custom_linters {
         registry.register(linter);
     }
+
+    // Map requested linter names to HHAST names and add to config
+    let mut hhast_config = Arc::try_unwrap(hhast_config).unwrap();
+    if let Some(requested_linters) = specific_linters.as_ref() {
+        for linter_name in requested_linters.iter() {
+            // Try to find linter by name or HHAST name
+            let mut found = false;
+            for linter in registry.all() {
+                if let Some(hhast_name) = linter.hhast_name() {
+                    let short_name = hhast_name.split('\\').last().unwrap_or(hhast_name);
+                    if linter_name == hhast_name || linter_name == short_name || linter_name == linter.name() {
+                        if !hhast_config.extra_linters.contains(&hhast_name.to_string()) {
+                            hhast_config.extra_linters.push(hhast_name.to_string());
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if !found {
+                println!("Warning: Unknown linter '{}'", linter_name);
+            }
+        }
+    }
+    let hhast_config = Arc::new(hhast_config);
 
     let registry = Arc::new(registry);
 
