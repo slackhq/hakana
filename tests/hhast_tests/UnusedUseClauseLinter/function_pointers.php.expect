@@ -1,0 +1,12 @@
+[
+    {
+        "blame": "use function unused_func;\n",
+        "blame_pretty": "use function unused_func;\n",
+        "description": "`unused_func` is not used"
+    },
+    {
+        "blame": "use type UnusedType;\n",
+        "blame_pretty": "use type UnusedType;\n",
+        "description": "`UnusedType` is not used"
+    }
+]

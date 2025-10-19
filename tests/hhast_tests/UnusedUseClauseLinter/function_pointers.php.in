@@ -1,0 +1,13 @@
+<?hh
+
+use function foo_bar;
+use function baz_func;
+use function unused_func;
+use type SomeType;
+use type UnusedType;
+
+function test(): void {
+  $f = foo_bar<>;
+  $f();
+  baz_func<SomeType>();
+}

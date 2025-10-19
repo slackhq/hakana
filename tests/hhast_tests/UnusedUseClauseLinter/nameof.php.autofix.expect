@@ -1,0 +1,8 @@
+<?hh
+
+use type Foo;
+use type Bar;
+function test(): void {
+  $foo_name = nameof Foo;
+  $bar_name = nameof Bar;
+}

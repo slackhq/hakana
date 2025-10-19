@@ -1,0 +1,7 @@
+[
+    {
+        "blame": "use function \\{Bar\\Baz\\some_used_function, Foo\\some_unused_function};\n",
+        "blame_pretty": "use function \\{Bar\\Baz\\some_used_function, Foo\\some_unused_function};\n",
+        "description": "`some_unused_function` is not used"
+    }
+]

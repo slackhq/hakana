@@ -1,0 +1,7 @@
+<?hh
+
+use function \{Bar\Baz\some_used_function, Foo\some_unused_function};
+
+function test(): void {
+  some_used_function();
+}

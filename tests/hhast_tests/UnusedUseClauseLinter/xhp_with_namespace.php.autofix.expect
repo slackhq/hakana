@@ -1,0 +1,7 @@
+<?hh
+
+use namespace Foo\Bar as some_namespace;
+use type button;
+function render(): mixed {
+  return <some_namespace:button>Click</some_namespace:button>;
+}

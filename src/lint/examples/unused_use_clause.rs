@@ -78,6 +78,10 @@ struct UseStatementInfo<'a> {
 struct UseClauseInfo<'a> {
     /// The name being imported (after "as" if present, otherwise last part of qualified name)
     imported_name: String,
+    /// The full path of the clause (e.g., "Bar\Baz\some_function" from group use)
+    full_clause_path: String,
+    /// Whether this clause has an alias (e.g., "Core as x")
+    has_alias: bool,
     /// The clause node
     node: &'a PositionedSyntax<'a>,
     /// Start and end offsets for deletion
@@ -180,7 +184,11 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                     if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
                         for type_arg in types_list.iter() {
                             if let SyntaxVariant::ListItem(item) = &type_arg.children {
-                                extract_type_names(&item.item, self.ctx, &mut self.referenced_names);
+                                extract_type_names(
+                                    &item.item,
+                                    self.ctx,
+                                    &mut self.referenced_names,
+                                );
                             }
                         }
                     }
@@ -208,7 +216,31 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                     if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
                         for type_arg in types_list.iter() {
                             if let SyntaxVariant::ListItem(item) = &type_arg.children {
-                                extract_type_names(&item.item, self.ctx, &mut self.referenced_names);
+                                extract_type_names(
+                                    &item.item,
+                                    self.ctx,
+                                    &mut self.referenced_names,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            // Function pointer/reference: foo_bar<> or foo_bar<T>
+            SyntaxVariant::FunctionPointerExpression(ptr) => {
+                if let Some(name) = extract_name_token(&ptr.receiver, self.ctx) {
+                    self.referenced_names.functions.insert(name);
+                }
+                // Extract type arguments: in foo_bar<SomeType>, we need SomeType
+                if let SyntaxVariant::TypeArguments(args) = &ptr.type_args.children {
+                    if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
+                        for type_arg in types_list.iter() {
+                            if let SyntaxVariant::ListItem(item) = &type_arg.children {
+                                extract_type_names(
+                                    &item.item,
+                                    self.ctx,
+                                    &mut self.referenced_names,
+                                );
                             }
                         }
                     }
@@ -226,13 +258,26 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                     self.referenced_names.types.insert(name);
                 }
             }
-            // XHP expression: <foo:bar>...</foo:bar>
+            // XHP expression: <foo:bar>...</foo:bar> or <some_namespace:foo>
             SyntaxVariant::XHPExpression(xhp) => {
                 // Extract the class name from the opening tag
                 if let SyntaxVariant::XHPOpen(open) = &xhp.open.children {
-                    // XHP names are tokens like ":foo:bar" - extract the last part after the last colon
+                    // XHP names can be:
+                    // - ":foo:bar" (class foo:bar) - track "bar"
+                    // - ":some_namespace:foo" where some_namespace is from "use namespace ... as some_namespace"
                     let name_text = self.ctx.node_text(&open.name).trim();
-                    if let Some(class_name) = extract_xhp_class_name(name_text) {
+
+                    // Extract both the namespace part (first segment) and class part (last segment)
+                    let (namespace_part, class_part) = extract_xhp_name_parts(name_text);
+
+                    if let Some(ns) = namespace_part {
+                        // If there's a namespace prefix like "some_namespace" in ":some_namespace:foo"
+                        // it could be a namespace alias
+                        self.referenced_names.namespaces.insert(ns);
+                    }
+
+                    if let Some(class_name) = class_part {
+                        // The actual XHP class name (last segment)
                         self.referenced_names.types.insert(class_name);
                     }
                 }
@@ -245,6 +290,42 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                 }
                 // We could also recursively process left_type if it's more complex
                 extract_type_names(&tc.left_type, self.ctx, &mut self.referenced_names);
+            }
+            // nameof expression: nameof Foo or nameof Foo\Bar (only for classes)
+            SyntaxVariant::NameofExpression(nameof_expr) => {
+                // Extract the target name - nameof is only for classes/types
+                if let Some(name) = extract_name_token(&nameof_expr.target, self.ctx) {
+                    self.referenced_names.types.insert(name);
+                } else if let SyntaxVariant::QualifiedName(qn) = &nameof_expr.target.children {
+                    // Qualified name in nameof - extract first part as namespace
+                    if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
+                        if let Some(first_item) = parts.first() {
+                            if let SyntaxVariant::ListItem(item) = &first_item.children {
+                                if let Some(name) = extract_name_token(&item.item, self.ctx) {
+                                    self.referenced_names.namespaces.insert(name);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Enum class label: SomeEnum#Member
+            SyntaxVariant::EnumClassLabelExpression(enum_label) => {
+                // Extract the enum name (qualifier)
+                if let Some(name) = extract_name_token(&enum_label.qualifier, self.ctx) {
+                    self.referenced_names.types.insert(name);
+                } else if let SyntaxVariant::QualifiedName(qn) = &enum_label.qualifier.children {
+                    // Qualified enum name - extract first part as namespace
+                    if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
+                        if let Some(first_item) = parts.first() {
+                            if let SyntaxVariant::ListItem(item) = &first_item.children {
+                                if let Some(name) = extract_name_token(&item.item, self.ctx) {
+                                    self.referenced_names.namespaces.insert(name);
+                                }
+                            }
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -337,6 +418,7 @@ impl<'a> UnusedUseClauseVisitor<'a> {
 
         // Special case: group use with only one remaining clause
         // Convert to simple use statement: "use namespace HH\Lib\{C};" -> "use namespace HH\Lib\C;"
+        // BUT: Don't collapse if the remaining clause has an alias, since we can't represent that
         if use_stmt.group_prefix.is_some() && unused_clauses.len() == use_stmt.clauses.len() - 1 {
             // Find the one remaining clause
             let remaining_clause = use_stmt
@@ -345,34 +427,47 @@ impl<'a> UnusedUseClauseVisitor<'a> {
                 .find(|c| !unused_clauses.iter().any(|u| std::ptr::eq(*u, *c)))
                 .unwrap();
 
-            // Construct the new simple use statement
-            let kind_text = match use_stmt.kind {
-                UseKind::Namespace => " namespace",
-                UseKind::Type => " type",
-                UseKind::Function => " function",
-                UseKind::Const => " const",
-                UseKind::Default => "",
-            };
+            // Don't collapse if the remaining clause has an alias
+            // e.g., "use namespace Facebook\XHP\{Core as x};" cannot be collapsed
+            if !remaining_clause.has_alias {
+                // Construct the new simple use statement
+                let kind_text = match use_stmt.kind {
+                    UseKind::Namespace => " namespace",
+                    UseKind::Type => " type",
+                    UseKind::Function => " function",
+                    UseKind::Const => " const",
+                    UseKind::Default => "",
+                };
 
-            let prefix = use_stmt.group_prefix.as_ref().unwrap();
-            let clause_name = &remaining_clause.imported_name;
+                let prefix = use_stmt.group_prefix.as_ref().unwrap();
+                let clause_path = &remaining_clause.full_clause_path;
 
-            // Build the full qualified name by combining prefix and clause name
-            let full_name = if prefix.ends_with('\\') {
-                format!("{}{}", prefix, clause_name)
-            } else {
-                format!("{}\\{}", prefix, clause_name)
-            };
+                // Build the full qualified name by combining prefix and clause path
+                let full_name = if prefix.is_empty() {
+                    // No prefix, just use clause path
+                    clause_path.clone()
+                } else if prefix == "\\" || prefix == "" {
+                    // Prefix is just "\" (root namespace), prepend to clause path
+                    format!("\\{}", clause_path)
+                } else if prefix.ends_with('\\') {
+                    // Prefix ends with \, append clause path
+                    format!("{}{}", prefix, clause_path)
+                } else {
+                    // Prefix doesn't end with \, add it
+                    format!("{}\\{}", prefix, clause_path)
+                };
 
-            let replacement = format!("{} {};\n", kind_text, full_name);
+                let replacement = format!("{} {};\n", kind_text, full_name);
 
-            // Replace from start up to (but not including) the newlines we captured
-            fix.add(Edit::new(
-                use_stmt.keyword_end_offset,
-                use_stmt.end_offset,
-                replacement,
-            ));
-            return fix;
+                // Replace from start up to (but not including) the newlines we captured
+                fix.add(Edit::new(
+                    use_stmt.keyword_end_offset,
+                    use_stmt.end_offset,
+                    replacement,
+                ));
+                return fix;
+            }
+            // If has_alias, fall through to normal clause removal logic
         }
 
         // Remove individual unused clauses
@@ -577,9 +672,14 @@ fn extract_use_clauses<'a>(
         for item in list.iter() {
             if let SyntaxVariant::ListItem(list_item) = &item.children {
                 if let SyntaxVariant::NamespaceUseClause(clause) = &list_item.item.children {
+                    // Get the full clause path (what's actually written in the clause)
+                    let full_clause_path = ctx.node_text(&clause.name).trim().to_string();
+
+                    // Check if this clause has an alias
+                    let has_alias = !matches!(&clause.alias.children, SyntaxVariant::Missing);
+
                     // Get the imported name (alias or last part of qualified name)
-                    let imported_name = if !matches!(&clause.alias.children, SyntaxVariant::Missing)
-                    {
+                    let imported_name = if has_alias {
                         // Has an alias - use that
                         ctx.node_text(&clause.alias).trim().to_string()
                     } else {
@@ -591,6 +691,8 @@ fn extract_use_clauses<'a>(
                         let (start, end) = ctx.node_range(&list_item.item);
                         clauses.push(UseClauseInfo {
                             imported_name,
+                            full_clause_path,
+                            has_alias,
                             node: &list_item.item,
                             start_offset: start,
                             end_offset: end,
@@ -636,34 +738,60 @@ fn extract_name_token(node: &PositionedSyntax, ctx: &LintContext) -> Option<Stri
     None
 }
 
-/// Extract the class name from an XHP tag name
-/// XHP names can be like ":foo:bar" or ":foo"
-/// We need to extract the part after the leading colon and convert it to a class name
-/// For example: ":ui:button" -> "ui:button" or just "button" (the last segment)
-fn extract_xhp_class_name(xhp_name: &str) -> Option<String> {
+/// Extract the namespace and class name parts from an XHP tag name
+/// XHP names can be:
+/// - ":foo:bar" -> namespace: Some("foo"), class: Some("bar")
+/// - ":foo" -> namespace: None, class: Some("foo")
+/// - ":some_namespace:button" -> namespace: Some("some_namespace"), class: Some("button")
+/// Returns (namespace_part, class_part)
+fn extract_xhp_name_parts(xhp_name: &str) -> (Option<String>, Option<String>) {
     // Remove leading colon if present
     let name = xhp_name.strip_prefix(':').unwrap_or(xhp_name);
 
     if name.is_empty() {
-        return None;
+        return (None, None);
     }
 
-    // XHP class names can be imported in two ways:
-    // 1. Full name with colons: use type foo:bar;
-    // 2. Just the last segment: use type bar; (for :foo:bar)
-    // We'll track the last segment after the last colon
-    let last_segment = name.split(':').last()?;
+    let segments: Vec<&str> = name.split(':').collect();
 
-    Some(last_segment.to_string())
+    match segments.len() {
+        0 => (None, None),
+        1 => {
+            // Single segment like ":foo" - just a class name
+            (None, Some(segments[0].to_string()))
+        }
+        _ => {
+            // Multiple segments like ":foo:bar" or ":namespace:button"
+            // First segment could be a namespace alias
+            // Last segment is the class name
+            (
+                Some(segments[0].to_string()),
+                Some(segments[segments.len() - 1].to_string()),
+            )
+        }
+    }
 }
 
 /// Recursively extract all type names from a type specifier node
 /// This handles simple types, generic types, qualified names, etc.
 fn extract_type_names(node: &PositionedSyntax, ctx: &LintContext, names: &mut ReferencedNames) {
     match &node.children {
-        // Simple type: Foo
+        // Simple type: Foo or qualified type: Foo\Bar
         SyntaxVariant::SimpleTypeSpecifier(spec) => {
-            if let Some(name) = extract_name_token(&spec.specifier, ctx) {
+            // Check if the specifier is a qualified name
+            if let SyntaxVariant::QualifiedName(qn) = &spec.specifier.children {
+                // Extract first part as namespace
+                if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
+                    if let Some(first_item) = parts.first() {
+                        if let SyntaxVariant::ListItem(item) = &first_item.children {
+                            if let Some(name) = extract_name_token(&item.item, ctx) {
+                                names.namespaces.insert(name);
+                            }
+                        }
+                    }
+                }
+            } else if let Some(name) = extract_name_token(&spec.specifier, ctx) {
+                // Simple name token
                 names.types.insert(name);
             }
         }

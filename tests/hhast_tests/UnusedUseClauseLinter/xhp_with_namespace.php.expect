@@ -1,0 +1,7 @@
+[
+    {
+        "blame": "use type UnusedXHP;\n",
+        "blame_pretty": "use type UnusedXHP;\n",
+        "description": "`UnusedXHP` is not used"
+    }
+]

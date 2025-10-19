@@ -1,0 +1,6 @@
+<?hh
+
+use namespace Functions;
+function test(): void {
+  $store = \resolve<Functions\BuiltinFunctionStore>();
+}

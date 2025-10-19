@@ -1,0 +1,7 @@
+<?hh
+
+use namespace Facebook\XHP\{Core as x};
+
+function test(): void {
+  x\some_function();
+}

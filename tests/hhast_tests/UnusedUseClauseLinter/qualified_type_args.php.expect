@@ -1,0 +1,7 @@
+[
+    {
+        "blame": "use namespace UnusedNamespace;\n",
+        "blame_pretty": "use namespace UnusedNamespace;\n",
+        "description": "`UnusedNamespace` is not used"
+    }
+]

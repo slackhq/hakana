@@ -1,0 +1,7 @@
+[
+    {
+        "blame": "use type UnusedType;\n",
+        "blame_pretty": "use type UnusedType;\n",
+        "description": "`UnusedType` is not used"
+    }
+]

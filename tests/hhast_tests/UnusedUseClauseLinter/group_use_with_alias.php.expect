@@ -1,0 +1,7 @@
+[
+    {
+        "blame": "use namespace Facebook\\XHP\\{Core as x, HTML};\n",
+        "blame_pretty": "use namespace Facebook\\XHP\\{Core as x, HTML};\n",
+        "description": "`HTML` is not used"
+    }
+]

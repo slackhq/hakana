@@ -1,0 +1,10 @@
+<?hh
+
+use function foo_bar;
+use function baz_func;
+use type SomeType;
+function test(): void {
+  $f = foo_bar<>;
+  $f();
+  baz_func<SomeType>();
+}

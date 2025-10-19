@@ -1,0 +1,8 @@
+<?hh
+
+use namespace Functions;
+use namespace UnusedNamespace;
+
+function test(): void {
+  $store = \resolve<Functions\BuiltinFunctionStore>();
+}

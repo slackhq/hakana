@@ -1,0 +1,7 @@
+[
+    {
+        "blame": "use type UnusedEnum;\n",
+        "blame_pretty": "use type UnusedEnum;\n",
+        "description": "`UnusedEnum` is not used"
+    }
+]

@@ -1,0 +1,10 @@
+<?hh
+
+use type SomeEnum;
+use type AnotherEnum;
+use type UnusedEnum;
+
+function test(): void {
+  $member = SomeEnum#Member;
+  $other = AnotherEnum#OtherMember;
+}
