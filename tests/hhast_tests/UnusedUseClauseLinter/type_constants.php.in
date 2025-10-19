@@ -1,0 +1,9 @@
+<?hh
+
+use type UseClass;
+use type AnotherClass;
+use type UnusedClass;
+
+function foo(UseClass::TBar $some_value): AnotherClass::TBaz {
+  return $some_value;
+}

@@ -1,0 +1,9 @@
+<?hh
+
+use type button;
+use type link;
+use type UnusedXHP;
+
+function render(): mixed {
+  return <ui:button><ui:link href="/">Click</ui:link></ui:button>;
+}

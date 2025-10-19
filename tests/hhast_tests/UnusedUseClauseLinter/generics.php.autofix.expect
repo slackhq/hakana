@@ -1,0 +1,7 @@
+<?hh
+
+use type Cfg;
+use type CookiesConfig;
+function test(): void {
+  $domain = Cfg::get<CookiesConfig>()->authCookieDomain;
+}

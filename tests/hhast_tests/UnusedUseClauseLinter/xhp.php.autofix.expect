@@ -1,0 +1,7 @@
+<?hh
+
+use type button;
+use type link;
+function render(): mixed {
+  return <ui:button><ui:link href="/">Click</ui:link></ui:button>;
+}

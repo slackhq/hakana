@@ -174,6 +174,17 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                 if let Some(name) = extract_name_token(&spec.class_type, self.ctx) {
                     self.referenced_names.types.insert(name);
                 }
+                // Also extract type arguments: in Foo<Bar, Baz>, we need to mark Bar and Baz as used
+                // The argument_list contains TypeArguments which has a types field
+                if let SyntaxVariant::TypeArguments(args) = &spec.argument_list.children {
+                    if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
+                        for type_arg in types_list.iter() {
+                            if let SyntaxVariant::ListItem(item) = &type_arg.children {
+                                extract_type_names(&item.item, self.ctx, &mut self.referenced_names);
+                            }
+                        }
+                    }
+                }
             }
             // Qualified name: Foo\Bar\Baz - track first part as namespace
             SyntaxVariant::QualifiedName(qn) => {
@@ -187,10 +198,20 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                     }
                 }
             }
-            // Function call: foo()
+            // Function call: foo() or foo<Bar>()
             SyntaxVariant::FunctionCallExpression(call) => {
                 if let Some(name) = extract_name_token(&call.receiver, self.ctx) {
                     self.referenced_names.functions.insert(name);
+                }
+                // Extract type arguments: in Cfg::get<CookiesConfig>(), we need CookiesConfig
+                if let SyntaxVariant::TypeArguments(args) = &call.type_args.children {
+                    if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
+                        for type_arg in types_list.iter() {
+                            if let SyntaxVariant::ListItem(item) = &type_arg.children {
+                                extract_type_names(&item.item, self.ctx, &mut self.referenced_names);
+                            }
+                        }
+                    }
                 }
             }
             // Scope resolution: Foo::bar
@@ -204,6 +225,26 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                 if let Some(name) = extract_name_token(&constructor.type_, self.ctx) {
                     self.referenced_names.types.insert(name);
                 }
+            }
+            // XHP expression: <foo:bar>...</foo:bar>
+            SyntaxVariant::XHPExpression(xhp) => {
+                // Extract the class name from the opening tag
+                if let SyntaxVariant::XHPOpen(open) = &xhp.open.children {
+                    // XHP names are tokens like ":foo:bar" - extract the last part after the last colon
+                    let name_text = self.ctx.node_text(&open.name).trim();
+                    if let Some(class_name) = extract_xhp_class_name(name_text) {
+                        self.referenced_names.types.insert(class_name);
+                    }
+                }
+            }
+            // Type constant: UseClass::TBar
+            SyntaxVariant::TypeConstant(tc) => {
+                // Extract the left side (the class name)
+                if let Some(name) = extract_name_token(&tc.left_type, self.ctx) {
+                    self.referenced_names.types.insert(name);
+                }
+                // We could also recursively process left_type if it's more complex
+                extract_type_names(&tc.left_type, self.ctx, &mut self.referenced_names);
             }
             _ => {}
         }
@@ -593,4 +634,83 @@ fn extract_name_token(node: &PositionedSyntax, ctx: &LintContext) -> Option<Stri
         }
     }
     None
+}
+
+/// Extract the class name from an XHP tag name
+/// XHP names can be like ":foo:bar" or ":foo"
+/// We need to extract the part after the leading colon and convert it to a class name
+/// For example: ":ui:button" -> "ui:button" or just "button" (the last segment)
+fn extract_xhp_class_name(xhp_name: &str) -> Option<String> {
+    // Remove leading colon if present
+    let name = xhp_name.strip_prefix(':').unwrap_or(xhp_name);
+
+    if name.is_empty() {
+        return None;
+    }
+
+    // XHP class names can be imported in two ways:
+    // 1. Full name with colons: use type foo:bar;
+    // 2. Just the last segment: use type bar; (for :foo:bar)
+    // We'll track the last segment after the last colon
+    let last_segment = name.split(':').last()?;
+
+    Some(last_segment.to_string())
+}
+
+/// Recursively extract all type names from a type specifier node
+/// This handles simple types, generic types, qualified names, etc.
+fn extract_type_names(node: &PositionedSyntax, ctx: &LintContext, names: &mut ReferencedNames) {
+    match &node.children {
+        // Simple type: Foo
+        SyntaxVariant::SimpleTypeSpecifier(spec) => {
+            if let Some(name) = extract_name_token(&spec.specifier, ctx) {
+                names.types.insert(name);
+            }
+        }
+        // Generic type: Foo<Bar, Baz>
+        SyntaxVariant::GenericTypeSpecifier(spec) => {
+            if let Some(name) = extract_name_token(&spec.class_type, ctx) {
+                names.types.insert(name);
+            }
+            // Recursively extract type arguments
+            if let SyntaxVariant::TypeArguments(args) = &spec.argument_list.children {
+                if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
+                    for type_arg in types_list.iter() {
+                        if let SyntaxVariant::ListItem(item) = &type_arg.children {
+                            extract_type_names(&item.item, ctx, names);
+                        }
+                    }
+                }
+            }
+        }
+        // Qualified name: Foo\Bar\Baz
+        SyntaxVariant::QualifiedName(qn) => {
+            if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
+                if let Some(first_item) = parts.first() {
+                    if let SyntaxVariant::ListItem(item) = &first_item.children {
+                        if let Some(name) = extract_name_token(&item.item, ctx) {
+                            names.namespaces.insert(name);
+                        }
+                    }
+                }
+            }
+        }
+        // Nullable type: ?Foo
+        SyntaxVariant::NullableTypeSpecifier(spec) => {
+            extract_type_names(&spec.type_, ctx, names);
+        }
+        // Type constant: Foo::TBar
+        SyntaxVariant::TypeConstant(tc) => {
+            // Extract the left side (the class name)
+            if let Some(name) = extract_name_token(&tc.left_type, ctx) {
+                names.types.insert(name);
+            }
+            // Recursively process the left type in case it's complex (e.g., Foo\Bar::TBaz)
+            extract_type_names(&tc.left_type, ctx, names);
+        }
+        // Union/intersection types, etc. - recurse into children
+        _ => {
+            // For other type specifiers, we could recurse more, but the main cases are covered
+        }
+    }
 }
