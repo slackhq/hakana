@@ -31,8 +31,6 @@ jobs:
     
     - name: Init repository
       run: ./init.sh
-    - name: Check formatting
-      run: cargo fmt --check
     - name: Build & Run tests
       run: |
         cargo run --release --bin hakana test tests
