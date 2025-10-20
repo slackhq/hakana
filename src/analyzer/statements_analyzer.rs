@@ -21,7 +21,7 @@ use oxidized::prim_defs::Comment;
 pub struct StatementsAnalyzer<'a> {
     pub file_analyzer: &'a FileAnalyzer<'a>,
     function_info: Option<&'a FunctionLikeInfo>,
-    pub comments: Vec<&'a (Pos, Comment)>,
+    pub comments: &'a Vec<&'a (Pos, Comment)>,
     type_resolution_context: &'a TypeResolutionContext,
     pub in_migratable_function: bool,
     pub interner: &'a Interner,
@@ -32,7 +32,7 @@ impl<'a> StatementsAnalyzer<'a> {
     pub fn new(
         file_analyzer: &'a FileAnalyzer,
         type_resolution_context: &'a TypeResolutionContext,
-        comments: Vec<&'a (Pos, Comment)>,
+        comments: &'a Vec<&'a (Pos, Comment)>,
     ) -> Self {
         Self {
             file_analyzer,

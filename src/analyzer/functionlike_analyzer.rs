@@ -91,18 +91,20 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             ));
         };
 
+        let comments = self
+            .file_analyzer
+            .file_source
+            .comments
+            .iter()
+            .filter(|c| {
+                c.0.start_offset() > stmt.fun.span.start_offset()
+                    && c.0.end_offset() < stmt.fun.span.end_offset()
+            })
+            .collect();
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
             function_storage.type_resolution_context.as_ref().unwrap(),
-            self.file_analyzer
-                .file_source
-                .comments
-                .iter()
-                .filter(|c| {
-                    c.0.start_offset() > stmt.fun.span.start_offset()
-                        && c.0.end_offset() < stmt.fun.span.end_offset()
-                })
-                .collect(),
+            &comments,
         );
 
         statements_analyzer.set_function_info(function_storage);
@@ -157,18 +159,20 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             stmt.span.end_offset() as u32,
         ));
 
+        let comments = self
+            .file_analyzer
+            .file_source
+            .comments
+            .iter()
+            .filter(|c| {
+                c.0.start_offset() > stmt.span.start_offset()
+                    && c.0.end_offset() < stmt.span.end_offset()
+            })
+            .collect();
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
             lambda_storage.type_resolution_context.as_ref().unwrap(),
-            self.file_analyzer
-                .file_source
-                .comments
-                .iter()
-                .filter(|c| {
-                    c.0.start_offset() > stmt.span.start_offset()
-                        && c.0.end_offset() < stmt.span.end_offset()
-                })
-                .collect(),
+            &comments,
         );
 
         context.calling_closure_id = Some(expr_pos.start_offset() as u32);
@@ -265,21 +269,23 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             false
         };
 
+        let comments = self
+            .file_analyzer
+            .file_source
+            .comments
+            .iter()
+            .filter(|c| {
+                c.0.start_offset() > stmt.span.start_offset()
+                    && c.0.end_offset() < stmt.span.end_offset()
+            })
+            .collect();
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
             functionlike_storage
                 .type_resolution_context
                 .as_ref()
                 .unwrap(),
-            self.file_analyzer
-                .file_source
-                .comments
-                .iter()
-                .filter(|c| {
-                    c.0.start_offset() > stmt.span.start_offset()
-                        && c.0.end_offset() < stmt.span.end_offset()
-                })
-                .collect(),
+            &comments,
         );
 
         let mut function_context = FunctionContext::new();

@@ -66,22 +66,21 @@ impl<'a> FileAnalyzer<'a> {
             analysis_data.issue_filter = Some(issue_filter.clone());
         }
 
-        let unnamespaced_file_analyzer = self.clone();
         let type_resolution_context = TypeResolutionContext::new();
-        let statements_analyzer = StatementsAnalyzer::new(
-            &unnamespaced_file_analyzer,
-            &type_resolution_context,
-            Vec::from_iter(self.file_source.comments.iter()),
-        );
-
         let mut context = BlockContext::new(FunctionContext::new());
+        let comments = Vec::from_iter(self.file_source.comments.iter());
 
         for declaration in program {
-            if declaration.is_namespace() {
-                let namespace_declaration = declaration.as_namespace().unwrap();
-                self.namespace_name = Some(namespace_declaration.0.1.to_string());
+            let namespace_declaration = declaration.as_namespace();
+            self.namespace_name = namespace_declaration.map(|(id, _)| id.1.to_string());
 
-                for namespace_statement in namespace_declaration.1 {
+            let statements_analyzer =
+                StatementsAnalyzer::new(&self, &type_resolution_context, &comments);
+
+            if namespace_declaration.is_some() {
+                let (_, statements) = namespace_declaration.unwrap();
+
+                for namespace_statement in statements {
                     def_analyzer::analyze(
                         self,
                         &statements_analyzer,
@@ -91,10 +90,6 @@ impl<'a> FileAnalyzer<'a> {
                         &mut analysis_data,
                         analysis_result,
                     )?;
-                }
-
-                if !namespace_declaration.1.is_empty() {
-                    self.namespace_name = None;
                 }
             } else {
                 def_analyzer::analyze(
@@ -107,12 +102,16 @@ impl<'a> FileAnalyzer<'a> {
                     analysis_result,
                 )?;
             }
+
+            if namespace_declaration.map_or(false, |(_, statements)| !statements.is_empty()) {
+                self.namespace_name = None;
+            }
         }
 
         update_analysis_result_with_tast(
             analysis_data,
             analysis_result,
-            &statements_analyzer.file_analyzer.file_source.file_path,
+            &self.file_source.file_path,
             false,
         );
 
