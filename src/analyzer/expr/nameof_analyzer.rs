@@ -43,7 +43,7 @@ fn resolve_class_name(
 
     let calling_class = context.function_context.calling_class;
 
-    match inner_class_id.name() {
+    let class_name = match inner_class_id.name() {
         "self" | "static" | "parent" => {
             // The Hack typechecker allows nameof self/parent/static outside of a class context.
             // This would probably be an error more often than not, so disallow it.
@@ -96,5 +96,18 @@ fn resolve_class_name(
                     .or_else(|| Some(class_name_literal.to_string()))
             }
         }
+    };
+
+    // Track class usages in nameof expressions.
+    if let Some(ref class_str) = class_name {
+        if let Some(resolved_class_id) = statements_analyzer.interner.get(class_str.as_str()) {
+            analysis_data.symbol_references.add_reference_to_symbol(
+                &context.function_context,
+                resolved_class_id,
+                false,
+            );
+        }
     }
+
+    class_name
 }
