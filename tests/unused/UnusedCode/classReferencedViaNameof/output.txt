@@ -1,0 +1,2 @@
+ERROR: UnusedClass - input.hack:6:17 - Unused class, interface or enum N\ThisIsUnused
+ERROR: UnusedClass - input.hack:19:17 - Unused class, interface or enum ThisIsAlsoUnused
