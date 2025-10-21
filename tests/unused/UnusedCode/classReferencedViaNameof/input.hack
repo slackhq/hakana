@@ -1,9 +1,15 @@
 namespace N {
-    final class ThisIsUsed {}
+    final class ThisIsUsed {
+        const keyset<classname<mixed>> CLASSES = keyset[
+            nameof UsedViaConst
+        ];
+    }
 
     final class ThisIsStillUsed {}
 
     final class ThisIsUnused {}
+
+    final class UsedViaConst {}
 
     function foo(): void {
         echo nameof ThisIsStillUsed;

@@ -15,7 +15,7 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use oxidized::aast;
 
 pub(crate) fn analyze(
-    scope_analyzer: &mut dyn ScopeAnalyzer,
+    scope_analyzer: &dyn ScopeAnalyzer,
     statements_analyzer: &StatementsAnalyzer,
     def: &aast::Def<(), ()>,
     context: &mut BlockContext,
