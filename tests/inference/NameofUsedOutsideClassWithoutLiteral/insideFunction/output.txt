@@ -1,3 +1,0 @@
-ERROR: NameofUsedOutsideClassWithoutLiteral - input.hack:17:10 - nameof used outside of a class context with a non-literal target
-ERROR: NameofUsedOutsideClassWithoutLiteral - input.hack:18:10 - nameof used outside of a class context with a non-literal target
-ERROR: NameofUsedOutsideClassWithoutLiteral - input.hack:19:10 - nameof used outside of a class context with a non-literal target

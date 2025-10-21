@@ -1,34 +1,16 @@
-namespace N {
-    final class ThisIsUsed {
-        const keyset<classname<mixed>> CLASSES = keyset[
-            nameof UsedViaConst
-        ];
-    }
+use Imported\SomeNamespace\UsedViaUseStatement;
 
-    final class ThisIsStillUsed {}
+final class ThisIsAlsoUsed {}
 
-    final class ThisIsUnused {}
+final class ThisIsUsedAsWell {}
 
-    final class UsedViaConst {}
+final class ThisIsAlsoUnused {}
 
-    function foo(): void {
-        echo nameof ThisIsStillUsed;
-        echo nameof \ThisIsUsedAsWell;
-    }
-}
+<<__EntryPoint>>
+function main(): void {
+    echo nameof N\ThisIsUsed;
+    echo nameof ThisIsAlsoUsed;
+    echo nameof UsedViaUseStatement;
 
-namespace {
-    final class ThisIsAlsoUsed {}
-
-    final class ThisIsUsedAsWell {}
-
-    final class ThisIsAlsoUnused {}
-
-    <<__EntryPoint>>
-    function main(): void {
-        echo nameof N\ThisIsUsed;
-        echo nameof ThisIsAlsoUsed;
-
-        N\foo();
-    }
+    N\foo();
 }

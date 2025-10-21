@@ -1,2 +1,3 @@
-ERROR: UnusedClass - input.hack:10:17 - Unused class, interface or enum N\ThisIsUnused
-ERROR: UnusedClass - input.hack:25:17 - Unused class, interface or enum ThisIsAlsoUnused
+ERROR: UnusedClass - imported.hack:7:13 - Unused class, interface or enum Imported\SomeNamespace\NotUsed
+ERROR: UnusedClass - input.hack:7:13 - Unused class, interface or enum ThisIsAlsoUnused
+ERROR: UnusedClass - namespaced.hack:14:13 - Unused class, interface or enum N\ThisIsUnused
