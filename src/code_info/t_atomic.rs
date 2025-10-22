@@ -230,6 +230,18 @@ pub enum TAtomic {
     TClassname {
         as_type: Box<self::TAtomic>,
     },
+    // a classname literal, as returned by nameof Foo
+    TLiteralClassname {
+        name: StrId,
+    },
+    /// class<Foo> in Hack, where Foo is non-generic
+    TClassPtr {
+        as_type: Box<self::TAtomic>,
+    },
+    /// Foo::class
+    TLiteralClassPtr {
+        name: StrId,
+    },
     TDict(TDict),
     TEnum {
         name: StrId,
@@ -246,9 +258,6 @@ pub enum TAtomic {
     TKeyset {
         type_param: Box<TUnion>,
         non_empty: bool,
-    },
-    TLiteralClassname {
-        name: StrId,
     },
     TEnumLiteralCase {
         enum_name: StrId,
@@ -301,6 +310,11 @@ pub enum TAtomic {
         extra_types: Option<Vec<TAtomic>>,
     },
     TGenericClassname {
+        param_name: StrId,
+        defining_entity: GenericParent,
+        as_type: Box<TAtomic>,
+    },
+    TGenericClassPtr {
         param_name: StrId,
         defining_entity: GenericParent,
         as_type: Box<TAtomic>,
@@ -363,6 +377,15 @@ impl TAtomic {
             TAtomic::TClassname { as_type, .. } => {
                 let mut str = String::new();
                 str += "classname<";
+                str += as_type
+                    .get_id_with_refs(interner, &mut vec![], indent)
+                    .as_str();
+                str += ">";
+                str
+            }
+            TAtomic::TClassPtr { as_type, .. } => {
+                let mut str = String::new();
+                str += "class<";
                 str += as_type
                     .get_id_with_refs(interner, &mut vec![], indent)
                     .as_str();
@@ -443,6 +466,15 @@ impl TAtomic {
                 str
             }
             TAtomic::TLiteralClassname { name } => {
+                let mut str = "nameof ".to_owned();
+                if let Some(interner) = interner {
+                    str += interner.lookup(name);
+                } else {
+                    str += name.0.to_string().as_str();
+                }
+                str
+            }
+            TAtomic::TLiteralClassPtr { name } => {
                 let mut str = String::new();
                 if let Some(interner) = interner {
                     str += interner.lookup(name);
@@ -668,6 +700,23 @@ impl TAtomic {
                 str += ">";
                 str
             }
+            TAtomic::TGenericClassPtr {
+                param_name,
+                defining_entity,
+                ..
+            } => {
+                let mut str = String::new();
+                str += "class<";
+                if let Some(interner) = interner {
+                    str += interner.lookup(param_name);
+                } else {
+                    str += param_name.0.to_string().as_str();
+                }
+                str += ":";
+                str += &defining_entity.to_string(interner);
+                str += ">";
+                str
+            }
             TAtomic::TGenericTypename {
                 param_name,
                 defining_entity,
@@ -752,6 +801,13 @@ impl TAtomic {
                 str += ">";
                 str
             }
+            TAtomic::TClassPtr { as_type, .. } => {
+                let mut str = String::new();
+                str += "class<";
+                str += as_type.get_key().as_str();
+                str += ">";
+                str
+            }
             TAtomic::TTypename { as_type, .. } => {
                 let mut str = String::new();
                 str += "typename<";
@@ -773,6 +829,7 @@ impl TAtomic {
             | TAtomic::TString { .. }
             | TAtomic::TEnum { .. }
             | TAtomic::TLiteralClassname { .. }
+            | TAtomic::TLiteralClassPtr { .. }
             | TAtomic::TLiteralInt { .. }
             | TAtomic::TEnumLiteralCase { .. }
             | TAtomic::TMemberReference { .. }
@@ -859,6 +916,19 @@ impl TAtomic {
             } => {
                 let mut str = String::new();
                 str += "classname<";
+                str += param_name.0.to_string().as_str();
+                str += ":";
+                str += &defining_entity.to_string(None);
+                str += ">";
+                str
+            }
+            TAtomic::TGenericClassPtr {
+                param_name,
+                defining_entity,
+                ..
+            } => {
+                let mut str = String::new();
+                str += "class<";
                 str += param_name.0.to_string().as_str();
                 str += ":";
                 str += &defining_entity.to_string(None);
@@ -1054,11 +1124,14 @@ impl TAtomic {
             self,
             TAtomic::TGenericClassname { .. }
                 | TAtomic::TGenericTypename { .. }
+                | TAtomic::TGenericClassPtr { .. }
+                | TAtomic::TLiteralClassPtr { .. }
                 | TAtomic::TLiteralClassname { .. }
                 | TAtomic::TLiteralInt { .. }
                 | TAtomic::TLiteralString { .. }
                 | TAtomic::TArraykey { .. }
                 | TAtomic::TBool { .. }
+                | TAtomic::TClassPtr { .. }
                 | TAtomic::TClassname { .. }
                 | TAtomic::TTypename { .. }
                 | TAtomic::TFalse { .. }
@@ -1111,8 +1184,11 @@ impl TAtomic {
             TAtomic::TString { .. }
                 | TAtomic::TLiteralClassname { .. }
                 | TAtomic::TLiteralString { .. }
+                | TAtomic::TLiteralClassPtr { .. }
                 | TAtomic::TClassname { .. }
+                | TAtomic::TClassPtr { .. }
                 | TAtomic::TTypename { .. }
+                | TAtomic::TGenericClassPtr { .. }
                 | TAtomic::TGenericClassname { .. }
                 | TAtomic::TGenericTypename { .. }
                 | TAtomic::TStringWithFlags { .. }
@@ -1123,8 +1199,11 @@ impl TAtomic {
         match self {
             TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralString { .. }
+            | TAtomic::TLiteralClassPtr { .. }
             | TAtomic::TClassname { .. }
             | TAtomic::TTypename { .. }
+            | TAtomic::TClassPtr { .. }
+            | TAtomic::TGenericClassPtr { .. }
             | TAtomic::TGenericClassname { .. }
             | TAtomic::TGenericTypename { .. }
             | TAtomic::TStringWithFlags { .. } => true,
@@ -1156,6 +1235,7 @@ impl TAtomic {
         matches!(
             self,
             TAtomic::TLiteralClassname { .. }
+                | TAtomic::TLiteralClassPtr { .. }
                 | TAtomic::TLiteralInt { .. }
                 | TAtomic::TLiteralString { .. }
                 | TAtomic::TEnumLiteralCase { .. }
@@ -1163,6 +1243,16 @@ impl TAtomic {
                 | TAtomic::TTrue { .. }
                 | TAtomic::TBool { .. }
                 | TAtomic::TNull { .. }
+        )
+    }
+
+    /// Is this type a class pointer, i.e. class<T>?
+    pub fn is_class_ptr(&self) -> bool {
+        matches!(
+            self,
+            TAtomic::TLiteralClassPtr { .. }
+                | TAtomic::TGenericClassPtr { .. }
+                | TAtomic::TClassPtr { .. }
         )
     }
 
@@ -1231,6 +1321,8 @@ impl TAtomic {
             | &TAtomic::TObject { .. }
             | &TAtomic::TClosure(_)
             | &TAtomic::TLiteralClassname { .. }
+            | &TAtomic::TLiteralClassPtr { .. }
+            | &TAtomic::TClassPtr { .. }
             | &TAtomic::TClassname { .. }
             | &TAtomic::TTypename { .. }
             | &TAtomic::TAwaitable { .. } => true,
@@ -1381,7 +1473,9 @@ impl TAtomic {
             self,
             TAtomic::TGenericClassname { .. }
                 | TAtomic::TGenericTypename { .. }
+                | TAtomic::TGenericClassPtr { .. }
                 | TAtomic::TClassname { .. }
+                | TAtomic::TClassPtr { .. }
                 | TAtomic::TTypename { .. }
                 | TAtomic::TDict { .. }
                 | TAtomic::TClosure(_)
@@ -1772,7 +1866,9 @@ impl HasTypeNodes for TAtomic {
 
                 nodes
             }
-            TAtomic::TClassname { as_type } | TAtomic::TTypename { as_type } => {
+            TAtomic::TClassname { as_type }
+            | TAtomic::TClassPtr { as_type }
+            | TAtomic::TTypename { as_type } => {
                 vec![TypeNode::Atomic(as_type)]
             }
             _ => vec![],
@@ -2018,7 +2114,9 @@ pub fn populate_atomic_type(
                 };
             }
         }
-        TAtomic::TClassname { as_type } | TAtomic::TTypename { as_type } => {
+        TAtomic::TClassname { as_type }
+        | TAtomic::TClassPtr { as_type }
+        | TAtomic::TTypename { as_type } => {
             populate_atomic_type(
                 as_type,
                 codebase_symbols,

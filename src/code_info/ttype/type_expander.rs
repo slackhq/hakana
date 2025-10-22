@@ -336,8 +336,9 @@ fn expand_atomic(
         );
 
         return;
-    } else if let TAtomic::TClassname { as_type, .. } | TAtomic::TTypename { as_type, .. } =
-        return_type_part
+    } else if let TAtomic::TClassname { as_type, .. }
+    | TAtomic::TTypename { as_type, .. }
+    | TAtomic::TClassPtr { as_type } = return_type_part
     {
         let mut atomic_return_type_parts = vec![];
         expand_atomic(

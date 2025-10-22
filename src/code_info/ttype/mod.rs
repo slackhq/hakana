@@ -449,8 +449,10 @@ fn intersect_atomic_with_atomic_simple(
         }
         (
             TAtomic::TLiteralClassname { .. }
+            | TAtomic::TLiteralClassPtr { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TClassname { .. }
+            | TAtomic::TClassPtr { .. }
             | TAtomic::TTypename { .. }
             | TAtomic::TStringWithFlags(..)
             | TAtomic::TString { .. },
@@ -993,6 +995,14 @@ pub fn get_atomic_syntax_type(
             str += ">";
             str
         }
+        TAtomic::TClassPtr { as_type, .. } => {
+            let as_string = get_atomic_syntax_type(as_type, codebase, interner, is_valid);
+            let mut str = String::new();
+            str += "class<";
+            str += as_string.as_str();
+            str += ">";
+            str
+        }
         TAtomic::TTypename { as_type, .. } => {
             let as_string = get_atomic_syntax_type(as_type, codebase, interner, is_valid);
             let mut str = String::new();
@@ -1094,6 +1104,10 @@ pub fn get_atomic_syntax_type(
             *is_valid = false;
             "_".to_string()
         }
+        TAtomic::TLiteralClassPtr { .. } => {
+            *is_valid = false;
+            "_".to_string()
+        }
         TAtomic::TEnumLiteralCase { enum_name, .. } => interner.lookup(enum_name).to_string(),
         TAtomic::TMemberReference { classlike_name, .. } => {
             interner.lookup(classlike_name).to_string()
@@ -1142,6 +1156,15 @@ pub fn get_atomic_syntax_type(
             ..
         } => format!(
             "classname<{}:{}>",
+            interner.lookup(param_name),
+            defining_entity.to_string(Some(interner))
+        ),
+        TAtomic::TGenericClassPtr {
+            param_name,
+            defining_entity,
+            ..
+        } => format!(
+            "class<{}:{}>",
             interner.lookup(param_name),
             defining_entity.to_string(Some(interner))
         ),

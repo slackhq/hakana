@@ -102,10 +102,12 @@ pub fn reconcile(
             TAtomic::TScalar => {
                 return intersect_simple!(
                     TAtomic::TLiteralClassname { .. }
+                        | TAtomic::TLiteralClassPtr { .. }
                         | TAtomic::TLiteralInt { .. }
                         | TAtomic::TLiteralString { .. }
                         | TAtomic::TArraykey { .. }
                         | TAtomic::TBool
+                        | TAtomic::TClassPtr { .. }
                         | TAtomic::TClassname { .. }
                         | TAtomic::TTypename { .. }
                         | TAtomic::TFalse
@@ -516,8 +518,10 @@ pub(crate) fn intersect_atomic_with_atomic(
         }
         (
             TAtomic::TLiteralClassname { .. }
+            | TAtomic::TLiteralClassPtr { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TClassname { .. }
+            | TAtomic::TClassPtr { .. }
             | TAtomic::TTypename { .. }
             | TAtomic::TStringWithFlags(..)
             | TAtomic::TString { .. },

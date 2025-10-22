@@ -117,6 +117,7 @@ fn get_classname_type_from_hint(
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
+    is_class_ptr: bool,
 ) -> TAtomic {
     if let Some(inner_type) = get_type_from_hint(
         &hint.1,
@@ -135,14 +136,28 @@ fn get_classname_type_from_hint(
             ..
         } = as_type
         {
-            TAtomic::TGenericClassname {
-                param_name,
-                defining_entity,
-                as_type: Box::new(as_type.get_single_owned()),
+            if is_class_ptr {
+                TAtomic::TGenericClassPtr {
+                    param_name,
+                    defining_entity,
+                    as_type: Box::new(as_type.get_single_owned()),
+                }
+            } else {
+                TAtomic::TGenericClassname {
+                    param_name,
+                    defining_entity,
+                    as_type: Box::new(as_type.get_single_owned()),
+                }
             }
         } else {
-            TAtomic::TClassname {
-                as_type: Box::new(as_type),
+            if is_class_ptr {
+                TAtomic::TClassPtr {
+                    as_type: Box::new(as_type),
+                }
+            } else {
+                TAtomic::TClassname {
+                    as_type: Box::new(as_type),
+                }
             }
         }
     } else {
@@ -569,6 +584,7 @@ pub fn get_type_from_hint(
                             type_context,
                             resolved_names,
                             file_path,
+                            false,
                         )
                     } else {
                         get_reference_type(
@@ -817,6 +833,7 @@ pub fn get_type_from_hint(
             type_context,
             resolved_names,
             file_path,
+            true,
         ),
     };
 

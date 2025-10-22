@@ -1,0 +1,4 @@
+ERROR: InvalidContainsCheck - input.hack:17:12 - Second arg of HH\Lib\C\contains expects type classname<A>, saw Other::class
+ERROR: InvalidContainsCheck - input.hack:21:12 - Second arg of HH\Lib\C\contains expects type classname<A>, saw class<Other>
+ERROR: InvalidContainsCheck - input.hack:31:9 - Second arg of HH\Lib\C\contains expects type class<A>, saw class<Other>
+ERROR: InvalidContainsCheck - input.hack:36:12 - Second arg of HH\Lib\C\contains expects type class<A>, saw nameof B

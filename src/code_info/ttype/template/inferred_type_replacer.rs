@@ -64,6 +64,11 @@ pub fn replace(
                 param_name,
                 defining_entity,
                 ..
+            }
+            | TAtomic::TGenericClassPtr {
+                param_name,
+                defining_entity,
+                ..
             } => {
                 if let Some(bounds) = template_result
                     .lower_bounds

@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::ast::get_id_name;
 use hakana_code_info::t_atomic::TAtomic;
@@ -13,15 +14,23 @@ pub(crate) fn analyze(
     context: &BlockContext,
     expr: &aast::Expr<(), ()>,
     class_id: &Box<aast::ClassId<(), ()>>,
-) {
+) -> Result<(), AnalysisError> {
     let resolved_nameof_type =
-        resolve_class_name(statements_analyzer, analysis_data, context, class_id)
-            .map_or(TAtomic::TString, |value| TAtomic::TLiteralString { value });
+        resolve_class_name(statements_analyzer, analysis_data, context, class_id).ok_or_else(
+            || {
+                AnalysisError::InternalError(
+                    "invalid nameof operand".to_string(),
+                    statements_analyzer.get_hpos(expr.pos()),
+                )
+            },
+        )?;
 
     analysis_data.expr_types.insert(
         (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
         Rc::new(wrap_atomic(resolved_nameof_type)),
     );
+
+    Ok(())
 }
 
 fn resolve_class_name(
@@ -29,7 +38,7 @@ fn resolve_class_name(
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
     class_id: &Box<aast::ClassId<(), ()>>,
-) -> Option<String> {
+) -> Option<TAtomic> {
     // The RHS of a nameof expression always seems to be a CIexpr,
     // even if a classname literal or a keyword like self/static/parent is passed.
     let aast::ClassId_::CIexpr(ci_expr) = &class_id.2 else {
@@ -55,10 +64,7 @@ fn resolve_class_name(
         false,
     );
 
-    Some(
-        statements_analyzer
-            .interner
-            .lookup(&resolved_class_id)
-            .to_owned(),
-    )
+    Some(TAtomic::TLiteralClassname {
+        name: resolved_class_id,
+    })
 }

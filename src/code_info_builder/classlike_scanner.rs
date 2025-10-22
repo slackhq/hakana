@@ -622,7 +622,9 @@ pub(crate) fn scan(
                     simple_type_inferer::infer(attribute_param_expr, resolved_names);
 
                 if let Some(attribute_param_type) = attribute_param_type {
-                    if let TAtomic::TLiteralClassname { name: value } = attribute_param_type {
+                    if let TAtomic::TLiteralClassname { name: value }
+                    | TAtomic::TLiteralClassPtr { name: value } = attribute_param_type
+                    {
                         child_classlikes.insert(value);
                     }
                 }

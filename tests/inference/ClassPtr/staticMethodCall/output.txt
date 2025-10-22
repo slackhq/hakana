@@ -1,0 +1,2 @@
+ERROR: NonExistentMethod - input.hack:13:5 - Method A::bar does not exist
+ERROR: NonExistentMethod - input.hack:22:5 - Method C::foo does not exist

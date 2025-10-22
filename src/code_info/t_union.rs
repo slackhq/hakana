@@ -301,6 +301,7 @@ impl TUnion {
         for child_node in all_child_nodes {
             if let TypeNode::Atomic(
                 TAtomic::TGenericParam { .. }
+                | TAtomic::TGenericClassPtr { .. }
                 | TAtomic::TGenericClassname { .. }
                 | TAtomic::TGenericTypename { .. },
             ) = child_node
@@ -326,6 +327,7 @@ impl TUnion {
         for child_node in all_child_nodes {
             if let TypeNode::Atomic(inner) = child_node {
                 if let TAtomic::TGenericParam { .. }
+                | TAtomic::TGenericClassPtr { .. }
                 | TAtomic::TGenericClassname { .. }
                 | TAtomic::TGenericTypename { .. } = inner
                 {
@@ -666,6 +668,7 @@ impl TUnion {
                     | TAtomic::TTrue { .. }
                     | TAtomic::TFalse { .. }
                     | TAtomic::TLiteralClassname { .. }
+                    | TAtomic::TLiteralClassPtr { .. }
             )
         })
     }
@@ -678,6 +681,7 @@ impl TUnion {
                     | TAtomic::TFloat
                     | TAtomic::TNull
                     | TAtomic::TLiteralClassname { .. }
+                    | TAtomic::TLiteralClassPtr { .. }
                     | TAtomic::TLiteralInt { .. }
                     | TAtomic::TLiteralString { .. }
                     | TAtomic::TBool
@@ -803,6 +807,8 @@ pub fn populate_union_type(
     for atomic in types.iter_mut() {
         if let TAtomic::TClassname { as_type }
         | TAtomic::TTypename { as_type }
+        | TAtomic::TClassPtr { as_type }
+        | TAtomic::TGenericClassPtr { as_type, .. }
         | TAtomic::TGenericClassname { as_type, .. }
         | TAtomic::TGenericTypename { as_type, .. } = atomic
         {

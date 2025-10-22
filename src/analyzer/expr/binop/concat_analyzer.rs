@@ -139,7 +139,7 @@ pub(crate) fn analyze_concat_nodes(
                     }
                 }
 
-                class_constant_fetch_analyzer::check_classname_used_as_string(
+                class_constant_fetch_analyzer::check_class_ptr_used_as_string(
                     statements_analyzer,
                     context,
                     analysis_data,
