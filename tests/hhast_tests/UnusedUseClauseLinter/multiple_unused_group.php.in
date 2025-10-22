@@ -1,0 +1,6 @@
+<?hh
+
+use type Foo\{AUnused, BIsUsed, CIsUsed, DUnused, EUnused};
+
+new BIsUsed();
+new CIsUsed();

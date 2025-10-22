@@ -470,13 +470,56 @@ impl<'a> UnusedUseClauseVisitor<'a> {
             // If has_alias, fall through to normal clause removal logic
         }
 
-        // Remove individual unused clauses
-        // We need to handle commas and separators properly
-        for unused in unused_clauses {
-            // Look ahead for a comma
-            let has_trailing_comma = if unused.end_offset < source_bytes.len() {
-                let lookahead_end = (unused.end_offset + 100).min(source_bytes.len());
-                let lookahead = &source_bytes[unused.end_offset..lookahead_end];
+        // Group consecutive unused clauses to avoid overlapping edits
+        // Sort unused clauses by start offset
+        let mut sorted_unused: Vec<&UseClauseInfo> = unused_clauses.iter().copied().collect();
+        sorted_unused.sort_by_key(|c| c.start_offset);
+
+        // Group consecutive clauses together
+        let mut clause_groups: Vec<Vec<&UseClauseInfo>> = Vec::new();
+        let mut current_group: Vec<&UseClauseInfo> = Vec::new();
+
+        for (i, unused) in sorted_unused.iter().enumerate() {
+            current_group.push(unused);
+
+            // Check if next clause is consecutive
+            let is_last = i == sorted_unused.len() - 1;
+            let next_is_consecutive = if !is_last {
+                // Find the indices of current and next clauses in the original clause list
+                let current_idx = use_stmt
+                    .clauses
+                    .iter()
+                    .position(|c| std::ptr::eq(c, *unused))
+                    .unwrap();
+                let next_unused = sorted_unused[i + 1];
+                let next_idx = use_stmt
+                    .clauses
+                    .iter()
+                    .position(|c| std::ptr::eq(c, next_unused))
+                    .unwrap();
+
+                // Check if they are consecutive in the original list
+                next_idx == current_idx + 1
+            } else {
+                false
+            };
+
+            if !next_is_consecutive {
+                // End of consecutive group, add it and start a new group
+                clause_groups.push(current_group.clone());
+                current_group.clear();
+            }
+        }
+
+        // Process each group of consecutive unused clauses as a single edit
+        for group in clause_groups {
+            let first_unused = group.first().unwrap();
+            let last_unused = group.last().unwrap();
+
+            // Look ahead for a comma after the last clause in the group
+            let has_trailing_comma = if last_unused.end_offset < source_bytes.len() {
+                let lookahead_end = (last_unused.end_offset + 100).min(source_bytes.len());
+                let lookahead = &source_bytes[last_unused.end_offset..lookahead_end];
                 if let Ok(text) = std::str::from_utf8(lookahead) {
                     // Find the next non-whitespace character
                     text.trim_start().starts_with(',')
@@ -490,7 +533,7 @@ impl<'a> UnusedUseClauseVisitor<'a> {
             if has_trailing_comma {
                 // Find the comma position and consume it
                 let mut comma_pos = None;
-                for i in unused.end_offset..source_bytes.len() {
+                for i in last_unused.end_offset..source_bytes.len() {
                     if source_bytes[i] == b',' {
                         comma_pos = Some(i);
                         break;
@@ -502,10 +545,10 @@ impl<'a> UnusedUseClauseVisitor<'a> {
 
                 if let Some(comma_idx) = comma_pos {
                     // For trailing comma case, decide what to consume
-                    let mut start = unused.start_offset;
+                    let mut start = first_unused.start_offset;
                     let mut end = comma_idx + 1; // Include the comma
 
-                    // Check what precedes this clause
+                    // Check what precedes the first clause in the group
                     let leading_context = if start >= 2 && source_bytes[start - 1] == b' ' {
                         // Pattern: "X Y" where X is { or ,
                         Some((source_bytes[start - 2], true)) // (char, has_space)
@@ -582,16 +625,16 @@ impl<'a> UnusedUseClauseVisitor<'a> {
             } else {
                 // No trailing comma - check for leading comma
                 let mut has_leading_comma = false;
-                let mut comma_start = unused.start_offset;
+                let mut comma_start = first_unused.start_offset;
 
-                if unused.start_offset > 0 {
-                    let lookbehind_start = unused.start_offset.saturating_sub(100);
-                    let lookbehind = &source_bytes[lookbehind_start..unused.start_offset];
+                if first_unused.start_offset > 0 {
+                    let lookbehind_start = first_unused.start_offset.saturating_sub(100);
+                    let lookbehind = &source_bytes[lookbehind_start..first_unused.start_offset];
                     if let Ok(text) = std::str::from_utf8(lookbehind) {
                         if text.trim_end().ends_with(',') {
                             has_leading_comma = true;
                             // Find the comma position
-                            for i in (lookbehind_start..unused.start_offset).rev() {
+                            for i in (lookbehind_start..first_unused.start_offset).rev() {
                                 if source_bytes[i] == b',' {
                                     comma_start = i;
                                     break;
@@ -603,7 +646,7 @@ impl<'a> UnusedUseClauseVisitor<'a> {
 
                 if has_leading_comma {
                     // When removing with leading comma, find the end
-                    let mut end = unused.end_offset;
+                    let mut end = last_unused.end_offset;
 
                     // Check what comes after the clause
                     let has_newline_after = {
@@ -637,7 +680,8 @@ impl<'a> UnusedUseClauseVisitor<'a> {
 
                     fix.add(Edit::delete(comma_start, end));
                 } else {
-                    fix.add(Edit::delete(unused.start_offset, unused.end_offset));
+                    // No comma at all - delete from first to last clause in group
+                    fix.add(Edit::delete(first_unused.start_offset, last_unused.end_offset));
                 }
             }
         }

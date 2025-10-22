@@ -1,0 +1,7 @@
+<?hh
+
+// Test non-consecutive unused clauses: AUnused, (used), CUnused, (used), EUnused
+use type Foo\{BIsUsed, DIsUsed};
+
+new BIsUsed();
+new DIsUsed();

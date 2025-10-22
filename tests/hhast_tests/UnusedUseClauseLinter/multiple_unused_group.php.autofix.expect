@@ -1,0 +1,6 @@
+<?hh
+
+use type Foo\{BIsUsed, CIsUsed};
+
+new BIsUsed();
+new CIsUsed();
