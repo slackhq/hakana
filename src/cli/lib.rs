@@ -2199,6 +2199,18 @@ fn do_lint(
                                                     file_op.path.clone()
                                                 };
 
+                                                // Create parent directories if they don't exist
+                                                if let Some(parent_dir) = target_path.parent() {
+                                                    if let Err(e) = fs::create_dir_all(parent_dir) {
+                                                        lint_output.lock().unwrap().push(format!(
+                                                            "Error creating directory {}: {}",
+                                                            parent_dir.display(),
+                                                            e
+                                                        ));
+                                                        continue;
+                                                    }
+                                                }
+
                                                 match fs::write(&target_path, content) {
                                                     Ok(_) => {
                                                         lint_output.lock().unwrap().push(format!(
