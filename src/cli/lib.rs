@@ -1872,19 +1872,34 @@ fn parse_codeowners_files(root_dir: &str) -> (Vec<glob::Pattern>, FxHashSet<Stri
             }
         } else {
             // Could be either an exact file or a directory without trailing slash
-            // Add both interpretations:
-            // 1. Exact file match
-            if pattern.starts_with('/') {
-                exact_files.insert(pattern.to_string());
-                // Also add as directory pattern (match all files under it)
-                if let Ok(compiled) = glob::Pattern::new(&format!("{}/**", pattern)) {
-                    codeowner_patterns.push(compiled);
+            // Check if it looks like a file (has an extension like .hack or .php)
+            let is_file = pattern.ends_with(".hack")
+                || pattern.ends_with(".php")
+                || pattern.ends_with(".hhi")
+                || pattern.contains('.');
+
+            if is_file {
+                // Treat as exact file path
+                if pattern.starts_with('/') {
+                    // Pattern has leading slash - match from root
+                    exact_files.insert(pattern.to_string());
+                } else {
+                    // Pattern doesn't have leading slash - add leading slash for matching
+                    // since relative_path in matching code always has a leading slash
+                    exact_files.insert(format!("/{}", pattern));
                 }
             } else {
-                exact_files.insert(format!("/{}", pattern));
-                // Also add as directory pattern
-                if let Ok(compiled) = glob::Pattern::new(&format!("**/{pattern}/**")) {
-                    codeowner_patterns.push(compiled);
+                // Treat as directory path - match all files under this directory
+                if pattern.starts_with('/') {
+                    // Absolute directory pattern from root
+                    if let Ok(compiled) = glob::Pattern::new(&format!("{}/**", pattern)) {
+                        codeowner_patterns.push(compiled);
+                    }
+                } else {
+                    // Relative directory pattern - match anywhere in tree
+                    if let Ok(compiled) = glob::Pattern::new(&format!("**/{pattern}/**")) {
+                        codeowner_patterns.push(compiled);
+                    }
                 }
             }
         }
@@ -2038,10 +2053,17 @@ fn do_lint(
 
             // Skip files with codeowners if requested
             if skip_codeowners {
-                let relative_path = if let Ok(rel) = path.strip_prefix(&root_dir) {
+                // Canonicalize both the file path and root_dir to handle relative paths
+                let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+                let canonical_root = std::path::Path::new(&root_dir)
+                    .canonicalize()
+                    .unwrap_or_else(|_| std::path::PathBuf::from(&root_dir));
+
+                let relative_path = if let Ok(rel) = canonical_path.strip_prefix(&canonical_root) {
                     format!("/{}", rel.to_string_lossy())
                 } else {
-                    path_str.to_string()
+                    // Fallback: try to make path relative to root_dir if it's not already
+                    format!("/{}", path_str.trim_start_matches("./"))
                 };
 
                 // Check exact file match
