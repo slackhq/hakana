@@ -189,6 +189,11 @@ fn handle_atomic_standin(
         param_name,
         defining_entity,
         ..
+    }
+    | TAtomic::TGenericClassPtr {
+        param_name,
+        defining_entity,
+        ..
     } = atomic_type
     {
         if template_types_contains(
@@ -1117,6 +1122,12 @@ fn handle_template_param_class_standin<'a>(
         as_type,
         param_name,
         ..
+    }
+    | TAtomic::TGenericClassPtr {
+        defining_entity,
+        as_type,
+        param_name,
+        ..
     } = atomic_type
     {
         let mut atomic_type_as = *as_type.clone();
@@ -1140,7 +1151,9 @@ fn handle_template_param_class_standin<'a>(
             let mut valid_input_atomic_types = vec![];
 
             for input_atomic_type in &input_type.types {
-                if let TAtomic::TLiteralClassname { name } = input_atomic_type {
+                if let TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } =
+                    input_atomic_type
+                {
                     valid_input_atomic_types.push(TAtomic::TNamedObject {
                         name: *name,
                         type_params: None,
@@ -1153,6 +1166,11 @@ fn handle_template_param_class_standin<'a>(
                     as_type,
                     defining_entity,
                     ..
+                }
+                | TAtomic::TGenericClassPtr {
+                    param_name,
+                    defining_entity,
+                    as_type,
                 } = input_atomic_type
                 {
                     valid_input_atomic_types.push(TAtomic::TGenericParam {
@@ -1162,6 +1180,9 @@ fn handle_template_param_class_standin<'a>(
                         extra_types: None,
                     });
                 } else if let TAtomic::TClassname {
+                    as_type: atomic_type_as,
+                }
+                | TAtomic::TClassPtr {
                     as_type: atomic_type_as,
                 } = input_atomic_type
                 {
@@ -1322,7 +1343,9 @@ fn handle_template_param_type_standin<'a>(
             let mut valid_input_atomic_types = vec![];
 
             for input_atomic_type in &input_type.types {
-                if let TAtomic::TLiteralClassname { name } = input_atomic_type {
+                if let TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } =
+                    input_atomic_type
+                {
                     valid_input_atomic_types.extend(get_actual_type_from_literal(name, codebase));
                 } else if let TAtomic::TGenericTypename {
                     param_name,
@@ -1548,10 +1571,16 @@ fn find_matching_atomic_types_for_template(
             (
                 TAtomic::TLiteralClassname {
                     name: atomic_class_name,
+                }
+                | TAtomic::TLiteralClassPtr {
+                    name: atomic_class_name,
                 },
                 TAtomic::TClassname {
                     as_type: base_as_type,
                     ..
+                }
+                | TAtomic::TClassPtr {
+                    as_type: base_as_type,
                 },
             ) => {
                 if let TAtomic::TNamedObject {

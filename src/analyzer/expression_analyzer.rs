@@ -484,7 +484,7 @@ pub(crate) fn analyze(
             //return Err(AnalysisError::UserError);
         }
         aast::Expr_::Nameof(class_id) => {
-            nameof_analyzer::analyze(statements_analyzer, analysis_data, context, expr, class_id);
+            nameof_analyzer::analyze(statements_analyzer, analysis_data, context, expr, class_id)?;
         }
         aast::Expr_::Package(_) => todo!(),
         aast::Expr_::Assign(boxed) => {

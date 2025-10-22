@@ -19,7 +19,7 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
                                 *resolved_names.get(&(id.0.start_offset() as u32)).unwrap();
 
                             if boxed.1.1 == "class" {
-                                Some(TAtomic::TLiteralClassname { name: name_string })
+                                Some(TAtomic::TLiteralClassPtr { name: name_string })
                             } else {
                                 Some(TAtomic::TMemberReference {
                                     classlike_name: name_string,

@@ -1,0 +1,4 @@
+ERROR: InvalidArgument - input.hack:24:21 - Argument 1 of takes_class_ptr expects class<A>, different type C::class provided
+ERROR: InvalidArgument - input.hack:27:21 - Argument 1 of takes_classname expects classname<A>, different type C::class provided
+ERROR: InvalidArgument - input.hack:28:21 - Argument 1 of takes_classname expects classname<A>, different type nameof C provided
+ERROR: InvalidArgument - input.hack:31:21 - Argument 1 of takes_class_ptr expects class<A>, different type nameof B provided

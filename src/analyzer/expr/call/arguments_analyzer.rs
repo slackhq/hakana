@@ -1535,7 +1535,7 @@ fn check_classname_passed_as_string(
     let is_string_param = param_type.types.iter().any(|t| *t == TAtomic::TString);
 
     if is_string_param {
-        class_constant_fetch_analyzer::check_classname_used_as_string(
+        class_constant_fetch_analyzer::check_class_ptr_used_as_string(
             statements_analyzer,
             context,
             analysis_data,

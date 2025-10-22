@@ -154,7 +154,7 @@ fn analyse_known_class_constant(
         );
 
         if const_name == "class" && codebase.type_definitions.contains_key(classlike_name) {
-            return Some(wrap_atomic(TAtomic::TLiteralClassname {
+            return Some(wrap_atomic(TAtomic::TLiteralClassPtr {
                 name: *classlike_name,
             }));
         }
@@ -197,11 +197,11 @@ fn analyse_known_class_constant(
                 extra_types: None,
                 remapped_params: false,
             };
-            TAtomic::TClassname {
+            TAtomic::TClassPtr {
                 as_type: Box::new(named_object),
             }
         } else {
-            TAtomic::TLiteralClassname {
+            TAtomic::TLiteralClassPtr {
                 name: *classlike_name,
             }
         };
@@ -320,21 +320,21 @@ fn analyse_known_class_constant(
     class_constant_type
 }
 
-/// Check whether the given expression is a classname literal and raise an issue if so.
-pub(crate) fn check_classname_used_as_string(
+/// Check whether the given expression is a class<T> pointer literal and raise an issue if so.
+pub(crate) fn check_class_ptr_used_as_string(
     statements_analyzer: &StatementsAnalyzer,
     context: &BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     expr_type: &TUnion,
     expr: &aast::Expr<(), ()>,
 ) {
-    let is_classname_literal = expr_type
+    let is_literal_class_ptr = expr_type
         .types
         .iter()
-        .all(|t| matches!(t, TAtomic::TLiteralClassname { name: _ }));
+        .all(|t| matches!(t, TAtomic::TLiteralClassPtr { name: _ }));
 
-    if is_classname_literal
-        && let Some(class_name) = get_class_name_from_classname_literal_expr(expr)
+    if is_literal_class_ptr
+        && let Some(class_name) = get_class_name_from_class_ptr_literal_expr(expr)
     {
         let pos = expr.pos();
         let issue = Issue::new(
@@ -372,9 +372,9 @@ pub(crate) fn check_classname_used_as_string(
     }
 }
 
-/// Extract the referenced class name from a classname literal expression in the form of C::class.
+/// Extract the referenced class name from a class<T> pointer literal expression in the form of C::class.
 /// Returns `None` if the class name cannot be determined.
-fn get_class_name_from_classname_literal_expr(expr: &aast::Expr<(), ()>) -> Option<&str> {
+fn get_class_name_from_class_ptr_literal_expr(expr: &aast::Expr<(), ()>) -> Option<&str> {
     let aast::Expr_::ClassConst(class_id) = &expr.2 else {
         return None;
     };

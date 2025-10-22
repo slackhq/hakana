@@ -176,7 +176,13 @@ fn analyze_atomic(
             // todo check class name and register usage
             *name
         }
-        TAtomic::TClassname { as_type, .. } | TAtomic::TGenericClassname { as_type, .. } => {
+        // During the migration from classname<T> strings to class<T> pointers,
+        // support invoking `new` with an LHS expression of either type.
+        // This is governed by the typechecker flag `class_pointer_ban_classname_new`.
+        TAtomic::TClassname { as_type, .. }
+        | TAtomic::TGenericClassname { as_type, .. }
+        | TAtomic::TClassPtr { as_type }
+        | TAtomic::TGenericClassPtr { as_type, .. } => {
             let as_type = *as_type.clone();
             if let TAtomic::TNamedObject { name, .. } = as_type {
                 from_classname = true;
@@ -197,7 +203,7 @@ fn analyze_atomic(
                 return Ok(());
             }
         }
-        TAtomic::TLiteralClassname { name } => *name,
+        TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } => *name,
         TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. } => {
             let generic_param_type = &as_type.types[0];
             if let TAtomic::TNamedObject { name, .. } = generic_param_type {

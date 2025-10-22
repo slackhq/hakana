@@ -119,6 +119,16 @@ pub fn is_contained_by(
         {
             return input_value == container_value;
         }
+
+        // Let classname<T> literals returned by `nameof T` be equivalent to string literals.
+        // During the migration from classname<T> strings to class<T> pointers,
+        // also support class<T> pointers returned by T::class here.
+        if let TAtomic::TLiteralClassname { .. } | TAtomic::TLiteralClassPtr { .. } =
+            input_type_part
+        {
+            // TODO: actually resolve the classname, however this requires passing in an interner everywhere
+            return true;
+        }
     }
 
     if let TAtomic::TLiteralInt {
@@ -362,8 +372,13 @@ pub fn is_contained_by(
     ) = container_type_part
     {
         match input_type_part {
+            // During the migration from classname<T> strings to class<T> pointers,
+            // support coercing class<T> pointers into string containers.
+            // This is governed by the typechecker flag `class_pointer_ban_classname_static_meth`.
             TAtomic::TLiteralClassname { .. }
             | TAtomic::TClassname { .. }
+            | TAtomic::TLiteralClassPtr { .. }
+            | TAtomic::TClassPtr { .. }
             | TAtomic::TTypename { .. } => {
                 return true;
             }
@@ -402,6 +417,8 @@ pub fn is_contained_by(
             TAtomic::TLiteralClassname { .. }
                 | TAtomic::TClassname { .. }
                 | TAtomic::TTypename { .. }
+                | TAtomic::TClassPtr { .. }
+                | TAtomic::TLiteralClassPtr { .. }
         )
     {
         atomic_comparison_result.type_coerced = Some(true);
@@ -414,38 +431,47 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if let TAtomic::TClassname {
-            as_type: input_name,
-            ..
-        } = input_type_part
-        {
-            return atomic_type_comparator::is_contained_by(
-                codebase,
-                file_path,
-                input_name,
-                container_name,
-                inside_assertion,
-                atomic_comparison_result,
-            );
-        }
-
-        if let TAtomic::TGenericClassname {
-            as_type: input_as_type,
-            ..
-        }
-        | TAtomic::TGenericTypename {
-            as_type: input_as_type,
-            ..
-        } = input_type_part
-        {
-            return atomic_type_comparator::is_contained_by(
-                codebase,
-                file_path,
-                input_as_type,
-                container_name,
-                inside_assertion,
-                atomic_comparison_result,
-            );
+        // During the migration from classname<T> strings to class<T> pointers,
+        // support coercing class<T> pointers into classname<T> containers.
+        // This is governed by the typechecker flag `class_pointer_ban_classname_static_meth`.
+        match input_type_part {
+            TAtomic::TClassname {
+                as_type: input_name,
+            }
+            | TAtomic::TClassPtr {
+                as_type: input_name,
+            } => {
+                return atomic_type_comparator::is_contained_by(
+                    codebase,
+                    file_path,
+                    input_name,
+                    container_name,
+                    inside_assertion,
+                    atomic_comparison_result,
+                );
+            }
+            TAtomic::TGenericClassname {
+                as_type: input_as_type,
+                ..
+            }
+            | TAtomic::TGenericTypename {
+                as_type: input_as_type,
+                ..
+            }
+            | TAtomic::TGenericClassPtr {
+                as_type: input_as_type,
+                ..
+            } => {
+                return atomic_type_comparator::is_contained_by(
+                    codebase,
+                    file_path,
+                    input_as_type,
+                    container_name,
+                    inside_assertion,
+                    atomic_comparison_result,
+                );
+            }
+            _ => {}
         }
     }
 
@@ -473,6 +499,10 @@ pub fn is_contained_by(
             as_type: input_as_type,
             ..
         }
+        | TAtomic::TGenericClassPtr {
+            as_type: input_as_type,
+            ..
+        }
         | TAtomic::TGenericTypename {
             as_type: input_as_type,
             ..
@@ -489,7 +519,7 @@ pub fn is_contained_by(
         }
     }
 
-    // Foo::class into classname<Bar> or typename<Bar>
+    // Foo::class or nameof Foo into classname<Bar> or typename<Bar>
     if let TAtomic::TClassname {
         as_type: container_name,
     }
@@ -500,65 +530,88 @@ pub fn is_contained_by(
         as_type: container_name,
         ..
     }
+    | TAtomic::TClassPtr {
+        as_type: container_name,
+    }
+    | TAtomic::TGenericClassPtr {
+        as_type: container_name,
+        ..
+    }
     | TAtomic::TGenericTypename {
         as_type: container_name,
         ..
     } = container_type_part
     {
-        if let TAtomic::TLiteralClassname {
-            name: input_name, ..
-        } = input_type_part
-        {
-            let input_type = if codebase.enum_exists(input_name) {
-                TAtomic::TEnum {
-                    name: *input_name,
-                    as_type: None,
-                    underlying_type: None,
+        // Accept both classname<T> and class<T> here during class pointer migration.
+        // The latter will be a typechecker error if class_class_type=true and class_sub_classname=false.
+        match input_type_part {
+            TAtomic::TLiteralClassname {
+                name: input_name, ..
+            }
+            | TAtomic::TLiteralClassPtr { name: input_name } => {
+                // Can't pass off a classname<T> as a class<T>.
+                if container_type_part.is_class_ptr() && !input_type_part.is_class_ptr() {
+                    return false;
                 }
-            } else if let Some(typedef_info) = codebase.type_definitions.get(input_name) {
-                if let TAtomic::TTypeAlias {
-                    name: alias_name, ..
-                } = &**container_name
-                {
-                    if alias_name == input_name {
-                        return true;
+
+                let input_type = if codebase.enum_exists(input_name) {
+                    TAtomic::TEnum {
+                        name: *input_name,
+                        as_type: None,
+                        underlying_type: None,
                     }
+                } else if let Some(typedef_info) = codebase.type_definitions.get(input_name) {
+                    if let TAtomic::TTypeAlias {
+                        name: alias_name, ..
+                    } = &**container_name
+                    {
+                        if alias_name == input_name {
+                            return true;
+                        }
+                    }
+
+                    typedef_info.actual_type.clone().get_single_owned()
+                } else {
+                    TAtomic::TNamedObject {
+                        name: *input_name,
+                        type_params: None,
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    }
+                };
+
+                return atomic_type_comparator::is_contained_by(
+                    codebase,
+                    file_path,
+                    &input_type,
+                    container_name,
+                    inside_assertion,
+                    atomic_comparison_result,
+                );
+            }
+            TAtomic::TClassname {
+                as_type: input_as_type,
+                ..
+            }
+            | TAtomic::TClassPtr {
+                as_type: input_as_type,
+            } => {
+                // Can't pass off a classname<T> as a class<T>.
+                if container_type_part.is_class_ptr() && !input_type_part.is_class_ptr() {
+                    return false;
                 }
 
-                typedef_info.actual_type.clone().get_single_owned()
-            } else {
-                TAtomic::TNamedObject {
-                    name: *input_name,
-                    type_params: None,
-                    is_this: false,
-                    extra_types: None,
-                    remapped_params: false,
-                }
-            };
-
-            return atomic_type_comparator::is_contained_by(
-                codebase,
-                file_path,
-                &input_type,
-                container_name,
-                inside_assertion,
-                atomic_comparison_result,
-            );
-        }
-
-        if let TAtomic::TClassname {
-            as_type: input_as_type,
-            ..
-        } = input_type_part
-        {
-            return atomic_type_comparator::is_contained_by(
-                codebase,
-                file_path,
-                input_as_type,
-                container_name,
-                inside_assertion,
-                atomic_comparison_result,
-            );
+                return atomic_type_comparator::is_contained_by(
+                    codebase,
+                    file_path,
+                    input_as_type,
+                    container_name,
+                    inside_assertion,
+                    atomic_comparison_result,
+                );
+            }
+            _ => {}
         }
     }
 
@@ -567,31 +620,36 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if let TAtomic::TLiteralClassname {
-            name: input_name, ..
-        } = input_type_part
-        {
-            return codebase.class_or_interface_exists(input_name)
-                || codebase.typedef_exists(input_name);
-        }
-
-        if let TAtomic::TGenericClassname {
-            as_type: input_as_type,
-            ..
-        }
-        | TAtomic::TGenericTypename {
-            as_type: input_as_type,
-            ..
-        } = input_type_part
-        {
-            return atomic_type_comparator::is_contained_by(
-                codebase,
-                file_path,
-                input_as_type,
-                container_name,
-                inside_assertion,
-                atomic_comparison_result,
-            );
+        match input_type_part {
+            TAtomic::TLiteralClassname {
+                name: input_name, ..
+            }
+            | TAtomic::TLiteralClassPtr { name: input_name } => {
+                return codebase.class_or_interface_exists(input_name)
+                    || codebase.typedef_exists(input_name);
+            }
+            TAtomic::TGenericClassname {
+                as_type: input_as_type,
+                ..
+            }
+            | TAtomic::TGenericTypename {
+                as_type: input_as_type,
+                ..
+            }
+            | TAtomic::TGenericClassPtr {
+                as_type: input_as_type,
+                ..
+            } => {
+                return atomic_type_comparator::is_contained_by(
+                    codebase,
+                    file_path,
+                    input_as_type,
+                    container_name,
+                    inside_assertion,
+                    atomic_comparison_result,
+                );
+            }
+            _ => {}
         }
     }
 
@@ -606,6 +664,13 @@ pub fn is_contained_by(
         as_type: input_name,
         ..
     }
+    | TAtomic::TClassPtr {
+        as_type: input_name,
+    }
+    | TAtomic::TGenericClassPtr {
+        as_type: input_name,
+        ..
+    }
     | TAtomic::TGenericClassname {
         as_type: input_name,
         ..
@@ -614,6 +679,9 @@ pub fn is_contained_by(
         if let TAtomic::TLiteralClassname {
             name: container_name,
             ..
+        }
+        | TAtomic::TLiteralClassPtr {
+            name: container_name,
         } = container_type_part
         {
             if atomic_type_comparator::is_contained_by(

@@ -920,6 +920,7 @@ pub(crate) fn can_be_identical<'a>(
                 | TAtomic::TLiteralString { .. }
                 | TAtomic::TLiteralInt { .. }
                 | TAtomic::TLiteralClassname { .. }
+                | TAtomic::TLiteralClassPtr { .. }
         ) {
             type1_part = underlying_type;
         }
@@ -938,6 +939,7 @@ pub(crate) fn can_be_identical<'a>(
                 | TAtomic::TLiteralString { .. }
                 | TAtomic::TLiteralInt { .. }
                 | TAtomic::TLiteralClassname { .. }
+                | TAtomic::TLiteralClassPtr { .. }
         ) {
             type2_part = underlying_type;
         }

@@ -1,0 +1,1 @@
+ERROR: InvalidArgument - input.hack:22:21 - Argument 1 of C::__construct expects A, different type string(foo) provided

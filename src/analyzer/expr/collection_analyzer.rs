@@ -376,7 +376,7 @@ fn analyze_vals_item(
     // Using a classname type inside a keyset<string> or keyset<classname<C>>
     // is a typechecker error in new Hack.
     if matches!(container_type, VcKind::Keyset) {
-        class_constant_fetch_analyzer::check_classname_used_as_string(
+        class_constant_fetch_analyzer::check_class_ptr_used_as_string(
             statements_analyzer,
             context,
             analysis_data,
@@ -441,7 +441,7 @@ fn analyze_keyvals_item(
     // Using a classname type as the key of a dict<string, T> or dict<classname<C>, T>
     // is a typechecker error in new Hack.
     if matches!(container_type, KvcKind::Dict) {
-        class_constant_fetch_analyzer::check_classname_used_as_string(
+        class_constant_fetch_analyzer::check_class_ptr_used_as_string(
             statements_analyzer,
             context,
             analysis_data,

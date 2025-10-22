@@ -786,23 +786,25 @@ fn get_type_structure_type(
 
         if first_expr_type.is_single() {
             let classname = match first_expr_type.get_single() {
-                TAtomic::TLiteralClassname { name } => *name,
-                TAtomic::TClassname { as_type } => match &**as_type {
-                    TAtomic::TNamedObject { name, is_this, .. } => {
-                        if *is_this {
-                            if let Some(this_class) = this_class {
-                                this_class
+                TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } => *name,
+                TAtomic::TClassname { as_type } | TAtomic::TClassPtr { as_type } => {
+                    match &**as_type {
+                        TAtomic::TNamedObject { name, is_this, .. } => {
+                            if *is_this {
+                                if let Some(this_class) = this_class {
+                                    this_class
+                                } else {
+                                    *name
+                                }
                             } else {
                                 *name
                             }
-                        } else {
-                            *name
+                        }
+                        _ => {
+                            return None;
                         }
                     }
-                    _ => {
-                        return None;
-                    }
-                },
+                }
                 TAtomic::TNamedObject { name, is_this, .. } => {
                     if *is_this {
                         if let Some(this_class) = this_class {
