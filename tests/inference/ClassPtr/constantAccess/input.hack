@@ -1,18 +1,20 @@
 abstract class A {
-    const int FOO = 5;
+    const FOO = 5;
 }
 
 final class B extends A {
-    const int BAR = 6;
+    const BAR = 6;
 }
 
 final class C {}
 
 function class_ptr_a(class<A> $cls): int {
+    // A::BAR is not defined
     return $cls::FOO + $cls::BAR;
 }
 
 function class_ptr_b(class<B> $cls): int {
+    // valid
     return $cls::FOO + $cls::BAR;
 }
 
