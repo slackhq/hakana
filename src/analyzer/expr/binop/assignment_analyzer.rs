@@ -178,6 +178,17 @@ pub(crate) fn analyze(
         context.inside_general_use = false;
     }
 
+    // Track regular assignments (not compound assignments like +=, .=, etc)
+    if binop.is_none() {
+        if let Some(var_id) = &var_id {
+            analysis_data
+                .variable_assignments
+                .entry(var_id.clone())
+                .or_default()
+                .insert(assign_var.pos().start_offset() as u32);
+        }
+    }
+
     let assign_value_type = if let Some(assign_value_type) = assign_value_type {
         assign_value_type.clone()
     } else if let Some(assign_value) = assign_value {
@@ -412,8 +423,18 @@ fn analyze_list_assignment(
             Some((statements_analyzer.codebase, statements_analyzer.interner)),
         );
 
-        if list_var_id.unwrap_or("".to_string()) == "$_" {
+        let list_var_id_str = list_var_id.unwrap_or("".to_string());
+        if list_var_id_str == "$_" {
             continue;
+        }
+
+        // Track list assignments
+        if !list_var_id_str.is_empty() {
+            analysis_data
+                .variable_assignments
+                .entry(list_var_id_str.clone())
+                .or_default()
+                .insert(assign_var_item.pos().start_offset() as u32);
         }
 
         let mut value_type = get_nothing();

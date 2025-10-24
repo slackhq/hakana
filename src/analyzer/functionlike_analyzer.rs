@@ -1,7 +1,8 @@
 use crate::config::Config;
 use crate::custom_hook::FunctionLikeParamData;
 use crate::dataflow::unused_variable_analyzer::{
-    add_unused_expression_replacements, check_variables_scoped_incorrectly, check_variables_used,
+    add_unused_expression_replacements, check_variables_redefined_in_loop,
+    check_variables_scoped_incorrectly, check_variables_used,
 };
 use crate::expr::call_analyzer::reconcile_lower_bounds_with_upper_bounds;
 use crate::expr::fetch::atomic_property_fetch_analyzer;
@@ -1433,6 +1434,13 @@ fn report_unused_expressions(
             functionlike_storage.def_location,
         );
 
+    // Check for variables used then redefined in loop
+    let redefined_in_loop_nodes = check_variables_redefined_in_loop(
+        &analysis_data.data_flow_graph,
+        &analysis_data.loop_boundaries,
+        &analysis_data.variable_assignments,
+    );
+
     if functionlike_storage.is_production_code {
         // Report incorrectly scoped variables
         for node in &incorrectly_scoped_nodes {
@@ -1461,6 +1469,25 @@ fn report_unused_expressions(
                         IssueKind::AwaitVariableDefinedOutsideIf,
                         format!(
                             "Awaited variable {} is defined outside if block but only used inside",
+                            node.id.to_label(statements_analyzer.interner)
+                        ),
+                        *pos,
+                        calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+
+        // Report variables used then redefined in loop
+        for node in &redefined_in_loop_nodes {
+            if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::VarUsedThenRedefinedInLoop,
+                        format!(
+                            "Variable {} is used in loop before being redefined, which may dirty the outer value",
                             node.id.to_label(statements_analyzer.interner)
                         ),
                         *pos,

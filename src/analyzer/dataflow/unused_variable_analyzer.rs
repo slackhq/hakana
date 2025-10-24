@@ -91,6 +91,135 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> (Vec<DataFlowNode>, Vec<Da
     (unused_nodes, unused_but_referenced_nodes)
 }
 
+pub fn check_variables_redefined_in_loop(
+    graph: &DataFlowGraph,
+    loop_boundaries: &[(u32, u32)],
+    variable_assignments: &FxHashMap<String, FxHashSet<u32>>,
+) -> Vec<DataFlowNode> {
+    // Early exits for common cases
+    if loop_boundaries.is_empty() || variable_assignments.is_empty() {
+        return Vec::new();
+    }
+
+    // Filter to only variables with multiple assignments (potential redefinitions)
+    let multi_assignment_vars: FxHashMap<&String, &FxHashSet<u32>> = variable_assignments
+        .iter()
+        .filter(|(_, offsets)| offsets.len() > 1)
+        .map(|(name, offsets)| (name, offsets))
+        .collect();
+
+    if multi_assignment_vars.is_empty() {
+        return Vec::new();
+    }
+
+    // Build a reverse index: offset -> source node for quick lookup
+    let mut offset_to_source: FxHashMap<u32, &DataFlowNode> = FxHashMap::default();
+    for (_, source_node) in &graph.sources {
+        if let (DataFlowNodeKind::VariableUseSource { pos, .. }, DataFlowNodeId::Var(..)) =
+            (&source_node.kind, &source_node.id)
+        {
+            offset_to_source.insert(pos.start_offset, source_node);
+        }
+    }
+
+    let mut redefined_nodes = Vec::new();
+
+    // For each variable with multiple assignments
+    for (var_name, assignment_offsets) in multi_assignment_vars {
+        // For each loop
+        for &(loop_start, loop_end) in loop_boundaries {
+            // Partition assignments into inside/outside loop
+            let (mut assignments_inside, assignments_outside): (Vec<u32>, Vec<u32>) =
+                assignment_offsets
+                    .iter()
+                    .partition(|&&offset| offset >= loop_start && offset <= loop_end);
+
+            // Skip if no assignments on both sides of the loop boundary
+            if assignments_inside.is_empty() || assignments_outside.is_empty() {
+                continue;
+            }
+
+            assignments_inside.sort_unstable();
+
+            // Check if any outside assignment is used inside the loop
+            for &outside_offset in &assignments_outside {
+                let Some(outside_source) = offset_to_source.get(&outside_offset) else {
+                    continue;
+                };
+
+                // Only check sources outside the loop
+                if let DataFlowNodeKind::VariableUseSource { pos, .. } = &outside_source.kind {
+                    if pos.start_offset >= loop_start {
+                        continue;
+                    }
+                }
+
+                let Some(sink_ids) = get_all_variable_uses(graph, outside_source) else {
+                    continue;
+                };
+
+                // Collect all uses of the outside source that are inside the loop
+                let uses_in_loop: Vec<u32> = sink_ids
+                    .iter()
+                    .filter_map(|sink_id| {
+                        let sink = graph.sinks.get(sink_id)?;
+                        if let DataFlowNodeKind::VariableUseSink { pos: sink_pos } = &sink.kind {
+                            if sink_pos.start_offset >= loop_start
+                                && sink_pos.start_offset <= loop_end
+                            {
+                                return Some(sink_pos.start_offset);
+                            }
+                        }
+                        None
+                    })
+                    .collect();
+
+                if uses_in_loop.is_empty() {
+                    continue;
+                }
+
+                // Find the earliest use in the loop
+                let earliest_use = *uses_in_loop.iter().min().unwrap();
+
+                // Check each assignment inside the loop that comes after this use
+                for &inside_offset in &assignments_inside {
+                    if inside_offset <= earliest_use {
+                        continue;
+                    }
+
+                    let Some(inside_source) = offset_to_source.get(&inside_offset) else {
+                        continue;
+                    };
+
+                    // Check if this redefined variable is used again after redefinition
+                    if let Some(inside_sink_ids) = get_all_variable_uses(graph, inside_source) {
+                        let has_use_after_redef = inside_sink_ids.iter().any(|sink_id| {
+                            if let Some(DataFlowNode {
+                                kind: DataFlowNodeKind::VariableUseSink { pos: sink_pos },
+                                ..
+                            }) = graph.sinks.get(sink_id)
+                            {
+                                sink_pos.start_offset > inside_offset
+                                    && sink_pos.start_offset >= loop_start
+                                    && sink_pos.start_offset <= loop_end
+                            } else {
+                                false
+                            }
+                        });
+
+                        if has_use_after_redef {
+                            redefined_nodes.push((*inside_source).clone());
+                            break; // Only report once per inside assignment
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    redefined_nodes
+}
+
 pub fn check_variables_scoped_incorrectly(
     graph: &DataFlowGraph,
     if_block_boundaries: &[(u32, u32)],

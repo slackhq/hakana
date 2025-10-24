@@ -163,6 +163,7 @@ pub enum IssueKind {
     UpcastAwaitable,
     UselessControlFlow,
     UselessDefaultCase,
+    VarUsedThenRedefinedInLoop,
     AwaitVariableDefinedOutsideIf,
     VariableDefinedOutsideIf,
 }
