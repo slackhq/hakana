@@ -1,0 +1,6 @@
+ERROR: InvalidReturnStatement - input.hack:13:12 - The type float does not match the declared return type int for class_ptr_a
+ERROR: NonExistentClassConstant - input.hack:13:24 - Unknown class constant A::BAR
+ERROR: MixedOperand - input.hack:13:24 - Operand has a mixed type
+ERROR: NonExistentClassConstant - input.hack:22:12 - Unknown class constant C::FOO
+ERROR: MixedAnyReturnStatement - input.hack:22:12 - Could not infer a proper return type — saw any
+ERROR: MixedAnyReturnStatement - input.hack:27:12 - Could not infer a proper return type — saw any

@@ -81,6 +81,26 @@ pub(crate) fn analyze(
                                     codebase,
                                 ));
                             }
+                            TAtomic::TClassPtr { as_type }
+                            | TAtomic::TGenericClassPtr { as_type, .. } => {
+                                if let TAtomic::TNamedObject { name, is_this, .. } = &**as_type {
+                                    stmt_type = Some(add_optional_union_type(
+                                        analyse_known_class_constant(
+                                            codebase,
+                                            analysis_data,
+                                            context,
+                                            name,
+                                            const_name,
+                                            *is_this,
+                                            statements_analyzer,
+                                            pos,
+                                        )
+                                        .unwrap_or(get_mixed_any()),
+                                        stmt_type.as_ref(),
+                                        codebase,
+                                    ));
+                                }
+                            }
                             TAtomic::TReference {
                                 name: classlike_name,
                                 ..
