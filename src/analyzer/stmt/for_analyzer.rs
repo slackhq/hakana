@@ -25,11 +25,11 @@ pub(crate) fn analyze(
     let pre_assigned_var_ids = context.assigned_var_ids.clone();
     context.assigned_var_ids.clear();
 
+    let mut last_offset = 0;
+
     if let Some(last_comparison_expr) = stmt.2.last() {
-        context.for_loop_init_bounds = (
-            last_comparison_expr.pos().end_offset() as u32,
-            pos.end_offset() as u32,
-        );
+        last_offset = last_comparison_expr.pos().end_offset() as u32;
+        context.for_loop_init_bounds = (last_offset, pos.end_offset() as u32);
     }
 
     for init_expr in stmt.0 {
@@ -47,7 +47,11 @@ pub(crate) fn analyze(
     for_context.break_types.push(BreakContext::Loop);
 
     let prev_loop_bounds = for_context.loop_bounds;
-    for_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
+    for_context.loop_bounds = (
+        pos.start_offset() as u32,
+        pos.end_offset() as u32,
+        last_offset,
+    );
     // Store loop bounds for variable scoping analysis
     analysis_data.loop_boundaries.push(for_context.loop_bounds);
 

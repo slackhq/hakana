@@ -39,7 +39,11 @@ pub(crate) fn analyze(
     };
 
     let prev_loop_bounds = while_context.loop_bounds;
-    while_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
+    while_context.loop_bounds = (
+        pos.start_offset() as u32,
+        pos.end_offset() as u32,
+        stmt.0.pos().end_offset() as u32,
+    );
 
     // Store loop bounds for variable scoping analysis
     analysis_data

@@ -1439,6 +1439,8 @@ fn report_unused_expressions(
         &analysis_data.data_flow_graph,
         &analysis_data.loop_boundaries,
         &analysis_data.variable_assignments,
+        &analysis_data.if_block_boundaries,
+        statements_analyzer.interner,
     );
 
     if functionlike_storage.is_production_code {

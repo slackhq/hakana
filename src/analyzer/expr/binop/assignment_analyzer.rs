@@ -179,13 +179,25 @@ pub(crate) fn analyze(
     }
 
     // Track regular assignments (not compound assignments like +=, .=, etc)
-    if binop.is_none() {
+    // Also exclude assignments that are part of unary operations (++, --)
+    if binop.is_none() && !context.inside_assignment_op {
         if let Some(var_id) = &var_id {
-            analysis_data
-                .variable_assignments
-                .entry(var_id.clone())
-                .or_default()
-                .insert(assign_var.pos().start_offset() as u32);
+            if context.inside_loop && context.for_loop_init_bounds.0 > 0 {
+                // do nothing, for loop assignment
+            } else {
+                analysis_data
+                    .variable_assignments
+                    .entry(var_id.clone())
+                    .or_default()
+                    .insert((
+                        assign_var.pos().start_offset() as u32,
+                        if let Some(e) = expr.2 {
+                            e.pos().end_offset() as u32
+                        } else {
+                            assign_var.pos().end_offset() as u32
+                        },
+                    ));
+            }
         }
     }
 
@@ -434,7 +446,14 @@ fn analyze_list_assignment(
                 .variable_assignments
                 .entry(list_var_id_str.clone())
                 .or_default()
-                .insert(assign_var_item.pos().start_offset() as u32);
+                .insert((
+                    assign_var_item.pos().start_offset() as u32,
+                    if let Some(e) = source_expr {
+                        e.pos().end_offset() as u32
+                    } else {
+                        assign_var_item.pos().end_offset() as u32
+                    },
+                ));
         }
 
         let mut value_type = get_nothing();

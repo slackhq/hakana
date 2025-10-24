@@ -52,11 +52,11 @@ pub struct FunctionAnalysisData {
     pub has_await: bool,
     pub await_calls_count: usize,
     pub if_block_boundaries: Vec<(u32, u32)>,
-    pub loop_boundaries: Vec<(u32, u32)>,
+    pub loop_boundaries: Vec<(u32, u32, u32)>,
     pub for_loop_init_boundaries: Vec<(u32, u32)>,
     pub concurrent_block_boundaries: Vec<(u32, u32)>,
     pub definition_locations: FxHashMap<(u32, u32), (StrId, StrId)>,
-    pub variable_assignments: FxHashMap<String, FxHashSet<u32>>,
+    pub variable_assignments: FxHashMap<String, FxHashSet<(u32, u32)>>,
 }
 
 impl FunctionAnalysisData {

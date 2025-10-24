@@ -157,7 +157,11 @@ pub(crate) fn analyze(
     foreach_context.inside_loop_exprs = false;
 
     let prev_loop_bounds = foreach_context.loop_bounds;
-    foreach_context.loop_bounds = (pos.start_offset() as u32, pos.end_offset() as u32);
+    foreach_context.loop_bounds = (
+        pos.start_offset() as u32,
+        pos.end_offset() as u32,
+        value_expr.pos().end_offset() as u32,
+    );
     // Store loop bounds for variable scoping analysis
     analysis_data
         .loop_boundaries

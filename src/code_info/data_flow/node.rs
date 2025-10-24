@@ -834,8 +834,9 @@ impl DataFlowNode {
             }
             DataFlowNodeKind::TaintSink { pos, .. }
             | DataFlowNodeKind::VariableUseSource { pos, .. }
-            | DataFlowNodeKind::DataSource { pos, .. } => Some(*pos),
-            DataFlowNodeKind::ForLoopInit { .. } | DataFlowNodeKind::VariableUseSink { .. } => None,
+            | DataFlowNodeKind::DataSource { pos, .. }
+            | DataFlowNodeKind::VariableUseSink { pos } => Some(*pos),
+            DataFlowNodeKind::ForLoopInit { .. } => None,
         }
     }
 }
