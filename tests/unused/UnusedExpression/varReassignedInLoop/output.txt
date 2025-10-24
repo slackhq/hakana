@@ -1,1 +1,1 @@
-VarUsedThenRedefinedInLoop - input.hack:16:12
+VarUsedThenRedefinedInLoop - input.hack:10:12
