@@ -1,9 +1,9 @@
 abstract class A {
-    const FOO = 5;
+    const int FOO = 5;
 }
 
 final class B extends A {
-    const BAR = 6;
+    const int BAR = 6;
 }
 
 final class C {}
