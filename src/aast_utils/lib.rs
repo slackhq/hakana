@@ -45,6 +45,7 @@ pub fn get_aast_for_path_and_contents(
     parser_env.include_line_comments = true;
     parser_env.scour_comments = true;
     parser_env.parser_options.enable_xhp_class_modifier = true;
+    parser_env.parser_options.disallow_silence = true;
 
     let mut parser_result = match aast_parser::AastParser::from_text(
         &parser_env,
@@ -65,31 +66,52 @@ pub fn get_aast_for_path_and_contents(
 
     let mut syntax_errors = vec![];
 
-    if !parser_result.syntax_errors.is_empty() {
-        syntax_errors = parser_result
-            .syntax_errors
-            .iter()
-            .map(|e| {
-                let lines = file_contents[0..e.start_offset]
-                    .split('\n')
-                    .collect::<Vec<_>>();
-                let column = lines.last().unwrap().len();
-                let line_count = lines.len();
+    for e in parser_result.syntax_errors {
+        let lines = file_contents[0..e.start_offset]
+            .split('\n')
+            .collect::<Vec<_>>();
+        let column = lines.last().unwrap().len();
+        let line_count = lines.len();
 
-                ParserError::SyntaxError {
-                    message: e.message.to_string(),
-                    pos: HPos {
-                        file_path,
-                        start_offset: e.start_offset as u32,
-                        end_offset: e.end_offset as u32,
-                        start_line: line_count as u32,
-                        end_line: line_count as u32,
-                        start_column: (column as u16) + 1,
-                        end_column: (column as u16) + 1,
-                    },
-                }
-            })
-            .collect();
+        let err = ParserError::SyntaxError {
+            message: e.message.to_string(),
+            pos: HPos {
+                file_path,
+                start_offset: e.start_offset as u32,
+                end_offset: e.end_offset as u32,
+                start_line: line_count as u32,
+                end_line: line_count as u32,
+                start_column: (column as u16) + 1,
+                end_column: (column as u16) + 1,
+            },
+        };
+
+        syntax_errors.push(err);
+    }
+
+    for e in parser_result.lowerer_parsing_errors {
+        let (pos, msg) = e;
+
+        let lines = file_contents[0..pos.start_offset()]
+            .split('\n')
+            .collect::<Vec<_>>();
+        let column = lines.last().unwrap().len();
+        let line_count = lines.len();
+
+        let err = ParserError::SyntaxError {
+            message: msg,
+            pos: HPos {
+                file_path,
+                start_offset: pos.start_offset() as u32,
+                end_offset: pos.end_offset() as u32,
+                start_line: line_count as u32,
+                end_line: line_count as u32,
+                start_column: (column as u16) + 1,
+                end_column: (column as u16) + 1,
+            },
+        };
+
+        syntax_errors.push(err);
     }
 
     let aast = parser_result.aast;

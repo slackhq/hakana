@@ -1,0 +1,1 @@
+ERROR: InvalidHackFile - input.hack:2:12 - The error suppression operator `@` is not allowed
