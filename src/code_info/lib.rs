@@ -35,7 +35,7 @@ use std::collections::BTreeMap;
 
 use code_location::{FilePath, HPos};
 use hakana_str::{Interner, StrId};
-use oxidized::{prim_defs::Comment, tast::Pos};
+use oxidized::{prim_defs::Comment, pos::Pos};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]

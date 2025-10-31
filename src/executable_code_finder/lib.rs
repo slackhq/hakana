@@ -334,6 +334,9 @@ impl<'ast> Visitor<'ast> for Scanner {
                         aast::Argument::Anormal(expr) => {
                             self.visit_expr(c, expr)?;
                         }
+                        aast::Argument::Anamed(_, expr) => {
+                            self.visit_expr(c, expr)?;
+                        }
                     }
                 }
                 push_end(&p.1, c);

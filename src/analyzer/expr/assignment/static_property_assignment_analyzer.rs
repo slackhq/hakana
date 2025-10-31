@@ -16,7 +16,7 @@ use hakana_code_info::{
 };
 use oxidized::{
     aast::{self, ClassGetExpr, ClassId},
-    tast::Pos,
+    ast::Pos,
 };
 
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};

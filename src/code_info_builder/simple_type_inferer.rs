@@ -80,13 +80,13 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
             }
 
             match boxed.0.1 {
-                oxidized::tast::VcKind::Vec => Some(TAtomic::TVec(TVec {
+                oxidized::ast::VcKind::Vec => Some(TAtomic::TVec(TVec {
                     known_count: Some(entries.len()),
                     known_items: Some(entries),
                     type_param: Box::new(get_nothing()),
                     non_empty: true,
                 })),
-                oxidized::tast::VcKind::Keyset => None,
+                oxidized::ast::VcKind::Keyset => None,
                 _ => panic!(),
             }
         }
@@ -112,7 +112,7 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
 
             if known_items.len() < 100 {
                 match boxed.0.1 {
-                    oxidized::tast::KvcKind::Dict => Some(TAtomic::TDict(TDict {
+                    oxidized::ast::KvcKind::Dict => Some(TAtomic::TDict(TDict {
                         non_empty: !known_items.is_empty(),
                         known_items: Some(known_items),
                         params: None,

@@ -459,7 +459,7 @@ fn add_all_dataflow(
 
 fn get_attribute_name(
     statements_analyzer: &StatementsAnalyzer,
-    attribute_info: &oxidized::tast::XhpSimple<(), ()>,
+    attribute_info: &oxidized::ast::XhpSimple,
     resolved_names: &FxHashMap<u32, StrId>,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,

@@ -473,7 +473,7 @@ fn has_unused_must_use(
 
 fn analyze_awaitall(
     boxed: (
-        &Vec<(oxidized::tast::Lid, aast::Expr<(), ()>)>,
+        &Vec<(oxidized::ast::Lid, aast::Expr<(), ()>)>,
         &Vec<aast::Stmt<(), ()>>,
     ),
     statements_analyzer: &StatementsAnalyzer,

@@ -4,7 +4,7 @@
 //! It detects use statements that import names which are never referenced in the file.
 
 use crate::{Edit, EditSet, LintContext, LintError, Linter, Severity, SyntaxVisitor};
-use parser_core_types::lexable_token::{LexablePositionedToken, LexableToken};
+use parser_core_types::lexable_token::LexableToken;
 use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
 use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
 use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
@@ -63,7 +63,7 @@ struct UseStatementInfo<'a> {
     /// The kind of use statement (namespace, type, function, or None for default)
     kind: UseKind,
     /// Individual clauses with their imported names
-    clauses: Vec<UseClauseInfo<'a>>,
+    clauses: Vec<UseClauseInfo>,
     /// The full use declaration node (for error reporting and deletion)
     declaration_node: &'a PositionedSyntax<'a>,
     /// Start and end offsets for deletion
@@ -75,15 +75,13 @@ struct UseStatementInfo<'a> {
 }
 
 #[derive(Debug)]
-struct UseClauseInfo<'a> {
+struct UseClauseInfo {
     /// The name being imported (after "as" if present, otherwise last part of qualified name)
     imported_name: String,
     /// The full path of the clause (e.g., "Bar\Baz\some_function" from group use)
     full_clause_path: String,
     /// Whether this clause has an alias (e.g., "Core as x")
     has_alias: bool,
-    /// The clause node
-    node: &'a PositionedSyntax<'a>,
     /// Start and end offsets for deletion
     start_offset: usize,
     end_offset: usize,
@@ -400,7 +398,7 @@ impl<'a> UnusedUseClauseVisitor<'a> {
     fn generate_fix(
         &self,
         use_stmt: &UseStatementInfo<'a>,
-        unused_clauses: &[&UseClauseInfo<'a>],
+        unused_clauses: &[&UseClauseInfo],
     ) -> EditSet {
         let mut fix = EditSet::new();
         let source_bytes = self.ctx.source.text();
@@ -681,7 +679,10 @@ impl<'a> UnusedUseClauseVisitor<'a> {
                     fix.add(Edit::delete(comma_start, end));
                 } else {
                     // No comma at all - delete from first to last clause in group
-                    fix.add(Edit::delete(first_unused.start_offset, last_unused.end_offset));
+                    fix.add(Edit::delete(
+                        first_unused.start_offset,
+                        last_unused.end_offset,
+                    ));
                 }
             }
         }
@@ -706,10 +707,7 @@ fn determine_use_kind(kind_node: &PositionedSyntax) -> UseKind {
 }
 
 /// Extract use clauses and their imported names
-fn extract_use_clauses<'a>(
-    clauses_node: &'a PositionedSyntax<'a>,
-    ctx: &LintContext<'a>,
-) -> Vec<UseClauseInfo<'a>> {
+fn extract_use_clauses(clauses_node: &PositionedSyntax, ctx: &LintContext) -> Vec<UseClauseInfo> {
     let mut clauses = Vec::new();
 
     if let SyntaxVariant::SyntaxList(list) = &clauses_node.children {
@@ -737,7 +735,6 @@ fn extract_use_clauses<'a>(
                             imported_name,
                             full_clause_path,
                             has_alias,
-                            node: &list_item.item,
                             start_offset: start,
                             end_offset: end,
                         });

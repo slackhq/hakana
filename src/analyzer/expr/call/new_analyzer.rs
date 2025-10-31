@@ -40,7 +40,7 @@ pub(crate) fn analyze(
     expr: (
         &aast::ClassId<(), ()>,
         &Vec<aast::Targ<()>>,
-        &Vec<aast::Expr<(), ()>>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
@@ -157,7 +157,7 @@ fn analyze_atomic(
     expr: (
         &aast::ClassId<(), ()>,
         &Vec<aast::Targ<()>>,
-        &Vec<aast::Expr<(), ()>>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
@@ -260,7 +260,7 @@ fn analyze_named_constructor(
     expr: (
         &aast::ClassId<(), ()>,
         &Vec<aast::Targ<()>>,
-        &Vec<aast::Expr<(), ()>>,
+        &Vec<aast::Argument<(), ()>>,
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
@@ -402,7 +402,7 @@ fn analyze_named_constructor(
                 &expr
                     .2
                     .iter()
-                    .map(|arg_expr| aast::Argument::Anormal(arg_expr.clone()))
+                    .map(|arg_expr| arg_expr.clone())
                     .collect::<Vec<_>>(),
                 expr.3,
             ),

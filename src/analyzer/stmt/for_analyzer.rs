@@ -1,4 +1,4 @@
-use oxidized::{aast, tast::Pos};
+use oxidized::{aast, ast::Pos};
 
 use crate::{
     expression_analyzer,
