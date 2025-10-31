@@ -92,21 +92,28 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> (Vec<DataFlowNode>, Vec<Da
     (unused_nodes, unused_but_referenced_nodes)
 }
 
+fn get_nearest_if_block(offset: u32, if_block_boundaries: &[(u32, u32)]) -> Option<(u32, u32)> {
+    if_block_boundaries
+        .iter()
+        .enumerate()
+        .filter(|(_, (start, end))| offset >= *start && offset <= *end)
+        .min_by_key(|(_, (start, end))| end - start)
+        .map(|k| *k.1)
+}
+
 fn are_in_same_control_scope(
     offset1: u32,
     offset2: u32,
     if_block_boundaries: &[(u32, u32)],
 ) -> bool {
-    // Find which if block (if any) each offset is in
-    let block1 = if_block_boundaries
-        .iter()
-        .position(|(start, end)| offset1 >= *start && offset1 <= *end);
-    let block2 = if_block_boundaries
-        .iter()
-        .position(|(start, end)| offset2 >= *start && offset2 <= *end);
+    let block1 = get_nearest_if_block(offset1, if_block_boundaries);
+    let block2 = get_nearest_if_block(offset2, if_block_boundaries);
 
-    // They're in the same scope if they're in the same if block (or both outside all if blocks)
-    block1 == block2
+    match (block1, block2) {
+        (Some(block1), Some(block2)) => block1 == block2,
+        (None, None) => false,
+        _ => false,
+    }
 }
 
 pub fn check_variables_redefined_in_loop(
@@ -168,7 +175,18 @@ pub fn check_variables_redefined_in_loop(
                     .iter()
                     .partition(|&&offset| offset.0 >= loop_start && offset.0 <= loop_end);
 
-            assignments_inside.retain(|offset| offset.0 > loop_init_end);
+            assignments_inside.retain(|offset| {
+                if offset.0 < loop_init_end {
+                    return false;
+                }
+
+                let Some(nearest_if_block) = get_nearest_if_block(offset.0, if_block_boundaries)
+                else {
+                    return false;
+                };
+
+                nearest_if_block.0 > loop_start
+            });
 
             // Skip if no assignments on both sides of the loop boundary
             if assignments_inside.is_empty() || assignments_outside.is_empty() {
@@ -202,21 +220,21 @@ pub fn check_variables_redefined_in_loop(
                 }
 
                 let has_use_in_same_block = forward_edges.iter().any(|(e, _)| {
-                    let Some(node) = graph.get_node(e) else {
+                    let Some(forward_node) = graph.get_node(e) else {
                         return false;
                     };
 
-                    let Some(node_pos) = &node.get_pos() else {
+                    let Some(forward_node_pos) = &forward_node.get_pos() else {
                         return false;
                     };
 
-                    if node_pos.end_offset < inside_offset.1 {
+                    if forward_node_pos.start_offset < inside_offset.1 {
                         return false;
                     }
 
                     are_in_same_control_scope(
                         inside_offset.0,
-                        node_pos.start_offset,
+                        forward_node_pos.start_offset,
                         if_block_boundaries,
                     )
                 });
