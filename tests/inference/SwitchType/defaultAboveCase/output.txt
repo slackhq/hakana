@@ -1,1 +1,1 @@
-ERROR: NonEnumSwitchValue - input.hack:2:11 - Switch statement without default case does not match all possible values of string
+ERROR: InvalidHackFile - input.hack:6:5 - Default case in `switch` must be terminal
