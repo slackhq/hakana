@@ -236,7 +236,7 @@ fn get_left_expr(
         let new_root_expr = aast::Expr(
             (),
             root_expr.pos().clone(),
-            aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
+            aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
                 root_expr.pos().clone(),
                 (5, root_expr_var_id.clone()),
             ))),
@@ -248,7 +248,7 @@ fn get_left_expr(
         aast::Expr(
             (),
             root_expr.pos().clone(),
-            aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
+            aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
                 root_expr.pos().clone(),
                 (5, root_expr_var_id.clone()),
             ))),

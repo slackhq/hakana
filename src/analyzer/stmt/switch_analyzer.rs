@@ -77,7 +77,7 @@ pub(crate) fn analyze(
         Some(aast::Expr(
             (),
             stmt.0.1.clone(),
-            aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
+            aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
                 stmt.0.1.clone(),
                 (0, switch_var_id.clone()),
             ))),

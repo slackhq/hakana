@@ -139,7 +139,7 @@ pub(crate) fn analyze_case(
                             (),
                             case_cond.pos().clone(),
                             aast::Expr_::ValCollection(Box::new((
-                                (case_cond.pos().clone(), oxidized::tast::VcKind::Vec),
+                                (case_cond.pos().clone(), oxidized::ast::VcKind::Vec),
                                 None,
                                 case_conds,
                             ))),

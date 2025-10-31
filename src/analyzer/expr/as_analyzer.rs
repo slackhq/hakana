@@ -218,7 +218,7 @@ fn get_fake_as_var(
     return Some(aast::Expr(
         (),
         left.pos().clone(),
-        aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
+        aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
             left.pos().clone(),
             (5, left_var_id.clone()),
         ))),

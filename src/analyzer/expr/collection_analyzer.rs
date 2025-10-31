@@ -16,8 +16,8 @@ use hakana_code_info::{
 };
 use oxidized::{
     ast::Expr,
+    ast::{KvcKind, VcKind},
     ast_defs::Pos,
-    tast::{KvcKind, VcKind},
 };
 
 use crate::expr::fetch::class_constant_fetch_analyzer;
@@ -48,7 +48,7 @@ impl ArrayCreationInfo {
 
 pub(crate) fn analyze_vals(
     statements_analyzer: &StatementsAnalyzer,
-    vc_kind: &oxidized::tast::VcKind,
+    vc_kind: &oxidized::ast::VcKind,
     items: &[oxidized::ast::Expr],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -224,8 +224,8 @@ pub(crate) fn analyze_vals(
 
 pub(crate) fn analyze_keyvals(
     statements_analyzer: &StatementsAnalyzer,
-    kvc_kind: &oxidized::tast::KvcKind,
-    items: &Vec<oxidized::tast::Field<(), ()>>,
+    kvc_kind: &oxidized::ast::KvcKind,
+    items: &Vec<oxidized::ast::Field>,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -409,11 +409,11 @@ fn analyze_keyvals_item(
     statements_analyzer: &StatementsAnalyzer,
     context: &mut BlockContext,
     array_creation_info: &mut ArrayCreationInfo,
-    item: &oxidized::tast::Field<(), ()>,
+    item: &oxidized::ast::Field,
     container_type: &KvcKind,
     analysis_data: &mut FunctionAnalysisData,
 ) -> Result<(), AnalysisError> {
-    let oxidized::tast::Field(key, value) = &item;
+    let oxidized::ast::Field(key, value) = &item;
     // Analyze type for key
     expression_analyzer::analyze(statements_analyzer, key, analysis_data, context, true)?;
 

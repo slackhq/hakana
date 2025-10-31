@@ -142,7 +142,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_shape_field_info(
         &mut self,
         nc: &mut NameContext<'ast>,
-        p: &'ast oxidized::tast::ShapeFieldInfo,
+        p: &'ast oxidized::ast::ShapeFieldInfo,
     ) -> Result<(), ()> {
         if let oxidized::nast::ShapeFieldName::SFclassConst(_, member_name) = &p.name {
             let p = self.interner.intern(member_name.1.clone());
@@ -171,7 +171,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_xhp_simple(
         &mut self,
         nc: &mut NameContext<'ast>,
-        p: &'ast oxidized::tast::XhpSimple<(), ()>,
+        p: &'ast oxidized::ast::XhpSimple,
     ) -> Result<(), ()> {
         if !p.name.1.starts_with("data-") && !p.name.1.starts_with("aria-") {
             let name = self.interner.intern(":".to_string() + &p.name.1);
@@ -500,7 +500,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
     fn visit_hint_(&mut self, nc: &mut NameContext<'ast>, p: &'ast aast::Hint_) -> Result<(), ()> {
         match p {
-            oxidized::tast::Hint_::Happly(id, _) => {
+            oxidized::ast::Hint_::Happly(id, _) => {
                 if !NameContext::is_reserved(&id.1) {
                     let resolved_name = nc.get_resolved_name(
                         self.interner,
@@ -523,7 +523,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         .insert(id.0.start_offset() as u32, resolved_name);
                 }
             }
-            oxidized::tast::Hint_::Haccess(_, const_names) => {
+            oxidized::ast::Hint_::Haccess(_, const_names) => {
                 for const_name in const_names {
                     let resolved_name = self.interner.intern(const_name.1.clone());
 

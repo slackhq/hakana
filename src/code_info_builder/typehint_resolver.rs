@@ -18,10 +18,10 @@ use hakana_str::StrId;
 use oxidized::aast::Hint;
 use oxidized::aast::Hint_;
 use oxidized::aast_defs::NastShapeInfo;
+use oxidized::ast::HintFun;
 use oxidized::ast::Id;
 use oxidized::ast_defs;
 use oxidized::ast_defs::ParamKind;
-use oxidized::tast::HintFun;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -784,7 +784,7 @@ pub fn get_type_from_hint(
             );
         }
         Hint_::Hnonnull => TAtomic::TMixedWithFlags(false, false, false, true),
-        Hint_::Habstr(_, _) => panic!(),
+        Hint_::Habstr(_) => panic!(),
         Hint_::HvecOrDict(_, _) => panic!(),
         Hint_::Hprim(_) => panic!(),
         Hint_::Hthis => panic!(),

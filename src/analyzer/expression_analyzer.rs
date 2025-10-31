@@ -665,7 +665,11 @@ pub(crate) fn find_expr_logic_issues(
 
 fn analyze_function_pointer(
     statements_analyzer: &StatementsAnalyzer,
-    boxed: &Box<(aast::FunctionPtrId<(), ()>, Vec<aast::Targ<()>>)>,
+    boxed: &Box<(
+        aast::FunctionPtrId<(), ()>,
+        Vec<aast::Targ<()>>,
+        oxidized::nast::FunctionPointerSource,
+    )>,
     context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     expr: &aast::Expr<(), ()>,

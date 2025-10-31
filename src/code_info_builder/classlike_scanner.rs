@@ -40,7 +40,7 @@ pub(crate) fn scan(
     classlike_node: &aast::Class_<(), ()>,
     file_source: &FileSource,
     user_defined: bool,
-    comments: &Vec<(oxidized::tast::Pos, oxidized::prim_defs::Comment)>,
+    comments: &Vec<(oxidized::pos::Pos, oxidized::prim_defs::Comment)>,
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
     ast_nodes: &mut Vec<DefSignatureNode>,
@@ -172,7 +172,7 @@ pub(crate) fn scan(
             codebase.symbols.add_class_name(class_name);
 
             if let Some(parent_class) = classlike_node.extends.first() {
-                if let oxidized::tast::Hint_::Happly(name, params) = &*parent_class.1 {
+                if let oxidized::ast::Hint_::Happly(name, params) = &*parent_class.1 {
                     signature_end = name.0.end_offset() as u32;
 
                     let parent_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
@@ -210,7 +210,7 @@ pub(crate) fn scan(
             }
 
             for extended_interface in &classlike_node.implements {
-                if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
+                if let oxidized::ast::Hint_::Happly(name, params) = &*extended_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
                     let interface_name =
@@ -345,7 +345,7 @@ pub(crate) fn scan(
             );
 
             for parent_interface in &classlike_node.extends {
-                if let oxidized::tast::Hint_::Happly(name, params) = &*parent_interface.1 {
+                if let oxidized::ast::Hint_::Happly(name, params) = &*parent_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
                     let parent_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
@@ -396,7 +396,7 @@ pub(crate) fn scan(
             );
 
             for extended_interface in &classlike_node.implements {
-                if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
+                if let oxidized::ast::Hint_::Happly(name, params) = &*extended_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
                     let interface_name =
@@ -771,7 +771,7 @@ fn handle_reqs(
     file_source: &FileSource,
 ) {
     for req in &classlike_node.reqs {
-        if let oxidized::tast::Hint_::Happly(name, params) = &*req.0.1 {
+        if let oxidized::ast::Hint_::Happly(name, params) = &*req.0.1 {
             let require_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
             match &req.1 {
@@ -863,11 +863,11 @@ fn visit_xhp_attribute(
 
     if let Some(attr_tag) = &xhp_attribute.2 {
         match attr_tag {
-            oxidized::tast::XhpAttrTag::Required => {
+            oxidized::ast::XhpAttrTag::Required => {
                 stmt_pos.end_offset += 10;
                 stmt_pos.end_column += 10;
             }
-            oxidized::tast::XhpAttrTag::LateInit => {
+            oxidized::ast::XhpAttrTag::LateInit => {
                 stmt_pos.end_offset += 11;
                 stmt_pos.end_column += 11;
             }
@@ -930,7 +930,7 @@ fn visit_xhp_attribute(
 fn visit_class_const_declaration(
     const_node: &aast::ClassConst<(), ()>,
     class_name: &StrId,
-    comments: &Vec<(oxidized::tast::Pos, oxidized::prim_defs::Comment)>,
+    comments: &Vec<(oxidized::pos::Pos, oxidized::prim_defs::Comment)>,
     all_custom_issues: &FxHashSet<String>,
     resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
@@ -1185,6 +1185,7 @@ fn visit_property_declaration(
                 MemberVisibility::Public
             }
             ast_defs::Visibility::Protected => MemberVisibility::Protected,
+            ast_defs::Visibility::ProtectedInternal => MemberVisibility::Protected,
         },
         pos: Some(HPos::new(property_node.id.pos(), file_source.file_path)),
         kind: PropertyKind::Property,

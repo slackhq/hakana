@@ -21,7 +21,7 @@ use hakana_str::{StrId, ThreadedInterner};
 use no_pos_hash::{Hasher, position_insensitive_hash};
 use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;
-use oxidized::tast;
+use oxidized::ast;
 use oxidized::{
     aast,
     aast_visitor::{AstParams, Node, Visitor, visit},
@@ -334,7 +334,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let mut actual_type;
 
         match &typedef.assignment {
-            tast::TypedefAssignment::SimpleTypeDef(typedef_innser) => {
+            ast::TypedefAssignment::SimpleTypeDef(typedef_innser) => {
                 if typedef_innser.vis.is_opaque() {
                     source_file = Some(self.file_source.file_path);
                 } else {
@@ -354,7 +354,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 )
                 .unwrap();
             }
-            tast::TypedefAssignment::CaseType(first_variant, other_variants) => {
+            ast::TypedefAssignment::CaseType(first_variant, other_variants) => {
                 source_file = None;
 
                 actual_type = get_type_from_hint(
@@ -731,7 +731,7 @@ impl<'a> Scanner<'a> {
         fun: &aast::Fun_<(), ()>,
         tparams: &[aast::Tparam<(), ()>],
         where_constraints: &Vec<aast::WhereConstraintHint>,
-        name_pos: Option<&oxidized::tast::Pos>,
+        name_pos: Option<&oxidized::pos::Pos>,
     ) -> FunctionLikeInfo {
         let parent_function_storage = if name.is_none() {
             if let Some(parent_function_id) = &c.function_name {
@@ -916,7 +916,7 @@ fn get_function_hashes(
     }
 
     if let Some(last_param) = params.last() {
-        if let tast::FunParamInfo::ParamOptional(Some(expr)) = &last_param.info {
+        if let ast::FunParamInfo::ParamOptional(Some(expr)) = &last_param.info {
             signature_end = expr.1.end_offset();
         }
 

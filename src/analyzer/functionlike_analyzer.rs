@@ -38,7 +38,7 @@ use hakana_code_info::var_name::VarName;
 use hakana_str::{Interner, StrId};
 use itertools::Itertools;
 use oxidized::ast_defs::Pos;
-use oxidized::{aast, tast};
+use oxidized::{aast, ast};
 use rustc_hash::FxHashSet;
 
 use std::rc::Rc;
@@ -1183,7 +1183,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 ));
             };
 
-            if let tast::FunParamInfo::ParamOptional(Some(default)) = &param_node.info {
+            if let ast::FunParamInfo::ParamOptional(Some(default)) = &param_node.info {
                 expression_analyzer::analyze(
                     statements_analyzer,
                     default,

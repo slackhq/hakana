@@ -30,12 +30,12 @@ use hakana_code_info::type_resolution::TypeResolutionContext;
 use hakana_str::{StrId, ThreadedInterner};
 use oxidized::aast;
 use oxidized::aast::Stmt;
+use oxidized::ast;
 use oxidized::ast::UserAttribute;
+use oxidized::ast::WhereConstraintHint;
 use oxidized::ast_defs;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
-use oxidized::tast;
-use oxidized::tast::WhereConstraintHint;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
@@ -102,6 +102,7 @@ pub(crate) fn scan_method(
         ast_defs::Visibility::Private => MemberVisibility::Private,
         ast_defs::Visibility::Public | ast_defs::Visibility::Internal => MemberVisibility::Public,
         ast_defs::Visibility::Protected => MemberVisibility::Protected,
+        ast_defs::Visibility::ProtectedInternal => MemberVisibility::Protected,
     };
 
     if !matches!(m.visibility, ast_defs::Visibility::Private)
@@ -149,7 +150,7 @@ pub(crate) fn get_functionlike(
     ret: &aast::TypeHint<()>,
     fun_kind: &ast_defs::FunKind,
     user_attributes: &Vec<UserAttribute>,
-    contexts: &Option<tast::Contexts>,
+    contexts: &Option<ast::Contexts>,
     where_constraints: &Vec<WhereConstraintHint>,
     type_context: &mut TypeResolutionContext,
     this_name: Option<StrId>,
@@ -481,7 +482,7 @@ pub(crate) fn get_functionlike(
 }
 
 fn get_effect_from_contexts(
-    contexts: &tast::Contexts,
+    contexts: &ast::Contexts,
     functionlike_info: &FunctionLikeInfo,
     interner: &mut ThreadedInterner,
 ) -> FnEffect {
@@ -490,7 +491,7 @@ fn get_effect_from_contexts(
     } else if contexts.1.len() == 1 {
         let context = &contexts.1[0];
 
-        if let tast::Hint_::HfunContext(boxed) = &*context.1 {
+        if let ast::Hint_::HfunContext(boxed) = &*context.1 {
             let position = functionlike_info
                 .params
                 .iter()
@@ -753,7 +754,7 @@ fn convert_param_nodes(
                 param.suppressed_issues = Some(suppressed_issues);
             }
 
-            param.is_variadic = param_node.info == tast::FunParamInfo::ParamVariadic;
+            param.is_variadic = param_node.info == ast::FunParamInfo::ParamVariadic;
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
                 get_type_from_hint(
                     &param_type.1,
@@ -807,7 +808,7 @@ fn convert_param_nodes(
             }
             param.promoted_property = param_node.visibility.is_some();
             param.is_optional = match &param_node.info {
-                tast::FunParamInfo::ParamOptional(expr) => {
+                ast::FunParamInfo::ParamOptional(expr) => {
                     if let Some(expr) = expr {
                         let default = simple_type_inferer::infer(expr, resolved_names);
 
@@ -820,8 +821,8 @@ fn convert_param_nodes(
                         false
                     }
                 }
-                tast::FunParamInfo::ParamRequired => false,
-                tast::FunParamInfo::ParamVariadic => false,
+                ast::FunParamInfo::ParamRequired => false,
+                ast::FunParamInfo::ParamVariadic => false,
             };
             param
         })

@@ -316,7 +316,7 @@ fn analyze_variable_static_property_fetch(
         let lhs = &aast::Expr(
             (),
             pos.clone(),
-            aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
+            aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
                 pos.clone(),
                 (
                     fake_var_name.len().try_into().unwrap(),
