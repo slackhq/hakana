@@ -9,10 +9,12 @@ final class B extends A {
 final class C {}
 
 function class_ptr_a(class<A> $cls): int {
+    // A::BAR is not defined
     return $cls::FOO + $cls::BAR;
 }
 
 function class_ptr_b(class<B> $cls): int {
+    // valid
     return $cls::FOO + $cls::BAR;
 }
 
