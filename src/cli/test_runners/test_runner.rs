@@ -1231,6 +1231,13 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                             test_folders.push(path_str.to_owned());
                         }
                     } else if path_str.contains("/hhast_tests/") {
+                        // Skip directories that start with "skipped-"
+                        if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
+                            if dir_name.starts_with("skipped-") {
+                                continue;
+                            }
+                        }
+
                         // For HHAST tests, enumerate individual test files (not directories)
                         if let Ok(entries) = fs::read_dir(path_str) {
                             let mut in_files: Vec<String> = entries
