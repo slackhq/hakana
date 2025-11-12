@@ -356,17 +356,6 @@ impl CodebaseInfo {
             if let Some(storage) = storage {
                 return Some(storage.type_.clone());
             }
-
-            if let Some(overriden_properties) =
-                classlike_storage.overridden_property_ids.get(property_name)
-            {
-                for overriden_property in overriden_properties {
-                    if let Some(_overridden_storage) = self.classlike_infos.get(overriden_property)
-                    {
-                        // TODO handle overriden property types
-                    }
-                }
-            }
         }
 
         None

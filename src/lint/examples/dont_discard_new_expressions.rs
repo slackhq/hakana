@@ -6,7 +6,9 @@
 use crate::{LintContext, LintError, Linter, Severity, SyntaxVisitor};
 use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
 use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
-use parser_core_types::syntax_by_ref::syntax_variant_generated::*;
+use parser_core_types::syntax_by_ref::syntax_variant_generated::{
+    ExpressionStatementChildren, SyntaxVariant,
+};
 
 pub struct DontDiscardNewExpressionsLinter;
 

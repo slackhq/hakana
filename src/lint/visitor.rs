@@ -1,6 +1,8 @@
 //! Visitor pattern for traversing the full-fidelity syntax tree
 
 use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
+use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
+use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
 use parser_core_types::syntax_by_ref::syntax_variant_generated::*;
 
 /// Trait for visiting syntax nodes
@@ -172,10 +174,6 @@ pub trait SyntaxVisitor<'a> {
     // Generic node visitor - called for every node
     fn leave_node(&mut self, node: &'a PositionedSyntax<'a>) {}
 }
-
-// Re-export the positioned types for convenience
-pub use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
-pub use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
 
 /// Walk the syntax tree and call appropriate visitor methods
 pub fn walk<'a, V: SyntaxVisitor<'a>>(visitor: &mut V, node: &'a PositionedSyntax<'a>) {

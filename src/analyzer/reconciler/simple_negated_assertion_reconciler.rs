@@ -257,8 +257,6 @@ pub(crate) fn reconcile(
             existing_var_type,
             possibly_undefined,
             key,
-            pos,
-            suppressed_issues,
         )),
         Assertion::ArrayKeyDoesNotExist => {
             return Some(get_nothing());
@@ -1596,8 +1594,6 @@ fn reconcile_not_isset(
     existing_var_type: &TUnion,
     possibly_undefined: bool,
     key: Option<&VarName>,
-    pos: Option<&Pos>,
-    _suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if possibly_undefined {
         return get_nothing();
@@ -1608,10 +1604,6 @@ fn reconcile_not_isset(
             if !key.contains('[')
                 && (!existing_var_type.is_mixed() || existing_var_type.is_always_truthy())
             {
-                if let Some(_pos) = pos {
-                    // todo do stuff
-                }
-
                 return get_nothing();
             }
         }

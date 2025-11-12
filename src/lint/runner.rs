@@ -6,6 +6,7 @@ use relative_path::{Prefix, RelativePath};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 /// Configuration for running linters
 #[derive(Debug, Clone)]
@@ -51,6 +52,9 @@ pub struct LintResult {
 
     /// File operations to perform (create/delete files)
     pub file_operations: Vec<super::FileOperation>,
+
+    /// Time spent in each linter (linter name -> duration)
+    pub linter_times: FxHashMap<String, Duration>,
 }
 
 impl LintResult {
@@ -274,6 +278,7 @@ pub fn run_linters(
 
     // Run each linter and track which errors came from which linter
     let mut all_errors = Vec::new();
+    let mut linter_times = FxHashMap::default();
     for linter in linters {
         // Check if this linter should run
         if !config.enabled_linters.is_empty()
@@ -285,7 +290,11 @@ pub fn run_linters(
             continue;
         }
 
+        let start_time = std::time::Instant::now();
         let errors = linter.lint(&ctx);
+        let elapsed = start_time.elapsed();
+
+        linter_times.insert(linter.name().to_string(), elapsed);
 
         // Filter out suppressed errors
         let linter_name = linter.name();
@@ -339,6 +348,7 @@ pub fn run_linters(
         fixes_applied,
         modified_source,
         file_operations,
+        linter_times,
     })
 }
 

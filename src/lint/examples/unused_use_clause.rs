@@ -8,7 +8,9 @@ use parser_core_types::lexable_token::LexableToken;
 use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
 use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
 use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
-use parser_core_types::syntax_by_ref::syntax_variant_generated::*;
+use parser_core_types::syntax_by_ref::syntax_variant_generated::{
+    NamespaceGroupUseDeclarationChildren, NamespaceUseDeclarationChildren, SyntaxVariant,
+};
 use parser_core_types::token_kind::TokenKind;
 use rustc_hash::FxHashSet;
 
@@ -749,7 +751,7 @@ fn extract_use_clauses(clauses_node: &PositionedSyntax, ctx: &LintContext) -> Ve
 
 /// Extract the last part of a name (for determining what was imported)
 fn extract_last_name_part(name_node: &PositionedSyntax, ctx: &LintContext) -> String {
-    if let Some(_token) = name_node.get_token() {
+    if let Some(_) = name_node.get_token() {
         // Simple name token
         ctx.node_text(name_node).trim().to_string()
     } else if let SyntaxVariant::QualifiedName(qn) = &name_node.children {

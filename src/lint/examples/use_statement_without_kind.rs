@@ -7,7 +7,7 @@
 use crate::{Edit, EditSet, LintContext, LintError, Linter, Severity, SyntaxVisitor};
 use parser_core_types::lexable_token::LexableToken;
 use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
-use parser_core_types::syntax_by_ref::syntax_variant_generated::*;
+use parser_core_types::syntax_by_ref::syntax_variant_generated::SyntaxVariant;
 use parser_core_types::syntax_trait::SyntaxTrait;
 use parser_core_types::token_kind::TokenKind;
 use std::collections::HashMap;
@@ -37,6 +37,11 @@ impl Linter for UseStatementWithoutKindLinter {
             use_statements: Vec::new(),
         };
         crate::visitor::walk(&mut collector, ctx.root);
+
+        // Early exit: if no use statements without kind, skip usage analysis
+        if collector.use_statements.is_empty() {
+            return Vec::new();
+        }
 
         // Analyze usage patterns
         let mut usage_analyzer = UsageAnalyzer {

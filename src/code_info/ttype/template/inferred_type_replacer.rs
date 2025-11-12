@@ -35,7 +35,6 @@ pub fn replace(
                 param_name,
                 defining_entity,
                 as_type,
-                extra_types,
                 ..
             } => {
                 let key = param_name;
@@ -46,7 +45,6 @@ pub fn replace(
                     defining_entity,
                     codebase,
                     as_type,
-                    extra_types,
                     key,
                 );
 
@@ -194,7 +192,6 @@ fn replace_template_param(
     defining_entity: &GenericParent,
     codebase: &CodebaseInfo,
     as_type: &TUnion,
-    extra_types: &Option<Vec<TAtomic>>,
     key: &StrId,
 ) -> Option<TUnion> {
     let mut template_type = None;
@@ -216,12 +213,6 @@ fn replace_template_param(
         } else {
             traversed_type.clone()
         };
-
-        if let Some(_extra_types) = extra_types {
-            for _atomic_template_type in &template_type_inner.types {
-                // todo handle extra types
-            }
-        }
 
         template_type = Some(template_type_inner);
     } else {
