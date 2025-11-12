@@ -72,7 +72,7 @@ impl<'a> SyntaxVisitor<'a> for NoAwaitVisitor<'a> {
         self.in_loop_depth += 1;
     }
 
-    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {
+    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         // Check if this is an await expression
         if self.in_loop_depth > 0 {
             if let Some(token) = node.get_token() {
@@ -106,6 +106,7 @@ impl<'a> SyntaxVisitor<'a> for NoAwaitVisitor<'a> {
             }
             _ => {}
         }
+        true
     }
 }
 

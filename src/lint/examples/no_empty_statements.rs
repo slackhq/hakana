@@ -216,11 +216,12 @@ impl<'a> SyntaxVisitor<'a> for NoEmptyStatementsVisitor<'a> {
         self.handle_control_flow_empty_body(&node.body);
     }
 
-    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {
+    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         // Check for else clauses
         if let SyntaxVariant::ElseClause(else_clause) = &node.children {
             self.handle_control_flow_empty_body(&else_clause.statement);
         }
+        true
     }
 
     fn visit_expression_statement(

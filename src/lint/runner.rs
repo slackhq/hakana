@@ -88,8 +88,9 @@ fn parse_suppressions(source: &str) -> SuppressionInfo {
         // Check for HHAST suppression directives
         // Supported formats:
         // - HHAST_IGNORE_ALL[Linter] -> suppress Linter for whole file
-        // - HHAST_FIXME[Linter], HHAST_IGNORE_ERROR[Linter] -> suppress Linter for next line
+        // - HHAST_FIXME[Linter], HHAST_IGNORE_ERROR[Linter] -> suppress Linter on same line or next line
         // - HHAST_IGNORE_ALL, HHAST_FIXME, HHAST_IGNORE_ERROR (without linter name) -> suppress all linters
+        // Multiple suppressions can appear on the same line (e.g., /* HHAST_FIXME[A] */ ... /* HHAST_IGNORE_ERROR[B] */)
 
         let is_ignore_all = line.contains("HHAST_IGNORE_ALL");
         let is_fixme = line.contains("HHAST_FIXME");
@@ -99,33 +100,47 @@ fn parse_suppressions(source: &str) -> SuppressionInfo {
             continue;
         }
 
-        // Check if there's a specific linter name in brackets
-        if let Some(bracket_start) = line.find('[') {
-            if let Some(bracket_end) = line.find(']') {
-                if bracket_end > bracket_start {
-                    let linter_name = &line[bracket_start + 1..bracket_end];
+        // Check for all linter names in brackets on this line
+        // We need to find all bracket pairs, not just the first one
+        let mut found_any_brackets = false;
+        let mut search_start = 0;
+
+        while let Some(bracket_start) = line[search_start..].find('[') {
+            let absolute_bracket_start = search_start + bracket_start;
+            if let Some(bracket_end_relative) = line[absolute_bracket_start..].find(']') {
+                let absolute_bracket_end = absolute_bracket_start + bracket_end_relative;
+                if absolute_bracket_end > absolute_bracket_start {
+                    let linter_name = &line[absolute_bracket_start + 1..absolute_bracket_end];
+                    found_any_brackets = true;
 
                     if is_ignore_all {
                         // HHAST_IGNORE_ALL[Linter] - suppress for whole file
                         whole_file.insert(linter_name.to_string());
                     } else {
-                        // HHAST_FIXME[Linter] or HHAST_IGNORE_ERROR[Linter] - suppress for next line
+                        // HHAST_FIXME[Linter] or HHAST_IGNORE_ERROR[Linter] - suppress for this line
                         single_instance
                             .entry(line_num)
                             .or_insert_with(FxHashSet::default)
                             .insert(linter_name.to_string());
                     }
-                    continue;
+
+                    // Continue searching after this closing bracket
+                    search_start = absolute_bracket_end + 1;
+                } else {
+                    break;
                 }
+            } else {
+                break;
             }
         }
 
-        // No specific linter name - suppress all linters for the next line
-        // Store as a special marker (empty string means "all linters")
-        single_instance
-            .entry(line_num)
-            .or_insert_with(FxHashSet::default)
-            .insert(String::new());
+        // If no brackets found, suppress all linters for this line
+        if !found_any_brackets {
+            single_instance
+                .entry(line_num)
+                .or_insert_with(FxHashSet::default)
+                .insert(String::new());
+        }
     }
 
     SuppressionInfo {

@@ -138,7 +138,7 @@ struct UseStatementCollector<'a> {
 }
 
 impl<'a> SyntaxVisitor<'a> for UseStatementCollector<'a> {
-    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {
+    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         match &node.children {
             SyntaxVariant::NamespaceUseDeclaration(use_decl) => {
                 // Check if the use declaration has a kind keyword
@@ -215,6 +215,7 @@ impl<'a> SyntaxVisitor<'a> for UseStatementCollector<'a> {
             }
             _ => {}
         }
+        true
     }
 }
 
@@ -224,7 +225,7 @@ struct UsageAnalyzer<'a> {
 }
 
 impl<'a> SyntaxVisitor<'a> for UsageAnalyzer<'a> {
-    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {
+    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         match &node.children {
             SyntaxVariant::ObjectCreationExpression(obj_creation) => {
                 // new ClassName() - type usage
@@ -258,6 +259,7 @@ impl<'a> SyntaxVisitor<'a> for UsageAnalyzer<'a> {
             }
             _ => {}
         }
+        true
     }
 }
 

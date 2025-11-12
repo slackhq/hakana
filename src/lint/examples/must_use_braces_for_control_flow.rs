@@ -194,7 +194,7 @@ impl<'a> SyntaxVisitor<'a> for MustUseBracesVisitor<'a> {
         self.check_body(&node.body, "do statement", start);
     }
 
-    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {
+    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         // Check for else clauses
         if let SyntaxVariant::ElseClause(else_clause) = &node.children {
             let start = else_clause.keyword.offset().unwrap_or(0);
@@ -209,5 +209,6 @@ impl<'a> SyntaxVisitor<'a> for MustUseBracesVisitor<'a> {
                 self.check_body(&else_clause.statement, "else clause", start);
             }
         }
+        true
     }
 }

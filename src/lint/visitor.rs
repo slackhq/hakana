@@ -168,16 +168,25 @@ pub trait SyntaxVisitor<'a> {
     ) {
     }
 
-    // Generic node visitor - called for every node
-    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {}
+    /// Generic node visitor - called for every node before visiting children
+    ///
+    /// Returns `true` to continue visiting children, `false` to skip children.
+    /// This allows visitors to avoid descending into subtrees unnecessarily.
+    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
+        true
+    }
 
-    // Generic node visitor - called for every node
+    /// Generic node visitor - called for every node after visiting children
     fn leave_node(&mut self, node: &'a PositionedSyntax<'a>) {}
 }
 
 /// Walk the syntax tree and call appropriate visitor methods
 pub fn walk<'a, V: SyntaxVisitor<'a>>(visitor: &mut V, node: &'a PositionedSyntax<'a>) {
-    visitor.visit_node(node);
+    // Call visit_node and check if we should continue
+    if !visitor.visit_node(node) {
+        // Visitor returned false, skip visiting children
+        return;
+    }
 
     match &node.children {
         SyntaxVariant::Script(x) => {

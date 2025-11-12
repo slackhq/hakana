@@ -164,7 +164,7 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
         }
     }
 
-    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {
+    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         // Collect referenced names from various node types
         match &node.children {
             // Simple type specifier: Foo
@@ -329,6 +329,7 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
             }
             _ => {}
         }
+        true
     }
 }
 

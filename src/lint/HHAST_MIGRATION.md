@@ -109,7 +109,7 @@ impl<'a> SyntaxVisitor<'a> for NoAwaitVisitor<'a> {
     }
 
     // Check all nodes
-    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {
+    fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         if self.in_loop_depth > 0 {
             if let Some(token) = node.get_token() {
                 if token.kind() == TokenKind::Await {
