@@ -213,7 +213,14 @@ impl<'a> SyntaxVisitor<'a> for UseStatementCollector<'a> {
                     }
                 }
             }
-            _ => {}
+            SyntaxVariant::NamespaceBody(..)
+            | SyntaxVariant::NamespaceDeclaration(..)
+            | SyntaxVariant::NamespaceDeclarationHeader(..)
+            | SyntaxVariant::Script(..)
+            | SyntaxVariant::SyntaxList(..) => {}
+            _ => {
+                return false;
+            }
         }
         true
     }
