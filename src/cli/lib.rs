@@ -9,6 +9,7 @@ use hakana_code_info::issue::IssueKind;
 use hakana_logger::{Logger, Verbosity};
 use hakana_str::Interner;
 use indexmap::IndexMap;
+use line_break_map::LineBreakMap;
 use rand::Rng;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -1782,26 +1783,6 @@ fn replace_contents(
     file_contents
 }
 
-/// Convert byte offset to line and column number
-fn offset_to_line_column(source: &str, offset: usize) -> (usize, usize) {
-    let mut line = 1;
-    let mut column = 1;
-
-    for (i, ch) in source.char_indices() {
-        if i >= offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            column = 1;
-        } else {
-            column += 1;
-        }
-    }
-
-    (line, column)
-}
-
 /// Parse CODEOWNERS file and return patterns and exact file paths
 fn parse_codeowners_files(root_dir: &str) -> (Vec<glob::Pattern>, FxHashSet<String>) {
     let mut codeowner_patterns = Vec::new();
@@ -2190,6 +2171,9 @@ fn do_lint(
 
                 *total_files.lock().unwrap() += 1;
 
+                // Create line break map for efficient offset-to-line conversions
+                let line_break_map = LineBreakMap::new(contents.as_bytes());
+
                 // Run linters
                 match hakana_lint::run_linters(&path, &contents, &file_linters, &lint_config) {
                     Ok(result) => {
@@ -2207,7 +2191,7 @@ fn do_lint(
                             for error in &result.errors {
                                 // Convert offset to line/column
                                 let (line, column) =
-                                    offset_to_line_column(&contents, error.start_offset);
+                                    hakana_lint::offset_to_line_column(&line_break_map, error.start_offset);
                                 lint_output.lock().unwrap().push(format!(
                                     "{}:{}:{}: {} - {}",
                                     relative_path, line, column, error.severity, error.message

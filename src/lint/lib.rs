@@ -50,7 +50,7 @@ pub use hhast_config::{HhastLintConfig, map_hhast_linter_to_hakana};
 pub use linter::Linter;
 pub use migrator::Migrator;
 pub use runner::{LintConfig, LintResult, run_linters};
-pub use syntax_utils::{collect_statements, is_statement};
+pub use syntax_utils::{collect_statements, is_statement, offset_to_line_column};
 pub use visitor::SyntaxVisitor;
 
 use parser_core_types::source_text::SourceText;

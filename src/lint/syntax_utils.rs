@@ -1,5 +1,6 @@
 //! Utility functions for working with syntax nodes
 
+use line_break_map::LineBreakMap;
 use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
 use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
 use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
@@ -17,8 +18,7 @@ pub fn is_statement<'a>(
     matches!(
         variant,
         // All *Statement variants
-        SyntaxVariant::CompoundStatement(_)
-            | SyntaxVariant::ExpressionStatement(_)
+        SyntaxVariant::ExpressionStatement(_)
             | SyntaxVariant::UnsetStatement(_)
             | SyntaxVariant::DeclareLocalStatement(_)
             | SyntaxVariant::WhileStatement(_)
@@ -61,8 +61,23 @@ impl<'a> crate::visitor::SyntaxVisitor<'a> for StatementCollector<'a> {
     fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         if is_statement(&node.children) {
             self.statements.push(node);
-            return false;
         }
         true
     }
+}
+
+/// Convert byte offset to line and column number using a precalculated LineBreakMap
+///
+/// This is much more efficient than iterating through the source string each time,
+/// especially when converting many offsets in the same file.
+///
+/// # Arguments
+/// * `line_break_map` - Precalculated line break map for the source file
+/// * `offset` - The byte offset in the source
+///
+/// # Returns
+/// A tuple of (line, column) where both are 1-indexed
+pub fn offset_to_line_column(line_break_map: &LineBreakMap, offset: usize) -> (usize, usize) {
+    let (line, column) = line_break_map.offset_to_position(offset as isize);
+    (line as usize, column as usize)
 }

@@ -1,6 +1,9 @@
 //! Runner for executing linters and migrators
 
+use crate::collect_statements;
+
 use super::{LintContext, LintError, Linter, Migrator};
+use line_break_map::LineBreakMap;
 use parser_core_types::source_text::SourceText;
 use relative_path::{Prefix, RelativePath};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -153,8 +156,8 @@ fn parse_suppressions(source: &str) -> SuppressionInfo {
 fn parse_suppressions_with_statements<'a>(
     source: &str,
     root: &'a parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax<'a>,
+    line_break_map: &LineBreakMap,
 ) -> (SuppressionInfo, Vec<(usize, usize)>) {
-    use crate::syntax_utils::collect_statements;
     use parser_core_types::syntax_trait::SyntaxTrait;
 
     let suppression_info = parse_suppressions(source);
@@ -165,10 +168,12 @@ fn parse_suppressions_with_statements<'a>(
 
     for stmt in statements {
         if let Some(start_offset) = stmt.offset() {
-            let (start_line, _) = offset_to_line_column(source, start_offset);
+            let (start_line, _) =
+                crate::syntax_utils::offset_to_line_column(line_break_map, start_offset);
             let width = stmt.full_width();
             let end_offset = start_offset + width;
-            let (end_line, _) = offset_to_line_column(source, end_offset);
+            let (end_line, _) =
+                crate::syntax_utils::offset_to_line_column(line_break_map, end_offset);
 
             statement_boundaries.push((start_line, end_line));
         }
@@ -177,21 +182,10 @@ fn parse_suppressions_with_statements<'a>(
     (suppression_info, statement_boundaries)
 }
 
-/// Check if an error should be suppressed
-fn is_suppressed(
-    error: &LintError,
-    source: &str,
-    suppressions: &SuppressionInfo,
-    linter_name: &str,
-    hhast_name: Option<&str>,
-) -> bool {
-    is_suppressed_with_boundaries(error, source, suppressions, linter_name, hhast_name, &[])
-}
-
 /// Check if an error should be suppressed, considering statement boundaries
 fn is_suppressed_with_boundaries(
     error: &LintError,
-    source: &str,
+    line_break_map: &LineBreakMap,
     suppressions: &SuppressionInfo,
     linter_name: &str,
     hhast_name: Option<&str>,
@@ -204,13 +198,17 @@ fn is_suppressed_with_boundaries(
 
     // Get the line range of the error
     // start_offset includes leading trivia, end_offset includes trailing trivia
-    let (start_line, _) = offset_to_line_column(source, error.start_offset);
-    let (end_line, _) = offset_to_line_column(source, error.end_offset);
+    let (start_line, _) =
+        crate::syntax_utils::offset_to_line_column(line_break_map, error.start_offset);
+    let (end_line, _) =
+        crate::syntax_utils::offset_to_line_column(line_break_map, error.end_offset);
 
-    // Find the statement containing this error
-    let containing_statement = statement_boundaries.iter().find(|(stmt_start, stmt_end)| {
-        start_line >= *stmt_start && end_line <= *stmt_end
-    });
+    // Find the smallest (innermost) statement containing this error
+    // When statements are nested, we want the most specific one
+    let containing_statement = statement_boundaries
+        .iter()
+        .filter(|(stmt_start, stmt_end)| start_line >= *stmt_start && end_line <= *stmt_end)
+        .min_by_key(|(stmt_start, stmt_end)| stmt_end - stmt_start);
 
     // The actual error token is somewhere in the range [start_line, end_line]
     // Check if any line in this range has a suppression:
@@ -251,11 +249,9 @@ fn is_suppressed_with_boundaries(
 
     // Check for statement-level suppression: if a suppression appears on a line
     // before the statement starts, it suppresses errors throughout the statement
-    if let Some(&(stmt_start, stmt_end)) = containing_statement {
-        // Check all lines from the beginning of the statement backwards
-        // until we hit another statement or the beginning of the file
-        for check_line in (1..=stmt_start).rev() {
-            if let Some(linters) = suppressions.single_instance.get(&check_line) {
+    if let Some(&(stmt_start, _)) = containing_statement {
+        if stmt_start > 0 {
+            if let Some(linters) = suppressions.single_instance.get(&(stmt_start - 1)) {
                 // Empty string means suppress all linters
                 if linters.contains("") {
                     return true;
@@ -265,19 +261,6 @@ fn is_suppressed_with_boundaries(
                 if is_linter_in_set(linters, linter_name, hhast_name) {
                     return true;
                 }
-            }
-
-            // Stop if we hit another statement (don't cross statement boundaries)
-            let line_is_in_another_statement = statement_boundaries.iter().any(
-                |(other_start, other_end)| {
-                    check_line >= *other_start
-                        && check_line <= *other_end
-                        && (*other_start, *other_end) != (stmt_start, stmt_end)
-                },
-            );
-
-            if line_is_in_another_statement {
-                break;
             }
         }
     }
@@ -322,26 +305,6 @@ fn is_linter_in_set(
     false
 }
 
-/// Convert byte offset to line and column number
-fn offset_to_line_column(source: &str, offset: usize) -> (usize, usize) {
-    let mut line = 1;
-    let mut column = 1;
-
-    for (i, ch) in source.char_indices() {
-        if i >= offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            column = 1;
-        } else {
-            column += 1;
-        }
-    }
-
-    (line, column)
-}
-
 /// Run linters on a file
 pub fn run_linters(
     file_path: &Path,
@@ -367,9 +330,12 @@ pub fn run_linters(
     // Create lint context
     let ctx = LintContext::new(&source_text, &root, file_path, config.allow_auto_fix);
 
+    // Create line break map for efficient offset-to-line conversions
+    let line_break_map = LineBreakMap::new(file_contents.as_bytes());
+
     // Parse suppression comments and collect statement boundaries
     let (suppressions, statement_boundaries) =
-        parse_suppressions_with_statements(file_contents, &root);
+        parse_suppressions_with_statements(file_contents, &root, &line_break_map);
 
     // Run each linter and track which errors came from which linter
     let mut all_errors = Vec::new();
@@ -397,7 +363,7 @@ pub fn run_linters(
         for error in errors {
             if !is_suppressed_with_boundaries(
                 &error,
-                file_contents,
+                &line_break_map,
                 &suppressions,
                 linter_name,
                 hhast_name,

@@ -11,6 +11,7 @@ path = "lib.rs"
 parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
 positioned_by_ref_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/api/cargo/positioned_by_ref_parser" }
 relative_path = { path = "../../third-party/hhvm/hphp/hack/src/utils/rust/relative_path" }
+line_break_map = { path = "../../third-party/hhvm/hphp/hack/src/utils/line_break_map" }
 bumpalo = { version = "3.11" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

@@ -12,6 +12,7 @@ hakana-str = { path = "../str" }
 hakana-language-server = { path = "../language_server" }
 hakana-lint = { path = "../lint" }
 executable-finder = { path = "../executable_code_finder" }
+line_break_map = { path = "../../third-party/hhvm/hphp/hack/src/utils/line_break_map" }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 walkdir = "2"
 glob = "0.3"

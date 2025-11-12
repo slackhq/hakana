@@ -1,5 +1,6 @@
 //! Context provided to linters during analysis
 
+use line_break_map::LineBreakMap;
 use parser_core_types::lexable_token::LexableToken;
 use parser_core_types::source_text::SourceText;
 use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
@@ -20,6 +21,9 @@ pub struct LintContext<'a> {
 
     /// Whether auto-fixes should be generated
     pub allow_auto_fix: bool,
+
+    /// Precalculated line break map for efficient offset-to-line conversions
+    line_break_map: LineBreakMap,
 }
 
 impl<'a> LintContext<'a> {
@@ -30,11 +34,13 @@ impl<'a> LintContext<'a> {
         file_path: &'a Path,
         allow_auto_fix: bool,
     ) -> Self {
+        let line_break_map = LineBreakMap::new(source.text());
         Self {
             source,
             root,
             file_path,
             allow_auto_fix,
+            line_break_map,
         }
     }
 
@@ -54,23 +60,11 @@ impl<'a> LintContext<'a> {
     }
 
     /// Get line and column for a byte offset
-    /// Note: This is a placeholder - actual line/column calculation
-    /// would require walking the source text and counting newlines
+    ///
+    /// Uses a precalculated line break map for efficient conversion.
+    /// Returns (line, column) where both are 1-indexed.
     pub fn offset_to_line_column(&self, offset: usize) -> (usize, usize) {
-        // Simple implementation: count newlines before offset
-        let text = self.source.text();
-        let line = text[..offset.min(text.len())]
-            .iter()
-            .filter(|&&b| b == b'\n')
-            .count()
-            + 1;
-        let column = text[..offset.min(text.len())]
-            .iter()
-            .rev()
-            .take_while(|&&b| b != b'\n')
-            .count()
-            + 1;
-        (line, column)
+        crate::syntax_utils::offset_to_line_column(&self.line_break_map, offset)
     }
 
     /// Get the byte offset range for a token, excluding leading trivia
