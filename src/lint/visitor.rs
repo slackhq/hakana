@@ -168,6 +168,9 @@ pub trait SyntaxVisitor<'a> {
 
     // Generic node visitor - called for every node
     fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) {}
+
+    // Generic node visitor - called for every node
+    fn leave_node(&mut self, node: &'a PositionedSyntax<'a>) {}
 }
 
 // Re-export the positioned types for convenience
@@ -339,4 +342,6 @@ pub fn walk<'a, V: SyntaxVisitor<'a>>(visitor: &mut V, node: &'a PositionedSynta
             }
         }
     }
+
+    visitor.leave_node(node);
 }
