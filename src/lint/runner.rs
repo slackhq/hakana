@@ -88,7 +88,7 @@ fn parse_suppressions(source: &str) -> SuppressionInfo {
         // Check for HHAST suppression directives
         // Supported formats:
         // - HHAST_IGNORE_ALL[Linter] -> suppress Linter for whole file
-        // - HHAST_FIXME[Linter], HHAST_IGNORE_ERROR[Linter] -> suppress Linter on same line or next line
+        // - HHAST_FIXME[Linter], HHAST_IGNORE_ERROR[Linter] -> suppress Linter on same line or following lines in statement
         // - HHAST_IGNORE_ALL, HHAST_FIXME, HHAST_IGNORE_ERROR (without linter name) -> suppress all linters
         // Multiple suppressions can appear on the same line (e.g., /* HHAST_FIXME[A] */ ... /* HHAST_IGNORE_ERROR[B] */)
 
@@ -149,6 +149,34 @@ fn parse_suppressions(source: &str) -> SuppressionInfo {
     }
 }
 
+/// Parse suppressions and collect statement boundaries for better suppression handling
+fn parse_suppressions_with_statements<'a>(
+    source: &str,
+    root: &'a parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax<'a>,
+) -> (SuppressionInfo, Vec<(usize, usize)>) {
+    use crate::syntax_utils::collect_statements;
+    use parser_core_types::syntax_trait::SyntaxTrait;
+
+    let suppression_info = parse_suppressions(source);
+
+    // Collect statement boundaries
+    let statements = collect_statements(root);
+    let mut statement_boundaries = Vec::new();
+
+    for stmt in statements {
+        if let Some(start_offset) = stmt.offset() {
+            let (start_line, _) = offset_to_line_column(source, start_offset);
+            let width = stmt.full_width();
+            let end_offset = start_offset + width;
+            let (end_line, _) = offset_to_line_column(source, end_offset);
+
+            statement_boundaries.push((start_line, end_line));
+        }
+    }
+
+    (suppression_info, statement_boundaries)
+}
+
 /// Check if an error should be suppressed
 fn is_suppressed(
     error: &LintError,
@@ -156,6 +184,18 @@ fn is_suppressed(
     suppressions: &SuppressionInfo,
     linter_name: &str,
     hhast_name: Option<&str>,
+) -> bool {
+    is_suppressed_with_boundaries(error, source, suppressions, linter_name, hhast_name, &[])
+}
+
+/// Check if an error should be suppressed, considering statement boundaries
+fn is_suppressed_with_boundaries(
+    error: &LintError,
+    source: &str,
+    suppressions: &SuppressionInfo,
+    linter_name: &str,
+    hhast_name: Option<&str>,
+    statement_boundaries: &[(usize, usize)],
 ) -> bool {
     // Check if this linter is suppressed for the whole file
     if is_linter_in_set(&suppressions.whole_file, linter_name, hhast_name) {
@@ -167,10 +207,16 @@ fn is_suppressed(
     let (start_line, _) = offset_to_line_column(source, error.start_offset);
     let (end_line, _) = offset_to_line_column(source, error.end_offset);
 
+    // Find the statement containing this error
+    let containing_statement = statement_boundaries.iter().find(|(stmt_start, stmt_end)| {
+        start_line >= *stmt_start && end_line <= *stmt_end
+    });
+
     // The actual error token is somewhere in the range [start_line, end_line]
     // Check if any line in this range has a suppression:
     // 1. On the same line (inline comment: /* HHAST_IGNORE_ERROR[Linter] */)
     // 2. On the previous line (HHAST suppression comments on line N suppress errors on line N+1)
+    // 3. On any line before the statement starts (statement-level suppression)
     for line in start_line..=end_line {
         // Check for suppression on the same line (inline comments)
         if let Some(linters) = suppressions.single_instance.get(&line) {
@@ -199,6 +245,39 @@ fn is_suppressed(
                 if is_linter_in_set(linters, linter_name, hhast_name) {
                     return true;
                 }
+            }
+        }
+    }
+
+    // Check for statement-level suppression: if a suppression appears on a line
+    // before the statement starts, it suppresses errors throughout the statement
+    if let Some(&(stmt_start, stmt_end)) = containing_statement {
+        // Check all lines from the beginning of the statement backwards
+        // until we hit another statement or the beginning of the file
+        for check_line in (1..=stmt_start).rev() {
+            if let Some(linters) = suppressions.single_instance.get(&check_line) {
+                // Empty string means suppress all linters
+                if linters.contains("") {
+                    return true;
+                }
+
+                // Check if this specific linter is suppressed
+                if is_linter_in_set(linters, linter_name, hhast_name) {
+                    return true;
+                }
+            }
+
+            // Stop if we hit another statement (don't cross statement boundaries)
+            let line_is_in_another_statement = statement_boundaries.iter().any(
+                |(other_start, other_end)| {
+                    check_line >= *other_start
+                        && check_line <= *other_end
+                        && (*other_start, *other_end) != (stmt_start, stmt_end)
+                },
+            );
+
+            if line_is_in_another_statement {
+                break;
             }
         }
     }
@@ -288,8 +367,9 @@ pub fn run_linters(
     // Create lint context
     let ctx = LintContext::new(&source_text, &root, file_path, config.allow_auto_fix);
 
-    // Parse suppression comments
-    let suppressions = parse_suppressions(file_contents);
+    // Parse suppression comments and collect statement boundaries
+    let (suppressions, statement_boundaries) =
+        parse_suppressions_with_statements(file_contents, &root);
 
     // Run each linter and track which errors came from which linter
     let mut all_errors = Vec::new();
@@ -315,12 +395,13 @@ pub fn run_linters(
         let linter_name = linter.name();
         let hhast_name = linter.hhast_name();
         for error in errors {
-            if !is_suppressed(
+            if !is_suppressed_with_boundaries(
                 &error,
                 file_contents,
                 &suppressions,
                 linter_name,
                 hhast_name,
+                &statement_boundaries,
             ) {
                 all_errors.push(error);
             }

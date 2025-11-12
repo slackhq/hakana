@@ -61,7 +61,8 @@ impl<'a> crate::visitor::SyntaxVisitor<'a> for StatementCollector<'a> {
     fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         if is_statement(&node.children) {
             self.statements.push(node);
+            return false;
         }
-        true // Continue visiting children
+        true
     }
 }
