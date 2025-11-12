@@ -2190,8 +2190,10 @@ fn do_lint(
                             *total_errors.lock().unwrap() += result.errors.len();
                             for error in &result.errors {
                                 // Convert offset to line/column
-                                let (line, column) =
-                                    hakana_lint::offset_to_line_column(&line_break_map, error.start_offset);
+                                let (line, column) = hakana_lint::offset_to_line_column(
+                                    &line_break_map,
+                                    error.start_offset,
+                                );
                                 lint_output.lock().unwrap().push(format!(
                                     "{}:{}:{}: {} - {}",
                                     relative_path, line, column, error.severity, error.message
