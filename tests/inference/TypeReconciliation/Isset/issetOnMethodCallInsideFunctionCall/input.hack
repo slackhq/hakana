@@ -5,5 +5,5 @@ final class C {
 }
 
 function foo(C $c) : void {
-    strlen($c->foo() ?? "");
+    HH\Lib\Str\length($c->foo() ?? "");
 }

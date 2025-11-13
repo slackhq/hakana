@@ -1,3 +1,3 @@
 function sayHello(string $format): void {
-    if (strpos("abcdefghijklmno", $format)) {}
+    if (HH\Lib\Str\search("abcdefghijklmno", $format)) {}
 }

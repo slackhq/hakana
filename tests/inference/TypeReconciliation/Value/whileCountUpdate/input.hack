@@ -5,4 +5,4 @@ while (rand(1, 10) === 1) {
     $array[] = 6;
 }
 
-if (count($array) === 7) {}
+if (HH\Lib\C\count($array) === 7) {}

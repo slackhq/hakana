@@ -477,10 +477,15 @@ pub fn init(
                             .help("Apply auto-fixes where available"),
                     )
                     .arg(
+                        arg!(--"add-fixmes")
+                            .required(false)
+                            .help("Add HHAST_FIXME comments for linter issues"),
+                    )
+                    .arg(
                         arg!(--"linter" <NAME>)
                             .required(false)
                             .multiple(true)
-                            .help("Run specific linter(s) by HHAST name or kebab-case name"),
+                            .help("Run specific linter(s) by HHAST name or kebab-case name. When used with --add-fixmes, only add fixmes for these linter(s)"),
                     )
                     .arg(
                         arg!(--"no-codeowners")
@@ -1907,6 +1912,7 @@ fn do_lint(
         .to_string();
 
     let apply_fixes = sub_matches.is_present("fix");
+    let add_fixmes = sub_matches.is_present("add-fixmes");
     let skip_codeowners = sub_matches.is_present("no-codeowners");
 
     // Get specific linters to run (if provided)
@@ -1915,6 +1921,17 @@ fn do_lint(
             .values_of("linter")
             .map(|values| values.map(|s| s.to_string()).collect::<FxHashSet<_>>()),
     );
+
+    // When --add-fixmes is used with --linter, we want to filter fixmes by linter
+    let fixme_linters = Arc::new(if add_fixmes {
+        if let Some(linters) = specific_linters.as_ref() {
+            linters.iter().cloned().collect()
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    });
 
     // Parse CODEOWNERS file if skip_codeowners is enabled
     let (codeowner_patterns, codeowner_exact_files) = if skip_codeowners {
@@ -2120,11 +2137,14 @@ fn do_lint(
         let lint_output = lint_output.clone();
         let linter_times = linter_times.clone();
         let root_dir = root_dir.clone();
+        let fixme_linters = fixme_linters.clone();
 
         let handle = std::thread::spawn(move || {
             let lint_config = hakana_lint::LintConfig {
                 allow_auto_fix: apply_fixes,
                 apply_auto_fix: apply_fixes,
+                add_fixmes,
+                fixme_linters: (*fixme_linters).clone(),
                 enabled_linters: Vec::new(),
                 disabled_linters: Vec::new(),
             };
@@ -2201,8 +2221,8 @@ fn do_lint(
                             }
                         }
 
-                        // Apply fixes if requested and available
-                        if apply_fixes {
+                        // Apply fixes or add fixmes if requested and available
+                        if apply_fixes || add_fixmes {
                             let mut file_ops_applied = false;
 
                             // Apply file operations (create/delete files)
@@ -2285,15 +2305,24 @@ fn do_lint(
                                 match fs::write(&path, fixed_source) {
                                     Ok(_) => {
                                         *total_fixed.lock().unwrap() += 1;
-                                        lint_output
-                                            .lock()
-                                            .unwrap()
-                                            .push(format!("Fixed: {}", relative_path));
+                                        if add_fixmes {
+                                            lint_output
+                                                .lock()
+                                                .unwrap()
+                                                .push(format!("Added fixmes: {}", relative_path));
+                                        } else {
+                                            lint_output
+                                                .lock()
+                                                .unwrap()
+                                                .push(format!("Fixed: {}", relative_path));
+                                        }
                                     }
                                     Err(e) => {
                                         lint_output.lock().unwrap().push(format!(
-                                            "Error writing fixes to {}: {}",
-                                            path_str, e
+                                            "Error writing {} to {}: {}",
+                                            if add_fixmes { "fixmes" } else { "fixes" },
+                                            path_str,
+                                            e
                                         ));
                                     }
                                 }
@@ -2341,8 +2370,12 @@ fn do_lint(
             "\nFound {} lint issue(s) in {} file(s)",
             final_errors, final_files
         );
-        if apply_fixes && final_fixed > 0 {
-            println!("Fixed {} file(s)", final_fixed);
+        if (apply_fixes || add_fixmes) && final_fixed > 0 {
+            if add_fixmes {
+                println!("Added fixmes to {} file(s)", final_fixed);
+            } else {
+                println!("Fixed {} file(s)", final_fixed);
+            }
         }
     } else {
         println!("\nNo lint issues found! Checked {} file(s).", final_files);

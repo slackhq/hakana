@@ -102,6 +102,7 @@ pub enum IssueKind {
     NullIterator,
     OnlyUsedInTests,
     ParadoxicalCondition,
+    PHPStandardLibrary,
     PossibleMethodCallOnNull,
     PossiblyFalseArgument,
     PossiblyInvalidArgument,
@@ -340,6 +341,8 @@ pub fn get_issue_from_comment(
         return Some(Ok(IssueKind::NoJoinInAsyncFunction));
     } else if trimmed_text.starts_with("HHAST_FIXME[FinalOrAbstractClass]") {
         return Some(Ok(IssueKind::MissingFinalOrAbstract));
+    } else if trimmed_text.starts_with("HHAST_FIXME[PHPStandardLibrary]") {
+        return Some(Ok(IssueKind::PHPStandardLibrary));
     } else if trimmed_text.starts_with("HHAST_FIXME[BannedFunctions]")
         || trimmed_text.starts_with("HHAST_IGNORE_ERROR[BannedFunctions]")
     {

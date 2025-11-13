@@ -1,3 +1,3 @@
 function sayHello(string $needle): void {
-    if (strpos(nameof DateTime, $needle)) {}
+    if (HH\Lib\Str\search(nameof DateTime, $needle)) {}
 }

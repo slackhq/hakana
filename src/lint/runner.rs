@@ -20,6 +20,12 @@ pub struct LintConfig {
     /// Whether to apply auto-fixes immediately
     pub apply_auto_fix: bool,
 
+    /// Whether to add HHAST_FIXME comments for issues
+    pub add_fixmes: bool,
+
+    /// When add_fixmes is true, only add fixmes for these linters (empty = all)
+    pub fixme_linters: Vec<String>,
+
     /// Specific linters to run (empty = all)
     pub enabled_linters: Vec<String>,
 
@@ -32,6 +38,8 @@ impl Default for LintConfig {
         Self {
             allow_auto_fix: true,
             apply_auto_fix: false,
+            add_fixmes: false,
+            fixme_linters: Vec::new(),
             enabled_linters: Vec::new(),
             disabled_linters: Vec::new(),
         }
@@ -305,6 +313,105 @@ fn is_linter_in_set(
     false
 }
 
+/// Convert kebab-case linter name to PascalCase for HHAST_FIXME comments
+fn linter_name_to_pascal_case(name: &str) -> String {
+    name.split('-')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            }
+        })
+        .collect()
+}
+
+/// Add HHAST_FIXME comments for lint errors
+fn add_fixme_comments(
+    file_contents: &str,
+    errors: &[LintError],
+    line_break_map: &LineBreakMap,
+    statement_boundaries: &[(usize, usize)],
+) -> String {
+    use std::collections::BTreeMap;
+
+    // Group errors by their insertion position
+    // Key: (offset, add_newline), Value: list of linter names
+    let mut fixme_insertions: BTreeMap<(usize, bool), Vec<String>> = BTreeMap::new();
+
+    for error in errors {
+        let linter_name = error.linter_name;
+        let error_offset = error.start_offset;
+
+        // Convert linter name to PascalCase for HHAST_FIXME
+        let pascal_case_name = linter_name_to_pascal_case(linter_name);
+
+        // Convert error offset to line number
+        let (error_line, _) =
+            crate::syntax_utils::offset_to_line_column(line_break_map, error_offset);
+
+        // Check if error offset matches a statement start
+        let matches_statement_start = statement_boundaries
+            .iter()
+            .any(|(start_line, _end_line)| *start_line == error_line);
+
+        if matches_statement_start {
+            // Add fixme on the line above the statement
+            // Find the start of the line
+            let line_start_offset = line_break_map
+                .position_to_offset(true, error_line as isize, 0)
+                .unwrap_or(error_offset as isize) as usize;
+
+            // Insert with newline (will add "/* HHAST_FIXME[...] */\n{indent}" before the statement)
+            fixme_insertions
+                .entry((line_start_offset, true))
+                .or_insert_with(Vec::new)
+                .push(pascal_case_name);
+        } else {
+            // Add fixme right before the error location (inline)
+            fixme_insertions
+                .entry((error_offset, false))
+                .or_insert_with(Vec::new)
+                .push(pascal_case_name);
+        }
+    }
+
+    // Apply insertions in reverse order to maintain offsets
+    let mut result = file_contents.to_string();
+    for ((offset, add_newline), linter_names) in fixme_insertions.iter().rev() {
+        // Create the fixme comment
+        let fixme_comment = if linter_names.len() == 1 {
+            format!("/* HHAST_FIXME[{}] */", linter_names[0])
+        } else {
+            // Multiple linters - add separate comments
+            linter_names
+                .iter()
+                .map(|name| format!("/* HHAST_FIXME[{}] */", name))
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+
+        if *add_newline {
+            // Get indentation at this position
+            let line_start = &result[..*offset];
+            let last_newline = line_start.rfind('\n').map(|i| i + 1).unwrap_or(0);
+            let indent: String = result[last_newline..*offset]
+                .chars()
+                .take_while(|c| c.is_whitespace())
+                .collect();
+
+            let insertion = format!("{}{}\n", fixme_comment, indent);
+            result.insert_str(*offset, &insertion);
+        } else {
+            // Inline comment - add space after
+            let insertion = format!("{} ", fixme_comment);
+            result.insert_str(*offset, &insertion);
+        }
+    }
+
+    result
+}
+
 /// Run linters on a file
 pub fn run_linters(
     file_path: &Path,
@@ -351,6 +458,14 @@ pub fn run_linters(
             continue;
         }
 
+        if let Some(hhast_name) = linter.hhast_name() {
+            if !config.fixme_linters.is_empty()
+                && !config.fixme_linters.contains(&hhast_name.to_string())
+            {
+                continue;
+            }
+        }
+
         let start_time = std::time::Instant::now();
         let errors = linter.lint(&ctx);
         let elapsed = start_time.elapsed();
@@ -374,12 +489,26 @@ pub fn run_linters(
         }
     }
 
-    // Apply auto-fixes if requested
+    // Apply auto-fixes or add fixmes if requested
     let mut fixes_applied = false;
     let mut modified_source = None;
     let mut file_operations = Vec::new();
 
-    if config.apply_auto_fix && config.allow_auto_fix {
+    if config.add_fixmes {
+        // Filter errors if specific linters are requested for fixmes
+
+        if !all_errors.is_empty() {
+            // Add HHAST_FIXME comments for filtered errors
+            let new_source = add_fixme_comments(
+                file_contents,
+                &all_errors,
+                &line_break_map,
+                &statement_boundaries,
+            );
+            modified_source = Some(new_source);
+            fixes_applied = true;
+        }
+    } else if config.apply_auto_fix && config.allow_auto_fix {
         let mut edits = super::EditSet::new();
         for error in &all_errors {
             if let Some(ref fix) = error.fix {

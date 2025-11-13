@@ -6,7 +6,7 @@ final class A {
     protected function setOptions(dict<string, string> $options): void
     {
         foreach ($options as $key => $value) {
-            $normalized = ucfirst($key);
+            $normalized = HH\Lib\Str\capitalize($key);
             $method     = "set" . $normalized;
 
             if (method_exists($this, $method)) {

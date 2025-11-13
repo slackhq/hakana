@@ -13,5 +13,5 @@ function f(Project $project): int {
         throw new RuntimeException();
     }
 
-    return strlen($project->assessment->root);
+    return HH\Lib\Str\length($project->assessment->root);
 }

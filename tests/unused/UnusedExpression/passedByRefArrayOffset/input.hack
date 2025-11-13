@@ -10,5 +10,5 @@ foreach (vec["a"] as $e){
 }
 
 function takes_ref(inout vec<arraykey> $p): void {
-    echo implode(",", $p);
+    echo HH\Lib\Str\join($p, ",");
 }

@@ -1,2 +1,2 @@
 $q = rand(0,1) ? new stdClass() : false;
-strlen($q);
+HH\Lib\Str\length($q);

@@ -1,5 +1,5 @@
 function takesList(vec<int> $l): vec<int> {
-    if (count($l) < 2) {
+    if (HH\Lib\C\count($l) < 2) {
         throw new \Exception("bad");
     }
 

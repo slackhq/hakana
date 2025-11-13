@@ -1,1 +1,1 @@
-count(array_fill(0, 0, 0)) === 0;
+HH\Lib\C\count(array_fill(0, 0, 0)) === 0;

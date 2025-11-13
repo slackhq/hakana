@@ -8,6 +8,6 @@ try {
     $errors[] = $e;
 }
 
-if (count($errors) !== 0) {
+if (HH\Lib\C\count($errors) !== 0) {
     echo "Errors";
 }

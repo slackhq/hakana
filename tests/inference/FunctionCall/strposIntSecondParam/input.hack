@@ -1,3 +1,3 @@
 function hasZeroByteOffset(string $s) : bool {
-    return strpos($s, 0) !== false;
+    return HH\Lib\Str\search($s, '0') !== false;
 }

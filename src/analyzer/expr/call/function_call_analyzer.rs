@@ -252,6 +252,8 @@ pub(crate) fn analyze(
         function_storage,
     );
 
+    check_php_standard_library(statements_analyzer, pos, analysis_data, context, name);
+
     let stmt_type = function_call_return_type_fetcher::fetch(
         statements_analyzer,
         expr,
@@ -970,5 +972,79 @@ fn can_call_async_version(
             .unwrap_or(false)
     } else {
         true
+    }
+}
+
+fn check_php_standard_library(
+    statements_analyzer: &StatementsAnalyzer,
+    pos: &Pos,
+    analysis_data: &mut FunctionAnalysisData,
+    context: &BlockContext,
+    name: StrId,
+) {
+    let interner = statements_analyzer.interner;
+
+    let replacement = match name {
+        // String functions
+        StrId::UCWORDS => Some("HH\\Lib\\Str\\capitalize_words"),
+        StrId::UCFIRST => Some("HH\\Lib\\Str\\capitalize"),
+        StrId::STRTOLOWER => Some("HH\\Lib\\Str\\lowercase"),
+        StrId::STRTOUPPER => Some("HH\\Lib\\Str\\uppercase"),
+        StrId::STR_REPLACE => Some("HH\\Lib\\Str\\replace"),
+        StrId::STR_IREPLACE => Some("HH\\Lib\\Str\\replace_ci"),
+        StrId::STRPOS => Some("HH\\Lib\\Str\\search"),
+        StrId::STRIPOS => Some("HH\\Lib\\Str\\search_ci"),
+        StrId::STRRPOS => Some("HH\\Lib\\Str\\search_last"),
+        StrId::IMPLODE => Some("HH\\Lib\\Str\\join"),
+        StrId::JOIN => Some("HH\\Lib\\Str\\join"),
+        StrId::SUBSTR_REPLACE => Some("HH\\Lib\\Str\\splice"),
+        StrId::SUBSTR => Some(
+            "HH\\Lib\\Str\\slice or one of Str\\{starts_with, ends_with, strip_prefix, strip_suffix}",
+        ),
+        StrId::STR_REPEAT => Some("HH\\Lib\\Str\\repeat"),
+        StrId::TRIM => Some("HH\\Lib\\Str\\trim"),
+        StrId::LTRIM => Some("HH\\Lib\\Str\\trim_left"),
+        StrId::RTRIM => Some("HH\\Lib\\Str\\trim_right"),
+        StrId::STRLEN => Some("HH\\Lib\\Str\\length"),
+        StrId::SPRINTF => Some("HH\\Lib\\Str\\format"),
+        StrId::STR_SPLIT => Some("HH\\Lib\\Str\\chunk"),
+        StrId::STRCMP => Some("HH\\Lib\\Str\\compare"),
+        StrId::STRCASECMP => Some("HH\\Lib\\Str\\compare_ci"),
+        StrId::NUMBER_FORMAT => Some("HH\\Lib\\Str\\format_number"),
+
+        // Math functions
+        StrId::ROUND => Some("HH\\Lib\\Math\\round"),
+        StrId::CEIL => Some("HH\\Lib\\Math\\ceil"),
+        StrId::FLOOR => Some("HH\\Lib\\Math\\floor"),
+        StrId::ARRAY_SUM => Some("HH\\Lib\\Math\\sum"),
+        StrId::INTDIV => Some("HH\\Lib\\Math\\int_div"),
+        StrId::EXP => Some("HH\\Lib\\Math\\exp"),
+        StrId::ABS => Some("HH\\Lib\\Math\\abs"),
+        StrId::BASE_CONVERT => Some("HH\\Lib\\Math\\base_convert"),
+        StrId::COS => Some("HH\\Lib\\Math\\cos"),
+        StrId::SIN => Some("HH\\Lib\\Math\\sin"),
+        StrId::TAN => Some("HH\\Lib\\Math\\tan"),
+        StrId::SQRT => Some("HH\\Lib\\Math\\sqrt"),
+        StrId::LOG => Some("HH\\Lib\\Math\\log"),
+        StrId::MIN => Some("HH\\Lib\\Math\\min"),
+        StrId::MAX => Some("HH\\Lib\\Math\\max"),
+
+        // Container functions
+        StrId::COUNT => Some("HH\\Lib\\C\\count"),
+
+        _ => None,
+    };
+
+    if let Some(replacement) = replacement {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::PHPStandardLibrary,
+                format!("Use {} instead of {}", replacement, interner.lookup(&name)),
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
     }
 }

@@ -811,6 +811,8 @@ impl TestRunner {
         let config = hakana_lint::LintConfig {
             allow_auto_fix: false,
             apply_auto_fix: false,
+            add_fixmes: false,
+            fixme_linters: Vec::new(),
             enabled_linters: Vec::new(),
             disabled_linters: Vec::new(),
         };
@@ -976,6 +978,8 @@ impl TestRunner {
                 let autofix_config = hakana_lint::LintConfig {
                     allow_auto_fix: true,
                     apply_auto_fix: true,
+                    add_fixmes: false,
+                    fixme_linters: Vec::new(),
                     enabled_linters: Vec::new(),
                     disabled_linters: Vec::new(),
                 };

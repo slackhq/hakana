@@ -1,0 +1,2 @@
+ERROR: MixedAnyArgument - input.hack:4:24 - Argument 1 of HH\Lib\C\count expects HH\Container<mixed>, truthy-from-any provided
+ERROR: MixedAnyArgument - input.hack:5:25 - Argument 1 of HH\Lib\C\count expects HH\Container<mixed>, truthy-from-any provided

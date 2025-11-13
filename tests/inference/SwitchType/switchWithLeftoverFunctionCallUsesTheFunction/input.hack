@@ -2,7 +2,7 @@
 function bar (string $name): int {
     switch ($name) {
             case "a":
-            case ucfirst("a"):
+            case HH\Lib\Str\capitalize("a"):
                 return 1;
     }
     return -1;

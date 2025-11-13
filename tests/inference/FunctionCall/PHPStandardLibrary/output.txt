@@ -1,0 +1,4 @@
+ERROR: PHPStandardLibrary - input.hack:1:1 - Use HH\Lib\Str\search instead of strpos
+ERROR: PHPStandardLibrary - input.hack:2:1 - Use HH\Lib\Str\replace instead of str_replace
+ERROR: PHPStandardLibrary - input.hack:3:1 - Use HH\Lib\Str\slice or one of Str\{starts_with, ends_with, strip_prefix, strip_suffix} instead of substr
+ERROR: PHPStandardLibrary - input.hack:4:1 - Use HH\Lib\C\count instead of count
