@@ -170,7 +170,7 @@ fn parse_suppressions_with_statements<'a>(
         if let Some(start_offset) = stmt.offset() {
             let (start_line, _) =
                 crate::syntax_utils::offset_to_line_column(line_break_map, start_offset);
-            let width = stmt.full_width();
+            let width = stmt.width();
             let end_offset = start_offset + width;
             let (end_line, _) =
                 crate::syntax_utils::offset_to_line_column(line_break_map, end_offset);
