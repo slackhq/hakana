@@ -64,13 +64,13 @@ impl<'a> NoEmptyStatementsVisitor<'a> {
     fn handle_control_flow_empty_body(&mut self, body: &'a PositionedSyntax<'a>) {
         if let SyntaxVariant::ExpressionStatement(stmt) = &body.children {
             if matches!(&stmt.expression.children, SyntaxVariant::Missing) {
-                let (start, _) = self.ctx.node_range(body);
+                let (start, _) = self.ctx.node_full_range(body);
 
                 // Mark this statement as handled so we don't process it again
                 self.handled_statements.insert(start);
 
                 // Get error range from the semicolon (including trivia)
-                let (error_start, error_end) = self.ctx.node_range(&stmt.semicolon);
+                let (error_start, error_end) = self.ctx.node_full_range(&stmt.semicolon);
 
                 let mut error = LintError::new(
                     Severity::Warning,
@@ -229,7 +229,7 @@ impl<'a> SyntaxVisitor<'a> for NoEmptyStatementsVisitor<'a> {
         node: &'a ExpressionStatementChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
     ) {
         // Check if this statement was already handled as a control flow body
-        let (stmt_start, _) = self.ctx.node_range(&node.semicolon);
+        let (stmt_start, _) = self.ctx.node_full_range(&node.semicolon);
         if self.handled_statements.contains(&stmt_start) {
             return;
         }
@@ -239,7 +239,7 @@ impl<'a> SyntaxVisitor<'a> for NoEmptyStatementsVisitor<'a> {
 
         if is_empty {
             // Get the range including trivia for error reporting
-            let (error_start, error_end) = self.ctx.node_range(&node.semicolon);
+            let (error_start, error_end) = self.ctx.node_full_range(&node.semicolon);
 
             // Get the token itself to access its offset and width (excluding trivia)
             if let Some(token) = node.semicolon.get_token() {
@@ -267,8 +267,8 @@ impl<'a> SyntaxVisitor<'a> for NoEmptyStatementsVisitor<'a> {
 
         // Check if the expression has no effect
         if self.is_empty_expression(&node.expression) {
-            let (start, _) = self.ctx.node_range(&node.expression);
-            let (_, end) = self.ctx.node_range(&node.semicolon);
+            let (start, _) = self.ctx.node_full_range(&node.expression);
+            let (_, end) = self.ctx.node_full_range(&node.semicolon);
 
             let error = LintError::new(
                 Severity::Warning,

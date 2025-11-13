@@ -146,8 +146,8 @@ impl<'a> SyntaxVisitor<'a> for UseStatementCollector<'a> {
                     // Extract the imported name
                     if let Some(name) = extract_name(self.ctx, &use_decl.clauses) {
                         let short_name = get_short_name(&name);
-                        let start = use_decl.kind.offset().unwrap_or(0);
-                        let end = use_decl.clauses.offset().unwrap_or(start);
+                        // Get the range of the entire use declaration node
+                        let (start, end) = self.ctx.node_range(node);
                         let insert_pos = use_decl.clauses.offset().unwrap_or(start);
 
                         self.use_statements.push(UseStatementInfo {
@@ -195,8 +195,8 @@ impl<'a> SyntaxVisitor<'a> for UseStatementCollector<'a> {
                     // Create a single entry for the grouped use statement
                     // We'll use the first name for lookup, but mark it as a group
                     if !names.is_empty() {
-                        let start = group_use.kind.offset().unwrap_or(0);
-                        let end = group_use.prefix.offset().unwrap_or(start);
+                        // Get the range of the entire group use declaration node
+                        let (start, end) = self.ctx.node_range(node);
                         let insert_pos = group_use.prefix.offset().unwrap_or(start);
 
                         // Get short names for each full name and combine them

@@ -77,7 +77,7 @@ impl<'a> SyntaxVisitor<'a> for NoAwaitVisitor<'a> {
         if self.in_loop_depth > 0 {
             if let Some(token) = node.get_token() {
                 if token.kind() == TokenKind::Await {
-                    let (start, end) = self.ctx.node_range(node);
+                    let (start, end) = self.ctx.node_full_range(node);
                     self.errors.borrow_mut().push(
                         LintError::new(
                             Severity::Warning,

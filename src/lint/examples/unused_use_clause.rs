@@ -11,6 +11,7 @@ use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
 use parser_core_types::syntax_by_ref::syntax_variant_generated::{
     NamespaceGroupUseDeclarationChildren, NamespaceUseDeclarationChildren, SyntaxVariant,
 };
+use parser_core_types::syntax_trait::SyntaxTrait;
 use parser_core_types::token_kind::TokenKind;
 use rustc_hash::FxHashSet;
 
@@ -61,14 +62,15 @@ struct ReferencedNames {
 }
 
 #[derive(Debug)]
-struct UseStatementInfo<'a> {
+struct UseStatementInfo {
     /// The kind of use statement (namespace, type, function, or None for default)
     kind: UseKind,
     /// Individual clauses with their imported names
     clauses: Vec<UseClauseInfo>,
-    /// The full use declaration node (for error reporting and deletion)
-    declaration_node: &'a PositionedSyntax<'a>,
-    /// Start and end offsets for deletion
+    /// Start and end offsets for blame (excludes leading trivia)
+    blame_start_offset: usize,
+    blame_end_offset: usize,
+    /// Start and end offsets for deletion (includes trivia and newline)
     start_offset: usize,
     end_offset: usize,
     keyword_end_offset: usize,
@@ -100,71 +102,75 @@ enum UseKind {
 
 struct UnusedUseClauseVisitor<'a> {
     ctx: &'a LintContext<'a>,
-    use_statements: Vec<UseStatementInfo<'a>>,
+    use_statements: Vec<UseStatementInfo>,
     referenced_names: ReferencedNames,
 }
 
 impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
-    fn visit_namespace_use_declaration(
-        &mut self,
-        node: &'a NamespaceUseDeclarationChildren<'a, PositionedToken<'a>, PositionedValue<'a>>,
-    ) {
-        // Determine the use kind
-        let kind = determine_use_kind(&node.kind);
-
-        // Extract clauses
-        let clauses = extract_use_clauses(&node.clauses, self.ctx);
-
-        if !clauses.is_empty() {
-            let (start, keyword_end_offset) = self.ctx.node_range(&node.keyword);
-            let (_, end) = self.ctx.node_range(&node.semicolon);
-
-            self.use_statements.push(UseStatementInfo {
-                kind,
-                clauses,
-                declaration_node: &node.keyword, // Store a reference node
-                start_offset: start,
-                keyword_end_offset: keyword_end_offset - 1, // this doesn't matter
-                end_offset: end,
-                group_prefix: None,
-            });
-        }
-    }
-
-    fn visit_namespace_group_use_declaration(
-        &mut self,
-        node: &'a NamespaceGroupUseDeclarationChildren<
-            'a,
-            PositionedToken<'a>,
-            PositionedValue<'a>,
-        >,
-    ) {
-        // Determine the use kind
-        let kind = determine_use_kind(&node.kind);
-
-        // Extract clauses (for group use, we need to handle the prefix)
-        let clauses = extract_use_clauses(&node.clauses, self.ctx);
-
-        // Extract the prefix (e.g., "HH\Lib\" from "use namespace HH\Lib\{C, Str};")
-        let prefix = self.ctx.node_text(&node.prefix).trim().to_string();
-
-        if !clauses.is_empty() {
-            let (start, keyword_end_offset) = self.ctx.node_range(&node.keyword);
-            let (_, end) = self.ctx.node_range(&node.semicolon);
-
-            self.use_statements.push(UseStatementInfo {
-                kind,
-                clauses,
-                declaration_node: &node.keyword,
-                start_offset: start,
-                end_offset: end,
-                keyword_end_offset: keyword_end_offset - 1,
-                group_prefix: Some(prefix),
-            });
-        }
-    }
-
     fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
+        // Handle use declarations in visit_node to access the full node
+        match &node.children {
+            SyntaxVariant::NamespaceUseDeclaration(use_decl) => {
+                // Determine the use kind
+                let kind = determine_use_kind(&use_decl.kind);
+
+                // Extract clauses
+                let clauses = extract_use_clauses(&use_decl.clauses, self.ctx);
+
+                if !clauses.is_empty() {
+                    // For blame: start without leading trivia, end with trailing trivia
+                    let blame_start = node.start_offset();
+                    let blame_end = node.leading_start_offset() + node.full_width();
+
+                    let (start, keyword_end_offset) = self.ctx.node_full_range(&use_decl.keyword);
+                    let (_, end) = self.ctx.node_full_range(&use_decl.semicolon);
+
+                    self.use_statements.push(UseStatementInfo {
+                        kind,
+                        clauses,
+                        blame_start_offset: blame_start,
+                        blame_end_offset: blame_end,
+                        start_offset: start,
+                        keyword_end_offset: keyword_end_offset - 1,
+                        end_offset: end,
+                        group_prefix: None,
+                    });
+                }
+            }
+            SyntaxVariant::NamespaceGroupUseDeclaration(group_use) => {
+                // Determine the use kind
+                let kind = determine_use_kind(&group_use.kind);
+
+                // Extract clauses (for group use, we need to handle the prefix)
+                let clauses = extract_use_clauses(&group_use.clauses, self.ctx);
+
+                // Extract the prefix (e.g., "HH\Lib\" from "use namespace HH\Lib\{C, Str};")
+                let prefix = self.ctx.node_text(&group_use.prefix).trim().to_string();
+
+                if !clauses.is_empty() {
+                    // For blame: start without leading trivia, end with trailing trivia
+                    let blame_start = node.start_offset();
+                    let blame_end = node.leading_start_offset() + node.full_width();
+
+                    let (start, keyword_end_offset) = self.ctx.node_full_range(&group_use.keyword);
+                    let (_, end) = self.ctx.node_full_range(&group_use.semicolon);
+
+                    self.use_statements.push(UseStatementInfo {
+                        kind,
+                        clauses,
+                        blame_start_offset: blame_start,
+                        blame_end_offset: blame_end,
+                        start_offset: start,
+                        end_offset: end,
+                        keyword_end_offset: keyword_end_offset - 1,
+                        group_prefix: Some(prefix),
+                    });
+                }
+            }
+            _ => {}
+        }
+
+        // Continue with reference tracking logic
         // Collect referenced names from various node types
         match &node.children {
             // Simple type specifier: Foo
@@ -367,8 +373,6 @@ impl<'a> UnusedUseClauseVisitor<'a> {
             }
 
             if !unused_clauses.is_empty() {
-                let (start, end) = self.ctx.node_range(use_stmt.declaration_node);
-
                 let message = if unused_clauses.len() == 1 {
                     format!("`{}` is not used", unused_clauses[0].imported_name)
                 } else {
@@ -382,8 +386,13 @@ impl<'a> UnusedUseClauseVisitor<'a> {
                     )
                 };
 
-                let mut error =
-                    LintError::new(Severity::Error, message, start, end, "unused-use-clause");
+                let mut error = LintError::new(
+                    Severity::Error,
+                    message,
+                    use_stmt.blame_start_offset,
+                    use_stmt.blame_end_offset,
+                    "unused-use-clause",
+                );
 
                 // Generate auto-fix
                 if self.ctx.allow_auto_fix {
@@ -400,7 +409,7 @@ impl<'a> UnusedUseClauseVisitor<'a> {
 
     fn generate_fix(
         &self,
-        use_stmt: &UseStatementInfo<'a>,
+        use_stmt: &UseStatementInfo,
         unused_clauses: &[&UseClauseInfo],
     ) -> EditSet {
         let mut fix = EditSet::new();
@@ -733,7 +742,7 @@ fn extract_use_clauses(clauses_node: &PositionedSyntax, ctx: &LintContext) -> Ve
                     };
 
                     if !imported_name.is_empty() {
-                        let (start, end) = ctx.node_range(&list_item.item);
+                        let (start, end) = ctx.node_full_range(&list_item.item);
                         clauses.push(UseClauseInfo {
                             imported_name,
                             full_clause_path,

@@ -59,7 +59,7 @@ impl<'a> SyntaxVisitor<'a> for DontDiscardNewVisitor<'a> {
     ) {
         // Check if the expression is an object creation
         if let SyntaxVariant::ObjectCreationExpression(obj_creation) = &node.expression.children {
-            let (start, end) = self.ctx.node_range(&node.expression);
+            let (start, end) = self.ctx.node_full_range(&node.expression);
 
             // Check if it looks like an Exception
             let obj_text = self.ctx.node_text(&obj_creation.object);

@@ -924,37 +924,42 @@ impl TestRunner {
                     }
                 };
 
-            // Extract expected descriptions from JSON
-            let expected_descriptions: Vec<String> = expected_errors
+            // Convert actual errors to JSON format matching expected
+            let actual_errors_json: Vec<serde_json::Value> = result
+                .errors
                 .iter()
-                .filter_map(|err| {
-                    err.get("description")
-                        .and_then(|d| d.as_str())
-                        .map(|s| s.to_string())
+                .map(|err| {
+                    // Get the blamed code snippet
+                    let blame_start = err.start_offset;
+                    let blame_end = err.end_offset;
+                    let blame = if blame_start < input_contents.len()
+                        && blame_end <= input_contents.len()
+                        && blame_start <= blame_end
+                    {
+                        input_contents[blame_start..blame_end].to_string()
+                    } else {
+                        String::new()
+                    };
+
+                    serde_json::json!({
+                        "blame": blame,
+                        "blame_pretty": blame,
+                        "description": err.message,
+                    })
                 })
                 .collect();
 
-            // Extract actual descriptions
-            let actual_descriptions: Vec<String> = result
-                .errors
-                .iter()
-                .map(|err| err.message.clone())
-                .collect();
-
-            // Compare error descriptions
-            if expected_descriptions != actual_descriptions {
+            // Compare error JSON
+            if expected_errors != actual_errors_json {
                 errors_output.push_str(&format!("\n=== {} ===\n", test_name));
-                errors_output.push_str(&format!(
-                    "Expected {} errors:\n",
-                    expected_descriptions.len()
-                ));
-                for desc in &expected_descriptions {
-                    errors_output.push_str(&format!("  - {}\n", desc));
-                }
-                errors_output.push_str(&format!("Got {} errors:\n", actual_descriptions.len()));
-                for desc in &actual_descriptions {
-                    errors_output.push_str(&format!("  - {}\n", desc));
-                }
+
+                // Pretty print expected and actual as JSON
+                let expected_json_str = serde_json::to_string_pretty(&expected_errors)
+                    .unwrap_or_else(|_| format!("{:?}", expected_errors));
+                let actual_json_str = serde_json::to_string_pretty(&actual_errors_json)
+                    .unwrap_or_else(|_| format!("{:?}", actual_errors_json));
+
+                errors_output.push_str(&format_diff(&expected_json_str, &actual_json_str));
                 all_passed = false;
             }
 

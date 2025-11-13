@@ -1,12 +1,12 @@
-[
-    {
-        "blame": "  new DeleteMyFiles(); ",
-        "blame_pretty": "  new DeleteMyFiles(); ",
-        "description": "You are discarding the result of a `new` expression. If you are intentionally discarding it, consider assigning it to `$_`. If you are running this constructor for its side-effects, consider restructuring that class/constructor."
-    },
-    {
-        "blame": "  new Some\\DeleteMyFiles(); ",
-        "blame_pretty": "  new Some\\DeleteMyFiles(); ",
-        "description": "You are discarding the result of a `new` expression. If you are intentionally discarding it, consider assigning it to `$_`. If you are running this constructor for its side-effects, consider restructuring that class/constructor."
-    }
-]
+ [
+   {
+    "blame": "  new DeleteMyFiles()",
+    "blame_pretty": "  new DeleteMyFiles()",
+     "description": "You are discarding the result of a `new` expression. If you are intentionally discarding it, consider assigning it to `$_`. If you are running this constructor for its side-effects, consider restructuring that class/constructor."
+   },
+   {
+    "blame": "  new Some\\DeleteMyFiles()",
+    "blame_pretty": "  new Some\\DeleteMyFiles()",
+     "description": "You are discarding the result of a `new` expression. If you are intentionally discarding it, consider assigning it to `$_`. If you are running this constructor for its side-effects, consider restructuring that class/constructor."
+   }
+ ]

@@ -49,11 +49,21 @@ impl<'a> LintContext<'a> {
         node.text(self.source)
     }
 
+    /// Get the byte offset range for a node excluding all trivia
+    ///
+    /// This returns the full range that corresponds to `node.text()`,
+    /// excluding leading and trailing trivia (whitespace, comments, newlines).
+    pub fn node_range(&self, node: &PositionedSyntax<'a>) -> (usize, usize) {
+        let start = node.start_offset();
+        let end = start + node.width();
+        (start, end)
+    }
+
     /// Get the byte offset range for a node including all trivia
     ///
     /// This returns the full range that corresponds to `node.text()`,
     /// including leading and trailing trivia (whitespace, comments, newlines).
-    pub fn node_range(&self, node: &PositionedSyntax<'a>) -> (usize, usize) {
+    pub fn node_full_range(&self, node: &PositionedSyntax<'a>) -> (usize, usize) {
         let start = node.leading_start_offset();
         let end = start + node.full_width();
         (start, end)

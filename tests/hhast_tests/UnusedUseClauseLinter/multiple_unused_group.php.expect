@@ -1,7 +1,7 @@
-[
-    {
-        "blame": "use",
-        "blame_pretty": "use",
-        "description": "`AUnused`, `DUnused`, `EUnused` are not used"
-    }
-]
+ [
+   {
+    "blame": "use type Foo\\{AUnused, BIsUsed, CIsUsed, DUnused, EUnused};\n",
+    "blame_pretty": "use type Foo\\{AUnused, BIsUsed, CIsUsed, DUnused, EUnused};\n",
+     "description": "`AUnused`, `DUnused`, `EUnused` are not used"
+   }
+ ]

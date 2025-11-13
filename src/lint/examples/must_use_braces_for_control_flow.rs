@@ -63,7 +63,7 @@ impl<'a> MustUseBracesVisitor<'a> {
         let has_braces = matches!(&body.children, SyntaxVariant::CompoundStatement(_));
 
         if !has_braces {
-            let (body_start, body_end) = self.ctx.node_range(body);
+            let (body_start, body_end) = self.ctx.node_full_range(body);
 
             let mut error = LintError::new(
                 Severity::Warning,
