@@ -586,10 +586,16 @@ fn handle_shapes_static_method(
                 .get_expr_type(call_expr.1[0].to_expr_ref().pos())
                 .cloned();
 
-            return Some(if let Some(arg_type) = arg_type {
+            return Some(if let Some(mut arg_type) = arg_type {
                 if arg_type.is_mixed() {
                     get_dict(get_arraykey(true), get_mixed_any())
                 } else {
+                    // Clear shape_name from TDict types since toDict/toArray converts shapes to dicts
+                    for atomic_type in &mut arg_type.types {
+                        if let TAtomic::TDict(dict_type) = atomic_type {
+                            dict_type.shape_name = None;
+                        }
+                    }
                     arg_type
                 }
             } else {
