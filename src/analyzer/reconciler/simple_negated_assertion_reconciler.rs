@@ -1537,6 +1537,7 @@ fn reconcile_falsy(
                         known_items: None,
                         non_empty: false,
                         shape_name: None,
+                        is_shape: false,
                     });
                     acceptable_types.push(new_atomic);
                 }
@@ -1664,6 +1665,7 @@ fn reconcile_empty_countable(
                         known_items: None,
                         non_empty: false,
                         shape_name: None,
+                        is_shape: false,
                     });
                     acceptable_types.push(new_atomic);
                 }

@@ -6,11 +6,7 @@
 use crate::{Edit, EditSet, LintContext, LintError, Linter, Severity, SyntaxVisitor};
 use parser_core_types::lexable_token::LexableToken;
 use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
-use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
-use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
-use parser_core_types::syntax_by_ref::syntax_variant_generated::{
-    NamespaceGroupUseDeclarationChildren, NamespaceUseDeclarationChildren, SyntaxVariant,
-};
+use parser_core_types::syntax_by_ref::syntax_variant_generated::SyntaxVariant;
 use parser_core_types::syntax_trait::SyntaxTrait;
 use parser_core_types::token_kind::TokenKind;
 use rustc_hash::FxHashSet;

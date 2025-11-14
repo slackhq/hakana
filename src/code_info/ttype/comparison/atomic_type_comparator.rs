@@ -234,6 +234,7 @@ pub fn is_contained_by(
                             )),
                             known_items: None,
                             non_empty: false,
+                            is_shape: false,
                             shape_name: None,
                         }),
                         inside_assertion,

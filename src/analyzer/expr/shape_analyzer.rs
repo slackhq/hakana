@@ -168,6 +168,7 @@ pub(crate) fn analyze(
         params: None,
         non_empty: true,
         shape_name: None,
+        is_shape: true,
     }));
 
     if !parent_nodes.is_empty() {

@@ -96,6 +96,7 @@ pub fn combine(
             },
             non_empty: combination.dict_always_filled,
             shape_name: combination.dict_alias_name.unwrap_or(None),
+            is_shape: combination.dict_always_shape,
         }));
     }
 
@@ -536,6 +537,7 @@ fn scrape_type_properties(
         ref known_items,
         non_empty,
         shape_name,
+        is_shape,
         ..
     }) = atomic
     {
@@ -544,6 +546,9 @@ fn scrape_type_properties(
 
         if !non_empty {
             combination.dict_always_filled = false;
+        }
+        if !is_shape {
+            combination.dict_always_shape = false;
         }
 
         if let Some(shape_name) = &shape_name {

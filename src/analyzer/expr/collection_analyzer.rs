@@ -239,6 +239,7 @@ pub(crate) fn analyze_keyvals(
                 params: None,
                 non_empty: false,
                 shape_name: None,
+                is_shape: false,
             })),
         );
         return Ok(());
@@ -301,6 +302,7 @@ pub(crate) fn analyze_keyvals(
         },
         non_empty: true,
         shape_name: None,
+        is_shape: false,
     }));
 
     if !array_creation_info.parent_nodes.is_empty() {

@@ -1517,6 +1517,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 params,
                 non_empty: true,
                 shape_name: None,
+                is_shape: false,
             }));
         }
         (TAtomic::TGenericParam { as_type, .. }, TAtomic::TNamedObject { .. }) => {
@@ -1791,6 +1792,7 @@ fn intersect_dicts(
                 params,
                 non_empty: true,
                 shape_name: None,
+                is_shape: type_1_dict.is_shape && type_2_dict.is_shape,
             }))
         }
         (None, Some(type_2_known_items)) => {
@@ -1820,6 +1822,7 @@ fn intersect_dicts(
                 params,
                 non_empty: true,
                 shape_name: None,
+                is_shape: type_1_dict.is_shape && type_2_dict.is_shape,
             }))
         }
         (Some(type_1_known_items), None) => {
@@ -1849,6 +1852,7 @@ fn intersect_dicts(
                 params,
                 non_empty: true,
                 shape_name: None,
+                is_shape: type_1_dict.is_shape && type_2_dict.is_shape,
             }))
         }
         _ => Some(TAtomic::TDict(TDict {
@@ -1856,6 +1860,7 @@ fn intersect_dicts(
             params,
             non_empty: true,
             shape_name: None,
+            is_shape: type_1_dict.is_shape && type_2_dict.is_shape,
         })),
     }
 }

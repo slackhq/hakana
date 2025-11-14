@@ -534,24 +534,27 @@ fn update_array_assignment_child_type(
                         non_empty: true,
                     }))
                 }
-                TAtomic::TDict(TDict { known_items, .. }) => {
-                    collection_types.push(TAtomic::TDict(TDict {
-                        params: Some((Box::new((*key_type).clone()), Box::new(value_type.clone()))),
-                        known_items: if let Some(known_items) = known_items {
-                            let known_item = Arc::new(value_type.clone());
-                            Some(
-                                known_items
-                                    .iter()
-                                    .map(|(k, v)| (k.clone(), (v.0, known_item.clone())))
-                                    .collect::<BTreeMap<_, _>>(),
-                            )
-                        } else {
-                            None
-                        },
-                        non_empty: true,
-                        shape_name: None,
-                    }))
-                }
+                TAtomic::TDict(TDict {
+                    known_items,
+                    is_shape,
+                    ..
+                }) => collection_types.push(TAtomic::TDict(TDict {
+                    params: Some((Box::new((*key_type).clone()), Box::new(value_type.clone()))),
+                    known_items: if let Some(known_items) = known_items {
+                        let known_item = Arc::new(value_type.clone());
+                        Some(
+                            known_items
+                                .iter()
+                                .map(|(k, v)| (k.clone(), (v.0, known_item.clone())))
+                                .collect::<BTreeMap<_, _>>(),
+                        )
+                    } else {
+                        None
+                    },
+                    non_empty: true,
+                    shape_name: None,
+                    is_shape: *is_shape,
+                })),
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
                     type_param: Box::new(value_type.clone()),
                     non_empty: true,
@@ -617,6 +620,7 @@ fn update_array_assignment_child_type(
                         known_items: None,
                         non_empty: true,
                         shape_name: None,
+                        is_shape: false,
                     }))
                 }
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
@@ -750,6 +754,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                 params: None,
                 non_empty: false,
                 shape_name: None,
+                is_shape: false,
             }));
             array_expr_var_type = Rc::new(atomic);
 

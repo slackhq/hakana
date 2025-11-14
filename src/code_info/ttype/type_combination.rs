@@ -34,6 +34,7 @@ pub(crate) struct TypeCombination {
 
     pub has_dict: bool,
     pub dict_entries: BTreeMap<DictKey, (bool, Arc<TUnion>)>,
+    pub dict_always_shape: bool,
     pub vec_entries: BTreeMap<usize, (bool, TUnion)>,
 
     pub dict_type_params: Option<(TUnion, TUnion)>,
@@ -77,6 +78,7 @@ impl TypeCombination {
             keyset_type_param: None,
             awaitable_param: None,
             dict_alias_name: None,
+            dict_always_shape: true,
             falsy_mixed: None,
             truthy_mixed: None,
             nonnull_mixed: None,

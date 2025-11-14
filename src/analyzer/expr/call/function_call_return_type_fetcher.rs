@@ -329,6 +329,7 @@ fn handle_special_functions(
                 params: None,
                 non_empty: true,
                 shape_name: None,
+                is_shape: true,
             }))),
             known_count: None,
             non_empty: true,

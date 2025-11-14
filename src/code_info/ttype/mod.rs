@@ -168,6 +168,7 @@ pub fn get_dict(key_param: TUnion, value_param: TUnion) -> TUnion {
         params: Some((Box::new(key_param), Box::new(value_param))),
         non_empty: false,
         shape_name: None,
+        is_shape: false,
     }))
 }
 
@@ -709,6 +710,7 @@ fn intersect_dicts_simple(
                 params,
                 non_empty: true,
                 shape_name: None,
+                is_shape: false,
             }))
         }
         _ => Some(TAtomic::TDict(TDict {
@@ -716,6 +718,7 @@ fn intersect_dicts_simple(
             params,
             non_empty: true,
             shape_name: None,
+            is_shape: false,
         })),
     }
 }

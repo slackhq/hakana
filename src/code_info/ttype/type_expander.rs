@@ -525,7 +525,7 @@ fn expand_atomic(
                 .map(|mut v| {
                     if type_params.is_none() {
                         if let TAtomic::TDict(TDict {
-                            known_items: Some(_),
+                            is_shape: true,
                             ref mut shape_name,
                             ..
                         }) = v

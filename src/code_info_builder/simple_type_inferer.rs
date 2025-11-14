@@ -64,6 +64,7 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
                 known_items: Some(known_items),
                 params: None,
                 shape_name: None,
+                is_shape: true,
             }))
         }
         aast::Expr_::ValCollection(boxed) => {
@@ -117,6 +118,7 @@ pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) 
                         known_items: Some(known_items),
                         params: None,
                         shape_name: None,
+                        is_shape: false,
                     })),
                     _ => panic!(),
                 }
@@ -298,6 +300,7 @@ pub fn get_atomic_for_prefix_regex_string(mut inner_text: String) -> TAtomic {
             params: None,
             non_empty: true,
             shape_name: None,
+            is_shape: true,
         }))]),
         as_type: Some(Box::new(wrap_atomic(TAtomic::TLiteralString {
             value: inner_text,

@@ -44,6 +44,7 @@ pub struct TDict {
     pub params: Option<(Box<TUnion>, Box<TUnion>)>,
     pub non_empty: bool,
     pub shape_name: Option<(StrId, Option<StrId>)>,
+    pub is_shape: bool,
 }
 
 impl TDict {

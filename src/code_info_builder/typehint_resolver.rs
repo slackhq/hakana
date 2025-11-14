@@ -244,6 +244,7 @@ fn get_dict_type_from_hints(
         known_items: None,
         non_empty: false,
         shape_name: None,
+        is_shape: false,
     })
 }
 
@@ -300,6 +301,7 @@ fn get_shape_type_from_hints(
         },
         non_empty: false,
         shape_name: None,
+        is_shape: true,
     })
 }
 
@@ -636,6 +638,7 @@ pub fn get_type_from_hint(
                         )),
                         non_empty: false,
                         shape_name: None,
+                        is_shape: false,
                     })
                 }
                 "Awaitable" | "HH\\Awaitable" => {
