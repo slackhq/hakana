@@ -1,0 +1,26 @@
+[
+  {
+    "end_offset": 44,
+    "file": "input.hack",
+    "name": "Foo\\my_keys_t",
+    "start_offset": 30
+  },
+  {
+    "end_offset": 229,
+    "file": "constants.hack",
+    "name": "Foo\\MyType::INT",
+    "start_offset": 218
+  },
+  {
+    "end_offset": 253,
+    "file": "constants.hack",
+    "name": "Foo\\MyType::STRING",
+    "start_offset": 239
+  },
+  {
+    "end_offset": 274,
+    "file": "constants.hack",
+    "name": "Foo\\MyType::INT",
+    "start_offset": 263
+  }
+]

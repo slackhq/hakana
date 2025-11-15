@@ -810,7 +810,7 @@ fn convert_param_nodes(
             param.is_optional = match &param_node.info {
                 ast::FunParamInfo::ParamOptional(expr) => {
                     if let Some(expr) = expr {
-                        let default = simple_type_inferer::infer(expr, resolved_names);
+                        let default = simple_type_inferer::infer(expr, resolved_names, false);
 
                         if let Some(default) = default {
                             param.default_type = Some(DefaultType::NormalData(default));

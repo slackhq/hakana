@@ -1,0 +1,2 @@
+ERROR: UndefinedStringArrayOffset - input.hack:4:10 - Invalid dict fetch on shape-from(Foo\allowed_logstash_keys_t) using key 'key_does_not_exist'
+ERROR: NoValue - input.hack:4:10 - Argument 1 of echo expects ?scalar, nothing type provided

@@ -7,9 +7,9 @@ use hakana_code_info::attribute_info::AttributeInfo;
 use hakana_code_info::file_info::{FileInfo, ParserError};
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::issue::IssueKind;
-use hakana_code_info::t_atomic::TDict;
+use hakana_code_info::t_atomic::{DictKey, TDict};
 use hakana_code_info::t_union::TUnion;
-use hakana_code_info::ttype::{get_bool, get_int, get_mixed_any, get_string};
+use hakana_code_info::ttype::{get_bool, get_int, get_mixed_any, get_string, wrap_atomic};
 use hakana_code_info::{FileSource, GenericParent};
 use hakana_code_info::{
     ast_signature::DefSignatureNode, class_constant_info::ConstantInfo, classlike_info::Variance,
@@ -19,9 +19,9 @@ use hakana_code_info::{
 };
 use hakana_str::{StrId, ThreadedInterner};
 use no_pos_hash::{Hasher, position_insensitive_hash};
+use oxidized::ast;
 use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;
-use oxidized::ast;
 use oxidized::{
     aast,
     aast_visitor::{AstParams, Node, Visitor, visit},
@@ -33,6 +33,12 @@ mod classlike_scanner;
 mod functionlike_scanner;
 pub mod simple_type_inferer;
 pub mod typehint_resolver;
+
+#[derive(Clone, Debug)]
+struct ShapeTypeConstant {
+    type_name: StrId,
+    map: FxHashMap<String, String>,
+}
 
 #[derive(Clone)]
 struct Context {
@@ -57,6 +63,7 @@ struct Scanner<'a> {
     closure_refs: Vec<u32>,
     ast_nodes: Vec<DefSignatureNode>,
     uses: Uses,
+    shape_type_constants: FxHashMap<StrId, ShapeTypeConstant>,
 }
 
 impl<'ast> Visitor<'ast> for Scanner<'_> {
@@ -182,7 +189,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 } else {
                     None
                 },
-                inferred_type: simple_type_inferer::infer(&gc.value, self.resolved_names),
+                inferred_type: simple_type_inferer::infer(&gc.value, self.resolved_names, false),
                 unresolved_value: None,
                 is_abstract: false,
                 allow_non_exclusive_enum_values: false,
@@ -190,6 +197,35 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 defining_class: StrId::EMPTY,
             },
         );
+
+        if let Some(shape_type_constant) = self.shape_type_constants.get(&name).cloned() {
+            let full_type = simple_type_inferer::infer(&gc.value, self.resolved_names, true);
+
+            if let Some(full_type) = full_type {
+                // Transform full_type using shape_type_constant.map
+                // where the realised constant values from the enum cases correspond to Hack types
+                // e.g. if MySpecialTypeEnum::INTISH = 'intish' and we have a map of 'intish' => 'int'
+                // then any thing in the constant 'some_key' => MySpecialTypeEnum::INTISH should map to
+                // a shape type of `'some_key' => int`.
+                // If we have an enum case MySpecialTypeEnum::INT = 'int' then we don't need the
+                // mapping -- 'some_other_key' => MySpecialTypeEnum::INT just maps to a shape type
+                // of `'some_other_key' => int`
+
+                let transformed_type = transform_shape_type_constant(
+                    full_type,
+                    &shape_type_constant.map,
+                    &self.codebase,
+                );
+
+                if let Some(type_storage) = self
+                    .codebase
+                    .type_definitions
+                    .get_mut(&shape_type_constant.type_name)
+                {
+                    type_storage.actual_type = wrap_atomic(transformed_type);
+                }
+            }
+        }
 
         gc.recurse(c, self)
     }
@@ -302,6 +338,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let mut is_codegen = false;
 
         let mut shape_source_attribute = None;
+        let mut shape_type_constant_attribute = None;
 
         let mut attributes = vec![];
 
@@ -318,13 +355,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             match *attribute_name {
                 StrId::HAKANA_SECURITY_ANALYSIS_SHAPE_SOURCE => {
                     shape_source_attribute = Some(user_attribute);
-                    break;
                 }
                 StrId::HAKANA_SPECIAL_TYPES_LITERAL_STRING => {
                     is_literal_string = true;
                 }
                 StrId::CODEGEN => {
                     is_codegen = true;
+                }
+                StrId::HAKANA_SHAPE_TYPE_FROM_CONSTANT => {
+                    shape_type_constant_attribute = Some(user_attribute);
                 }
                 _ => {}
             }
@@ -424,7 +463,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             let attribute_param_expr = &shape_source_attribute.params[0];
 
             let attribute_param_type =
-                simple_type_inferer::infer(attribute_param_expr, self.resolved_names);
+                simple_type_inferer::infer(attribute_param_expr, self.resolved_names, false);
 
             if let Some(atomic_param_attribute) = attribute_param_type {
                 if let TAtomic::TDict(TDict {
@@ -456,6 +495,61 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             }
 
             type_definition.shape_field_taints = Some(shape_sources);
+        }
+
+        if let Some(shape_type_constant_attribute) = shape_type_constant_attribute {
+            let mut type_map = FxHashMap::default();
+
+            let attribute_param_expr = &shape_type_constant_attribute.params[0];
+
+            if let aast::Expr_::String(str) = &attribute_param_expr.2 {
+                let mut constant_name = str.to_string();
+
+                if let Some(namespace_positiion) = c.namespace_position {
+                    constant_name = self.file_source.file_contents
+                        [(namespace_positiion.0 + 10)..namespace_positiion.1]
+                        .to_string()
+                        + "\\"
+                        + &constant_name;
+                }
+                let constant_name = self.interner.intern(constant_name);
+
+                // Add symbol reference from type alias to constant so invalidation works
+                self.uses
+                    .symbol_uses
+                    .entry(type_name)
+                    .or_default()
+                    .push((constant_name, type_name));
+
+                let attribute_param_expr = &shape_type_constant_attribute.params[1];
+
+                let attribute_param_type =
+                    simple_type_inferer::infer(attribute_param_expr, self.resolved_names, false);
+
+                if let Some(atomic_param_attribute) = attribute_param_type {
+                    if let TAtomic::TDict(TDict {
+                        known_items: Some(attribute_known_items),
+                        ..
+                    }) = atomic_param_attribute
+                    {
+                        for (name, (_, item_type)) in attribute_known_items {
+                            if let (DictKey::String(key_str), Some(value)) =
+                                (name, item_type.get_single_literal_string_value())
+                            {
+                                type_map.insert(key_str, value);
+                            }
+                        }
+                    }
+                }
+
+                self.shape_type_constants.insert(
+                    constant_name,
+                    ShapeTypeConstant {
+                        type_name,
+                        map: type_map,
+                    },
+                );
+            }
         }
 
         self.codebase
@@ -894,6 +988,79 @@ fn get_uses_hash(uses: &Vec<(StrId, StrId)>) -> u64 {
     hasher.finish()
 }
 
+fn transform_shape_type_constant(
+    atomic_type: TAtomic,
+    type_map: &FxHashMap<String, String>,
+    codebase: &CodebaseInfo,
+) -> TAtomic {
+    match atomic_type {
+        TAtomic::TDict(TDict {
+            known_items: Some(items),
+            ..
+        }) => {
+            let mut transformed_items = std::collections::BTreeMap::new();
+
+            for (key, (optional, value_type)) in items {
+                // For each value in the dict, we need to resolve it
+                let transformed_value_type = if value_type.types.len() == 1 {
+                    let atomic = value_type.types.iter().next().unwrap();
+
+                    // If it's a TMemberReference (enum constant), resolve it
+                    if let TAtomic::TMemberReference {
+                        classlike_name,
+                        member_name,
+                    } = atomic
+                    {
+                        // Look up the enum constant value
+                        if let Some(classlike_info) = codebase.classlike_infos.get(classlike_name) {
+                            if let Some(constant_info) = classlike_info.constants.get(member_name) {
+                                if let Some(TAtomic::TLiteralString { value }) =
+                                    &constant_info.inferred_type
+                                {
+                                    // Check if we need to map this value
+                                    let type_string = type_map.get(value).unwrap_or(value);
+
+                                    // Parse the type string to get the actual type
+                                    let parsed_type = match type_string.as_str() {
+                                        "int" => TAtomic::TInt,
+                                        "string" => TAtomic::TString,
+                                        "float" => TAtomic::TFloat,
+                                        "bool" => TAtomic::TBool,
+                                        _ => TAtomic::TString, // Default to string for unmapped types
+                                    };
+
+                                    Arc::new(wrap_atomic(parsed_type))
+                                } else {
+                                    value_type.clone()
+                                }
+                            } else {
+                                value_type.clone()
+                            }
+                        } else {
+                            value_type.clone()
+                        }
+                    } else {
+                        value_type.clone()
+                    }
+                } else {
+                    value_type.clone()
+                };
+
+                transformed_items.insert(key, (optional, transformed_value_type));
+            }
+
+            TAtomic::TDict(TDict {
+                non_empty: !transformed_items.is_empty(),
+                known_items: Some(transformed_items),
+                params: None,
+                shape_name: None,
+                is_shape: true,
+            })
+        }
+        _ => atomic_type,
+    }
+}
+
 fn get_function_hashes(
     file_contents: &str,
     def_location: &HPos,
@@ -976,6 +1143,7 @@ pub fn collect_info_for_aast(
         closure_refs: vec![],
         ast_nodes: Vec::new(),
         uses,
+        shape_type_constants: FxHashMap::default(),
     };
 
     let mut context = Context {

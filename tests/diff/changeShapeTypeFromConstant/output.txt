@@ -1,0 +1,3 @@
+ERROR: UnusedFunction - input.hack:3:10 - Unused function Bar\test
+ERROR: ImpossibleAssignment - input.hack:6:5 - This assignment is impossible
+ERROR: UndefinedStringArrayOffset - input.hack:6:10 - Invalid dict fetch on shape-from(Foo\my_keys_t) using key 'c'

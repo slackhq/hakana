@@ -619,7 +619,7 @@ pub(crate) fn scan(
 
             for attribute_param_expr in &user_attribute.params {
                 let attribute_param_type =
-                    simple_type_inferer::infer(attribute_param_expr, resolved_names);
+                    simple_type_inferer::infer(attribute_param_expr, resolved_names, false);
 
                 if let Some(attribute_param_type) = attribute_param_type {
                     if let TAtomic::TLiteralClassname { name: value }
@@ -1008,7 +1008,7 @@ fn visit_class_const_declaration(
         inferred_type: if let ClassConstKind::CCAbstract(Some(const_expr))
         | ClassConstKind::CCConcrete(const_expr) = &const_node.kind
         {
-            simple_type_inferer::infer(const_expr, resolved_names)
+            simple_type_inferer::infer(const_expr, resolved_names, false)
         } else {
             None
         },
