@@ -1000,7 +1000,7 @@ fn transform_shape_type_constant(
         }) => {
             let mut transformed_items = std::collections::BTreeMap::new();
 
-            for (key, (optional, value_type)) in items {
+            for (key, (_, value_type)) in items {
                 // For each value in the dict, we need to resolve it
                 let transformed_value_type = if value_type.types.len() == 1 {
                     let atomic = value_type.types.iter().next().unwrap();
@@ -1026,7 +1026,7 @@ fn transform_shape_type_constant(
                                         "string" => TAtomic::TString,
                                         "float" => TAtomic::TFloat,
                                         "bool" => TAtomic::TBool,
-                                        _ => TAtomic::TString, // Default to string for unmapped types
+                                        _ => TAtomic::TMixed,
                                     };
 
                                     Arc::new(wrap_atomic(parsed_type))
@@ -1046,7 +1046,7 @@ fn transform_shape_type_constant(
                     value_type.clone()
                 };
 
-                transformed_items.insert(key, (optional, transformed_value_type));
+                transformed_items.insert(key, (true, transformed_value_type));
             }
 
             TAtomic::TDict(TDict {
