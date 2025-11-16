@@ -369,14 +369,28 @@ pub(crate) fn analyze(
                         .type_coerced_from_as_mixed
                         .unwrap_or(false)
                     {
+                        let mut message = format!(
+                            "The type {} is more general than the declared return type {} for {}",
+                            inferred_return_type.get_id(Some(interner)),
+                            expected_return_type.get_id(Some(interner)),
+                            context.function_context.calling_functionlike_id.unwrap().to_string(interner)
+                        );
+
+                        // Add shape field mismatch details if available
+                        if !union_comparison_result.shape_field_mismatches.is_empty() {
+                            for mismatch in &union_comparison_result.shape_field_mismatches {
+                                message.push_str(&format!(
+                                    ", shape field `{}` expects {}, {} given",
+                                    mismatch.field_name,
+                                    mismatch.expected_type.get_id(Some(interner)),
+                                    mismatch.actual_type.get_id(Some(interner))
+                                ));
+                            }
+                        }
+
                         analysis_data.maybe_add_issue(Issue::new(
                             IssueKind::LessSpecificReturnStatement,
-                            format!(
-                                "The type {} is more general than the declared return type {} for {}",
-                                inferred_return_type.get_id(Some(interner)),
-                                expected_return_type.get_id(Some(interner)),
-                                context.function_context.calling_functionlike_id.unwrap().to_string(interner)
-                            ),
+                            message,
                             statements_analyzer.get_hpos(&return_expr.1),
                             &context.function_context.calling_functionlike_id,
                         ),

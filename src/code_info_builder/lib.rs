@@ -1046,6 +1046,7 @@ fn transform_shape_type_constant(
                     value_type.clone()
                 };
 
+                // keys should always be optional
                 transformed_items.insert(key, (true, transformed_value_type));
             }
 

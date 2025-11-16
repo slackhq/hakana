@@ -301,6 +301,11 @@ fn check_atomic_contained_by_atomic(
             union_comparison_result.type_mismatch_parents =
                 atomic_comparison_result.type_mismatch_parents;
         }
+
+        // Propagate shape field mismatches for better error messages
+        union_comparison_result
+            .shape_field_mismatches
+            .extend(atomic_comparison_result.shape_field_mismatches);
     }
 
     if atomic_comparison_result.type_coerced.unwrap_or(false) {

@@ -395,16 +395,30 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_file_path_actual(),
                 );
             } else {
+                let mut message = format!(
+                    "Argument {} of {} expects {}, parent type {} provided",
+                    (argument_offset + 1),
+                    functionlike_id.to_string(statements_analyzer.interner),
+                    param_type.get_id(Some(statements_analyzer.interner)),
+                    input_type.get_id(Some(statements_analyzer.interner)),
+                );
+
+                // Add shape field mismatch details if available
+                if !union_comparison_result.shape_field_mismatches.is_empty() {
+                    for mismatch in &union_comparison_result.shape_field_mismatches {
+                        message.push_str(&format!(
+                            ", shape field `{}` expects {}, {} given",
+                            mismatch.field_name,
+                            mismatch.expected_type.get_id(Some(statements_analyzer.interner)),
+                            mismatch.actual_type.get_id(Some(statements_analyzer.interner))
+                        ));
+                    }
+                }
+
                 analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::LessSpecificArgument,
-                        format!(
-                            "Argument {} of {} expects {}, parent type {} provided",
-                            (argument_offset + 1),
-                            functionlike_id.to_string(statements_analyzer.interner),
-                            param_type.get_id(Some(statements_analyzer.interner)),
-                            input_type.get_id(Some(statements_analyzer.interner)),
-                        ),
+                        message,
                         statements_analyzer.get_hpos(input_expr.pos()),
                         &context.function_context.calling_functionlike_id,
                     ),

@@ -39,6 +39,16 @@ pub struct TypeComparisonResult {
     pub type_variable_upper_bounds: Vec<(String, TemplateBound)>,
 
     pub type_mismatch_parents: Option<(Vec<DataFlowNode>, Arc<TUnion>)>,
+
+    /* Tracks shape field type mismatches for better error messages */
+    pub shape_field_mismatches: Vec<ShapeFieldMismatch>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ShapeFieldMismatch {
+    pub field_name: String,
+    pub expected_type: Arc<TUnion>,
+    pub actual_type: Arc<TUnion>,
 }
 
 impl Default for TypeComparisonResult {
@@ -61,6 +71,7 @@ impl TypeComparisonResult {
             type_variable_upper_bounds: vec![],
             upcasted_awaitable: false,
             type_mismatch_parents: None,
+            shape_field_mismatches: vec![],
         }
     }
 }

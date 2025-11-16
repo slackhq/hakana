@@ -1,0 +1,2 @@
+ERROR: LessSpecificArgument - input.hack:8:17 - Argument 1 of takes_shape expects shape('field1' => ChildClass, 'field2' => int), parent type shape('field1' => ParentClass, 'field2' => int(123)) provided, shape field `field1` expects ChildClass, ParentClass given
+ERROR: LessSpecificReturnStatement - input.hack:13:12 - The type shape('x' => ParentClass, 'y' => int(456)) is more general than the declared return type shape('x' => ChildClass, 'y' => int) for returns_wrong_shape, shape field `x` expects ChildClass, ParentClass given

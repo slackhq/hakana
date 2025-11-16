@@ -1,11 +1,12 @@
 use crate::code_location::FilePath;
-use crate::t_atomic::TDict;
+use crate::t_atomic::{DictKey, TDict};
 use crate::ttype::{get_arrayish_params, get_arraykey, get_mixed};
 use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 use super::{
     generic_type_comparator::update_failed_result_from_nested,
-    type_comparison_result::TypeComparisonResult, union_type_comparator,
+    type_comparison_result::{ShapeFieldMismatch, TypeComparisonResult},
+    union_type_comparator,
 };
 
 pub(crate) fn is_contained_by(
@@ -60,6 +61,21 @@ pub(crate) fn is_contained_by(
                                         container_property_type.clone(),
                                     ));
                                 }
+
+                                // Track which shape field mismatched
+                                let field_name = match key {
+                                    DictKey::String(s) => s.clone(),
+                                    DictKey::Int(i) => i.to_string(),
+                                    DictKey::Enum(_, member) => format!("enum::{}", member.0),
+                                };
+                                atomic_comparison_result.shape_field_mismatches.push(
+                                    ShapeFieldMismatch {
+                                        field_name,
+                                        expected_type: container_property_type.clone(),
+                                        actual_type: input_property_type.clone(),
+                                    },
+                                );
+
                                 all_types_contain = false;
                             }
                         } else if !c_u {
