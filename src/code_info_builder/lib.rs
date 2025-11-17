@@ -1029,7 +1029,10 @@ fn transform_shape_type_constant(
                                         _ => TAtomic::TMixed,
                                     };
 
-                                    Arc::new(wrap_atomic(parsed_type))
+                                    let mut wrapped_type = wrap_atomic(parsed_type);
+                                    wrapped_type.types.push(TAtomic::TNull);
+
+                                    Arc::new(wrapped_type)
                                 } else {
                                     value_type.clone()
                                 }
