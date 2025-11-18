@@ -19,6 +19,9 @@ pub struct LintContext<'a> {
     /// The file path being analyzed
     pub file_path: &'a Path,
 
+    /// The project root path (defaults to cwd)
+    pub root_path: &'a Path,
+
     /// Whether auto-fixes should be generated
     pub allow_auto_fix: bool,
 
@@ -32,6 +35,7 @@ impl<'a> LintContext<'a> {
         source: &'a SourceText<'a>,
         root: &'a PositionedSyntax<'a>,
         file_path: &'a Path,
+        root_path: &'a Path,
         allow_auto_fix: bool,
     ) -> Self {
         let line_break_map = LineBreakMap::new(source.text());
@@ -39,6 +43,7 @@ impl<'a> LintContext<'a> {
             source,
             root,
             file_path,
+            root_path,
             allow_auto_fix,
             line_break_map,
         }

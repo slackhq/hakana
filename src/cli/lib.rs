@@ -2147,6 +2147,7 @@ fn do_lint(
                 fixme_linters: (*fixme_linters).clone(),
                 enabled_linters: Vec::new(),
                 disabled_linters: Vec::new(),
+                root_path: Some(PathBuf::from(&root_dir)),
             };
 
             for path in path_group {

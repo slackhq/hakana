@@ -815,6 +815,7 @@ impl TestRunner {
             fixme_linters: Vec::new(),
             enabled_linters: Vec::new(),
             disabled_linters: Vec::new(),
+            root_path: None,
         };
 
         // Check if dir is a specific test file (without extension) or a directory
@@ -987,6 +988,7 @@ impl TestRunner {
                     fixme_linters: Vec::new(),
                     enabled_linters: Vec::new(),
                     disabled_linters: Vec::new(),
+                    root_path: None,
                 };
 
                 let autofix_result = match hakana_lint::run_linters(

@@ -31,6 +31,9 @@ pub struct LintConfig {
 
     /// Linters to skip
     pub disabled_linters: Vec<String>,
+
+    /// Project root path (for making file paths relative)
+    pub root_path: Option<PathBuf>,
 }
 
 impl Default for LintConfig {
@@ -42,6 +45,7 @@ impl Default for LintConfig {
             fixme_linters: Vec::new(),
             enabled_linters: Vec::new(),
             disabled_linters: Vec::new(),
+            root_path: None,
         }
     }
 }
@@ -434,8 +438,12 @@ pub fn run_linters(
         ));
     }
 
+    // Use root path from config or fall back to current working directory
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let root_path = config.root_path.as_deref().unwrap_or(&cwd);
+
     // Create lint context
-    let ctx = LintContext::new(&source_text, &root, file_path, config.allow_auto_fix);
+    let ctx = LintContext::new(&source_text, &root, file_path, root_path, config.allow_auto_fix);
 
     // Create line break map for efficient offset-to-line conversions
     let line_break_map = LineBreakMap::new(file_contents.as_bytes());
@@ -563,7 +571,10 @@ pub fn run_migrator(
         ));
     }
 
-    let ctx = LintContext::new(&source_text, &root, file_path, true);
+    // Get current working directory as root path
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+
+    let ctx = LintContext::new(&source_text, &root, file_path, &cwd, true);
 
     if let Some(edits) = migrator.migrate(&ctx) {
         match edits.apply(file_contents) {
