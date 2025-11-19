@@ -493,9 +493,19 @@ pub fn init(
                             .help("Skip files that have codeowners (listed in CODEOWNERS file)"),
                     )
                     .arg(
+                        arg!(--"debug-timings")
+                            .required(false)
+                            .help("Show timing information for each linter"),
+                    )
+                    .arg(
                         arg!(--"debug")
                             .required(false)
                             .help("Add output for debugging"),
+                    )
+                    .arg(
+                        arg!(--"output" <PATH>)
+                            .required(false)
+                            .help("File to save output to"),
                     )
                     .arg(
                         arg!([PATH] "Optional file or directory to lint (defaults to config roots)")
@@ -1914,6 +1924,7 @@ fn do_lint(
     let apply_fixes = sub_matches.is_present("fix");
     let add_fixmes = sub_matches.is_present("add-fixmes");
     let skip_codeowners = sub_matches.is_present("no-codeowners");
+    let debug_timings = sub_matches.is_present("debug-timings");
 
     // Get specific linters to run (if provided)
     let specific_linters = Arc::new(
@@ -2099,6 +2110,7 @@ fn do_lint(
     let total_files = Arc::new(Mutex::new(0usize));
     let total_fixed = Arc::new(Mutex::new(0usize));
     let lint_output = Arc::new(Mutex::new(Vec::new()));
+    let checkpoint_entries = Arc::new(Mutex::new(Vec::new()));
     let linter_times = Arc::new(Mutex::new(rustc_hash::FxHashMap::<
         String,
         std::time::Duration,
@@ -2135,6 +2147,7 @@ fn do_lint(
         let total_files = total_files.clone();
         let total_fixed = total_fixed.clone();
         let lint_output = lint_output.clone();
+        let checkpoint_entries = checkpoint_entries.clone();
         let linter_times = linter_times.clone();
         let root_dir = root_dir.clone();
         let fixme_linters = fixme_linters.clone();
@@ -2219,6 +2232,15 @@ fn do_lint(
                                     "{}:{}:{}: {} - {}",
                                     relative_path, line, column, error.severity, error.message
                                 ));
+
+                                // Add to checkpoint entries
+                                checkpoint_entries.lock().unwrap().push(CheckPointEntry {
+                                    case: error.linter_name.to_string(),
+                                    level: CheckPointEntryLevel::Failure,
+                                    filename: relative_path.clone(),
+                                    line: line as u32,
+                                    output: error.message.clone(),
+                                });
                             }
                         }
 
@@ -2351,8 +2373,9 @@ fn do_lint(
         handle.join().unwrap();
     }
 
-    // Print all output
-    let output = lint_output.lock().unwrap();
+    // Print all output (sorted alphabetically)
+    let mut output = lint_output.lock().unwrap().clone();
+    output.sort();
     for line in output.iter() {
         println!("{}", line);
     }
@@ -2382,27 +2405,37 @@ fn do_lint(
         println!("\nNo lint issues found! Checked {} file(s).", final_files);
     }
 
-    // Print linter timing statistics
-    let times = linter_times.lock().unwrap();
-    if !times.is_empty() {
-        println!("\nLinter timing statistics:");
-        let mut sorted_times: Vec<_> = times.iter().collect();
-        sorted_times.sort_by(|a, b| b.1.cmp(a.1)); // Sort by duration, descending
+    // Print linter timing statistics (only if --debug-timings is passed)
+    if debug_timings {
+        let times = linter_times.lock().unwrap();
+        if !times.is_empty() {
+            println!("\nLinter timing statistics:");
+            let mut sorted_times: Vec<_> = times.iter().collect();
+            sorted_times.sort_by(|a, b| b.1.cmp(a.1)); // Sort by duration, descending
 
-        let total_time: std::time::Duration = times.values().sum();
+            let total_time: std::time::Duration = times.values().sum();
 
-        for (linter_name, duration) in sorted_times {
-            let secs = duration.as_secs_f64();
-            let percentage = if total_time.as_secs_f64() > 0.0 {
-                (secs / total_time.as_secs_f64()) * 100.0
-            } else {
-                0.0
-            };
-            println!(
-                "  {:<50} {:>8.3}s ({:>5.1}%)",
-                linter_name, secs, percentage
-            );
+            for (linter_name, duration) in sorted_times {
+                let secs = duration.as_secs_f64();
+                let percentage = if total_time.as_secs_f64() > 0.0 {
+                    (secs / total_time.as_secs_f64()) * 100.0
+                } else {
+                    0.0
+                };
+                println!(
+                    "  {:<50} {:>8.3}s ({:>5.1}%)",
+                    linter_name, secs, percentage
+                );
+            }
+            println!("  {:<50} {:>8.3}s", "Total", total_time.as_secs_f64());
         }
-        println!("  {:<50} {:>8.3}s", "Total", total_time.as_secs_f64());
+    }
+
+    // Write checkpoint results if output file is specified
+    if let Some(output_path) = sub_matches.value_of("output") {
+        let entries = checkpoint_entries.lock().unwrap();
+        let json = serde_json::to_string_pretty(&*entries).unwrap();
+        let mut output_file = fs::File::create(Path::new(output_path)).unwrap();
+        write!(output_file, "{}", json).unwrap();
     }
 }
