@@ -229,22 +229,33 @@ impl LanguageServer for Backend {
                         if let Some(definition_locations) =
                             analysis_result.definition_locations.get(&file_path_obj)
                         {
-                            // check for approximate position matches (within a range)
+                            // Find all matching ranges and pick the most specific (narrowest) one
+                            let mut best_match = None;
+                            let mut best_range_size = u32::MAX;
+
                             for ((start_offset, end_offset), (classlike_name, member_name)) in
                                 definition_locations
                             {
                                 if (offset as u32) >= *start_offset
                                     && (offset as u32) <= *end_offset
                                 {
-                                    if let Some(pos) = scan_data
-                                        .codebase
-                                        .get_symbol_pos(classlike_name, member_name)
-                                    {
-                                        return Ok(pos_to_offset(pos, &scan_data.interner));
+                                    let range_size = end_offset - start_offset;
+                                    if range_size < best_range_size {
+                                        best_range_size = range_size;
+                                        best_match = Some((classlike_name, member_name));
                                     }
-
-                                    return Ok(None);
                                 }
+                            }
+
+                            if let Some((classlike_name, member_name)) = best_match {
+                                if let Some(pos) = scan_data
+                                    .codebase
+                                    .get_symbol_pos(classlike_name, member_name)
+                                {
+                                    return Ok(pos_to_offset(pos, &scan_data.interner));
+                                }
+
+                                return Ok(None);
                             }
                         }
                     }
