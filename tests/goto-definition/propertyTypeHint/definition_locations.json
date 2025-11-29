@@ -1,0 +1,38 @@
+[
+  {
+    "end_offset": 130,
+    "file": "input.hack",
+    "name": "MyClass",
+    "start_offset": 123
+  },
+  {
+    "end_offset": 167,
+    "file": "input.hack",
+    "name": "MyClass",
+    "start_offset": 160
+  },
+  {
+    "end_offset": 245,
+    "file": "input.hack",
+    "name": "Container::property",
+    "start_offset": 237
+  },
+  {
+    "end_offset": 261,
+    "file": "input.hack",
+    "name": "MyClass",
+    "start_offset": 248
+  },
+  {
+    "end_offset": 292,
+    "file": "input.hack",
+    "name": "Container::staticProperty",
+    "start_offset": 277
+  },
+  {
+    "end_offset": 308,
+    "file": "input.hack",
+    "name": "MyClass",
+    "start_offset": 295
+  }
+]

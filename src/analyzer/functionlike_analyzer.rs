@@ -1308,7 +1308,7 @@ fn get_param_source_kind(
     }
 }
 
-fn add_symbol_references_with_location(
+pub(crate) fn add_symbol_references_with_location(
     param_type: &TUnion,
     calling_functionlike_id: Option<FunctionLikeIdentifier>,
     analysis_data: &mut FunctionAnalysisData,

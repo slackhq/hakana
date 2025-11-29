@@ -1,7 +1,9 @@
 use crate::expression_analyzer;
 use crate::file_analyzer::FileAnalyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::functionlike_analyzer::{FunctionLikeAnalyzer, update_analysis_result_with_tast};
+use crate::functionlike_analyzer::{
+    FunctionLikeAnalyzer, add_symbol_references_with_location, update_analysis_result_with_tast,
+};
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -212,6 +214,38 @@ impl<'a> ClassLikeAnalyzer<'a> {
                     &mut class_context,
                     true,
                 )?;
+            }
+        }
+
+        // Add goto-definition entries for property and constant types
+        if statements_analyzer.get_config().collect_goto_definition_locations {
+            // Property types
+            for (property_name, property_info) in &classlike_storage.properties {
+                // Only track properties defined in this class
+                if property_info.pos.map(|p| p.file_path) == Some(*statements_analyzer.get_file_path())
+                {
+                    add_symbol_references_with_location(
+                        &property_info.type_,
+                        Some(FunctionLikeIdentifier::Method(name, *property_name)),
+                        &mut analysis_data,
+                        property_info.type_pos,
+                    );
+                }
+            }
+
+            // Constant types
+            for (constant_name, constant_info) in &classlike_storage.constants {
+                // Only track constants defined in this class
+                if constant_info.defining_class == name {
+                    if let Some(provided_type) = &constant_info.provided_type {
+                        add_symbol_references_with_location(
+                            provided_type,
+                            Some(FunctionLikeIdentifier::Method(name, *constant_name)),
+                            &mut analysis_data,
+                            constant_info.type_pos,
+                        );
+                    }
+                }
             }
         }
 

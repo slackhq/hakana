@@ -150,7 +150,10 @@ pub(crate) fn analyze<'expr>(
             hint_type = wrap_atomic(TAtomic::TMixedWithFlags(true, false, false, true));
         } else {
             for t in &hint_type.types {
-                if let TAtomic::TReference { name, .. } = t {
+                if let TAtomic::TReference { name, .. }
+                | TAtomic::TNamedObject { name, .. }
+                | TAtomic::TTypeAlias { name, .. } = t
+                {
                     analysis_data.definition_locations.insert(
                         (hint.0.start_offset() as u32, hint.0.end_offset() as u32),
                         (*name, StrId::EMPTY),

@@ -6,6 +6,12 @@
     "start_offset": 232
   },
   {
+    "end_offset": 283,
+    "file": "input.hack",
+    "name": "IMyInterface",
+    "start_offset": 271
+  },
+  {
     "end_offset": 309,
     "file": "input.hack",
     "name": "Implementation::getData",

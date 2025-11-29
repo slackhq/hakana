@@ -119,7 +119,7 @@ pub(crate) fn analyze(
             );
         }
         aast::Expr_::Is(boxed) => {
-            let (lhs_expr, _) = (&boxed.0, &boxed.1);
+            let (lhs_expr, hint) = (&boxed.0, &boxed.1);
 
             expression_analyzer::analyze(
                 statements_analyzer,
@@ -128,6 +128,33 @@ pub(crate) fn analyze(
                 context,
                 true,
             )?;
+
+            // Add goto-definition for the type hint in 'is' expression
+            if statements_analyzer
+                .get_config()
+                .collect_goto_definition_locations
+            {
+                if let Some(hint_type) = hakana_reflector::typehint_resolver::get_type_from_hint(
+                    &hint.1,
+                    context.function_context.calling_class,
+                    statements_analyzer.get_type_resolution_context(),
+                    statements_analyzer.file_analyzer.resolved_names,
+                    *statements_analyzer.get_file_path(),
+                    hint.0.start_offset() as u32,
+                ) {
+                    for t in &hint_type.types {
+                        if let TAtomic::TReference { name, .. }
+                        | TAtomic::TNamedObject { name, .. }
+                        | TAtomic::TTypeAlias { name, .. } = t
+                        {
+                            analysis_data.definition_locations.insert(
+                                (hint.0.start_offset() as u32, hint.0.end_offset() as u32),
+                                (*name, StrId::EMPTY),
+                            );
+                        }
+                    }
+                }
+            }
 
             add_decision_dataflow(
                 statements_analyzer,

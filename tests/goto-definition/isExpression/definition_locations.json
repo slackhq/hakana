@@ -1,0 +1,38 @@
+[
+  {
+    "end_offset": 283,
+    "file": "input.hack",
+    "name": "MyClass",
+    "start_offset": 276
+  },
+  {
+    "end_offset": 310,
+    "file": "input.hack",
+    "name": "MyClass::getData",
+    "start_offset": 303
+  },
+  {
+    "end_offset": 349,
+    "file": "input.hack",
+    "name": "MyInterface",
+    "start_offset": 338
+  },
+  {
+    "end_offset": 376,
+    "file": "input.hack",
+    "name": "MyInterface::getData",
+    "start_offset": 369
+  },
+  {
+    "end_offset": 411,
+    "file": "input.hack",
+    "name": "MyAlias",
+    "start_offset": 404
+  },
+  {
+    "end_offset": 438,
+    "file": "input.hack",
+    "name": "MyClass::getData",
+    "start_offset": 431
+  }
+]

@@ -1,0 +1,44 @@
+[
+  {
+    "end_offset": 81,
+    "file": "input.hack",
+    "name": "MyInt",
+    "start_offset": 76
+  },
+  {
+    "end_offset": 107,
+    "file": "input.hack",
+    "name": "UserId",
+    "start_offset": 101
+  },
+  {
+    "end_offset": 132,
+    "file": "input.hack",
+    "name": "MyInt",
+    "start_offset": 127
+  },
+  {
+    "end_offset": 182,
+    "file": "input.hack",
+    "name": "MyInt",
+    "start_offset": 177
+  },
+  {
+    "end_offset": 197,
+    "file": "input.hack",
+    "name": "MyInt",
+    "start_offset": 192
+  },
+  {
+    "end_offset": 266,
+    "file": "input.hack",
+    "name": "UserId",
+    "start_offset": 260
+  },
+  {
+    "end_offset": 279,
+    "file": "input.hack",
+    "name": "UserId",
+    "start_offset": 273
+  }
+]
