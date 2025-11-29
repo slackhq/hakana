@@ -1,2 +1,0 @@
-ERROR: NonEnumSwitchValue - input.hack:15:9 - Switch statement without default case does not match all possible values of classname<A>
-ERROR: NonExistentMethod - input.hack:17:9 - Method A::barBar does not exist
