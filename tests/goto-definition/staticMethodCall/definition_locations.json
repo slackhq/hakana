@@ -1,14 +1,26 @@
-[
+ [
   {
-    "end_offset": 161,
+    "end_offset": 177,
     "file": "input.hack",
     "name": "MyClass",
-    "start_offset": 140
+    "start_offset": 159
   },
   {
-    "end_offset": 161,
+    "end_offset": 177,
     "file": "input.hack",
     "name": "MyClass::staticMethod",
-    "start_offset": 149
+    "start_offset": 165
+  },
+  {
+    "end_offset": 239,
+    "file": "input.hack",
+    "name": "MyClass",
+    "start_offset": 218
+  },
+  {
+    "end_offset": 239,
+    "file": "input.hack",
+    "name": "MyClass::staticMethod",
+    "start_offset": 227
   }
 ]
