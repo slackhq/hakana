@@ -1,5 +1,11 @@
 [
   {
+    "end_offset": 32,
+    "file": "foo.hack",
+    "name": "B",
+    "start_offset": 27
+  },
+  {
     "end_offset": 58,
     "file": "bar.hack",
     "name": "A::__construct",
