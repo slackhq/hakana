@@ -9,10 +9,14 @@ hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
 hakana-str = { path = "../str" }
 hakana-code-info = { path = "../code_info" }
+hakana-protocol = { path = "../protocol" }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 tokio = { version = "1.26.0", features = ["full"] }
 serde_json = "1.0"
 rustc-hash = "1.1.0"
+
+[dev-dependencies]
+tempfile = "3"
 
 [lib]
 path = "lib.rs"

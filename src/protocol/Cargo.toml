@@ -1,0 +1,15 @@
+[package]
+name = "hakana-protocol"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hakana-code-info = { path = "../code_info" }
+hakana-orchestrator = { path = "../orchestrator" }
+rustc-hash = "1.1.0"
+
+[lib]
+path = "lib.rs"
+
+[lints.clippy]
+too_many_arguments = "allow"

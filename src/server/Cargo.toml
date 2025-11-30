@@ -1,0 +1,28 @@
+[package]
+name = "hakana-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hakana-protocol = { path = "../protocol" }
+hakana-orchestrator = { path = "../orchestrator" }
+hakana-analyzer = { path = "../analyzer" }
+hakana-code-info = { path = "../code_info" }
+hakana-str = { path = "../str" }
+hakana-logger = { path = "../logger" }
+rustc-hash = "1.1.0"
+watchman_client = "0.9"
+tokio = { version = "1.28", features = ["rt-multi-thread", "sync", "time"] }
+
+[dev-dependencies]
+hakana-protocol = { path = "../protocol" }
+
+[lib]
+path = "lib.rs"
+
+[[test]]
+name = "integration_test"
+path = "tests/integration_test.rs"
+
+[lints.clippy]
+too_many_arguments = "allow"

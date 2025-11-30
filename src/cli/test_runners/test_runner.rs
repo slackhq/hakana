@@ -192,7 +192,7 @@ impl TestRunner {
             GraphKind::FunctionBody
         };
 
-        analysis_config.hooks = self.0.get_hooks_for_test(dir);
+        analysis_config.hooks = self.0.get_hooks_for_test(dir).into_iter().map(std::sync::Arc::from).collect();
 
         if dir.contains("/migrations/") {
             let replacements_path = dir.to_string() + "/replacements.txt";

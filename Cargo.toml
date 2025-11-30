@@ -19,6 +19,9 @@ hakana-str = { path = "src/str" }
 hakana-language-server = { path = "src/language_server" }
 hakana-orchestrator = { path = "src/orchestrator" }
 hakana-lint = { path = "src/lint" }
+hakana-protocol = { path = "src/protocol" }
+hakana-server = { path = "src/server" }
+hakana-logger = { path = "src/logger" }
 executable-finder = { path = "src/executable_code_finder" }
 mimalloc = { version = "*", default-features = false }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
@@ -38,6 +41,8 @@ members = [
     "src/logger",
     "src/js_interop",
     "src/executable_code_finder",
+    "src/protocol",
+    "src/server",
 ]
 exclude = ["third-party"]
 

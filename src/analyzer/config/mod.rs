@@ -1,4 +1,4 @@
-use std::{error::Error, path::Path};
+use std::{error::Error, path::Path, sync::Arc};
 
 use hakana_code_info::{
     data_flow::{graph::GraphKind, tainted_node::TaintedNode},
@@ -29,7 +29,7 @@ pub struct Config {
     pub banned_builtin_functions: FxHashMap<StrId, StrId>,
     pub security_config: SecurityConfig,
     pub root_dir: String,
-    pub hooks: Vec<Box<dyn CustomHook>>,
+    pub hooks: Vec<Arc<dyn CustomHook>>,
     pub ignore_mixed_issues: bool,
     pub add_fixmes: bool,
     pub remove_fixmes: bool,

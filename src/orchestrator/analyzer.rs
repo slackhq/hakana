@@ -16,6 +16,7 @@ use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 use std::{fs, io};
@@ -30,6 +31,7 @@ pub fn analyze_files(
     threads: u8,
     logger: Arc<Logger>,
     file_analysis_time: &mut Duration,
+    files_processed: Option<Arc<AtomicU32>>,
 ) -> io::Result<()> {
     let mut group_size = threads as usize;
 
@@ -72,7 +74,9 @@ pub fn analyze_files(
 
     let mut handles = vec![];
 
-    let files_processed = Arc::new(Mutex::new(0));
+    // Use external counter if provided, otherwise create internal one for progress bar
+    let internal_counter = Arc::new(AtomicU32::new(0));
+    let files_processed_counter = files_processed.unwrap_or_else(|| internal_counter.clone());
 
     let arc_file_analysis_time = Arc::new(Mutex::new(Duration::default()));
 
@@ -85,7 +89,7 @@ pub fn analyze_files(
 
         let analysis_config = config.clone();
 
-        let files_processed = files_processed.clone();
+        let files_processed_counter = files_processed_counter.clone();
         let bar = bar.clone();
 
         let logger = logger.clone();
@@ -119,10 +123,9 @@ pub fn analyze_files(
                     );
                 }
 
-                let mut tally = files_processed.lock().unwrap();
-                *tally += 1;
+                let tally = files_processed_counter.fetch_add(1, Ordering::Relaxed) + 1;
 
-                update_progressbar(*tally, bar.clone());
+                update_progressbar(tally as u64, bar.clone());
             }
 
             let mut t = arc_file_analysis_time.lock().unwrap();

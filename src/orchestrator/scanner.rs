@@ -2,6 +2,7 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::Path;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
@@ -58,6 +59,8 @@ pub fn scan_files(
     starter_interner: &Arc<Interner>,
     starter_data: Option<SuccessfulScanData>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
+    files_scanned: Option<Arc<AtomicU32>>,
+    total_files_to_scan: Option<Arc<AtomicU32>>,
 ) -> io::Result<ScanFilesResult> {
     logger.log_debug_sync(&format!("{:#?}", scan_dirs));
 
@@ -259,6 +262,11 @@ pub fn scan_files(
     if !files_to_scan.is_empty() {
         let file_scanning_now = Instant::now();
 
+        // Set total files to scan if external counter provided
+        if let Some(ref total_counter) = total_files_to_scan {
+            total_counter.store(files_to_scan.len() as u32, Ordering::Relaxed);
+        }
+
         let bar = if logger.show_progress() {
             let pb = ProgressBar::new(files_to_scan.len() as u64);
             let sty =
@@ -269,7 +277,9 @@ pub fn scan_files(
             None
         };
 
-        let files_processed: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+        // Use external counter if provided, otherwise create internal one for progress bar
+        let internal_counter = Arc::new(AtomicU32::new(0));
+        let files_scanned_counter = files_scanned.clone().unwrap_or_else(|| internal_counter.clone());
 
         let mut group_size = threads as usize;
 
@@ -297,7 +307,7 @@ pub fn scan_files(
             let codebases = thread_codebases.clone();
 
             let bar = bar.clone();
-            let files_processed = files_processed.clone();
+            let files_scanned_counter = files_scanned_counter.clone();
 
             let analyze_map = files_to_analyze
                 .clone()
@@ -353,10 +363,9 @@ pub fn scan_files(
                         }
                     };
 
-                    let mut tally = files_processed.lock().unwrap();
-                    *tally += 1;
+                    let tally = files_scanned_counter.fetch_add(1, Ordering::Relaxed) + 1;
 
-                    update_progressbar(*tally, bar.clone());
+                    update_progressbar(tally as u64, bar.clone());
                 }
 
                 resolved_names.lock().unwrap().extend(local_resolved_names);

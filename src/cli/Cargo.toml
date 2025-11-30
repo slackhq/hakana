@@ -11,6 +11,8 @@ hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
 hakana-language-server = { path = "../language_server" }
 hakana-lint = { path = "../lint" }
+hakana-protocol = { path = "../protocol" }
+hakana-server = { path = "../server" }
 executable-finder = { path = "../executable_code_finder" }
 line_break_map = { path = "../../third-party/hhvm/hphp/hack/src/utils/line_break_map" }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
@@ -25,6 +27,7 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 tokio = { version = "1.26.0", features = ["full"] }
 similar = "2.7.0"
+indicatif = "0.17"
 
 [lib]
 path = "lib.rs"

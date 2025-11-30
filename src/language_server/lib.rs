@@ -15,11 +15,14 @@ use hakana_orchestrator::{SuccessfulScanData, scan_and_analyze_async};
 use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use tokio::time::sleep;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod server_client;
 
 #[derive(Debug)]
 pub struct Backend {
@@ -31,6 +34,9 @@ pub struct Backend {
     all_diagnostics: RwLock<Option<FxHashMap<Url, Vec<Diagnostic>>>>,
     file_changes: RwLock<Option<FxHashMap<String, FileStatus>>>,
     files_with_errors: RwLock<FxHashSet<Url>>,
+    /// Connection to the hakana server (used when server mode is enabled)
+    #[cfg(not(target_arch = "wasm32"))]
+    server_connection: Option<Mutex<server_client::ServerConnection>>,
 }
 
 impl Backend {
@@ -44,6 +50,29 @@ impl Backend {
             all_diagnostics: RwLock::new(None),
             file_changes: RwLock::new(None),
             files_with_errors: RwLock::new(FxHashSet::default()),
+            #[cfg(not(target_arch = "wasm32"))]
+            server_connection: None,
+        }
+    }
+
+    /// Create a Backend with a server connection.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn with_server_connection(
+        client: Client,
+        analysis_config: Config,
+        starter_interner: Interner,
+        server_connection: Option<Mutex<server_client::ServerConnection>>,
+    ) -> Self {
+        Self {
+            client,
+            analysis_config: Arc::new(analysis_config),
+            starter_interner: Arc::new(starter_interner),
+            previous_scan_data: RwLock::new(None),
+            previous_analysis_result: RwLock::new(None),
+            all_diagnostics: RwLock::new(None),
+            file_changes: RwLock::new(None),
+            files_with_errors: RwLock::new(FxHashSet::default()),
+            server_connection,
         }
     }
 
@@ -136,17 +165,8 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, "watched files changed")
             .await;
 
-        // self.client
-        //     .log_message(
-        //         MessageType::INFO,
-        //         format!("receiving changes {:?}", params.changes),
-        //     )
-        //     .await;
-
         for file_event in params.changes {
-            //let uri = file_event.uri;
             let change_type = file_event.typ;
-
             let file_path = file_event.uri.path().to_string();
 
             if file_path.ends_with(".php")
@@ -199,6 +219,10 @@ impl LanguageServer for Backend {
             self.do_analysis().await;
             self.emit_issues().await;
         }
+    }
+
+    async fn did_save(&self, _params: DidSaveTextDocumentParams) {
+        // File saves are handled by the file watcher
     }
 
     async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
@@ -294,6 +318,136 @@ fn pos_to_offset(def_pos: HPos, interner: &Interner) -> Option<GotoDefinitionRes
 impl Backend {
     #[cfg(not(target_arch = "wasm32"))]
     async fn do_analysis(&self) {
+        // If we have a server connection, use it instead of local analysis
+        if let Some(ref server_conn) = self.server_connection {
+            self.do_analysis_via_server(server_conn).await;
+            return;
+        }
+
+        // Fall back to local analysis (original behavior)
+        self.do_local_analysis().await;
+    }
+
+    /// Perform analysis by querying the hakana server.
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn do_analysis_via_server(&self, server_conn: &Mutex<server_client::ServerConnection>) {
+        let mut all_diagnostics_guard = self.all_diagnostics.write().await;
+
+        // First, forward any pending file changes to the server
+        let file_changes = {
+            let mut file_changes_guard = self.file_changes.write().await;
+            file_changes_guard.take()
+        };
+
+        if let Some(changes) = file_changes {
+            if !changes.is_empty() {
+                self.client
+                    .log_message(
+                        MessageType::INFO,
+                        format!("Forwarding {} file change(s) to server", changes.len()),
+                    )
+                    .await;
+
+                let mut conn = server_conn.lock().await;
+                if let Err(e) = conn.notify_file_changes(changes) {
+                    self.client
+                        .log_message(
+                            MessageType::ERROR,
+                            format!("Failed to notify server of file changes: {}", e),
+                        )
+                        .await;
+                }
+            }
+        }
+
+        self.client
+            .log_message(MessageType::INFO, "Fetching issues from server")
+            .await;
+
+        // Get issues from the server
+        let result = {
+            let mut conn = server_conn.lock().await;
+            conn.get_issues(None, true, true)
+        };
+
+        match result {
+            Ok(response) => {
+                if !response.analysis_complete {
+                    self.client
+                        .log_message(
+                            MessageType::INFO,
+                            format!("Server analysis in progress: {} ({}%)", response.phase, response.progress_percent),
+                        )
+                        .await;
+                    // Don't update diagnostics while analysis is in progress
+                    return;
+                }
+
+                let mut all_diagnostics = FxHashMap::default();
+
+                for issue in response.issues {
+                    let file_path = format!("{}/{}", self.analysis_config.root_dir, issue.file_path);
+
+                    let diagnostic = Diagnostic::new(
+                        Range {
+                            start: Position {
+                                line: issue.start_line - 1,
+                                character: issue.start_column as u32 - 1,
+                            },
+                            end: Position {
+                                line: issue.end_line - 1,
+                                character: issue.end_column as u32 - 1,
+                            },
+                        },
+                        Some(DiagnosticSeverity::ERROR),
+                        Some(NumberOrString::String(issue.kind)),
+                        Some("Hakana".to_string()),
+                        issue.description,
+                        None,
+                        None,
+                    );
+
+                    match Url::from_file_path(&file_path) {
+                        Ok(url) => {
+                            all_diagnostics
+                                .entry(url)
+                                .or_insert_with(Vec::new)
+                                .push(diagnostic);
+                        }
+                        Err(_) => {
+                            self.client
+                                .log_message(
+                                    MessageType::ERROR,
+                                    format!("Failure to get url from file {}", file_path),
+                                )
+                                .await;
+                        }
+                    }
+                }
+
+                self.client
+                    .log_message(
+                        MessageType::INFO,
+                        format!("Received {} file(s) with issues from server", all_diagnostics.len()),
+                    )
+                    .await;
+
+                *all_diagnostics_guard = Some(all_diagnostics);
+            }
+            Err(e) => {
+                self.client
+                    .log_message(
+                        MessageType::ERROR,
+                        format!("Failed to get issues from server: {}", e),
+                    )
+                    .await;
+            }
+        }
+    }
+
+    /// Perform local analysis (original behavior when no server is connected).
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn do_local_analysis(&self) {
         let mut previous_scan_data_guard = self.previous_scan_data.write().await;
         let mut previous_analysis_result_guard = self.previous_analysis_result.write().await;
         let mut all_diagnostics_guard = self.all_diagnostics.write().await;
@@ -321,12 +475,16 @@ impl Backend {
             None,
             self.analysis_config.clone(),
             8,
-            &self.client,
+            Some(&self.client),
             "",
             self.starter_interner.clone(),
             successful_scan_data,
             analysis_result,
             file_changes,
+            None::<fn(hakana_orchestrator::AnalysisProgress)>,
+            None,
+            None,
+            None,
         )
         .await;
 
@@ -457,7 +615,7 @@ pub fn get_config(
     config.ast_diff = true;
     config.collect_goto_definition_locations = true;
 
-    config.hooks = plugins;
+    config.hooks = plugins.into_iter().map(std::sync::Arc::from).collect();
 
     let config_path_str = format!("{}/hakana.json", cwd);
 
@@ -472,10 +630,96 @@ pub fn get_config(
     Ok(config)
 }
 
+/// Serve the language server.
 pub async fn serve<Reader, Writer>(
     reader: Reader,
     writer: Writer,
     current_dir: std::io::Result<PathBuf>,
+) where
+    Reader: AsyncRead + Unpin,
+    Writer: AsyncWrite,
+{
+    serve_with_plugins(reader, writer, current_dir, vec![]).await;
+}
+
+/// Serve the language server with custom plugins.
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn serve_with_plugins<Reader, Writer>(
+    reader: Reader,
+    writer: Writer,
+    current_dir: std::io::Result<PathBuf>,
+    plugins: Vec<Box<dyn CustomHook>>,
+) where
+    Reader: AsyncRead + Unpin,
+    Writer: AsyncWrite,
+{
+    let mut stderr = tokio::io::stderr();
+
+    let cwd = if let Ok(current_dir) = current_dir {
+        if let Some(str) = current_dir.to_str() {
+            str.to_string()
+        } else {
+            stderr
+                .write_all_buf(&mut Cursor::new(b"Passed current directory is malformed"))
+                .await
+                .ok();
+            return;
+        }
+    } else {
+        stderr
+            .write_all_buf(&mut Cursor::new(
+                b"Current working directory could not be determined",
+            ))
+            .await
+            .ok();
+        return;
+    };
+
+    let cwd_path = PathBuf::from(&cwd);
+
+    let mut interner = Interner::default();
+
+    let config = match get_config(plugins, &cwd, &mut interner) {
+        Ok(config) => config,
+        Err(msg) => {
+            stderr.write_all_buf(&mut Cursor::new(msg)).await.ok();
+            return;
+        }
+    };
+
+    // Try to connect to an existing hakana server (don't spawn one)
+    // If a server is running, use it for analysis. Otherwise fall back to local analysis.
+    let server_connection = match server_client::ServerConnection::try_connect(&cwd_path) {
+        Some(conn) => {
+            stderr
+                .write_all_buf(&mut Cursor::new(b"Connected to hakana server\n"))
+                .await
+                .ok();
+            Some(Mutex::new(conn))
+        }
+        None => {
+            stderr
+                .write_all_buf(&mut Cursor::new(b"No hakana server running. Using local analysis.\n"))
+                .await
+                .ok();
+            None
+        }
+    };
+
+    let (service, socket) = LspService::new(|client| {
+        Backend::with_server_connection(client, config, interner, server_connection)
+    });
+
+    Server::new(reader, writer, socket).serve(service).await;
+}
+
+/// WASM version
+#[cfg(target_arch = "wasm32")]
+pub async fn serve_with_plugins<Reader, Writer>(
+    reader: Reader,
+    writer: Writer,
+    current_dir: std::io::Result<PathBuf>,
+    _plugins: Vec<Box<dyn CustomHook>>,
 ) where
     Reader: AsyncRead + Unpin,
     Writer: AsyncWrite,

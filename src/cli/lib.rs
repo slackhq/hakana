@@ -9,6 +9,7 @@ use hakana_code_info::issue::IssueKind;
 use hakana_logger::{Logger, Verbosity};
 use hakana_str::Interner;
 use indexmap::IndexMap;
+use indicatif::{ProgressBar, ProgressStyle};
 use line_break_map::LineBreakMap;
 use rand::Rng;
 use rustc_hash::FxHashSet;
@@ -145,7 +146,17 @@ pub fn init(
                     )
                     .arg(arg!(--"json-format" <FORMAT>).required(false).help(
                         "Format for JSON output. Options: checkpoint (default), full, hh_client",
-                    )),
+                    ))
+                    .arg(
+                        arg!(--"standalone")
+                            .required(false)
+                            .help("Run analysis directly without connecting to server (default for CI)"),
+                    )
+                    .arg(
+                        arg!(--"with-server")
+                            .required(false)
+                            .help("Use server mode: connect to existing server or spawn one if needed"),
+                    ),
             )
             .subcommand(
                 Command::new("migration-candidates")
@@ -513,6 +524,38 @@ pub fn init(
                             .multiple(true),
                     ),
             )
+            .subcommand(
+                Command::new("server")
+                    .about("Start or manage the hakana server")
+                    .arg(arg!(--"root" <PATH>).required(false).help(
+                        "The root directory that Hakana runs in. Defaults to the current directory",
+                    ))
+                    .arg(
+                        arg!(--"config" <PATH>)
+                            .required(false)
+                            .help("Hakana config path — defaults to ./hakana.json"),
+                    )
+                    .arg(
+                        arg!(--"threads" <PATH>)
+                            .required(false)
+                            .help("How many threads to use"),
+                    )
+                    .arg(
+                        arg!(--"debug")
+                            .required(false)
+                            .help("Add output for debugging"),
+                    )
+                    .arg(
+                        arg!(--"stop")
+                            .required(false)
+                            .help("Stop a running server"),
+                    )
+                    .arg(
+                        arg!(--"status")
+                            .required(false)
+                            .help("Show server status"),
+                    ),
+            )
             .get_matches();
 
     let cwd = (env::current_dir()).unwrap().to_str().unwrap().to_string();
@@ -733,6 +776,9 @@ pub fn init(
         Some(("lint", sub_matches)) => {
             do_lint(sub_matches, &root_dir, &mut had_error, custom_linters);
         }
+        Some(("server", sub_matches)) => {
+            do_server(sub_matches, &root_dir, threads, logger, header, analysis_hooks);
+        }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
     }
 
@@ -758,7 +804,7 @@ fn do_fix(
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 
     let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
-    config.hooks = analysis_hooks;
+    config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();
 
     config.find_unused_expressions = issue_kind.requires_dataflow_analysis();
     config.find_unused_definitions = issue_kind.is_unused_definition();
@@ -859,7 +905,7 @@ fn do_remove_unused_fixmes(
 
     let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
 
-    config.hooks = analysis_hooks;
+    config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();
 
     let config_path = config_path.unwrap();
 
@@ -937,7 +983,7 @@ fn do_add_fixmes(
     let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
 
     config.issues_to_fix.extend(issue_kinds_filter);
-    config.hooks = analysis_hooks;
+    config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();
     config.find_unused_expressions = true;
     config.find_unused_definitions = true;
 
@@ -1003,6 +1049,7 @@ fn do_migrate(
                 false
             }
         })
+        .map(Arc::from)
         .collect();
 
     if config.hooks.is_empty() {
@@ -1093,6 +1140,7 @@ fn do_migration_candidates(
                 false
             }
         })
+        .map(Arc::from)
         .collect();
 
     config.in_migration = true;
@@ -1165,7 +1213,7 @@ fn do_codegen(
     let output_file = sub_matches.value_of("output").map(|f| f.to_string());
 
     let mut config = config::Config::new(root_dir.to_string(), all_custom_issues);
-    config.hooks = analysis_hooks;
+    config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();
     config.in_codegen = true;
 
     if let Some(codegen_name) = codegen_name {
@@ -1183,7 +1231,7 @@ fn do_codegen(
         }
     }
 
-    config.hooks.append(&mut codegen_hooks);
+    config.hooks.extend(codegen_hooks.into_iter().map(Arc::from));
 
     let config_path = config_path.unwrap();
 
@@ -1330,7 +1378,7 @@ fn do_find_paths(
             config.security_config.max_depth
         };
 
-    config.hooks = analysis_hooks;
+    config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();
 
     let root_dir = config.root_dir.clone();
 
@@ -1400,7 +1448,7 @@ fn do_security_check(
             config.security_config.max_depth
         };
 
-    config.hooks = analysis_hooks;
+    config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();
 
     let root_dir = config.root_dir.clone();
 
@@ -1459,7 +1507,147 @@ fn do_analysis(
     header: &str,
     had_error: &mut bool,
 ) {
+    use hakana_protocol::{GetIssuesRequest, ClientSocket, Message, SocketPath};
+    use std::io::{self, Write};
+    use std::time::Duration;
+
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+    let standalone = sub_matches.is_present("standalone");
+    let with_server = sub_matches.is_present("with-server");
+
+    // Determine if we should use server mode
+    let socket_path = SocketPath::for_project(Path::new(root_dir));
+    let use_server = if standalone {
+        false
+    } else if with_server {
+        // --with-server: spawn server if not running
+        if !socket_path.server_exists() {
+            if let Err(e) = spawn_server_for_analysis(root_dir, threads, &logger) {
+                println!("Failed to spawn server: {}. Falling back to standalone analysis.", e);
+                false
+            } else {
+                // Wait for server socket to appear
+                println!("Spawning hakana server...");
+                let start = std::time::Instant::now();
+                let timeout = Duration::from_secs(300); // 5 minutes for initial analysis
+                loop {
+                    if socket_path.server_exists() {
+                        print!("\r\x1b[K");
+                        break true;
+                    }
+                    if start.elapsed() > timeout {
+                        print!("\r\x1b[K");
+                        println!("Timed out waiting for server to start. Falling back to standalone analysis.");
+                        break false;
+                    }
+                    // Show waiting indicator
+                    let elapsed = start.elapsed().as_secs();
+                    print!("\rWaiting for server to start... {}s", elapsed);
+                    io::stdout().flush().ok();
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+            }
+        } else {
+            true
+        }
+    } else {
+        // Default: use server if it exists, but don't spawn one
+        socket_path.server_exists()
+    };
+
+    // Use server mode if available
+    if use_server {
+        // Clear any "Waiting for server" message
+        print!("\r\x1b[K");
+        io::stdout().flush().ok();
+        let find_unused_expressions = sub_matches.is_present("find-unused-expressions");
+        let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
+
+        let request = Message::GetIssues(GetIssuesRequest {
+            filter: filter.clone(),
+            find_unused_expressions,
+            find_unused_definitions,
+        });
+
+        // Poll for results, showing progress bar if analysis is in progress
+        // Reconnect for each request since server handles one request per connection
+        let pb = ProgressBar::new(100);
+        pb.set_style(
+            ProgressStyle::with_template("{bar:40.green/yellow} {percent:>3}% - {msg}")
+                .unwrap()
+        );
+
+        loop {
+            let mut client = match ClientSocket::connect(&socket_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    pb.finish_and_clear();
+                    println!("Error connecting to server: {}", e);
+                    break;
+                }
+            };
+
+            match client.request(&request) {
+                Ok(Message::GetIssuesResult(result)) => {
+                    if result.analysis_complete {
+                        pb.finish_and_clear();
+
+                        // Print all issues
+                        for issue in result.issues {
+                            *had_error = true;
+                            println!(
+                                "{}:{}:{} - {} - {}",
+                                issue.file_path,
+                                issue.start_line,
+                                issue.start_column,
+                                issue.kind,
+                                issue.description
+                            );
+                        }
+
+                        if !*had_error {
+                            println!("\nNo issues reported!\n");
+                        }
+
+                        println!(
+                            "\nAnalyzed {} files",
+                            result.files_analyzed
+                        );
+                        return;
+                    } else {
+                        // Update progress bar
+                        pb.set_length(result.total_files.max(1) as u64);
+                        pb.set_position(result.files_analyzed as u64);
+                        pb.set_message(format!(
+                            "{} ({}/{} files)",
+                            result.phase,
+                            result.files_analyzed,
+                            result.total_files
+                        ));
+
+                        // Wait a bit before polling again (100ms for responsive UI)
+                        std::thread::sleep(Duration::from_millis(100));
+                    }
+                }
+                Ok(Message::Error(err)) => {
+                    pb.finish_and_clear();
+                    println!("Server error: {} - {}", err.code as u32, err.message);
+                    exit(1);
+                }
+                Ok(_) => {
+                    pb.finish_and_clear();
+                    println!("Unexpected response from server");
+                    exit(1);
+                }
+                Err(e) => {
+                    pb.finish_and_clear();
+                    println!("Error communicating with server: {}", e);
+                    // Fall through to standalone analysis
+                    break;
+                }
+            }
+        }
+    }
 
     let output_file = sub_matches.value_of("output").map(|f| f.to_string());
     let output_format = sub_matches.value_of("json-format").map(|f| f.to_string());
@@ -1505,7 +1693,7 @@ fn do_analysis(
     config.ignore_mixed_issues = ignore_mixed_issues;
     config.ast_diff = do_ast_diff;
 
-    config.hooks = analysis_hooks;
+    config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();
 
     let config_path = config_path.unwrap();
 
@@ -2438,4 +2626,147 @@ fn do_lint(
         let mut output_file = fs::File::create(Path::new(output_path)).unwrap();
         write!(output_file, "{}", json).unwrap();
     }
+}
+
+fn do_server(
+    sub_matches: &clap::ArgMatches,
+    root_dir: &str,
+    threads: u8,
+    logger: Logger,
+    header: &str,
+    analysis_hooks: Vec<Box<dyn CustomHook>>,
+) {
+    use hakana_protocol::{ClientSocket, Message, SocketPath, StatusRequest, ShutdownRequest};
+    use hakana_server::{Server, ServerConfig};
+
+    let socket_path = SocketPath::for_project(Path::new(root_dir));
+
+    // Handle --status flag
+    if sub_matches.is_present("status") {
+        if !socket_path.server_exists() {
+            println!("Server not running");
+            return;
+        }
+
+        match ClientSocket::connect(&socket_path) {
+            Ok(mut client) => {
+                let response = client.request(&Message::Status(StatusRequest));
+                match response {
+                    Ok(Message::StatusResult(status)) => {
+                        println!("Server Status:");
+                        println!("  Ready: {}", status.ready);
+                        println!("  Files: {}", status.files_count);
+                        println!("  Symbols: {}", status.symbols_count);
+                        println!("  Uptime: {}s", status.uptime_secs);
+                        println!("  Analysis in progress: {}", status.analysis_in_progress);
+                        println!("  Project root: {}", status.project_root);
+                    }
+                    Ok(_) => println!("Unexpected response from server"),
+                    Err(e) => println!("Error communicating with server: {}", e),
+                }
+            }
+            Err(e) => {
+                println!("Cannot connect to server: {}", e);
+            }
+        }
+        return;
+    }
+
+    // Handle --stop flag
+    if sub_matches.is_present("stop") {
+        if !socket_path.server_exists() {
+            println!("Server not running");
+            return;
+        }
+
+        match ClientSocket::connect(&socket_path) {
+            Ok(mut client) => {
+                match client.send(&Message::Shutdown(ShutdownRequest)) {
+                    Ok(_) => println!("Shutdown signal sent"),
+                    Err(e) => println!("Error sending shutdown: {}", e),
+                }
+            }
+            Err(e) => {
+                println!("Cannot connect to server: {}", e);
+            }
+        }
+        return;
+    }
+
+    // Start server
+    let config_path = sub_matches
+        .value_of("config")
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("{}/hakana.json", root_dir));
+
+    // Convert hooks to Arc for reuse across multiple analyses
+    let plugins: Vec<Arc<dyn CustomHook>> = analysis_hooks
+        .into_iter()
+        .map(Arc::from)
+        .collect();
+
+    let server_config = ServerConfig {
+        root_dir: root_dir.to_string(),
+        threads,
+        config_path: Some(config_path),
+        plugins,
+        header: header.to_string(),
+        find_unused_expressions: false,
+        find_unused_definitions: false,
+    };
+
+    match Server::new(server_config, Arc::new(logger)) {
+        Ok(mut server) => {
+            println!("Starting hakana server...");
+            println!("Socket: {}", server.socket_path().path().display());
+            if let Err(e) = server.run() {
+                println!("Server error: {}", e);
+                exit(1);
+            }
+        }
+        Err(e) => {
+            println!("Failed to start server: {}", e);
+            exit(1);
+        }
+    }
+}
+
+/// Spawn a server in the background for use with `hakana analyze --with-server`.
+/// Returns Ok(()) if the server was spawned successfully.
+fn spawn_server_for_analysis(
+    root_dir: &str,
+    threads: u8,
+    logger: &Logger,
+) -> Result<(), String> {
+    use std::process::{Command, Stdio};
+
+    // Find the current executable (hakana binary)
+    let current_exe = std::env::current_exe()
+        .map_err(|e| format!("Could not determine current executable: {}", e))?;
+
+    let config_path = format!("{}/hakana.json", root_dir);
+
+    logger.log_sync(&format!("Spawning server: {} server --root {}", current_exe.display(), root_dir));
+
+    // Spawn the server as a background process
+    // Redirect all output to null - the server runs silently in the background
+    let child = Command::new(&current_exe)
+        .arg("server")
+        .arg("--root")
+        .arg(root_dir)
+        .arg("--config")
+        .arg(&config_path)
+        .arg("--threads")
+        .arg(threads.to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn server: {}", e))?;
+
+    // Don't wait for the child - let it run in the background
+    // The child handle will be dropped but the process continues
+    std::mem::forget(child);
+
+    Ok(())
 }

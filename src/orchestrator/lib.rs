@@ -76,26 +76,45 @@ impl Default for SuccessfulScanData {
     }
 }
 
+use std::sync::atomic::AtomicU32;
+
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn scan_and_analyze_async(
+pub async fn scan_and_analyze_async<P>(
     stubs_dirs: Vec<String>,
     filter: Option<String>,
     ignored_paths: Option<FxHashSet<String>>,
     config: Arc<Config>,
     threads: u8,
-    lsp_client: &Client,
+    lsp_client: Option<&Client>,
     header: &str,
     interner: Arc<Interner>,
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
-) -> io::Result<(AnalysisResult, SuccessfulScanData)> {
+    mut progress_callback: Option<P>,
+    files_scanned: Option<Arc<AtomicU32>>,
+    total_files_to_scan: Option<Arc<AtomicU32>>,
+    files_analyzed: Option<Arc<AtomicU32>>,
+) -> io::Result<(AnalysisResult, SuccessfulScanData)>
+where
+    P: FnMut(AnalysisProgress),
+{
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
 
-    lsp_client
-        .log_message(MessageType::INFO, "Scanning files")
-        .await;
+    if let Some(client) = lsp_client {
+        client
+            .log_message(MessageType::INFO, "Scanning files")
+            .await;
+    }
+
+    if let Some(ref mut cb) = progress_callback {
+        cb(AnalysisProgress {
+            phase: "Scanning".to_string(),
+            files_analyzed: 0,
+            total_files: 0,
+        });
+    }
 
     tokio::time::sleep(Duration::from_millis(10)).await;
 
@@ -117,7 +136,18 @@ pub async fn scan_and_analyze_async(
         &interner,
         previous_scan_data,
         language_server_changes,
+        files_scanned,
+        total_files_to_scan,
     )?;
+
+    let total_files = codebase.files.len() as u32;
+    if let Some(ref mut cb) = progress_callback {
+        cb(AnalysisProgress {
+            phase: "Scanning complete".to_string(),
+            files_analyzed: 0,
+            total_files,
+        });
+    }
 
     let mut cached_analysis = if config.ast_diff {
         mark_safe_symbols_from_diff(
@@ -136,9 +166,19 @@ pub async fn scan_and_analyze_async(
         CachedAnalysis::default()
     };
 
-    lsp_client
-        .log_message(MessageType::INFO, "Calculating symbol inheritance")
-        .await;
+    if let Some(client) = lsp_client {
+        client
+            .log_message(MessageType::INFO, "Calculating symbol inheritance")
+            .await;
+    }
+
+    if let Some(ref mut cb) = progress_callback {
+        cb(AnalysisProgress {
+            phase: "Calculating inheritance".to_string(),
+            files_analyzed: 0,
+            total_files,
+        });
+    }
 
     tokio::time::sleep(Duration::from_millis(10)).await;
 
@@ -166,12 +206,24 @@ pub async fn scan_and_analyze_async(
         cached_analysis.definition_locations,
     );
 
-    lsp_client
-        .log_message(
-            MessageType::INFO,
-            &format!("Analyzing {} files", files_to_analyze.len()),
-        )
-        .await;
+    let files_to_analyze_count = files_to_analyze.len() as u32;
+
+    if let Some(client) = lsp_client {
+        client
+            .log_message(
+                MessageType::INFO,
+                &format!("Analyzing {} files", files_to_analyze_count),
+            )
+            .await;
+    }
+
+    if let Some(ref mut cb) = progress_callback {
+        cb(AnalysisProgress {
+            phase: "Analyzing".to_string(),
+            files_analyzed: 0,
+            total_files: files_to_analyze_count,
+        });
+    }
 
     tokio::time::sleep(Duration::from_millis(10)).await;
 
@@ -185,6 +237,7 @@ pub async fn scan_and_analyze_async(
         threads,
         Arc::new(Logger::DevNull),
         &mut Duration::default(),
+        files_analyzed,
     )?;
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
@@ -194,6 +247,13 @@ pub async fn scan_and_analyze_async(
     add_invalid_files(&scan_data, &mut analysis_result);
 
     if config.find_unused_definitions {
+        if let Some(ref mut cb) = progress_callback {
+            cb(AnalysisProgress {
+                phase: "Finding unused definitions".to_string(),
+                files_analyzed: files_to_analyze_count,
+                total_files: files_to_analyze_count,
+            });
+        }
         find_unused_definitions(
             &mut analysis_result,
             &config,
@@ -202,6 +262,14 @@ pub async fn scan_and_analyze_async(
             &ignored_paths,
             &mut scan_data.file_system,
         );
+    }
+
+    if let Some(ref mut cb) = progress_callback {
+        cb(AnalysisProgress {
+            phase: "Complete".to_string(),
+            files_analyzed: files_to_analyze_count,
+            total_files: files_to_analyze_count,
+        });
     }
 
     Ok((analysis_result, scan_data))
@@ -247,6 +315,8 @@ pub fn scan_and_analyze<F: FnOnce()>(
         &Arc::new(interner),
         previous_scan_data,
         language_server_changes,
+        None,
+        None,
     )?;
 
     let file_discovery_and_scanning_elapsed = file_discovery_and_scanning_now.elapsed();
@@ -340,6 +410,7 @@ pub fn scan_and_analyze<F: FnOnce()>(
         threads,
         logger.clone(),
         &mut pure_file_analysis_time,
+        None,
     )?;
 
     if logger.can_log_timing() {
@@ -396,6 +467,17 @@ pub fn scan_and_analyze<F: FnOnce()>(
     }
 
     Ok((analysis_result, scan_data))
+}
+
+/// Progress information passed to the progress callback.
+#[derive(Debug, Clone)]
+pub struct AnalysisProgress {
+    /// Current phase name.
+    pub phase: String,
+    /// Number of files analyzed so far (only meaningful during "Analyzing" phase).
+    pub files_analyzed: u32,
+    /// Total number of files to analyze.
+    pub total_files: u32,
 }
 
 fn get_analysis_ready(

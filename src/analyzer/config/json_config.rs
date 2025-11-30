@@ -26,7 +26,7 @@ pub struct JsonSecurityConfig {
     pub max_depth: Option<u8>,
 }
 
-pub(crate) fn read_from_file(path: &Path) -> Result<JsonConfig, Box<dyn Error>> {
+pub fn read_from_file(path: &Path) -> Result<JsonConfig, Box<dyn Error>> {
     // Open the file in read-only mode with buffer.
     let file = File::open(path)?;
     let reader = BufReader::new(file);
