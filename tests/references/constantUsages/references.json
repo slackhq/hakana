@@ -1,0 +1,32 @@
+[
+  {
+    "symbol": "Config::DEFAULT_NAME",
+    "references": [
+      {
+        "file": "input.hack",
+        "start_offset": 235,
+        "end_offset": 255
+      },
+      {
+        "file": "input.hack",
+        "start_offset": 339,
+        "end_offset": 359
+      }
+    ]
+  },
+  {
+    "symbol": "Config::MAX_ITEMS",
+    "references": [
+      {
+        "file": "input.hack",
+        "start_offset": 151,
+        "end_offset": 168
+      },
+      {
+        "file": "input.hack",
+        "start_offset": 302,
+        "end_offset": 319
+      }
+    ]
+  }
+]

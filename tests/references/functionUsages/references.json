@@ -1,0 +1,27 @@
+[
+  {
+    "symbol": "helper",
+    "references": [
+      {
+        "file": "input.hack",
+        "start_offset": 174,
+        "end_offset": 180
+      },
+      {
+        "file": "input.hack",
+        "start_offset": 316,
+        "end_offset": 322
+      }
+    ]
+  },
+  {
+    "symbol": "process",
+    "references": [
+      {
+        "file": "input.hack",
+        "start_offset": 286,
+        "end_offset": 293
+      }
+    ]
+  }
+]

@@ -3,6 +3,7 @@ use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::FilePath;
+use hakana_code_info::symbol_references_utils::generate_references_json;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::issue::IssueKind;
@@ -192,7 +193,12 @@ impl TestRunner {
             GraphKind::FunctionBody
         };
 
-        analysis_config.hooks = self.0.get_hooks_for_test(dir).into_iter().map(std::sync::Arc::from).collect();
+        analysis_config.hooks = self
+            .0
+            .get_hooks_for_test(dir)
+            .into_iter()
+            .map(std::sync::Arc::from)
+            .collect();
 
         if dir.contains("/migrations/") {
             let replacements_path = dir.to_string() + "/replacements.txt";
@@ -229,8 +235,11 @@ impl TestRunner {
             analysis_config.in_migration = true;
         }
 
-        // Enable go-to-definition collection for goto-definition and diff tests
-        if dir.contains("/goto-definition/") || dir.contains("/diff/") {
+        // Enable go-to-definition collection for goto-definition, references, and diff tests
+        if dir.contains("/goto-definition/")
+            || dir.contains("/references/")
+            || dir.contains("/diff/")
+        {
             analysis_config.collect_goto_definition_locations = true;
         }
 
@@ -288,6 +297,20 @@ impl TestRunner {
                 config,
                 logger,
                 cache_dir,
+                had_error,
+                test_diagnostics,
+                build_checksum,
+                previous_scan_data,
+                previous_analysis_result,
+                total_time_in_analysis,
+            );
+        }
+
+        if dir.contains("/references/") {
+            return self.run_references_test(
+                dir,
+                config,
+                logger,
                 had_error,
                 test_diagnostics,
                 build_checksum,
@@ -784,6 +807,74 @@ impl TestRunner {
         (".".to_string(), Some(result.1), Some(result.0))
     }
 
+    fn run_references_test(
+        &self,
+        dir: String,
+        config: Arc<config::Config>,
+        logger: Arc<Logger>,
+        had_error: &mut bool,
+        test_diagnostics: &mut Vec<(String, String)>,
+        build_checksum: &str,
+        previous_scan_data: Option<SuccessfulScanData>,
+        previous_analysis_result: Option<AnalysisResult>,
+        total_time_in_analysis: &mut Duration,
+    ) -> (String, Option<SuccessfulScanData>, Option<AnalysisResult>) {
+        use hakana_orchestrator::scan_and_analyze;
+
+        let result = scan_and_analyze(
+            Vec::new(),
+            Some(dir.clone()),
+            None,
+            config.clone(),
+            None,
+            1,
+            logger,
+            build_checksum,
+            hakana_str::Interner::default(),
+            previous_scan_data,
+            previous_analysis_result,
+            None,
+            || {},
+        );
+
+        let result = match result {
+            Ok(result) => result,
+            Err(_) => {
+                *had_error = true;
+                return ("F".to_string(), None, None);
+            }
+        };
+
+        *total_time_in_analysis += result.0.time_in_analysis;
+
+        // Generate references.json (groups usages by symbol name)
+        let references_json = generate_references_json(&result.0, &result.1.interner);
+        let references_path = dir.clone() + "/references.json";
+
+        // Check if expected references.json exists for validation
+        if Path::new(&references_path).exists() {
+            let expected_references = fs::read_to_string(&references_path)
+                .unwrap()
+                .trim()
+                .to_string();
+
+            if expected_references.trim() != references_json.trim() {
+                test_diagnostics.push((
+                    dir.clone(),
+                    format_diff(&expected_references, &references_json),
+                ));
+                return ("F".to_string(), Some(result.1), Some(result.0));
+            }
+        } else {
+            // Write references.json file if it doesn't exist
+            if let Err(e) = fs::write(&references_path, references_json) {
+                eprintln!("Warning: Failed to write references.json: {}", e);
+            }
+        }
+
+        (".".to_string(), Some(result.1), Some(result.0))
+    }
+
     fn run_linter_test(
         &self,
         dir: String,
@@ -1204,7 +1295,9 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
 
     if Path::new(&input_hack_path).exists() {
         // This looks like a single test directory
-        if !Path::new(&output_txt_path).exists() && !test_or_test_dir.contains("/goto-definition/")
+        if !Path::new(&output_txt_path).exists()
+            && !test_or_test_dir.contains("/goto-definition/")
+            && !test_or_test_dir.contains("/references/")
         {
             return Err(format!(
                 "Test directory is missing required output.txt file: {}",
@@ -1284,6 +1377,7 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
                             ));
                         } else if !Path::new(&output_txt).exists()
                             && !path_str.contains("/goto-definition/")
+                            && !path_str.contains("/references/")
                         {
                             // Found a regular test directory - check if output.txt exists
                             return Err(format!(

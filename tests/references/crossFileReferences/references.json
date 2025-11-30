@@ -1,0 +1,62 @@
+[
+  {
+    "symbol": "Base",
+    "references": [
+      {
+        "file": "input.hack",
+        "start_offset": 183,
+        "end_offset": 196
+      },
+      {
+        "file": "input.hack",
+        "start_offset": 237,
+        "end_offset": 241
+      },
+      {
+        "file": "input.hack",
+        "start_offset": 319,
+        "end_offset": 329
+      }
+    ]
+  },
+  {
+    "symbol": "Base::greet",
+    "references": [
+      {
+        "file": "input.hack",
+        "start_offset": 191,
+        "end_offset": 196
+      },
+      {
+        "file": "input.hack",
+        "start_offset": 271,
+        "end_offset": 276
+      }
+    ]
+  },
+  {
+    "symbol": "Child",
+    "references": [
+      {
+        "file": "input.hack",
+        "start_offset": 344,
+        "end_offset": 355
+      }
+    ]
+  },
+  {
+    "symbol": "useBase",
+    "references": [
+      {
+        "file": "input.hack",
+        "start_offset": 361,
+        "end_offset": 368
+      },
+      {
+        "file": "input.hack",
+        "start_offset": 381,
+        "end_offset": 388
+      }
+    ]
+  }
+]

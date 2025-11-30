@@ -23,6 +23,7 @@ pub mod method_identifier;
 pub mod method_info;
 pub mod property_info;
 pub mod symbol_references;
+pub mod symbol_references_utils;
 pub mod t_atomic;
 pub mod t_union;
 pub mod taint;
