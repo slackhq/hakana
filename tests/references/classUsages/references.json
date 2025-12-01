@@ -3,22 +3,22 @@
     "symbol": "MyClass",
     "references": [
       {
-        "file": "input.hack",
+        "file": "tests/references/classUsages/input.hack",
         "start_offset": 89,
         "end_offset": 96
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/classUsages/input.hack",
         "start_offset": 110,
         "end_offset": 123
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/classUsages/input.hack",
         "start_offset": 146,
         "end_offset": 153
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/classUsages/input.hack",
         "start_offset": 220,
         "end_offset": 228
       }
@@ -28,7 +28,7 @@
     "symbol": "MyClass::doSomething",
     "references": [
       {
-        "file": "input.hack",
+        "file": "tests/references/classUsages/input.hack",
         "start_offset": 178,
         "end_offset": 189
       }

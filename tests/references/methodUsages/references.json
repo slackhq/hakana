@@ -3,7 +3,7 @@
     "symbol": "Calculator",
     "references": [
       {
-        "file": "input.hack",
+        "file": "tests/references/methodUsages/input.hack",
         "start_offset": 218,
         "end_offset": 234
       }
@@ -13,12 +13,12 @@
     "symbol": "Calculator::add",
     "references": [
       {
-        "file": "input.hack",
+        "file": "tests/references/methodUsages/input.hack",
         "start_offset": 254,
         "end_offset": 257
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/methodUsages/input.hack",
         "start_offset": 326,
         "end_offset": 329
       }
@@ -28,12 +28,12 @@
     "symbol": "Calculator::multiply",
     "references": [
       {
-        "file": "input.hack",
+        "file": "tests/references/methodUsages/input.hack",
         "start_offset": 287,
         "end_offset": 295
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/methodUsages/input.hack",
         "start_offset": 337,
         "end_offset": 345
       }

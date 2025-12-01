@@ -3,7 +3,7 @@
     "symbol": "User::__construct",
     "references": [
       {
-        "file": "input.hack",
+        "file": "tests/references/propertyUsages/input.hack",
         "start_offset": 451,
         "end_offset": 472
       }
@@ -13,12 +13,12 @@
     "symbol": "User::age",
     "references": [
       {
-        "file": "input.hack",
+        "file": "tests/references/propertyUsages/input.hack",
         "start_offset": 163,
         "end_offset": 166
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/propertyUsages/input.hack",
         "start_offset": 315,
         "end_offset": 318
       }
@@ -28,27 +28,27 @@
     "symbol": "User::name",
     "references": [
       {
-        "file": "input.hack",
+        "file": "tests/references/propertyUsages/input.hack",
         "start_offset": 134,
         "end_offset": 138
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/propertyUsages/input.hack",
         "start_offset": 244,
         "end_offset": 248
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/propertyUsages/input.hack",
         "start_offset": 392,
         "end_offset": 396
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/propertyUsages/input.hack",
         "start_offset": 497,
         "end_offset": 501
       },
       {
-        "file": "input.hack",
+        "file": "tests/references/propertyUsages/input.hack",
         "start_offset": 514,
         "end_offset": 518
       }
