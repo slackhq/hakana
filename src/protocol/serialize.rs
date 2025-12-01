@@ -615,6 +615,47 @@ impl Deserialize for FindReferencesResponse {
     }
 }
 
+// FindSymbolReferencesRequest
+
+impl Serialize for FindSymbolReferencesRequest {
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        write_string(buf, &self.symbol_name);
+    }
+}
+
+impl Deserialize for FindSymbolReferencesRequest {
+    fn deserialize(data: &[u8]) -> Result<(Self, &[u8]), ProtocolError> {
+        let (symbol_name, rest) = read_string(data)?;
+        Ok((Self { symbol_name }, rest))
+    }
+}
+
+// FindSymbolReferencesResponse
+
+impl Serialize for FindSymbolReferencesResponse {
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        write_bool(buf, self.symbol_found);
+        write_u32(buf, self.references.len() as u32);
+        for loc in &self.references {
+            loc.serialize(buf);
+        }
+    }
+}
+
+impl Deserialize for FindSymbolReferencesResponse {
+    fn deserialize(data: &[u8]) -> Result<(Self, &[u8]), ProtocolError> {
+        let (symbol_found, rest) = read_bool(data)?;
+        let (len, mut rest) = read_u32(rest)?;
+        let mut references = Vec::with_capacity(len as usize);
+        for _ in 0..len {
+            let (loc, r) = ReferenceLocation::deserialize(rest)?;
+            references.push(loc);
+            rest = r;
+        }
+        Ok((Self { symbol_found, references }, rest))
+    }
+}
+
 // GetIssuesRequest
 
 impl Serialize for GetIssuesRequest {
@@ -807,6 +848,7 @@ impl Serialize for Message {
             Self::SecurityCheck(req) => req.serialize(buf),
             Self::GotoDefinition(req) => req.serialize(buf),
             Self::FindReferences(req) => req.serialize(buf),
+            Self::FindSymbolReferences(req) => req.serialize(buf),
             Self::FileChanged(changes) => {
                 write_u32(buf, changes.len() as u32);
                 for change in changes {
@@ -820,6 +862,7 @@ impl Serialize for Message {
             Self::SecurityCheckResult(res) => res.serialize(buf),
             Self::GotoDefinitionResult(res) => res.serialize(buf),
             Self::FindReferencesResult(res) => res.serialize(buf),
+            Self::FindSymbolReferencesResult(res) => res.serialize(buf),
             Self::GetIssuesResult(res) => res.serialize(buf),
             Self::StatusResult(res) => res.serialize(buf),
             Self::Ack(res) => res.serialize(buf),
@@ -850,6 +893,10 @@ impl Message {
             MessageType::FindReferencesRequest => {
                 let (req, _) = FindReferencesRequest::deserialize(data)?;
                 Self::FindReferences(req)
+            }
+            MessageType::FindSymbolReferencesRequest => {
+                let (req, _) = FindSymbolReferencesRequest::deserialize(data)?;
+                Self::FindSymbolReferences(req)
             }
             MessageType::FileChangedNotification => {
                 let (len, mut rest) = read_u32(data)?;
@@ -888,6 +935,10 @@ impl Message {
             MessageType::FindReferencesResponse => {
                 let (res, _) = FindReferencesResponse::deserialize(data)?;
                 Self::FindReferencesResult(res)
+            }
+            MessageType::FindSymbolReferencesResponse => {
+                let (res, _) = FindSymbolReferencesResponse::deserialize(data)?;
+                Self::FindSymbolReferencesResult(res)
             }
             MessageType::GetIssuesResponse => {
                 let (res, _) = GetIssuesResponse::deserialize(data)?;

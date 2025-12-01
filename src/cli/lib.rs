@@ -22,6 +22,7 @@ use std::process::exit;
 use std::sync::Arc;
 use test_runners::test_runner::TestRunner;
 
+pub mod mcp;
 pub mod test_runners;
 
 pub fn init(
@@ -32,8 +33,6 @@ pub fn init(
     test_runner: &TestRunner,
     custom_linters: Vec<Box<dyn hakana_lint::Linter>>,
 ) {
-    println!("{}\n", header);
-
     let mut all_custom_issues = vec![];
 
     for analysis_hook in &analysis_hooks {
@@ -560,6 +559,8 @@ pub fn init(
 
     let cwd = (env::current_dir()).unwrap().to_str().unwrap().to_string();
 
+    println!("{}\n", header);
+
     let threads = match matches.subcommand() {
         Some(("test", _)) => 1,
         Some((_, sub_matches)) => {
@@ -777,7 +778,14 @@ pub fn init(
             do_lint(sub_matches, &root_dir, &mut had_error, custom_linters);
         }
         Some(("server", sub_matches)) => {
-            do_server(sub_matches, &root_dir, threads, logger, header, analysis_hooks);
+            do_server(
+                sub_matches,
+                &root_dir,
+                threads,
+                logger,
+                header,
+                analysis_hooks,
+            );
         }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
     }
@@ -1231,7 +1239,9 @@ fn do_codegen(
         }
     }
 
-    config.hooks.extend(codegen_hooks.into_iter().map(Arc::from));
+    config
+        .hooks
+        .extend(codegen_hooks.into_iter().map(Arc::from));
 
     let config_path = config_path.unwrap();
 
@@ -1507,7 +1517,7 @@ fn do_analysis(
     header: &str,
     had_error: &mut bool,
 ) {
-    use hakana_protocol::{GetIssuesRequest, ClientSocket, Message, SocketPath};
+    use hakana_protocol::{ClientSocket, GetIssuesRequest, Message, SocketPath};
     use std::io::{self, Write};
     use std::time::Duration;
 
@@ -1523,7 +1533,10 @@ fn do_analysis(
         // --with-server: spawn server if not running
         if !socket_path.server_exists() {
             if let Err(e) = spawn_server_for_analysis(root_dir, threads, &logger) {
-                println!("Failed to spawn server: {}. Falling back to standalone analysis.", e);
+                println!(
+                    "Failed to spawn server: {}. Falling back to standalone analysis.",
+                    e
+                );
                 false
             } else {
                 // Wait for server socket to appear
@@ -1537,7 +1550,9 @@ fn do_analysis(
                     }
                     if start.elapsed() > timeout {
                         print!("\r\x1b[K");
-                        println!("Timed out waiting for server to start. Falling back to standalone analysis.");
+                        println!(
+                            "Timed out waiting for server to start. Falling back to standalone analysis."
+                        );
                         break false;
                     }
                     // Show waiting indicator
@@ -1573,8 +1588,7 @@ fn do_analysis(
         // Reconnect for each request since server handles one request per connection
         let pb = ProgressBar::new(100);
         pb.set_style(
-            ProgressStyle::with_template("{bar:40.green/yellow} {percent:>3}% - {msg}")
-                .unwrap()
+            ProgressStyle::with_template("{bar:40.green/yellow} {percent:>3}% - {msg}").unwrap(),
         );
 
         loop {
@@ -1609,10 +1623,7 @@ fn do_analysis(
                             println!("\nNo issues reported!\n");
                         }
 
-                        println!(
-                            "\nAnalyzed {} files",
-                            result.files_analyzed
-                        );
+                        println!("\nAnalyzed {} files", result.files_analyzed);
                         return;
                     } else {
                         // Update progress bar
@@ -1620,9 +1631,7 @@ fn do_analysis(
                         pb.set_position(result.files_analyzed as u64);
                         pb.set_message(format!(
                             "{} ({}/{} files)",
-                            result.phase,
-                            result.files_analyzed,
-                            result.total_files
+                            result.phase, result.files_analyzed, result.total_files
                         ));
 
                         // Wait a bit before polling again (100ms for responsive UI)
@@ -2636,7 +2645,7 @@ fn do_server(
     header: &str,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
 ) {
-    use hakana_protocol::{ClientSocket, Message, SocketPath, StatusRequest, ShutdownRequest};
+    use hakana_protocol::{ClientSocket, Message, ShutdownRequest, SocketPath, StatusRequest};
     use hakana_server::{Server, ServerConfig};
 
     let socket_path = SocketPath::for_project(Path::new(root_dir));
@@ -2680,12 +2689,10 @@ fn do_server(
         }
 
         match ClientSocket::connect(&socket_path) {
-            Ok(mut client) => {
-                match client.send(&Message::Shutdown(ShutdownRequest)) {
-                    Ok(_) => println!("Shutdown signal sent"),
-                    Err(e) => println!("Error sending shutdown: {}", e),
-                }
-            }
+            Ok(mut client) => match client.send(&Message::Shutdown(ShutdownRequest)) {
+                Ok(_) => println!("Shutdown signal sent"),
+                Err(e) => println!("Error sending shutdown: {}", e),
+            },
             Err(e) => {
                 println!("Cannot connect to server: {}", e);
             }
@@ -2700,10 +2707,7 @@ fn do_server(
         .unwrap_or_else(|| format!("{}/hakana.json", root_dir));
 
     // Convert hooks to Arc for reuse across multiple analyses
-    let plugins: Vec<Arc<dyn CustomHook>> = analysis_hooks
-        .into_iter()
-        .map(Arc::from)
-        .collect();
+    let plugins: Vec<Arc<dyn CustomHook>> = analysis_hooks.into_iter().map(Arc::from).collect();
 
     let server_config = ServerConfig {
         root_dir: root_dir.to_string(),
@@ -2733,11 +2737,7 @@ fn do_server(
 
 /// Spawn a server in the background for use with `hakana analyze --with-server`.
 /// Returns Ok(()) if the server was spawned successfully.
-fn spawn_server_for_analysis(
-    root_dir: &str,
-    threads: u8,
-    logger: &Logger,
-) -> Result<(), String> {
+fn spawn_server_for_analysis(root_dir: &str, threads: u8, logger: &Logger) -> Result<(), String> {
     use std::process::{Command, Stdio};
 
     // Find the current executable (hakana binary)
@@ -2746,7 +2746,11 @@ fn spawn_server_for_analysis(
 
     let config_path = format!("{}/hakana.json", root_dir);
 
-    logger.log_sync(&format!("Spawning server: {} server --root {}", current_exe.display(), root_dir));
+    logger.log_sync(&format!(
+        "Spawning server: {} server --root {}",
+        current_exe.display(),
+        root_dir
+    ));
 
     // Spawn the server as a background process
     // Redirect all output to null - the server runs silently in the background

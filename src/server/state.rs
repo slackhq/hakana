@@ -127,6 +127,16 @@ impl ServerState {
             })
             .unwrap_or(0)
     }
+
+    /// Get scan data reference.
+    pub fn scan_data(&self) -> Option<&SuccessfulScanData> {
+        self.scan_data.as_ref()
+    }
+
+    /// Get analysis result reference.
+    pub fn analysis_result(&self) -> Option<&AnalysisResult> {
+        self.analysis_result.as_ref()
+    }
 }
 
 impl Default for ServerState {

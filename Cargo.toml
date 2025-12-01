@@ -12,6 +12,10 @@ path = "src/lsp.rs"
 name = "hakana"
 path = "src/main.rs"
 
+[[bin]]
+name = "hakana-mcp"
+path = "src/mcp.rs"
+
 [dependencies]
 hakana-cli = { path = "src/cli" }
 hakana-analyzer = { path = "src/analyzer" }
@@ -22,6 +26,7 @@ hakana-lint = { path = "src/lint" }
 hakana-protocol = { path = "src/protocol" }
 hakana-server = { path = "src/server" }
 hakana-logger = { path = "src/logger" }
+hakana-mcp-server = { path = "src/mcp_server" }
 executable-finder = { path = "src/executable_code_finder" }
 mimalloc = { version = "*", default-features = false }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
@@ -43,6 +48,7 @@ members = [
     "src/executable_code_finder",
     "src/protocol",
     "src/server",
+    "src/mcp_server",
 ]
 exclude = ["third-party"]
 

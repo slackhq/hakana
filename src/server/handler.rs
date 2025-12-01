@@ -2,8 +2,9 @@
 
 use hakana_protocol::{
     AckResponse, AnalyzeRequest, AnalyzeResponse, ErrorCode, ErrorResponse, FileChange,
-    FindReferencesRequest, FindReferencesResponse, GotoDefinitionRequest, GotoDefinitionResponse,
-    Message, ProtocolIssue, SecurityCheckRequest, SecurityCheckResponse,
+    FindReferencesRequest, FindReferencesResponse, FindSymbolReferencesRequest,
+    FindSymbolReferencesResponse, GotoDefinitionRequest, GotoDefinitionResponse,
+    Message, ProtocolIssue, ReferenceLocation, SecurityCheckRequest, SecurityCheckResponse,
     StatusResponse,
 };
 use crate::{ServerConfig, ServerState};
@@ -303,6 +304,87 @@ impl<'a> RequestHandler<'a> {
         })
     }
 
+    /// Handle a find-symbol-references request (by symbol name).
+    pub fn handle_find_symbol_references(self, req: FindSymbolReferencesRequest) -> Message {
+        use hakana_code_info::symbol_references_utils::get_references_for_symbol;
+
+        // Check if analysis is ready
+        let (scan_data, analysis_result) = match (
+            self.state.scan_data(),
+            self.state.analysis_result(),
+        ) {
+            (Some(sd), Some(ar)) => (sd, ar),
+            _ => {
+                return Message::FindSymbolReferencesResult(FindSymbolReferencesResponse {
+                    symbol_found: false,
+                    references: Vec::new(),
+                });
+            }
+        };
+
+        let interner = &scan_data.interner;
+        let symbol_name = &req.symbol_name;
+
+        // Normalize symbol name (strip $ from property names)
+        let normalized_name = if let Some(idx) = symbol_name.rfind("::$") {
+            let class_name = &symbol_name[..idx];
+            let prop_name = &symbol_name[idx + 3..];
+            format!("{}::{}", class_name, prop_name)
+        } else {
+            symbol_name.clone()
+        };
+
+        // Look up references using shared utility
+        let references = get_references_for_symbol(&normalized_name, analysis_result, interner);
+
+        match references {
+            Some(refs) => {
+                // Memoize file contents to avoid reading the same file multiple times
+                let mut file_cache: FxHashMap<String, Option<String>> = FxHashMap::default();
+
+                let locations: Vec<ReferenceLocation> = refs
+                    .into_iter()
+                    .map(|r| {
+                        // Handle both absolute and relative paths
+                        let full_path = if r.file.starts_with('/') {
+                            r.file.clone()
+                        } else {
+                            format!("{}/{}", self.config.root_dir, r.file)
+                        };
+
+                        // Get or load file contents
+                        let contents = file_cache
+                            .entry(full_path.clone())
+                            .or_insert_with(|| std::fs::read_to_string(&full_path).ok());
+
+                        let (line, column) = contents
+                            .as_ref()
+                            .map(|c| offset_to_line_column(c, r.start_offset as usize))
+                            .unwrap_or((0, 0));
+
+                        // For display, use just the file path from r.file (relative or abs)
+                        ReferenceLocation {
+                            file_path: r.file,
+                            line,
+                            column,
+                        }
+                    })
+                    .collect();
+
+                Message::FindSymbolReferencesResult(FindSymbolReferencesResponse {
+                    symbol_found: true,
+                    references: locations,
+                })
+            }
+            None => {
+                Message::FindSymbolReferencesResult(FindSymbolReferencesResponse {
+                    symbol_found: false,
+                    references: Vec::new(),
+                })
+            }
+        }
+    }
+
     /// Handle file changed notifications.
     pub fn handle_file_changed(self, changes: Vec<FileChange>) -> Message {
         // TODO: Track changes for incremental analysis
@@ -335,4 +417,23 @@ impl<'a> RequestHandler<'a> {
         self.state.set_shutting_down();
         Message::Ack(AckResponse)
     }
+}
+
+/// Convert a byte offset to line and column numbers (1-indexed).
+fn offset_to_line_column(contents: &str, offset: usize) -> (u32, u16) {
+    let bytes = contents.as_bytes();
+    let offset = offset.min(bytes.len());
+
+    let mut line: u32 = 1;
+    let mut line_start: usize = 0;
+
+    for (i, &byte) in bytes.iter().enumerate().take(offset) {
+        if byte == b'\n' {
+            line += 1;
+            line_start = i + 1;
+        }
+    }
+
+    let column = (offset - line_start + 1) as u16;
+    (line, column)
 }

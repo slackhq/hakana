@@ -23,17 +23,16 @@ pub struct SymbolReferences {
     pub references: Vec<ReferenceLocation>,
 }
 
-/// Extract the relative filename from a full path
+/// Extract the relative filename from a full path.
+/// The file path typically starts with the project root, so we return the full path
+/// and let the caller construct the absolute path by prepending the root dir.
 fn get_relative_filename(original_path: &str) -> String {
-    if let Some(workdir_pos) = original_path.find("/workdir/") {
-        original_path[workdir_pos + 9..].to_string()
-    } else {
-        original_path
-            .split('/')
-            .last()
-            .unwrap_or(original_path)
-            .to_string()
+    // If the path looks like a relative path (no leading /), return as-is
+    if !original_path.starts_with('/') {
+        return original_path.to_string();
     }
+    // For absolute paths, return the full path - the caller will know how to handle it
+    original_path.to_string()
 }
 
 /// Format a symbol name from its StrId components

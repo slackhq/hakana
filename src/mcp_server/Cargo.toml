@@ -1,0 +1,20 @@
+[package]
+name = "hakana-mcp-server"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+hakana-analyzer = { path = "../analyzer" }
+hakana-code-info = { path = "../code_info" }
+hakana-orchestrator = { path = "../orchestrator" }
+hakana-protocol = { path = "../protocol" }
+hakana-server = { path = "../server" }
+hakana-str = { path = "../str" }
+hakana-logger = { path = "../logger" }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rustc-hash = "1.1.0"

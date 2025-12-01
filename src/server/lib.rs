@@ -338,6 +338,7 @@ impl Server {
         analysis_config.find_unused_expressions = config.find_unused_expressions;
         analysis_config.find_unused_definitions = config.find_unused_definitions;
         analysis_config.ast_diff = true;
+        analysis_config.collect_goto_definition_locations = true;
         analysis_config.hooks = config.plugins.clone();
 
         let mut interner = Interner::default();
@@ -436,6 +437,7 @@ impl Server {
         analysis_config.find_unused_definitions = self.config.find_unused_definitions;
         // Enable AST diffing for incremental analysis
         analysis_config.ast_diff = true;
+        analysis_config.collect_goto_definition_locations = true;
         // Clone the Arc references for the hooks
         analysis_config.hooks = self.config.plugins.clone();
 
@@ -604,6 +606,15 @@ impl Server {
                     self.start_time,
                 );
                 handler.handle_find_references(req)
+            }
+            Message::FindSymbolReferences(req) => {
+                let handler = RequestHandler::new(
+                    &self.config,
+                    &mut self.state,
+                    &self.logger,
+                    self.start_time,
+                );
+                handler.handle_find_symbol_references(req)
             }
             Message::FileChanged(changes) => {
                 self.handle_file_changed(changes)

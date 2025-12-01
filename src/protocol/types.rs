@@ -13,6 +13,7 @@ pub enum MessageType {
     FindReferencesRequest = 0x04,
     FileChangedNotification = 0x05,
     GetIssuesRequest = 0x06,
+    FindSymbolReferencesRequest = 0x07,
     StatusRequest = 0x10,
     ShutdownRequest = 0x0F,
 
@@ -22,6 +23,7 @@ pub enum MessageType {
     GotoDefinitionResponse = 0x83,
     FindReferencesResponse = 0x84,
     GetIssuesResponse = 0x85,
+    FindSymbolReferencesResponse = 0x86,
     StatusResponse = 0x90,
     AckResponse = 0x8F,
 
@@ -40,6 +42,7 @@ impl TryFrom<u8> for MessageType {
             0x04 => Ok(Self::FindReferencesRequest),
             0x05 => Ok(Self::FileChangedNotification),
             0x06 => Ok(Self::GetIssuesRequest),
+            0x07 => Ok(Self::FindSymbolReferencesRequest),
             0x10 => Ok(Self::StatusRequest),
             0x0F => Ok(Self::ShutdownRequest),
             0x81 => Ok(Self::AnalyzeResponse),
@@ -47,6 +50,7 @@ impl TryFrom<u8> for MessageType {
             0x83 => Ok(Self::GotoDefinitionResponse),
             0x84 => Ok(Self::FindReferencesResponse),
             0x85 => Ok(Self::GetIssuesResponse),
+            0x86 => Ok(Self::FindSymbolReferencesResponse),
             0x90 => Ok(Self::StatusResponse),
             0x8F => Ok(Self::AckResponse),
             0xFF => Ok(Self::ErrorResponse),
@@ -183,7 +187,7 @@ pub struct GotoDefinitionResponse {
     pub end_column: Option<u16>,
 }
 
-/// Request for find-references.
+/// Request for find-references (by cursor position).
 #[derive(Debug, Clone)]
 pub struct FindReferencesRequest {
     pub file_path: String,
@@ -202,6 +206,22 @@ pub struct ReferenceLocation {
 /// Response with reference locations.
 #[derive(Debug, Clone)]
 pub struct FindReferencesResponse {
+    pub references: Vec<ReferenceLocation>,
+}
+
+/// Request for find-references by symbol name.
+#[derive(Debug, Clone)]
+pub struct FindSymbolReferencesRequest {
+    /// The fully-qualified symbol name (e.g., "Namespace\\Class::method").
+    pub symbol_name: String,
+}
+
+/// Response with symbol reference locations.
+#[derive(Debug, Clone)]
+pub struct FindSymbolReferencesResponse {
+    /// Whether the symbol was found.
+    pub symbol_found: bool,
+    /// Reference locations (file path, line, column).
     pub references: Vec<ReferenceLocation>,
 }
 
@@ -319,6 +339,7 @@ pub enum Message {
     SecurityCheck(SecurityCheckRequest),
     GotoDefinition(GotoDefinitionRequest),
     FindReferences(FindReferencesRequest),
+    FindSymbolReferences(FindSymbolReferencesRequest),
     FileChanged(Vec<FileChange>),
     GetIssues(GetIssuesRequest),
     Status(StatusRequest),
@@ -329,6 +350,7 @@ pub enum Message {
     SecurityCheckResult(SecurityCheckResponse),
     GotoDefinitionResult(GotoDefinitionResponse),
     FindReferencesResult(FindReferencesResponse),
+    FindSymbolReferencesResult(FindSymbolReferencesResponse),
     GetIssuesResult(GetIssuesResponse),
     StatusResult(StatusResponse),
     Ack(AckResponse),
@@ -343,6 +365,7 @@ impl Message {
             Self::SecurityCheck(_) => MessageType::SecurityCheckRequest,
             Self::GotoDefinition(_) => MessageType::GotoDefinitionRequest,
             Self::FindReferences(_) => MessageType::FindReferencesRequest,
+            Self::FindSymbolReferences(_) => MessageType::FindSymbolReferencesRequest,
             Self::FileChanged(_) => MessageType::FileChangedNotification,
             Self::GetIssues(_) => MessageType::GetIssuesRequest,
             Self::Status(_) => MessageType::StatusRequest,
@@ -351,6 +374,7 @@ impl Message {
             Self::SecurityCheckResult(_) => MessageType::SecurityCheckResponse,
             Self::GotoDefinitionResult(_) => MessageType::GotoDefinitionResponse,
             Self::FindReferencesResult(_) => MessageType::FindReferencesResponse,
+            Self::FindSymbolReferencesResult(_) => MessageType::FindSymbolReferencesResponse,
             Self::GetIssuesResult(_) => MessageType::GetIssuesResponse,
             Self::StatusResult(_) => MessageType::StatusResponse,
             Self::Ack(_) => MessageType::AckResponse,
@@ -366,6 +390,7 @@ impl Message {
                 | Self::SecurityCheck(_)
                 | Self::GotoDefinition(_)
                 | Self::FindReferences(_)
+                | Self::FindSymbolReferences(_)
                 | Self::FileChanged(_)
                 | Self::GetIssues(_)
                 | Self::Status(_)

@@ -6,7 +6,7 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::serialize::{read_message, write_message, ProtocolError};
+use crate::serialize::{ProtocolError, read_message, write_message};
 use crate::types::Message;
 
 /// Socket path configuration.
@@ -107,7 +107,6 @@ impl ServerSocket {
     pub fn socket_path(&self) -> &SocketPath {
         &self.socket_path
     }
-
 }
 
 impl Drop for ServerSocket {
@@ -212,7 +211,7 @@ impl ClientSocket {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::types::*;
+    use crate::types::*;
     use std::thread;
 
     #[test]

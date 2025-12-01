@@ -13,6 +13,7 @@ hakana-language-server = { path = "../language_server" }
 hakana-lint = { path = "../lint" }
 hakana-protocol = { path = "../protocol" }
 hakana-server = { path = "../server" }
+hakana-mcp-server = { path = "../mcp_server" }
 executable-finder = { path = "../executable_code_finder" }
 line_break_map = { path = "../../third-party/hhvm/hphp/hack/src/utils/line_break_map" }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
