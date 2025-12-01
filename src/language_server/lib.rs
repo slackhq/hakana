@@ -237,6 +237,14 @@ impl LanguageServer for Backend {
         let uri = params.text_document_position_params.text_document.uri;
         let file_path = uri.path().to_string();
 
+        // If we have a server connection, forward the request to the server
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(ref server_conn) = self.server_connection {
+            return self
+                .goto_definition_via_server(server_conn, &file_path, position)
+                .await;
+        }
+
         let scan_data_guard = self.previous_scan_data.read().await;
         let analysis_result_guard = self.previous_analysis_result.read().await;
         if let Some(scan_data) = scan_data_guard.as_ref() {
@@ -376,7 +384,10 @@ impl Backend {
                     self.client
                         .log_message(
                             MessageType::INFO,
-                            format!("Server analysis in progress: {} ({}%)", response.phase, response.progress_percent),
+                            format!(
+                                "Server analysis in progress: {} ({}%)",
+                                response.phase, response.progress_percent
+                            ),
                         )
                         .await;
                     // Don't update diagnostics while analysis is in progress
@@ -386,7 +397,8 @@ impl Backend {
                 let mut all_diagnostics = FxHashMap::default();
 
                 for issue in response.issues {
-                    let file_path = format!("{}/{}", self.analysis_config.root_dir, issue.file_path);
+                    let file_path =
+                        format!("{}/{}", self.analysis_config.root_dir, issue.file_path);
 
                     let diagnostic = Diagnostic::new(
                         Range {
@@ -428,7 +440,10 @@ impl Backend {
                 self.client
                     .log_message(
                         MessageType::INFO,
-                        format!("Received {} file(s) with issues from server", all_diagnostics.len()),
+                        format!(
+                            "Received {} file(s) with issues from server",
+                            all_diagnostics.len()
+                        ),
                     )
                     .await;
 
@@ -441,6 +456,106 @@ impl Backend {
                         format!("Failed to get issues from server: {}", e),
                     )
                     .await;
+            }
+        }
+    }
+
+    /// Perform goto-definition via the hakana server.
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn goto_definition_via_server(
+        &self,
+        server_conn: &Mutex<server_client::ServerConnection>,
+        file_path: &str,
+        position: Position,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!(
+                    "Forwarding goto-definition to server: {}:{}:{}",
+                    file_path,
+                    position.line + 1,
+                    position.character + 1
+                ),
+            )
+            .await;
+
+        // Convert absolute path to relative path for the server
+        let relative_path = if file_path.starts_with(&self.analysis_config.root_dir) {
+            file_path
+                .strip_prefix(&self.analysis_config.root_dir)
+                .and_then(|p| p.strip_prefix('/'))
+                .unwrap_or(file_path)
+                .to_string()
+        } else {
+            file_path.to_string()
+        };
+
+        let result = {
+            let mut conn = server_conn.lock().await;
+            conn.goto_definition(
+                relative_path,
+                position.line + 1, // LSP is 0-indexed, server expects 1-indexed
+                position.character + 1,
+            )
+        };
+
+        match result {
+            Ok(response) => {
+                if response.found {
+                    if let (
+                        Some(def_file_path),
+                        Some(start_line),
+                        Some(start_column),
+                        Some(end_line),
+                        Some(end_column),
+                    ) = (
+                        response.file_path,
+                        response.start_line,
+                        response.start_column,
+                        response.end_line,
+                        response.end_column,
+                    ) {
+                        self.client
+                            .log_message(
+                                MessageType::INFO,
+                                format!(
+                                    "Definition found: {}:{}:{}",
+                                    def_file_path, start_line, start_column
+                                ),
+                            )
+                            .await;
+
+                        if let Ok(def_uri) = Url::from_file_path(&def_file_path) {
+                            return Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                                uri: def_uri,
+                                range: Range {
+                                    start: Position {
+                                        line: start_line - 1, // Convert back to 0-indexed for LSP
+                                        character: (start_column - 1) as u32,
+                                    },
+                                    end: Position {
+                                        line: end_line - 1,
+                                        character: (end_column - 1) as u32,
+                                    },
+                                },
+                            })));
+                        }
+                    }
+                }
+                self.client
+                    .log_message(MessageType::INFO, "Definition not found")
+                    .await;
+                Ok(None)
+            }
+            Err(e) => {
+                self.client
+                    .log_message(
+                        MessageType::ERROR,
+                        format!("Failed to get definition from server: {}", e),
+                    )
+                    .await;
+                Ok(None)
             }
         }
     }
@@ -699,7 +814,9 @@ pub async fn serve_with_plugins<Reader, Writer>(
         }
         None => {
             stderr
-                .write_all_buf(&mut Cursor::new(b"No hakana server running. Using local analysis.\n"))
+                .write_all_buf(&mut Cursor::new(
+                    b"No hakana server running. Using local analysis.\n",
+                ))
                 .await
                 .ok();
             None

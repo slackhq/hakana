@@ -279,9 +279,91 @@ impl<'a> RequestHandler<'a> {
 
     /// Handle a goto-definition request.
     pub fn handle_goto_definition(self, req: GotoDefinitionRequest) -> Message {
-        // TODO: Implement using cached scan data
-        // For now, return not found
-        let _ = req;
+        let (scan_data, analysis_result) = match (
+            self.state.scan_data(),
+            self.state.analysis_result(),
+        ) {
+            (Some(sd), Some(ar)) => (sd, ar),
+            _ => {
+                return Message::GotoDefinitionResult(GotoDefinitionResponse {
+                    found: false,
+                    file_path: None,
+                    start_line: None,
+                    start_column: None,
+                    end_line: None,
+                    end_column: None,
+                });
+            }
+        };
+
+        // Build the full file path
+        let full_path = format!("{}/{}", self.config.root_dir, req.file_path);
+
+        // Read file contents to convert line/column to offset
+        let file_contents = match std::fs::read_to_string(&full_path) {
+            Ok(contents) => contents,
+            Err(_) => {
+                return Message::GotoDefinitionResult(GotoDefinitionResponse {
+                    found: false,
+                    file_path: None,
+                    start_line: None,
+                    start_column: None,
+                    end_line: None,
+                    end_column: None,
+                });
+            }
+        };
+
+        // Convert line/column to byte offset (1-indexed input)
+        let offset = line_column_to_offset(&file_contents, req.line, req.column);
+
+        // Get the FilePath ID
+        let file_path_id = match scan_data.interner.get(&full_path) {
+            Some(id) => id,
+            None => {
+                return Message::GotoDefinitionResult(GotoDefinitionResponse {
+                    found: false,
+                    file_path: None,
+                    start_line: None,
+                    start_column: None,
+                    end_line: None,
+                    end_column: None,
+                });
+            }
+        };
+
+        let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
+
+        // Look up in definition_locations
+        if let Some(definition_locations) = analysis_result.definition_locations.get(&file_path_obj) {
+            // Find the most specific (narrowest) matching range
+            let mut best_match = None;
+            let mut best_range_size = u32::MAX;
+
+            for ((start_offset, end_offset), (classlike_name, member_name)) in definition_locations {
+                if (offset as u32) >= *start_offset && (offset as u32) <= *end_offset {
+                    let range_size = end_offset - start_offset;
+                    if range_size < best_range_size {
+                        best_range_size = range_size;
+                        best_match = Some((classlike_name, member_name));
+                    }
+                }
+            }
+
+            if let Some((classlike_name, member_name)) = best_match {
+                if let Some(pos) = scan_data.codebase.get_symbol_pos(classlike_name, member_name) {
+                    let def_file_path = scan_data.interner.lookup(&pos.file_path.0);
+                    return Message::GotoDefinitionResult(GotoDefinitionResponse {
+                        found: true,
+                        file_path: Some(def_file_path.to_string()),
+                        start_line: Some(pos.start_line),
+                        start_column: Some(pos.start_column),
+                        end_line: Some(pos.end_line),
+                        end_column: Some(pos.end_column),
+                    });
+                }
+            }
+        }
 
         Message::GotoDefinitionResult(GotoDefinitionResponse {
             found: false,
@@ -436,4 +518,24 @@ fn offset_to_line_column(contents: &str, offset: usize) -> (u32, u16) {
 
     let column = (offset - line_start + 1) as u16;
     (line, column)
+}
+
+/// Convert line and column numbers (1-indexed) to byte offset.
+fn line_column_to_offset(contents: &str, line: u32, column: u32) -> usize {
+    let lines: Vec<&str> = contents.lines().collect();
+    let mut offset = 0;
+
+    // Add offset for complete lines before the target line (line is 1-indexed)
+    let target_line_index = (line.saturating_sub(1)) as usize;
+    for line_content in lines.iter().take(target_line_index) {
+        offset += line_content.len() + 1; // +1 for newline character
+    }
+
+    // Add offset for characters in the target line (column is 1-indexed)
+    if let Some(target_line) = lines.get(target_line_index) {
+        let col_offset = (column.saturating_sub(1)) as usize;
+        offset += col_offset.min(target_line.len());
+    }
+
+    offset
 }
