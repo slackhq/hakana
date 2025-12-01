@@ -239,12 +239,15 @@ impl Server {
 
         // Spawn analysis thread
         let analysis_thread = thread::spawn(move || {
-            let result = Self::run_initial_analysis_with_progress(
+            let result = Self::run_analysis(
                 &config,
                 &logger,
                 &progress_phase_clone,
                 &progress_files_analyzed_clone,
                 &progress_total_files_clone,
+                None, // No previous scan data for initial analysis
+                None, // No previous analysis result
+                None, // No changes - full analysis
             );
             match result {
                 Ok((analysis_result, scan_data)) => {
@@ -316,13 +319,19 @@ impl Server {
         }
     }
 
-    /// Run initial analysis with progress updates (called from background thread).
-    fn run_initial_analysis_with_progress(
+    /// Run analysis with progress updates.
+    ///
+    /// This is the unified analysis method used for both initial and incremental analysis.
+    /// Progress is reported via the provided Arc counters which can be polled from other threads.
+    fn run_analysis(
         config: &ServerConfig,
         logger: &Arc<Logger>,
         progress_phase: &std::sync::Arc<std::sync::Mutex<String>>,
         progress_files_analyzed: &std::sync::Arc<std::sync::atomic::AtomicU32>,
         progress_total_files: &std::sync::Arc<std::sync::atomic::AtomicU32>,
+        previous_scan_data: Option<SuccessfulScanData>,
+        previous_analysis_result: Option<AnalysisResult>,
+        changes: Option<FxHashMap<String, FileStatus>>,
     ) -> Result<(AnalysisResult, SuccessfulScanData), String> {
         use std::sync::atomic::Ordering;
 
@@ -388,9 +397,9 @@ impl Server {
             None,
             &config.header,
             Arc::new(interner),
-            None,
-            None,
-            None,
+            previous_scan_data,
+            previous_analysis_result,
+            changes,
             Some(move |progress: hakana_orchestrator::AnalysisProgress| {
                 // Reset counter when phase changes to Analyzing
                 if progress.phase == "Analyzing" {
@@ -424,51 +433,25 @@ impl Server {
         let change_count = changes.len();
         self.logger.log_sync(&format!("Re-analyzing {} changed files...", change_count));
 
-        // Collect custom issue names from plugins
-        let all_custom_issues: FxHashSet<String> = self.config.plugins
-            .iter()
-            .flat_map(|h| h.get_custom_issue_names())
-            .map(|s| s.to_string())
-            .collect();
-
-        let mut analysis_config =
-            Config::new(self.config.root_dir.clone(), all_custom_issues);
-        analysis_config.find_unused_expressions = self.config.find_unused_expressions;
-        analysis_config.find_unused_definitions = self.config.find_unused_definitions;
-        // Enable AST diffing for incremental analysis
-        analysis_config.ast_diff = true;
-        analysis_config.collect_goto_definition_locations = true;
-        // Clone the Arc references for the hooks
-        analysis_config.hooks = self.config.plugins.clone();
-
-        let mut interner = Interner::default();
-
-        if let Some(config_path) = &self.config.config_path {
-            let path = Path::new(config_path);
-            if path.exists() {
-                let _ = analysis_config.update_from_file(&self.config.root_dir, path, &mut interner);
-            }
-        }
-
         let (previous_scan_data, previous_analysis_result) = (
             self.state.scan_data.take(),
             self.state.analysis_result.take(),
         );
 
-        let result = hakana_orchestrator::scan_and_analyze(
-            Vec::new(),
-            None,
-            None,
-            Arc::new(analysis_config),
-            None,
-            self.config.threads,
-            self.logger.clone(),
-            &self.config.header,
-            interner,
+        // Create progress counters for this analysis
+        let progress_phase = std::sync::Arc::new(std::sync::Mutex::new("Analyzing".to_string()));
+        let progress_files_analyzed = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let progress_total_files = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+
+        let result = Self::run_analysis(
+            &self.config,
+            &self.logger,
+            &progress_phase,
+            &progress_files_analyzed,
+            &progress_total_files,
             previous_scan_data,
             previous_analysis_result,
             Some(changes),
-            || {},
         );
 
         match result {
