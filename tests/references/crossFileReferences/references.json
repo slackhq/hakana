@@ -4,6 +4,11 @@
     "references": [
       {
         "file": "tests/references/crossFileReferences/input.hack",
+        "start_offset": 104,
+        "end_offset": 108
+      },
+      {
+        "file": "tests/references/crossFileReferences/input.hack",
         "start_offset": 183,
         "end_offset": 196
       },

@@ -1,5 +1,11 @@
 [
   {
+    "end_offset": 111,
+    "file": "input.hack",
+    "name": "IMyInterface",
+    "start_offset": 99
+  },
+  {
     "end_offset": 252,
     "file": "input.hack",
     "name": "Implementation",

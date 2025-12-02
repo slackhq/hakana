@@ -10,5 +10,17 @@
     "file": "input.hack",
     "name": "B::bar",
     "start_offset": 71
+  },
+  {
+    "end_offset": 217,
+    "file": "input.hack",
+    "name": "A",
+    "start_offset": 216
+  },
+  {
+    "end_offset": 331,
+    "file": "input.hack",
+    "name": "B",
+    "start_offset": 330
   }
 ]

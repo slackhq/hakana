@@ -6,6 +6,12 @@
     "start_offset": 45
   },
   {
+    "end_offset": 105,
+    "file": "input.hack",
+    "name": "Foo",
+    "start_offset": 102
+  },
+  {
     "end_offset": 159,
     "file": "input.hack",
     "name": "myshape_t",

@@ -1,5 +1,17 @@
 [
   {
+    "end_offset": 108,
+    "file": "input.hack",
+    "name": "MyInterface",
+    "start_offset": 97
+  },
+  {
+    "end_offset": 205,
+    "file": "input.hack",
+    "name": "MyClass",
+    "start_offset": 198
+  },
+  {
     "end_offset": 283,
     "file": "input.hack",
     "name": "MyClass",

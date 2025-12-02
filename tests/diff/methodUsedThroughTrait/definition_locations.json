@@ -1,5 +1,17 @@
 [
   {
+    "end_offset": 180,
+    "file": "input.hack",
+    "name": "ParentClass",
+    "start_offset": 169
+  },
+  {
+    "end_offset": 199,
+    "file": "input.hack",
+    "name": "ParentTrait",
+    "start_offset": 188
+  },
+  {
     "end_offset": 290,
     "file": "input.hack",
     "name": "ConcreteClass",

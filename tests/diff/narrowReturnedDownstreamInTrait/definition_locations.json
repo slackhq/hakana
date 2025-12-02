@@ -10,5 +10,17 @@
     "file": "input.hack",
     "name": "T::bar",
     "start_offset": 71
+  },
+  {
+    "end_offset": 293,
+    "file": "input.hack",
+    "name": "A",
+    "start_offset": 292
+  },
+  {
+    "end_offset": 305,
+    "file": "input.hack",
+    "name": "T",
+    "start_offset": 304
   }
 ]

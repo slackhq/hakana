@@ -1,5 +1,11 @@
 [
   {
+    "end_offset": 88,
+    "file": "input.hack",
+    "name": "Facebook\\XHP\\Core\\element",
+    "start_offset": 62
+  },
+  {
     "end_offset": 234,
     "file": "input.hack",
     "name": "Facebook\\XHP\\Core\\node",

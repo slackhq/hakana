@@ -16,5 +16,23 @@
     "file": "input.hack",
     "name": "test_fn",
     "start_offset": 193
+  },
+  {
+    "end_offset": 349,
+    "file": "attribute.hack",
+    "name": "HH\\FunctionAttribute",
+    "start_offset": 328
+  },
+  {
+    "end_offset": 369,
+    "file": "attribute.hack",
+    "name": "HH\\ClassAttribute",
+    "start_offset": 351
+  },
+  {
+    "end_offset": 390,
+    "file": "attribute.hack",
+    "name": "HH\\MethodAttribute",
+    "start_offset": 371
   }
 ]

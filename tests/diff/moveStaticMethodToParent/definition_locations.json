@@ -22,5 +22,11 @@
     "file": "main.hack",
     "name": "AParent::toBeChanged",
     "start_offset": 62
+  },
+  {
+    "end_offset": 107,
+    "file": "input.hack",
+    "name": "AParent",
+    "start_offset": 100
   }
 ]

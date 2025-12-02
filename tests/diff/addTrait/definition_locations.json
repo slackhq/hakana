@@ -1,5 +1,11 @@
 [
   {
+    "end_offset": 73,
+    "file": "input.hack",
+    "name": "T",
+    "start_offset": 72
+  },
+  {
     "end_offset": 92,
     "file": "input.hack",
     "name": "C",

@@ -1,5 +1,11 @@
 [
   {
+    "end_offset": 131,
+    "file": "input.hack",
+    "name": "MyTrait",
+    "start_offset": 124
+  },
+  {
     "end_offset": 218,
     "file": "input.hack",
     "name": "MyTrait::traitMethod",
