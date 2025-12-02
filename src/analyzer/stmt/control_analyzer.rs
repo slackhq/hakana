@@ -245,7 +245,14 @@ pub(crate) fn get_control_actions(
                         has_ended = true;
                     }
 
-                    all_case_actions.extend(case_actions);
+                    // If this case falls through (has None) but a subsequent case (in execution order)
+                    // ends, don't propagate the None since execution will reach the ending case.
+                    if has_ended {
+                        all_case_actions
+                            .extend(case_actions.into_iter().filter(|a| *a != ControlAction::None));
+                    } else {
+                        all_case_actions.extend(case_actions);
+                    }
 
                     if !case_does_end && !has_ended {
                         continue 'outer;
@@ -284,7 +291,14 @@ pub(crate) fn get_control_actions(
                         has_ended = true;
                     }
 
-                    all_case_actions.extend(case_actions);
+                    // If this case falls through (has None) but a subsequent case (in execution order)
+                    // ends, don't propagate the None since execution will reach the ending case.
+                    if has_ended {
+                        all_case_actions
+                            .extend(case_actions.into_iter().filter(|a| *a != ControlAction::None));
+                    } else {
+                        all_case_actions.extend(case_actions);
+                    }
 
                     if !case_does_end && !has_ended {
                         continue 'outer;
