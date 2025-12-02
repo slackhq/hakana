@@ -12,6 +12,8 @@ use crate::{expression_analyzer, stmt_analyzer};
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::function_context::FunctionContext;
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_reflector::typehint_resolver::get_type_references_from_hint;
+use hakana_str::StrId;
 use oxidized::aast;
 
 pub(crate) fn analyze(
@@ -55,7 +57,29 @@ pub(crate) fn analyze(
                 return Err(InternalError(error, pos));
             }
         }
-        aast::Def::Typedef(_) | aast::Def::NamespaceUse(_) => {
+        aast::Def::Typedef(boxed) => {
+            // Collect goto-definition locations for types referenced in the typedef
+            if statements_analyzer
+                .get_config()
+                .collect_goto_definition_locations
+            {
+                let resolved_names = statements_analyzer.file_analyzer.resolved_names;
+                let file_path = *statements_analyzer.get_file_path();
+                let file_def_locations = analysis_result
+                    .definition_locations
+                    .entry(file_path)
+                    .or_default();
+
+                let type_refs = get_type_references_from_hint(&boxed.runtime_type, resolved_names);
+                for (name, start_offset, end_offset) in type_refs {
+                    file_def_locations.insert(
+                        (start_offset as u32, end_offset as u32),
+                        (name, StrId::EMPTY),
+                    );
+                }
+            }
+        }
+        aast::Def::NamespaceUse(_) => {
             // already handled
         }
         aast::Def::Stmt(boxed) => {

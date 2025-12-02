@@ -13,6 +13,7 @@ use hakana_code_info::data_flow::graph::DataFlowGraph;
 use hakana_code_info::function_context::{FunctionContext, FunctionLikeIdentifier};
 use hakana_code_info::issue::IssueKind;
 use hakana_code_info::{analysis_result::AnalysisResult, issue::Issue};
+use hakana_reflector::typehint_resolver::get_type_references_from_hint;
 use hakana_str::StrId;
 use oxidized::aast;
 use rustc_hash::FxHashMap;
@@ -79,6 +80,52 @@ impl<'a> ClassLikeAnalyzer<'a> {
         }
 
         let mut function_context = FunctionContext::new();
+
+        // Collect goto-definition locations for extends/implements/uses clauses
+        if statements_analyzer
+            .get_config()
+            .collect_goto_definition_locations
+        {
+            let resolved_names = statements_analyzer.file_analyzer.resolved_names;
+            let file_path = *statements_analyzer.get_file_path();
+            let file_def_locations = analysis_result
+                .definition_locations
+                .entry(file_path)
+                .or_default();
+
+            // Extends clause (parent class for classes, parent interfaces for interfaces)
+            for parent_hint in &stmt.extends {
+                let type_refs = get_type_references_from_hint(parent_hint, resolved_names);
+                for (type_name, start_offset, end_offset) in type_refs {
+                    file_def_locations.insert(
+                        (start_offset as u32, end_offset as u32),
+                        (type_name, StrId::EMPTY),
+                    );
+                }
+            }
+
+            // Implements clause
+            for interface_hint in &stmt.implements {
+                let type_refs = get_type_references_from_hint(interface_hint, resolved_names);
+                for (type_name, start_offset, end_offset) in type_refs {
+                    file_def_locations.insert(
+                        (start_offset as u32, end_offset as u32),
+                        (type_name, StrId::EMPTY),
+                    );
+                }
+            }
+
+            // Uses clause (traits)
+            for use_ in &stmt.uses {
+                let type_refs = get_type_references_from_hint(use_, resolved_names);
+                for (type_name, start_offset, end_offset) in type_refs {
+                    file_def_locations.insert(
+                        (start_offset as u32, end_offset as u32),
+                        (type_name, StrId::EMPTY),
+                    );
+                }
+            }
+        }
         function_context.calling_class = Some(name);
         function_context.calling_class_final = stmt.final_;
 
