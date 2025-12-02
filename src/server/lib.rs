@@ -77,6 +77,8 @@ pub struct Server {
     pending_changes: FxHashMap<String, FileStatus>,
     /// Handle for receiving file changes from watchman
     watchman_handle: Option<watchman::WatchmanHandle>,
+    /// Whether a config change triggered full re-analysis is pending
+    config_changed: bool,
 }
 
 impl Server {
@@ -118,6 +120,7 @@ impl Server {
             start_time: Instant::now(),
             pending_changes: FxHashMap::default(),
             watchman_handle: None,
+            config_changed: false,
         })
     }
 
@@ -162,10 +165,12 @@ impl Server {
             "Starting watchman subscription for: {}",
             self.config.root_dir
         ));
+        let config_path = self.config.config_path.as_ref().map(PathBuf::from);
         let handle = watchman::start_subscription(
             PathBuf::from(&self.config.root_dir),
             ignore_files,
             watchman_clock,
+            config_path,
         );
         self.watchman_handle = Some(handle);
 
@@ -175,10 +180,14 @@ impl Server {
         // Main loop
         loop {
             // Poll for file changes from watchman
-            self.poll_watchman_changes();
+            self.poll_watchman_events();
 
+            // Check for config changes (triggers full re-analysis)
+            if self.config_changed && !self.state.is_analysis_in_progress() {
+                self.do_config_reload_analysis();
+            }
             // Check for pending file changes and re-analyze if needed
-            if !self.pending_changes.is_empty() && !self.state.is_analysis_in_progress() {
+            else if !self.pending_changes.is_empty() && !self.state.is_analysis_in_progress() {
                 self.do_incremental_analysis();
             }
 
@@ -476,6 +485,61 @@ impl Server {
         self.state.set_phase("Ready".to_string());
     }
 
+    /// Perform full re-analysis after config file change.
+    /// This discards all cached state and re-analyzes from scratch.
+    fn do_config_reload_analysis(&mut self) {
+        self.config_changed = false;
+        self.pending_changes.clear();
+
+        self.state.set_analysis_in_progress(true);
+        self.state.set_phase("Reloading config".to_string());
+
+        self.logger.log_sync("Config file changed, performing full re-analysis...");
+
+        // Discard previous state - we need to re-analyze everything
+        self.state.scan_data = None;
+        self.state.analysis_result = None;
+
+        // Create progress counters for this analysis
+        let progress_phase = std::sync::Arc::new(std::sync::Mutex::new("Scanning".to_string()));
+        let progress_files_analyzed = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let progress_total_files = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+
+        // Run full analysis with no previous state and no changes (triggers full scan)
+        let result = Self::run_analysis(
+            &self.config,
+            &self.logger,
+            &progress_phase,
+            &progress_files_analyzed,
+            &progress_total_files,
+            None, // No previous scan data - triggers full scan
+            None, // No previous analysis result
+            None, // No changes - full analysis
+        );
+
+        match result {
+            Ok((analysis_result, scan_data)) => {
+                let issue_count: usize = analysis_result
+                    .emitted_issues
+                    .values()
+                    .map(|v| v.len())
+                    .sum();
+                self.logger.log_sync(&format!(
+                    "Config reload analysis complete: {} files, {} issues",
+                    scan_data.codebase.files.len(),
+                    issue_count
+                ));
+                self.state.update_state(scan_data, analysis_result);
+            }
+            Err(e) => {
+                self.logger.log_sync(&format!("Config reload analysis failed: {}", e));
+            }
+        }
+
+        self.state.set_analysis_in_progress(false);
+        self.state.set_phase("Ready".to_string());
+    }
+
     /// Load ignore_files from config file.
     fn load_ignore_files(&self) -> Vec<String> {
         use hakana_analyzer::config::json_config;
@@ -502,18 +566,31 @@ impl Server {
         Vec::new()
     }
 
-    /// Poll for file changes from the watchman thread.
-    fn poll_watchman_changes(&mut self) {
+    /// Poll for events from the watchman thread.
+    fn poll_watchman_events(&mut self) {
         if let Some(handle) = &self.watchman_handle {
-            let changes = handle.poll_changes();
-            if !changes.is_empty() {
-                let change_count = changes.len();
-                self.pending_changes.extend(changes);
-                self.logger.log_sync(&format!(
-                    "Received {} file change(s) from watchman ({} pending)",
-                    change_count,
-                    self.pending_changes.len()
-                ));
+            let events = handle.poll_events();
+            for event in events {
+                match event {
+                    watchman::WatchmanEvent::ConfigChanged => {
+                        self.logger.log_sync("Config file changed, scheduling full re-analysis");
+                        self.config_changed = true;
+                        // Clear pending changes since we'll do a full re-analysis anyway
+                        self.pending_changes.clear();
+                    }
+                    watchman::WatchmanEvent::FileChanges(changes) => {
+                        // Only queue file changes if we're not already doing a config reload
+                        if !self.config_changed {
+                            let change_count = changes.len();
+                            self.pending_changes.extend(changes);
+                            self.logger.log_sync(&format!(
+                                "Received {} file change(s) from watchman ({} pending)",
+                                change_count,
+                                self.pending_changes.len()
+                            ));
+                        }
+                    }
+                }
             }
         }
     }
