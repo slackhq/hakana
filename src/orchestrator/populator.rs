@@ -606,9 +606,17 @@ fn populate_data_from_parent_classlike(
             .collect::<FxHashMap<_, _>>(),
     );
 
-    for (name, type_info) in &parent_storage.type_constants {
-        if !storage.type_constants.contains_key(name) {
-            storage.type_constants.insert(*name, type_info.clone());
+    // Don't inherit type constants for traits from their required_classlikes.
+    // The actual class using the trait will inherit type constants from its own parent,
+    // which may override the abstract type constant with a concrete one.
+    let is_trait_with_required_parent = matches!(storage.kind, SymbolKind::Trait)
+        && storage.required_classlikes.contains(parent_storage_class);
+
+    if !is_trait_with_required_parent {
+        for (name, type_info) in &parent_storage.type_constants {
+            if !storage.type_constants.contains_key(name) {
+                storage.type_constants.insert(*name, type_info.clone());
+            }
         }
     }
 

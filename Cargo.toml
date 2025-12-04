@@ -13,7 +13,7 @@ name = "hakana"
 path = "src/main.rs"
 
 [[bin]]
-name = "hakana-mcp"
+name = "hakana-mcp-server"
 path = "src/mcp.rs"
 
 [dependencies]
