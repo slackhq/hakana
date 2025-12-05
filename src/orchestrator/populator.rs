@@ -835,9 +835,16 @@ fn inherit_properties_from_parent(storage: &mut ClassLikeInfo, parent_storage: &
 
 fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLikeInfo) {
     if !parent_storage.template_types.is_empty() {
-        storage
+        // Only initialize if not already populated from a more specific source
+        // (e.g., from a subclass that already resolved the type params through traits)
+        if !storage
             .template_extended_params
-            .insert(parent_storage.name, IndexMap::new());
+            .contains_key(&parent_storage.name)
+        {
+            storage
+                .template_extended_params
+                .insert(parent_storage.name, IndexMap::new());
+        }
 
         if let Some(parent_offsets) = storage.template_extended_offsets.get(&parent_storage.name) {
             for (i, extended_type) in parent_offsets.iter().enumerate() {
@@ -869,18 +876,11 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
                 }
             }
         } else {
-            for (template_name, template_type_map) in &parent_storage.template_types {
-                for (_, template_type) in template_type_map {
-                    storage
-                        .template_extended_params
-                        .entry(parent_storage.name)
-                        .or_default()
-                        .insert(*template_name, template_type.clone());
+            // Extend with parent's extended params, but don't overwrite existing entries
+            for (key, value) in &parent_storage.template_extended_params {
+                if !storage.template_extended_params.contains_key(key) {
+                    storage.template_extended_params.insert(*key, value.clone());
                 }
-
-                storage
-                    .template_extended_params
-                    .extend(parent_storage.template_extended_params.clone());
             }
         }
     } else {
