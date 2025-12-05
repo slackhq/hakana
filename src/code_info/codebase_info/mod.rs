@@ -288,6 +288,13 @@ impl CodebaseInfo {
     }
 
     pub fn method_exists(&self, classlike_name: &StrId, method_name: &StrId) -> bool {
+        if self
+            .functionlike_infos
+            .contains_key(&(*classlike_name, *method_name))
+        {
+            return true;
+        }
+
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             classlike_info
                 .declaring_method_ids
