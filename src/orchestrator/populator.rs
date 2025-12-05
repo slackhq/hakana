@@ -660,6 +660,26 @@ fn populate_data_from_trait(
         .all_parent_interfaces
         .extend(trait_storage.direct_parent_interfaces.clone());
 
+    // Also inherit all_parent_interfaces from the trait (includes require implements interfaces)
+    storage
+        .all_parent_interfaces
+        .extend(trait_storage.all_parent_interfaces.clone());
+
+    // Inherit required_classlikes from used traits
+    // This ensures that when trait A uses trait B which has "require implements I",
+    // trait A also gets access to methods from interface I
+    for required in &trait_storage.required_classlikes {
+        if !storage.required_classlikes.contains(required) {
+            storage.required_classlikes.push(*required);
+            // Also add to direct_parent_interfaces so methods are inherited
+            // Only do this for required_classlikes (not regular interface implements)
+            // to avoid template parameter issues
+            if !storage.direct_parent_interfaces.contains(required) {
+                storage.direct_parent_interfaces.push(*required);
+            }
+        }
+    }
+
     for (name, type_info) in &trait_storage.type_constants {
         if let Some(ClassConstantType::Concrete(_)) = storage.type_constants.get(name) {
             // do nothing
