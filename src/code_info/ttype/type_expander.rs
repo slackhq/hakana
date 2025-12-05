@@ -668,24 +668,64 @@ fn expand_atomic(
             TAtomic::TNamedObject {
                 name: class_name,
                 is_this,
+                extra_types,
                 ..
             } => {
-                let classlike_storage = if let Some(c) = codebase.classlike_infos.get(class_name) {
-                    c
-                } else {
-                    *skip_key = true;
-                    new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
-                    return;
-                };
+                // Collect all classes to check for the type constant (main class + extra_types from intersections)
+                let mut classes_to_check: Vec<&StrId> = vec![class_name];
+                if let Some(extra) = extra_types {
+                    for extra_type in extra {
+                        if let TAtomic::TNamedObject { name, .. } = extra_type {
+                            classes_to_check.push(name);
+                        }
+                    }
+                }
 
-                let type_constant = if let Some(t) =
-                    classlike_storage.type_constants.get(member_name)
-                {
-                    t.clone()
-                } else {
+                // Collect resolved type constants from all classes in the intersection
+                let mut resolved_types: Vec<TUnion> = Vec::new();
+                let mut found_any = false;
+
+                for check_class in &classes_to_check {
+                    if let Some(classlike_storage) = codebase.classlike_infos.get(*check_class) {
+                        if let Some(type_const) = classlike_storage.type_constants.get(member_name) {
+                            found_any = true;
+                            match type_const {
+                                ClassConstantType::Concrete(type_) => {
+                                    resolved_types.push(type_.clone());
+                                }
+                                ClassConstantType::Abstract(Some(type_)) => {
+                                    resolved_types.push(type_.clone());
+                                }
+                                ClassConstantType::Abstract(None) => {
+                                    // Abstract with no constraint - don't add anything specific
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if !found_any {
                     *skip_key = true;
                     new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
                     return;
+                }
+
+                // Intersect all the resolved type constants
+                let type_constant_result = if resolved_types.is_empty() {
+                    // All were abstract with no constraints
+                    None
+                } else if resolved_types.len() == 1 {
+                    Some(resolved_types.remove(0))
+                } else {
+                    // Intersect all resolved types
+                    let mut result = resolved_types.remove(0);
+                    for other_type in resolved_types {
+                        if let Some(intersected) = intersect_union_types_simple(&result, &other_type, codebase) {
+                            result = intersected;
+                        }
+                        // If intersection is empty/nothing, keep the last result
+                    }
+                    Some(result)
                 };
 
                 let mut is_this = *is_this;
@@ -706,21 +746,20 @@ fn expand_atomic(
                     }
                 }
 
-                match (is_this, type_constant) {
-                    (_, ClassConstantType::Concrete(mut type_))
-                    | (false, ClassConstantType::Abstract(Some(mut type_))) => {
+                if let Some(mut resolved_type) = type_constant_result {
+                    if !is_this {
                         expand_union(
                             codebase,
                             interner,
                             file_path,
-                            &mut type_,
+                            &mut resolved_type,
                             options,
                             data_flow_graph,
                             cost,
                         );
 
                         *skip_key = true;
-                        new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
+                        new_return_type_parts.extend(resolved_type.types.into_iter().map(|mut v| {
                             if let TAtomic::TDict(TDict {
                                 known_items: Some(_),
                                 ref mut shape_name,
@@ -733,22 +772,21 @@ fn expand_atomic(
                             };
                             v
                         }));
-                    }
-                    (true, ClassConstantType::Abstract(Some(mut type_))) => {
+                    } else {
+                        // is_this is true - keep as abstract type constant
                         expand_union(
                             codebase,
                             interner,
                             file_path,
-                            &mut type_,
+                            &mut resolved_type,
                             options,
                             data_flow_graph,
                             cost,
                         );
 
-                        *as_type = Box::new(type_);
+                        *as_type = Box::new(resolved_type);
                     }
-                    _ => {}
-                };
+                }
             }
             _ => {
                 *skip_key = true;

@@ -329,7 +329,8 @@ impl TUnion {
                 if let TAtomic::TGenericParam { .. }
                 | TAtomic::TGenericClassPtr { .. }
                 | TAtomic::TGenericClassname { .. }
-                | TAtomic::TGenericTypename { .. } = inner
+                | TAtomic::TGenericTypename { .. }
+                | TAtomic::TClassTypeConstant { .. } = inner
                 {
                     template_types.push(inner);
                 }
