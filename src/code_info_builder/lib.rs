@@ -143,12 +143,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .get(&(gc.name.0.start_offset() as u32))
             .unwrap();
 
-        self.codebase
-            .const_files
-            .entry((self.file_source.file_path_actual).clone())
-            .or_default()
-            .insert(name);
-
         let definition_location = HPos::new(&gc.name.0, self.file_source.file_path);
 
         let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&name).unwrap_or(&vec![]));
