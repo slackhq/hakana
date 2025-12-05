@@ -1,6 +1,6 @@
 use hakana_str::StrId;
 
-use hakana_code_info::ttype::{get_mixed_any, get_nothing};
+use hakana_code_info::ttype::{get_mixed_any, get_nothing, intersect_union_types_simple};
 use hakana_code_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
@@ -258,25 +258,41 @@ pub(crate) fn handle_method_call_on_named_object(
             );
         }
 
-        let return_type_candidate = existing_atomic_method_call_analyzer::analyze(
-            statements_analyzer,
-            classlike_names[0], // todo intersect multiple return values
-            &method_name,
-            Some(expr.0),
-            (expr.2, expr.3, expr.4),
-            lhs_type_part,
-            pos,
-            Some(expr.1.pos()),
-            analysis_data,
-            context,
-            lhs_var_id.as_ref(),
-        )?;
+        // Get return types from all classes in the intersection and intersect them
+        let mut return_type_candidate: Option<TUnion> = None;
 
-        result.return_type = Some(hakana_code_info::ttype::add_optional_union_type(
-            return_type_candidate,
-            result.return_type.as_ref(),
-            codebase,
-        ));
+        for classlike in &classlike_names {
+            let class_return_type = existing_atomic_method_call_analyzer::analyze(
+                statements_analyzer,
+                *classlike,
+                &method_name,
+                Some(expr.0),
+                (expr.2, expr.3, expr.4),
+                lhs_type_part,
+                pos,
+                Some(expr.1.pos()),
+                analysis_data,
+                context,
+                lhs_var_id.as_ref(),
+            )?;
+
+            return_type_candidate = Some(match return_type_candidate {
+                None => class_return_type,
+                Some(existing) => {
+                    // Intersect the return types from multiple classes
+                    intersect_union_types_simple(&existing, &class_return_type, codebase)
+                        .unwrap_or(existing)
+                }
+            });
+        }
+
+        if let Some(return_type_candidate) = return_type_candidate {
+            result.return_type = Some(hakana_code_info::ttype::add_optional_union_type(
+                return_type_candidate,
+                result.return_type.as_ref(),
+                codebase,
+            ));
+        }
     } else {
         for arg in expr.3 {
             evaluate_arbitrary_param(statements_analyzer, arg, analysis_data, context)?;
