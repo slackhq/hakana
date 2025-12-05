@@ -553,6 +553,20 @@ fn intersect_atomic_with_atomic_simple(
                 },
             );
         }
+        (
+            TAtomic::TAwaitable {
+                value: type_1_value,
+            },
+            TAtomic::TAwaitable {
+                value: type_2_value,
+            },
+        ) => {
+            return intersect_union_types_simple(type_1_value, type_2_value, codebase).map(
+                |intersected| TAtomic::TAwaitable {
+                    value: Box::new(intersected),
+                },
+            );
+        }
         _ => (),
     }
 
