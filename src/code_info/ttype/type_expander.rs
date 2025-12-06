@@ -664,129 +664,36 @@ fn expand_atomic(
             *class_type = Box::new(atomic_return_type_parts.remove(0));
         }
 
-        match class_type.as_ref() {
-            TAtomic::TNamedObject(TNamedObject {
-                name: class_name,
-                is_this,
-                extra_types,
-                ..
-            }) => {
-                // Collect all classes to check for the type constant (main class + extra_types from intersections)
-                let mut classes_to_check: Vec<&StrId> = vec![class_name];
-                if let Some(extra) = extra_types {
-                    for extra_type in extra {
-                        if let TAtomic::TNamedObject(TNamedObject { name, .. }) = extra_type {
-                            classes_to_check.push(name);
+        // Collect class names to check - either a single class or all classes in an intersection
+        // If class_type is `this` (StrId::THIS), try to resolve it first via static_class_type
+        let classes_to_check: Vec<&StrId> = match class_type.as_ref() {
+            TAtomic::TNamedObject(TNamedObject { name, is_this: true, .. }) if *name == StrId::THIS => {
+                // When we have `this::TypeConstant`, resolve `this` to the static class type
+                if let StaticClassType::Name(static_name) = &options.static_class_type {
+                    vec![static_name]
+                } else if let StaticClassType::Object(TAtomic::TNamedObject(TNamedObject { name: static_name, .. })) = &options.static_class_type {
+                    vec![static_name]
+                } else if let StaticClassType::Object(TAtomic::TObjectIntersection { types }) = &options.static_class_type {
+                    types.iter().filter_map(|t| {
+                        if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
+                            Some(name)
+                        } else {
+                            None
                         }
-                    }
-                }
-
-                // Collect resolved type constants from all classes in the intersection
-                let mut resolved_types: Vec<TUnion> = Vec::new();
-                let mut found_any = false;
-
-                for check_class in &classes_to_check {
-                    if let Some(classlike_storage) = codebase.classlike_infos.get(*check_class) {
-                        if let Some(type_const) = classlike_storage.type_constants.get(member_name) {
-                            found_any = true;
-                            match type_const {
-                                ClassConstantType::Concrete(type_) => {
-                                    resolved_types.push(type_.clone());
-                                }
-                                ClassConstantType::Abstract(Some(type_)) => {
-                                    resolved_types.push(type_.clone());
-                                }
-                                ClassConstantType::Abstract(None) => {
-                                    // Abstract with no constraint - don't add anything specific
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if !found_any {
-                    *skip_key = true;
-                    new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
-                    return;
-                }
-
-                // Intersect all the resolved type constants
-                let type_constant_result = if resolved_types.is_empty() {
-                    // All were abstract with no constraints
-                    None
-                } else if resolved_types.len() == 1 {
-                    Some(resolved_types.remove(0))
+                    }).collect()
                 } else {
-                    // Intersect all resolved types
-                    let mut result = resolved_types.remove(0);
-                    for other_type in resolved_types {
-                        if let Some(intersected) = intersect_union_types_simple(&result, &other_type, codebase) {
-                            result = intersected;
-                        }
-                        // If intersection is empty/nothing, keep the last result
-                    }
-                    Some(result)
-                };
-
-                let mut is_this = *is_this;
-
-                if is_this {
-                    if let StaticClassType::Object(obj) = options.static_class_type {
-                        if let TAtomic::TNamedObject(TNamedObject {
-                            name: new_this_name,
-                            ..
-                        }) = obj
-                        {
-                            if !codebase.class_extends_or_implements(new_this_name, class_name) {
-                                is_this = false
-                            }
-                        }
-                    } else {
-                        is_this = false;
-                    }
+                    vec![name]
                 }
-
-                if let Some(mut resolved_type) = type_constant_result {
-                    if !is_this {
-                        expand_union(
-                            codebase,
-                            interner,
-                            file_path,
-                            &mut resolved_type,
-                            options,
-                            data_flow_graph,
-                            cost,
-                        );
-
-                        *skip_key = true;
-                        new_return_type_parts.extend(resolved_type.types.into_iter().map(|mut v| {
-                            if let TAtomic::TDict(TDict {
-                                known_items: Some(_),
-                                ref mut shape_name,
-                                ..
-                            }) = v
-                            {
-                                if !options.force_alias_expansion {
-                                    *shape_name = Some((*class_name, Some(*member_name)));
-                                }
-                            };
-                            v
-                        }));
+            }
+            TAtomic::TNamedObject(TNamedObject { name, .. }) => vec![name],
+            TAtomic::TObjectIntersection { types } => {
+                types.iter().filter_map(|t| {
+                    if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
+                        Some(name)
                     } else {
-                        // is_this is true - keep as abstract type constant
-                        expand_union(
-                            codebase,
-                            interner,
-                            file_path,
-                            &mut resolved_type,
-                            options,
-                            data_flow_graph,
-                            cost,
-                        );
-
-                        *as_type = Box::new(resolved_type);
+                        None
                     }
-                }
+                }).collect()
             }
             _ => {
                 *skip_key = true;
@@ -794,6 +701,137 @@ fn expand_atomic(
                 return;
             }
         };
+
+        // Track if we have is_this on any of the class types
+        let is_this = match class_type.as_ref() {
+            TAtomic::TNamedObject(TNamedObject { is_this, .. }) => *is_this,
+            TAtomic::TObjectIntersection { types } => {
+                types.iter().any(|t| {
+                    if let TAtomic::TNamedObject(TNamedObject { is_this, .. }) = t {
+                        *is_this
+                    } else {
+                        false
+                    }
+                })
+            }
+            _ => false,
+        };
+
+        // Collect resolved type constants from all classes
+        let mut resolved_types: Vec<TUnion> = Vec::new();
+        let mut found_any = false;
+
+        for check_class in &classes_to_check {
+            if let Some(classlike_storage) = codebase.classlike_infos.get(*check_class) {
+                if let Some(type_const) = classlike_storage.type_constants.get(member_name) {
+                    found_any = true;
+                    match type_const {
+                        ClassConstantType::Concrete(type_) => {
+                            resolved_types.push(type_.clone());
+                        }
+                        ClassConstantType::Abstract(Some(type_)) => {
+                            resolved_types.push(type_.clone());
+                        }
+                        ClassConstantType::Abstract(None) => {
+                            // Abstract with no constraint - don't add anything specific
+                        }
+                    }
+                }
+            }
+        }
+
+        if !found_any {
+            *skip_key = true;
+            new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
+            return;
+        }
+
+        // Intersect all the resolved type constants
+        let type_constant_result = if resolved_types.is_empty() {
+            // All were abstract with no constraints
+            None
+        } else if resolved_types.len() == 1 {
+            Some(resolved_types.remove(0))
+        } else {
+            // Intersect all resolved types
+            let mut result = resolved_types.remove(0);
+            for other_type in resolved_types {
+                if let Some(intersected) = intersect_union_types_simple(&result, &other_type, codebase) {
+                    result = intersected;
+                }
+                // If intersection is empty/nothing, keep the last result
+            }
+            Some(result)
+        };
+
+        // Get the first class name for shape tracking
+        let first_class_name = classes_to_check.first().copied();
+
+        let mut is_this = is_this;
+
+        if is_this {
+            if let StaticClassType::Object(obj) = options.static_class_type {
+                if let TAtomic::TNamedObject(TNamedObject {
+                    name: new_this_name,
+                    ..
+                }) = obj
+                {
+                    // Check if new_this extends any of the classes in the intersection
+                    let extends_any = classes_to_check.iter().any(|class_name| {
+                        codebase.class_extends_or_implements(new_this_name, class_name)
+                    });
+                    if !extends_any {
+                        is_this = false
+                    }
+                }
+            } else {
+                is_this = false;
+            }
+        }
+
+        if let Some(mut resolved_type) = type_constant_result {
+            if !is_this {
+                expand_union(
+                    codebase,
+                    interner,
+                    file_path,
+                    &mut resolved_type,
+                    options,
+                    data_flow_graph,
+                    cost,
+                );
+
+                *skip_key = true;
+                new_return_type_parts.extend(resolved_type.types.into_iter().map(|mut v| {
+                    if let TAtomic::TDict(TDict {
+                        known_items: Some(_),
+                        ref mut shape_name,
+                        ..
+                    }) = v
+                    {
+                        if !options.force_alias_expansion {
+                            if let Some(class_name) = first_class_name {
+                                *shape_name = Some((*class_name, Some(*member_name)));
+                            }
+                        }
+                    };
+                    v
+                }));
+            } else {
+                // is_this is true - keep as abstract type constant
+                expand_union(
+                    codebase,
+                    interner,
+                    file_path,
+                    &mut resolved_type,
+                    options,
+                    data_flow_graph,
+                    cost,
+                );
+
+                *as_type = Box::new(resolved_type);
+            }
+        }
     } else if let TAtomic::TClosureAlias { id, .. } = &return_type_part {
         if let Some(value) =
             get_closure_from_id(id, codebase, interner, file_path, data_flow_graph, cost)
@@ -802,6 +840,29 @@ fn expand_atomic(
             new_return_type_parts.push(value);
             return;
         }
+    } else if let TAtomic::TObjectIntersection { types } = return_type_part {
+        // Expand each type within the intersection
+        for intersection_type in types.iter_mut() {
+            let mut inner_skip_key = false;
+            let mut inner_new_parts = Vec::new();
+            expand_atomic(
+                intersection_type,
+                codebase,
+                interner,
+                file_path,
+                options,
+                data_flow_graph,
+                cost,
+                &mut inner_skip_key,
+                &mut inner_new_parts,
+                extra_data_flow_nodes,
+            );
+            // If expand_atomic wants to replace the inner type, use the first replacement
+            if inner_skip_key && !inner_new_parts.is_empty() {
+                *intersection_type = inner_new_parts.remove(0);
+            }
+        }
+        return;
     }
 }
 

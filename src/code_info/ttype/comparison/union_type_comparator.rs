@@ -86,11 +86,7 @@ pub fn is_contained_by(
 
                 continue;
             }
-            TAtomic::TGenericParam(TGenericParam {
-                extra_types: None,
-                as_type,
-                ..
-            }) => {
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
                 if !container_has_template {
                     input_atomic_types.extend(as_type.types.iter().collect::<Vec<_>>());
                     continue;

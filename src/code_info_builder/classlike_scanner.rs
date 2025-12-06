@@ -322,7 +322,6 @@ pub(crate) fn scan(
                                 name: *class_name,
                                 type_params: None,
                                 is_this: false,
-                                extra_types: None,
                                 remapped_params: false,
                             })),
                             wrap_atomic(underlying_enum_type.clone()),

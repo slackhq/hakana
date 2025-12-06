@@ -25,17 +25,29 @@ pub fn is_contained_by(
         return true;
     }
 
-    if let TAtomic::TGenericParam(TGenericParam { .. })
-    | TAtomic::TNamedObject(TNamedObject {
-        extra_types: Some(_),
-        ..
-    }) = container_type_part
+    // Handle TObjectIntersection as input: A&B is contained by C if any type in the intersection is contained by C
+    if let TAtomic::TObjectIntersection { types } = input_type_part {
+        // Check if any type in the intersection is contained by the container
+        for intersection_type in types {
+            if is_contained_by(
+                codebase,
+                file_path,
+                intersection_type,
+                container_type_part,
+                inside_assertion,
+                atomic_comparison_result,
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    if let TAtomic::TGenericParam(TGenericParam { .. }) | TAtomic::TObjectIntersection { .. } =
+        container_type_part
     {
-        if let TAtomic::TGenericParam(TGenericParam { .. })
-        | TAtomic::TNamedObject(TNamedObject {
-            extra_types: Some(_),
-            ..
-        }) = input_type_part
+        if let TAtomic::TGenericParam(TGenericParam { .. }) | TAtomic::TObjectIntersection { .. } =
+            input_type_part
         {
             return object_type_comparator::is_shallowly_contained_by(
                 codebase,
@@ -457,26 +469,10 @@ pub fn is_contained_by(
     // TODO handle conditional container_type_part
 
     if let TAtomic::TGenericParam(TGenericParam {
-        extra_types: input_extra_types,
         as_type: input_extends,
         ..
     }) = input_type_part
     {
-        if let Some(input_extra_types) = input_extra_types {
-            for input_extra_type in input_extra_types {
-                if is_contained_by(
-                    codebase,
-                    file_path,
-                    input_extra_type,
-                    container_type_part,
-                    inside_assertion,
-                    atomic_comparison_result,
-                ) {
-                    return true;
-                }
-            }
-        }
-
         for input_extends_type_part in input_extends.types.iter() {
             if matches!(input_extends_type_part, TAtomic::TNull { .. })
                 && matches!(container_type_part, TAtomic::TNull { .. })

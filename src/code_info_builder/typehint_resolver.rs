@@ -412,7 +412,6 @@ fn get_reference_type(
             name: class_name,
             type_params: None,
             is_this: type_name != "self",
-            extra_types: None,
             remapped_params: false,
         });
     }
@@ -447,7 +446,6 @@ fn get_reference_type(
                 Some(vec![get_arraykey(true), get_mixed_any(), get_mixed_any()])
             },
             is_this: false,
-            extra_types: None,
             remapped_params: false,
         });
     }
@@ -496,7 +494,6 @@ fn get_template_type(
         param_name: *type_name,
         as_type: Box::new((**as_type).clone()),
         defining_entity: *defining_entity,
-        extra_types: None,
     })
 }
 

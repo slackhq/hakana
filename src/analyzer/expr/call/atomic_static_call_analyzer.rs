@@ -45,15 +45,14 @@ pub(crate) fn analyze(
     result: &mut AtomicMethodCallAnalysisResult,
 ) -> Result<(), AnalysisError> {
     if let TAtomic::TNamedObject(TNamedObject {
-        name, extra_types, ..
+        name, ..
     }) = &lhs_type_part
     {
         if let aast::ClassId_::CIexpr(lhs_expr) = &expr.0.2 {
             if !matches!(&lhs_expr.2, aast::Expr_::Id(_)) {
                 return handle_method_call_on_named_object(
                     result,
-                    name,
-                    extra_types,
+                    vec![*name],
                     &None,
                     analysis_data,
                     statements_analyzer,

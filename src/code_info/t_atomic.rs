@@ -220,7 +220,6 @@ pub struct TGenericParam {
     pub param_name: StrId,
     pub as_type: Box<TUnion>,
     pub defining_entity: GenericParent,
-    pub extra_types: Option<Vec<TAtomic>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
@@ -229,7 +228,6 @@ pub struct TNamedObject {
     pub name: StrId,
     pub type_params: Option<Vec<TUnion>>,
     pub is_this: bool,
-    pub extra_types: Option<Vec<TAtomic>>,
     pub remapped_params: bool,
 }
 
@@ -359,6 +357,11 @@ pub enum TAtomic {
         member_name: StrId,
     },
     TResource,
+    /// An intersection of object types (TNamedObject or TGenericParam).
+    /// Must contain 2 or more elements.
+    TObjectIntersection {
+        types: Vec<TAtomic>,
+    },
 }
 
 impl TAtomic {
@@ -570,7 +573,6 @@ impl TAtomic {
                 name,
                 type_params,
                 is_this,
-                extra_types,
                 ..
             }) => {
                 if *name != StrId::THIS {
@@ -579,23 +581,13 @@ impl TAtomic {
 
                 match type_params {
                     None => format!(
-                        "{}{}{}",
+                        "{}{}",
                         if let Some(interner) = interner {
                             interner.lookup(name).to_string()
                         } else {
                             name.0.to_string()
                         },
-                        if *is_this { "&static" } else { "" },
-                        if let Some(extra_types) = extra_types {
-                            "&".to_string()
-                                + extra_types
-                                    .iter()
-                                    .map(|atomic| atomic.get_id_with_refs(interner, refs, indent))
-                                    .join("&")
-                                    .as_str()
-                        } else {
-                            "".to_string()
-                        }
+                        if *is_this { "&static" } else { "" }
                     ),
                     Some(type_params) => {
                         let mut str = String::new();
@@ -795,6 +787,10 @@ impl TAtomic {
             }
             TAtomic::TResource => "resource".to_string(),
             TAtomic::TTypeVariable { name } => name.clone(),
+            TAtomic::TObjectIntersection { types } => types
+                .iter()
+                .map(|t| t.get_id_with_refs(interner, refs, indent))
+                .join("&"),
         }
     }
 
@@ -861,32 +857,22 @@ impl TAtomic {
             TAtomic::TNamedObject(TNamedObject {
                 name,
                 type_params,
-                extra_types,
                 ..
-            }) => {
-                let mut start = match type_params {
-                    None => name.0.to_string(),
-                    Some(type_params) => {
-                        let mut str = String::new();
-                        str += name.0.to_string().as_str();
-                        str += "<";
-                        str += type_params
-                            .iter()
-                            .map(|tunion| tunion.get_key())
-                            .join(", ")
-                            .as_str();
-                        str += ">";
-                        return str;
-                    }
-                };
-
-                if let Some(extra_types) = extra_types {
-                    start += "&";
-                    start += &extra_types.iter().map(|a| a.get_key()).join("&");
+            }) => match type_params {
+                None => name.0.to_string(),
+                Some(type_params) => {
+                    let mut str = String::new();
+                    str += name.0.to_string().as_str();
+                    str += "<";
+                    str += type_params
+                        .iter()
+                        .map(|tunion| tunion.get_key())
+                        .join(", ")
+                        .as_str();
+                    str += ">";
+                    str
                 }
-
-                start
-            }
+            },
 
             TAtomic::TTypeAlias {
                 name, type_params, ..
@@ -958,6 +944,9 @@ impl TAtomic {
                 str
             }
             TAtomic::TPlaceholder => "_".to_string(),
+            TAtomic::TObjectIntersection { types } => {
+                types.iter().map(|t| t.get_key()).join("&")
+            }
         }
     }
 
@@ -1053,11 +1042,9 @@ impl TAtomic {
 
     pub fn is_templated_as_mixed(&self, has_any: &mut bool) -> bool {
         match self {
-            TAtomic::TGenericParam(TGenericParam {
-                as_type,
-                extra_types: None,
-                ..
-            }) => as_type.is_mixed_with_any(has_any),
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
+                as_type.is_mixed_with_any(has_any)
+            }
             _ => false,
         }
     }
@@ -1068,22 +1055,15 @@ impl TAtomic {
             TAtomic::TClosure(_) => true,
             TAtomic::TAwaitable { .. } => true,
             TAtomic::TNamedObject(TNamedObject { .. }) => true,
-            TAtomic::TGenericParam(TGenericParam {
-                as_type,
-                extra_types: None,
-                ..
-            }) => as_type.is_objecty(),
+            TAtomic::TObjectIntersection { .. } => true,
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) => as_type.is_objecty(),
             _ => false,
         }
     }
 
     pub fn is_templated_as_object(&self) -> bool {
         match self {
-            TAtomic::TGenericParam(TGenericParam {
-                as_type,
-                extra_types: None,
-                ..
-            }) => as_type.is_objecty(),
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) => as_type.is_objecty(),
             _ => false,
         }
     }
@@ -1270,13 +1250,11 @@ impl TAtomic {
             TAtomic::TGenericParam(TGenericParam {
                 param_name,
                 defining_entity,
-                extra_types,
                 ..
             }) => TAtomic::TGenericParam(TGenericParam {
                 as_type: Box::new(new_as_type),
                 param_name: *param_name,
                 defining_entity: *defining_entity,
-                extra_types: extra_types.clone(),
             }),
             TAtomic::TClassTypeConstant {
                 class_type,
@@ -1334,7 +1312,8 @@ impl TAtomic {
             | &TAtomic::TClassPtr { .. }
             | &TAtomic::TClassname { .. }
             | &TAtomic::TTypename { .. }
-            | &TAtomic::TAwaitable { .. } => true,
+            | &TAtomic::TAwaitable { .. }
+            | &TAtomic::TObjectIntersection { .. } => true,
             &TAtomic::TNamedObject(TNamedObject { name, .. }) => !matches!(
                 name,
                 &StrId::CONTAINER
@@ -1495,53 +1474,40 @@ impl TAtomic {
                 | TAtomic::TReference { .. }
                 | TAtomic::TClassTypeConstant { .. }
                 | TAtomic::TGenericParam { .. }
+                | TAtomic::TObjectIntersection { .. }
         )
     }
 
     pub fn add_intersection_type(&mut self, atomic: TAtomic) {
-        if let TAtomic::TNamedObject(TNamedObject { extra_types, .. })
-        | TAtomic::TGenericParam(TGenericParam { extra_types, .. }) = self
-        {
-            if let Some(extra_types) = extra_types {
-                extra_types.push(atomic);
+        if let TAtomic::TObjectIntersection { types } = self {
+            // Flatten if atomic is also a TObjectIntersection
+            if let TAtomic::TObjectIntersection { types: other_types } = atomic {
+                types.extend(other_types);
             } else {
-                *extra_types = Some(vec![atomic]);
+                types.push(atomic);
             }
         }
+        // For TNamedObject and TGenericParam, use make_intersection instead
     }
 
     pub fn clone_without_intersection_types(&self) -> TAtomic {
-        let mut clone = self.clone();
-
-        if let TAtomic::TNamedObject(TNamedObject {
-            ref mut extra_types,
-            ..
-        })
-        | TAtomic::TGenericParam(TGenericParam {
-            ref mut extra_types,
-            ..
-        }) = clone
-        {
-            *extra_types = None
+        match self {
+            TAtomic::TObjectIntersection { types } => {
+                // Return the first type without intersection context
+                if let Some(first) = types.first() {
+                    first.clone_without_intersection_types()
+                } else {
+                    self.clone()
+                }
+            }
+            _ => self.clone(),
         }
-
-        clone
     }
 
     pub fn get_intersection_types(&self) -> (Vec<&TAtomic>, Vec<TAtomic>) {
         match self {
-            TAtomic::TNamedObject(TNamedObject {
-                extra_types: Some(extra_types),
-                ..
-            })
-            | TAtomic::TGenericParam(TGenericParam {
-                extra_types: Some(extra_types),
-                ..
-            }) => {
-                let mut intersection_types = vec![];
-                intersection_types.push(self);
-                intersection_types.extend(extra_types);
-                (intersection_types, vec![])
+            TAtomic::TObjectIntersection { types } => {
+                (types.iter().collect(), vec![])
             }
             _ => {
                 if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = self {
@@ -1572,6 +1538,31 @@ impl TAtomic {
                 (vec![self], vec![])
             }
         }
+    }
+
+    /// Creates an intersection type from two atomic types.
+    /// Both types must be TNamedObject or TGenericParam.
+    /// Returns a TObjectIntersection containing both types.
+    pub fn make_intersection(first: TAtomic, second: TAtomic) -> TAtomic {
+        let mut types = Vec::new();
+
+        // Flatten first type if it's already an intersection
+        match first {
+            TAtomic::TObjectIntersection { types: inner_types } => {
+                types.extend(inner_types);
+            }
+            _ => types.push(first),
+        }
+
+        // Flatten second type if it's already an intersection
+        match second {
+            TAtomic::TObjectIntersection { types: inner_types } => {
+                types.extend(inner_types);
+            }
+            _ => types.push(second),
+        }
+
+        TAtomic::TObjectIntersection { types }
     }
 
     pub fn remove_placeholders(&mut self) {
@@ -1880,6 +1871,9 @@ impl HasTypeNodes for TAtomic {
             | TAtomic::TTypename { as_type } => {
                 vec![TypeNode::Atomic(as_type)]
             }
+            TAtomic::TObjectIntersection { types } => {
+                types.iter().map(TypeNode::Atomic).collect()
+            }
             _ => vec![],
         }
     }
@@ -2080,7 +2074,6 @@ pub fn populate_atomic_type(
                             name: *name,
                             type_params: type_params.clone(),
                             is_this: false,
-                            extra_types: None,
                             remapped_params: false,
                         });
                     }
@@ -2090,7 +2083,6 @@ pub fn populate_atomic_type(
                     name: *name,
                     type_params: None,
                     is_this: false,
-                    extra_types: None,
                     remapped_params: false,
                 });
             }
@@ -2151,6 +2143,17 @@ pub fn populate_atomic_type(
                 symbol_references,
                 force,
             );
+        }
+        TAtomic::TObjectIntersection { types } => {
+            for inner_type in types {
+                populate_atomic_type(
+                    inner_type,
+                    codebase_symbols,
+                    reference_source,
+                    symbol_references,
+                    force,
+                );
+            }
         }
         _ => {}
     }

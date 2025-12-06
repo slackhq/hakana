@@ -78,7 +78,6 @@ pub(crate) fn analyze_vals(
                         name: statements_analyzer.interner.get("HH\\Vector").unwrap(),
                         type_params: Some(vec![get_mixed_any()]),
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     })),
                 );
@@ -203,7 +202,6 @@ pub(crate) fn analyze_vals(
                 name: statements_analyzer.interner.get("HH\\Vector").unwrap(),
                 type_params: Some(vec![get_mixed_any()]),
                 is_this: false,
-                extra_types: None,
                 remapped_params: false,
             }));
 

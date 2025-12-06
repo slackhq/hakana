@@ -215,7 +215,6 @@ fn analyse_known_class_constant(
                 name: *classlike_name,
                 type_params: None,
                 is_this,
-                extra_types: None,
                 remapped_params: false,
             });
             TAtomic::TClassPtr {
@@ -317,7 +316,6 @@ fn analyse_known_class_constant(
             name: *classlike_name,
             type_params: None,
             is_this,
-            extra_types: None,
             remapped_params: false,
         });
         type_expander::expand_union(

@@ -238,7 +238,6 @@ pub(crate) fn get_functionlike(
                             get_mixed_any()
                         }),
                         defining_entity: GenericParent::FunctionLike(name.unwrap()),
-                        extra_types: None,
                     }));
 
                     template_supers.push((*param_name, super_type));

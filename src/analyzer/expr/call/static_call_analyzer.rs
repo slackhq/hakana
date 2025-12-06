@@ -99,7 +99,6 @@ pub(crate) fn analyze(
                             name: *self_name,
                             type_params: type_params,
                             is_this: !classlike_storage.is_final,
-                            extra_types: None,
                             remapped_params: false,
                         }))
                     }
@@ -119,7 +118,6 @@ pub(crate) fn analyze(
                             name: *self_name,
                             type_params: None,
                             is_this: !classlike_storage.is_final,
-                            extra_types: None,
                             remapped_params: false,
                         }))
                     }

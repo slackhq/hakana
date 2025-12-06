@@ -134,7 +134,6 @@ pub fn combine(
                 .unwrap_or(&false),
             name: generic_type,
             type_params: Some(generic_type_params),
-            extra_types: None,
             remapped_params: false,
         });
 
@@ -912,7 +911,6 @@ fn scrape_type_properties(
     if let TAtomic::TNamedObject(TNamedObject {
         name: ref fq_class_name,
         type_params: None,
-        ref extra_types,
         ..
     }) = atomic
     {
@@ -947,11 +945,13 @@ fn scrape_type_properties(
         for (key, existing_type) in &combination.value_types {
             if let TAtomic::TNamedObject(TNamedObject {
                 name: existing_name,
-                extra_types: existing_extra_types,
                 ..
             }) = &existing_type
             {
-                if extra_types.is_some() || existing_extra_types.is_some() {
+                // TObjectIntersection types are handled separately
+                if matches!(atomic, TAtomic::TObjectIntersection { .. })
+                    || matches!(existing_type, TAtomic::TObjectIntersection { .. })
+                {
                     if object_type_comparator::is_shallowly_contained_by(
                         codebase,
                         &FilePath(StrId::EMPTY),

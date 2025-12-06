@@ -123,7 +123,8 @@ pub(crate) fn fetch(
             self_class: Some(method_id.0),
             static_class_type: match lhs_type_part {
                 TAtomic::TNamedObject(TNamedObject { .. })
-                | TAtomic::TGenericParam(TGenericParam { .. }) => {
+                | TAtomic::TGenericParam(TGenericParam { .. })
+                | TAtomic::TObjectIntersection { .. } => {
                     type_expander::StaticClassType::Object(lhs_type_part)
                 }
                 TAtomic::TGenericClassname { as_type, .. }
@@ -171,7 +172,6 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
                         name: method_id.0,
                         type_params: None,
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     }),
                     TAtomic::TFalse,
@@ -187,7 +187,6 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
                         name: interner.get("DOMElement").unwrap(),
                         type_params: None,
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     }),
                     TAtomic::TFalse,
@@ -203,7 +202,6 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
                         name: interner.get("SimpleXMLElement").unwrap(),
                         type_params: None,
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     }),
                     TAtomic::TNull,

@@ -83,7 +83,6 @@ pub(crate) fn analyze(
                             name: *self_name,
                             type_params: None,
                             is_this: !classlike_storage.is_final,
-                            extra_types: None,
                             remapped_params: false,
                         }))
                     }
@@ -653,7 +652,6 @@ fn analyze_named_constructor(
         name: classlike_name,
         type_params: generic_type_params,
         is_this: from_static,
-        extra_types: None,
         remapped_params: false,
     }));
 

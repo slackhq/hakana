@@ -232,21 +232,16 @@ impl TUnion {
                 return true;
             }
 
-            if let TAtomic::TNamedObject(TNamedObject {
-                extra_types,
-                is_this,
-                ..
-            }) = atomic
-            {
+            if let TAtomic::TNamedObject(TNamedObject { is_this, .. }) = atomic {
                 if *is_this {
                     return true;
                 }
+            }
 
-                if let Some(extra_types) = extra_types {
-                    for extra_type in extra_types {
-                        if let TAtomic::TGenericParam(TGenericParam { .. }) = extra_type {
-                            return true;
-                        }
+            if let TAtomic::TObjectIntersection { types } = atomic {
+                for inner_type in types {
+                    if let TAtomic::TGenericParam(TGenericParam { .. }) = inner_type {
+                        return true;
                     }
                 }
             }
@@ -261,13 +256,9 @@ impl TUnion {
                 return true;
             }
 
-            if let TAtomic::TNamedObject(TNamedObject {
-                extra_types: Some(extra_types),
-                ..
-            }) = atomic
-            {
-                for extra_type in extra_types {
-                    if let TAtomic::TGenericParam(TGenericParam { .. }) = extra_type {
+            if let TAtomic::TObjectIntersection { types } = atomic {
+                for inner_type in types {
+                    if let TAtomic::TGenericParam(TGenericParam { .. }) = inner_type {
                         return true;
                     }
                 }

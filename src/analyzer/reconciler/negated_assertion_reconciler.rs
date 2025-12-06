@@ -285,6 +285,43 @@ fn subtract_complex_type(
                 *can_be_disjunct = true;
                 acceptable_types.push(existing_atomic);
             }
+            (TAtomic::TObjectIntersection { types }, TAtomic::TNamedObject(TNamedObject { name: assertion_name, .. })) => {
+                let codebase = statements_analyzer.codebase;
+
+                // Check if the assertion type could be an instance of the intersection
+                // E.g., if existing is A&I and assertion is AChild, check if AChild is compatible
+                let mut all_compatible = true;
+                for intersection_type in types {
+                    if !atomic_type_comparator::is_contained_by(
+                        codebase,
+                        statements_analyzer.get_file_path(),
+                        assertion_type,
+                        intersection_type,
+                        true,
+                        &mut TypeComparisonResult::new(),
+                    ) {
+                        all_compatible = false;
+                        break;
+                    }
+                }
+                if all_compatible {
+                    *can_be_disjunct = true;
+                } else if codebase.interface_exists(assertion_name) {
+                    // If the assertion is an interface and the intersection contains types
+                    // that can intersect with interfaces, they're not necessarily disjoint
+                    let can_intersect = types.iter().any(|t| {
+                        if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
+                            codebase.can_intersect_interface(name)
+                        } else {
+                            false
+                        }
+                    });
+                    if can_intersect {
+                        *can_be_disjunct = true;
+                    }
+                }
+                acceptable_types.push(existing_atomic);
+            }
             _ => {
                 acceptable_types.push(existing_atomic);
             }
@@ -333,7 +370,6 @@ fn handle_negated_class(
                 } else {
                     None
                 },
-                extra_types: None,
                 is_this: false,
                 remapped_params: false,
             });
@@ -648,6 +684,33 @@ pub(crate) fn handle_literal_negated_equality(
             }
             TAtomic::TMixed {} | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset => {
                 did_remove_type = true;
+                acceptable_types.push(existing_atomic_type);
+            }
+            TAtomic::TObjectIntersection { ref types } => {
+                // For intersection types like A&I, check if the assertion type (e.g., AChild)
+                // is compatible with all types in the intersection
+                if let TAtomic::TNamedObject(TNamedObject { .. }) = assertion_type {
+                    let mut all_compatible = true;
+                    for intersection_type in types {
+                        let mut comparison_result =
+                            hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult::new();
+                        if !hakana_code_info::ttype::comparison::atomic_type_comparator::is_contained_by(
+                            codebase,
+                            statements_analyzer.get_file_path(),
+                            assertion_type,
+                            intersection_type,
+                            true,
+                            &mut comparison_result,
+                        ) {
+                            all_compatible = false;
+                            break;
+                        }
+                    }
+                    if all_compatible {
+                        // The assertion type could be an instance of the intersection
+                        did_remove_type = true;
+                    }
+                }
                 acceptable_types.push(existing_atomic_type);
             }
             _ => {

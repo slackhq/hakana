@@ -789,16 +789,15 @@ fn handle_template_param_standin<'a>(
     opts: StandinOpts,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
-    let (param_name, defining_entity, extra_types, as_type) =
+    let (param_name, defining_entity, as_type) =
         if let TAtomic::TGenericParam(TGenericParam {
             param_name,
             defining_entity,
-            extra_types,
             as_type,
             ..
         }) = atomic_type
         {
-            (param_name, defining_entity, extra_types, as_type)
+            (param_name, defining_entity, as_type)
         } else {
             panic!()
         };
@@ -816,37 +815,6 @@ fn handle_template_param_standin<'a>(
     let mut replacement_type = template_type.clone();
 
     let param_name_key = *param_name;
-
-    let mut new_extra_types = vec![];
-
-    if let Some(extra_types) = extra_types {
-        for extra_type in extra_types {
-            let extra_type_union = self::replace(
-                &TUnion::new(vec![extra_type.clone()]),
-                template_result,
-                codebase,
-                interner,
-                file_path,
-                input_type,
-                input_arg_offset,
-                input_arg_pos,
-                StandinOpts {
-                    iteration_depth: opts.iteration_depth + 1,
-                    ..opts
-                },
-            );
-
-            if extra_type_union.is_single() {
-                let extra_type = extra_type_union.get_single().clone();
-
-                if let TAtomic::TNamedObject(TNamedObject { .. })
-                | TAtomic::TGenericParam(TGenericParam { .. }) = extra_type
-                {
-                    new_extra_types.push(extra_type);
-                }
-            }
-        }
-    }
 
     let mut atomic_types = Vec::new();
 
@@ -1055,29 +1023,7 @@ fn handle_template_param_standin<'a>(
         }
     }
 
-    let mut new_atomic_types = Vec::new();
-
-    for mut atomic_type in atomic_types {
-        // Only override extra_types if we have new_extra_types to add
-        // Don't clear existing extra_types (e.g., from intersection types)
-        if !new_extra_types.is_empty() {
-            if let TAtomic::TNamedObject(TNamedObject {
-                extra_types: ref mut atomic_extra_types,
-                ..
-            })
-            | TAtomic::TGenericParam(TGenericParam {
-                extra_types: ref mut atomic_extra_types,
-                ..
-            }) = atomic_type
-            {
-                *atomic_extra_types = Some(new_extra_types.clone());
-            }
-        }
-
-        new_atomic_types.push(atomic_type);
-    }
-
-    new_atomic_types
+    atomic_types
 }
 
 fn insert_bound_type(
@@ -1162,7 +1108,6 @@ fn handle_template_param_class_standin<'a>(
                         name: *name,
                         type_params: None,
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     }));
                 } else if let TAtomic::TGenericClassname {
@@ -1181,7 +1126,6 @@ fn handle_template_param_class_standin<'a>(
                         param_name: *param_name,
                         as_type: Box::new(wrap_atomic(*as_type.clone())),
                         defining_entity: *defining_entity,
-                        extra_types: None,
                     }));
                 } else if let TAtomic::TClassname {
                     as_type: atomic_type_as,
@@ -1364,7 +1308,6 @@ fn handle_template_param_type_standin<'a>(
                         param_name: *param_name,
                         as_type: Box::new(wrap_atomic(*as_type.clone())),
                         defining_entity: *defining_entity,
-                        extra_types: None,
                     }));
                 } else if let TAtomic::TTypename { .. } = input_atomic_type {
                     valid_input_atomic_types.push(atomic_type_as.clone());
@@ -1518,7 +1461,6 @@ pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Ve
             name: *name,
             type_params: None,
             is_this: false,
-            extra_types: None,
             remapped_params: false,
         })]
     } else {
@@ -1613,7 +1555,6 @@ fn find_matching_atomic_types_for_template(
                                             .collect::<Vec<_>>(),
                                     ),
                                     is_this: false,
-                                    extra_types: None,
                                     remapped_params: false,
                                 })),
                             });
@@ -1666,7 +1607,6 @@ fn find_matching_atomic_types_for_template(
                                 .collect::<Vec<TUnion>>(),
                         ),
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     }));
                     continue;
@@ -1749,7 +1689,6 @@ fn find_matching_atomic_types_for_template(
                         name: *class_name,
                         type_params: None,
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     })
                 } else {

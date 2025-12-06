@@ -143,7 +143,6 @@ pub fn get_named_object(
         name,
         type_params: None,
         is_this: false,
-        extra_types: None,
         remapped_params: false,
     }))
 }
@@ -647,9 +646,10 @@ fn intersect_atomic_with_atomic_simple(
                 || (codebase.interface_exists(type_2_name)
                     && codebase.can_intersect_interface(type_1_name))
             {
-                let mut type_1_atomic = type_1_atomic.clone();
-                type_1_atomic.add_intersection_type(type_2_atomic.clone());
-                return Some(type_1_atomic);
+                return Some(TAtomic::make_intersection(
+                    type_1_atomic.clone(),
+                    type_2_atomic.clone(),
+                ));
             }
         }
         _ => (),
@@ -1259,6 +1259,15 @@ pub fn get_atomic_syntax_type(
             *is_valid = false;
             // todo
             "_".to_string()
+        }
+        TAtomic::TObjectIntersection { types } => {
+            // Intersection types aren't valid in Hack surface syntax
+            *is_valid = false;
+            types
+                .iter()
+                .map(|t| get_atomic_syntax_type(t, codebase, interner, is_valid))
+                .collect::<Vec<_>>()
+                .join("&")
         }
     }
 }

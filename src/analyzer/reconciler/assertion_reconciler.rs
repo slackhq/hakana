@@ -366,6 +366,147 @@ pub(crate) fn intersect_atomic_with_atomic(
     let mut atomic_comparison_results = TypeComparisonResult::new();
 
     match (type_1_atomic, type_2_atomic) {
+        // Handle TObjectIntersection: intersecting A&B with C
+        // returns C if C is compatible with all types in the intersection,
+        // or extends the intersection if C is an interface that can be added
+        (TAtomic::TObjectIntersection { types }, TAtomic::TNamedObject(TNamedObject { name: type_2_name, .. })) => {
+            let codebase = statements_analyzer.codebase;
+
+            // First check if type_2 is a subtype of all types in the intersection
+            let mut all_compatible = true;
+            for intersection_type in types {
+                let mut comparison_result = TypeComparisonResult::new();
+                if !atomic_type_comparator::is_contained_by(
+                    codebase,
+                    statements_analyzer.get_file_path(),
+                    type_2_atomic,
+                    intersection_type,
+                    true,
+                    &mut comparison_result,
+                ) {
+                    all_compatible = false;
+                    break;
+                }
+            }
+            if all_compatible {
+                *did_remove_type = true;
+                return Some(type_2_atomic.clone());
+            }
+
+            // If not fully compatible, check if we can extend the intersection with an interface
+            if codebase.interface_exists(type_2_name) {
+                // Check that at least one type in the intersection can intersect with this interface
+                let can_add_interface = types.iter().any(|intersection_type| {
+                    if let TAtomic::TNamedObject(TNamedObject { name, .. }) = intersection_type {
+                        codebase.can_intersect_interface(name)
+                    } else {
+                        false
+                    }
+                });
+
+                if can_add_interface {
+                    *did_remove_type = true;
+                    return Some(TAtomic::make_intersection(
+                        type_1_atomic.clone(),
+                        type_2_atomic.clone(),
+                    ));
+                }
+            }
+
+            return None;
+        }
+        (TAtomic::TObjectIntersection { types }, _) => {
+            // For non-TNamedObject types, check if type_2 is contained by all intersection types
+            let mut all_compatible = true;
+            for intersection_type in types {
+                let mut comparison_result = TypeComparisonResult::new();
+                if !atomic_type_comparator::is_contained_by(
+                    statements_analyzer.codebase,
+                    statements_analyzer.get_file_path(),
+                    type_2_atomic,
+                    intersection_type,
+                    true,
+                    &mut comparison_result,
+                ) {
+                    all_compatible = false;
+                    break;
+                }
+            }
+            if all_compatible {
+                *did_remove_type = true;
+                return Some(type_2_atomic.clone());
+            }
+            return None;
+        }
+        (TAtomic::TNamedObject(TNamedObject { name: type_1_name, .. }), TAtomic::TObjectIntersection { types }) => {
+            let codebase = statements_analyzer.codebase;
+
+            // First check if type_1 is a subtype of all types in the intersection
+            let mut all_compatible = true;
+            for intersection_type in types {
+                let mut comparison_result = TypeComparisonResult::new();
+                if !atomic_type_comparator::is_contained_by(
+                    codebase,
+                    statements_analyzer.get_file_path(),
+                    type_1_atomic,
+                    intersection_type,
+                    true,
+                    &mut comparison_result,
+                ) {
+                    all_compatible = false;
+                    break;
+                }
+            }
+            if all_compatible {
+                *did_remove_type = true;
+                return Some(type_1_atomic.clone());
+            }
+
+            // If not fully compatible, check if we can extend the intersection with an interface
+            if codebase.interface_exists(type_1_name) {
+                // Check that at least one type in the intersection can intersect with this interface
+                let can_add_interface = types.iter().any(|intersection_type| {
+                    if let TAtomic::TNamedObject(TNamedObject { name, .. }) = intersection_type {
+                        codebase.can_intersect_interface(name)
+                    } else {
+                        false
+                    }
+                });
+
+                if can_add_interface {
+                    *did_remove_type = true;
+                    return Some(TAtomic::make_intersection(
+                        type_2_atomic.clone(),
+                        type_1_atomic.clone(),
+                    ));
+                }
+            }
+
+            return None;
+        }
+        (_, TAtomic::TObjectIntersection { types }) => {
+            // For non-TNamedObject types, check if type_1 is contained by all intersection types
+            let mut all_compatible = true;
+            for intersection_type in types {
+                let mut comparison_result = TypeComparisonResult::new();
+                if !atomic_type_comparator::is_contained_by(
+                    statements_analyzer.codebase,
+                    statements_analyzer.get_file_path(),
+                    type_1_atomic,
+                    intersection_type,
+                    true,
+                    &mut comparison_result,
+                ) {
+                    all_compatible = false;
+                    break;
+                }
+            }
+            if all_compatible {
+                *did_remove_type = true;
+                return Some(type_1_atomic.clone());
+            }
+            return None;
+        }
         (TAtomic::TNull, TAtomic::TNull) => {
             return Some(TAtomic::TNull);
         }
@@ -446,11 +587,10 @@ pub(crate) fn intersect_atomic_with_atomic(
         (
             TAtomic::TGenericParam(TGenericParam {
                 as_type,
-                extra_types: None,
                 ..
             }),
             TAtomic::TObject,
-        ) => {
+        ) if !matches!(type_1_atomic, TAtomic::TObjectIntersection { .. }) => {
             return if as_type.is_objecty() {
                 Some(type_1_atomic.clone())
             } else {
@@ -1385,7 +1525,6 @@ pub(crate) fn intersect_atomic_with_atomic(
                         name: StrId::ANY_ARRAY,
                         type_params: type_2_params.clone(),
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     });
                     atomic.remove_placeholders();
@@ -1399,7 +1538,6 @@ pub(crate) fn intersect_atomic_with_atomic(
                         name: StrId::ANY_ARRAY,
                         type_params: type_2_params,
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     });
                     atomic.remove_placeholders();
@@ -1411,10 +1549,10 @@ pub(crate) fn intersect_atomic_with_atomic(
                 || (codebase.interface_exists(type_2_name)
                     && codebase.can_intersect_interface(type_1_name))
             {
-                let mut type_1_atomic = type_1_atomic.clone();
-                type_1_atomic.add_intersection_type(type_2_atomic.clone());
-
-                return Some(type_1_atomic);
+                return Some(TAtomic::make_intersection(
+                    type_1_atomic.clone(),
+                    type_2_atomic.clone(),
+                ));
             }
         }
         (TAtomic::TDict(type_1_dict), TAtomic::TDict(type_2_dict)) => {
@@ -2067,7 +2205,6 @@ fn intersect_contained_atomic_with_another(
                         name: *sub_atomic_name,
                         type_params: Some(super_params.clone()),
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     }));
                 }

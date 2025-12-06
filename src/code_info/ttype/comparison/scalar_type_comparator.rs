@@ -576,7 +576,6 @@ pub fn is_contained_by(
                         name: *input_name,
                         type_params: None,
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     })
                 };
@@ -691,7 +690,6 @@ pub fn is_contained_by(
                     name: *container_name,
                     type_params: None,
                     is_this: false,
-                    extra_types: None,
                     remapped_params: false,
                 }),
                 input_name,

@@ -59,16 +59,36 @@ pub(crate) fn analyze(
     lhs_var_id: &Option<String>,
     result: &mut AtomicMethodCallAnalysisResult,
 ) -> Result<(), AnalysisError> {
-    match &lhs_type_part {
+    // Extract classlike names from the type, handling both simple named objects and intersections
+    let classlike_names: Vec<StrId> = match &lhs_type_part {
         TAtomic::TNamedObject(TNamedObject {
             name: classlike_name,
-            extra_types,
             ..
         }) => {
+            vec![*classlike_name]
+        }
+        TAtomic::TObjectIntersection { types } => {
+            types
+                .iter()
+                .filter_map(|t| {
+                    if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
+                        Some(*name)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        }
+        _ => vec![],
+    };
+
+    match &lhs_type_part {
+        TAtomic::TNamedObject(_) | TAtomic::TObjectIntersection { .. }
+            if !classlike_names.is_empty() =>
+        {
             handle_method_call_on_named_object(
                 result,
-                classlike_name,
-                extra_types,
+                classlike_names,
                 lhs_var_id,
                 analysis_data,
                 statements_analyzer,
@@ -167,8 +187,7 @@ pub(crate) fn analyze(
 
 pub(crate) fn handle_method_call_on_named_object(
     result: &mut AtomicMethodCallAnalysisResult,
-    classlike_name: &StrId,
-    extra_types: &Option<Vec<TAtomic>>,
+    mut classlike_names: Vec<StrId>,
     lhs_var_id: &Option<String>,
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
@@ -184,20 +203,6 @@ pub(crate) fn handle_method_call_on_named_object(
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.codebase;
-
-    let mut classlike_names = vec![*classlike_name];
-
-    if let Some(extra_types) = extra_types {
-        for extra_atomic_type in extra_types {
-            if let TAtomic::TNamedObject(TNamedObject {
-                name: extra_classlike_name,
-                ..
-            }) = extra_atomic_type
-            {
-                classlike_names.push(*extra_classlike_name);
-            }
-        }
-    }
 
     for classlike_name in &classlike_names {
         let does_class_exist = if lhs_var_id.clone().unwrap_or_default() == "$this" {
@@ -228,6 +233,9 @@ pub(crate) fn handle_method_call_on_named_object(
         }
     }
 
+    // Use the first classlike name for error messages
+    let first_classlike_name = classlike_names[0];
+
     if let aast::Expr_::Id(boxed) = &expr.1.2 {
         result.has_valid_method_call_type = true;
 
@@ -238,7 +246,7 @@ pub(crate) fn handle_method_call_on_named_object(
                 analysis_data,
                 statements_analyzer,
                 boxed,
-                classlike_name,
+                &first_classlike_name,
                 pos,
                 context,
                 expr.3,
@@ -252,7 +260,7 @@ pub(crate) fn handle_method_call_on_named_object(
                 analysis_data,
                 statements_analyzer,
                 boxed,
-                classlike_name,
+                &first_classlike_name,
                 pos,
                 context,
                 expr.3,

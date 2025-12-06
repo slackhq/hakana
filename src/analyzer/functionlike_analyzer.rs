@@ -313,7 +313,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                     param_name: *param_name,
                                     as_type: Box::new((*first_map_entry.1).clone()),
                                     defining_entity: first_map_entry.0,
-                                    extra_types: None,
                                 }))
                             })
                             .collect::<Vec<_>>(),
@@ -322,7 +321,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     None
                 },
                 is_this: !classlike_storage.is_final,
-                extra_types: None,
                 remapped_params: false,
             }));
 
@@ -907,7 +905,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             get_nothing(),
                         ]),
                         is_this: false,
-                        extra_types: None,
                         remapped_params: false,
                     })))
                 }
