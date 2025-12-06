@@ -756,7 +756,7 @@ pub(crate) fn scan(
     storage.properties.shrink_to_fit();
     storage.methods.shrink_to_fit();
 
-    codebase.classlike_infos.insert(*class_name, storage);
+    codebase.insert_classlike_info(*class_name, storage);
 
     ast_nodes.push(def_signature_node);
 

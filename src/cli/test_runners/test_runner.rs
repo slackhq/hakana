@@ -76,8 +76,10 @@ impl TestRunner {
 
         let starter_data =
             if candidate_test_folders.len() > 1 && !test_or_test_dir.ends_with("/diff") {
+                let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
+                let stub_path = format!("{}/tests/stubs/stubs.hack", cwd);
                 let (codebase, interner, file_system) =
-                    get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
+                    get_single_file_codebase(vec![&stub_path]);
 
                 Some(SuccessfulScanData {
                     codebase,
@@ -377,7 +379,7 @@ impl TestRunner {
             stub_dirs,
             None,
             Some(FxHashSet::from_iter([
-                "tests/stubs/stubs.hack".to_string(),
+                format!("{}/tests/stubs/stubs.hack", cwd),
                 format!("{}/third-party/xhp-lib/src", cwd),
             ])),
             config.clone(),
@@ -623,7 +625,7 @@ impl TestRunner {
                 stub_dirs.clone(),
                 None,
                 Some(FxHashSet::from_iter([
-                    "tests/stubs/stubs.hack".to_string(),
+                    format!("{}/tests/stubs/stubs.hack", cwd),
                     format!("{}/third-party/xhp-lib/src", cwd),
                 ])),
                 config.clone(),
@@ -643,7 +645,7 @@ impl TestRunner {
                 },
             );
 
-            fs::remove_dir_all(&workdir_base).unwrap();
+            let _ = fs::remove_dir_all(&workdir_base);
 
             match run_result {
                 Ok(run_result) => {

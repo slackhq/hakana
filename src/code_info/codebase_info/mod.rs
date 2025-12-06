@@ -35,6 +35,12 @@ pub struct CodebaseInfo {
     pub safe_symbols: FxHashSet<StrId>,
     /* Symbol members that have already been checked on a previous Hakana run */
     pub safe_symbol_members: FxHashSet<(StrId, StrId)>,
+
+    /* Track duplicate definitions across files for error reporting */
+    pub classlike_infos_defs: FxHashMap<StrId, Vec<FilePath>>,
+    pub functionlike_infos_defs: FxHashMap<(StrId, StrId), Vec<FilePath>>,
+    pub type_definitions_defs: FxHashMap<StrId, Vec<FilePath>>,
+    pub constant_infos_defs: FxHashMap<StrId, Vec<FilePath>>,
 }
 
 impl Default for CodebaseInfo {
@@ -58,6 +64,10 @@ impl CodebaseInfo {
             files: FxHashMap::default(),
             safe_symbols: FxHashSet::default(),
             safe_symbol_members: FxHashSet::default(),
+            classlike_infos_defs: FxHashMap::default(),
+            functionlike_infos_defs: FxHashMap::default(),
+            type_definitions_defs: FxHashMap::default(),
+            constant_infos_defs: FxHashMap::default(),
         }
     }
 
@@ -452,12 +462,158 @@ impl CodebaseInfo {
     }
 
     pub fn extend(&mut self, other: CodebaseInfo) {
-        self.classlike_infos.extend(other.classlike_infos);
-        self.functionlike_infos.extend(other.functionlike_infos);
+        // Track classlike definitions and detect duplicates
+        for (name, info) in other.classlike_infos {
+            let file_path = info.def_location.file_path;
+            let defs = self.classlike_infos_defs.entry(name).or_default();
+            // Only add if this file_path isn't already tracked
+            if !defs.contains(&file_path) {
+                defs.push(file_path);
+            }
+            if !self.classlike_infos.contains_key(&name) {
+                self.classlike_infos.insert(name, info);
+            }
+        }
+
+        // Track functionlike definitions and detect duplicates (only top-level functions)
+        for (key, info) in other.functionlike_infos {
+            // Only track top-level functions (where second part is StrId::EMPTY)
+            // Methods are keyed by (class_name, method_name) where method_name != EMPTY
+            if key.1 == StrId::EMPTY {
+                let file_path = info.def_location.file_path;
+                let defs = self.functionlike_infos_defs.entry(key).or_default();
+                // Only add if this file_path isn't already tracked
+                if !defs.contains(&file_path) {
+                    defs.push(file_path);
+                }
+                if !self.functionlike_infos.contains_key(&key) {
+                    self.functionlike_infos.insert(key, info);
+                }
+            } else {
+                self.functionlike_infos.insert(key, info);
+            }
+        }
+
+        // Track type definitions and detect duplicates
+        for (name, info) in other.type_definitions {
+            let file_path = info.location.file_path;
+            let defs = self.type_definitions_defs.entry(name).or_default();
+            // Only add if this file_path isn't already tracked
+            if !defs.contains(&file_path) {
+                defs.push(file_path);
+            }
+            if !self.type_definitions.contains_key(&name) {
+                self.type_definitions.insert(name, info);
+            }
+        }
+
+        // Track constant definitions and detect duplicates
+        for (name, info) in other.constant_infos {
+            let file_path = info.pos.file_path;
+            let defs = self.constant_infos_defs.entry(name).or_default();
+            // Only add if this file_path isn't already tracked
+            if !defs.contains(&file_path) {
+                defs.push(file_path);
+            }
+            if !self.constant_infos.contains_key(&name) {
+                self.constant_infos.insert(name, info);
+            }
+        }
+
         self.symbols.all.extend(other.symbols.all);
-        self.type_definitions.extend(other.type_definitions);
-        self.constant_infos.extend(other.constant_infos);
         self.closures_in_files.extend(other.closures_in_files);
         self.files.extend(other.files);
+    }
+
+    /// Returns true if there are any duplicate definitions in the codebase
+    pub fn has_duplicates(&self) -> bool {
+        self.classlike_infos_defs.values().any(|v| v.len() > 1)
+            || self.functionlike_infos_defs.values().any(|v| v.len() > 1)
+            || self.type_definitions_defs.values().any(|v| v.len() > 1)
+            || self.constant_infos_defs.values().any(|v| v.len() > 1)
+    }
+
+    /// Insert a classlike info, tracking the definition location for duplicate detection.
+    /// Returns true if this was the first definition (successfully inserted),
+    /// false if this is a duplicate.
+    pub fn insert_classlike_info(&mut self, name: StrId, info: ClassLikeInfo) -> bool {
+        let file_path = info.def_location.file_path;
+
+        let is_duplicate = self.classlike_infos.contains_key(&name);
+
+        let defs = self.classlike_infos_defs.entry(name).or_insert_with(Vec::new);
+        // Only add if this file_path isn't already tracked
+        if !defs.contains(&file_path) {
+            defs.push(file_path);
+        }
+
+        if is_duplicate {
+            // Duplicate - don't insert
+            false
+        } else {
+            self.classlike_infos.insert(name, info);
+            true
+        }
+    }
+
+    /// Insert a functionlike info, tracking the definition location for duplicate detection.
+    /// Only tracks duplicates for top-level functions (not methods).
+    pub fn insert_functionlike_info(
+        &mut self,
+        key: (StrId, StrId),
+        info: FunctionLikeInfo,
+    ) -> bool {
+        // Only track top-level functions (where second part is StrId::EMPTY)
+        if key.1 == StrId::EMPTY {
+            let file_path = info.def_location.file_path;
+            let defs = self.functionlike_infos_defs.entry(key).or_insert_with(Vec::new);
+            // Only add if this file_path isn't already tracked
+            if !defs.contains(&file_path) {
+                defs.push(file_path);
+            }
+
+            if self.functionlike_infos.contains_key(&key) {
+                // Duplicate - don't insert
+                return false;
+            }
+        }
+        self.functionlike_infos.insert(key, info);
+        true
+    }
+
+    /// Insert a type definition, tracking the definition location for duplicate detection.
+    pub fn insert_type_definition(&mut self, name: StrId, info: TypeDefinitionInfo) -> bool {
+        let file_path = info.location.file_path;
+        let defs = self.type_definitions_defs.entry(name).or_insert_with(Vec::new);
+        // Only add if this file_path isn't already tracked
+        if !defs.contains(&file_path) {
+            defs.push(file_path);
+        }
+
+        if self.type_definitions.contains_key(&name) {
+            // Duplicate - don't insert
+            false
+        } else {
+            self.type_definitions.insert(name, info);
+            true
+        }
+    }
+
+    /// Insert a constant info, tracking the definition location for duplicate detection.
+    pub fn insert_constant_info(&mut self, name: StrId, info: ConstantInfo) -> bool {
+        let file_path = info.pos.file_path;
+        let defs = self.constant_infos_defs.entry(name).or_insert_with(Vec::new);
+        // Only add if this file_path isn't already tracked
+        if !defs.contains(&file_path) {
+            defs.push(file_path);
+        }
+
+        if self.constant_infos.contains_key(&name) {
+            // Duplicate - don't insert
+            false
+        } else {
+            self.constant_infos.insert(name, info);
+            true
+        }
     }
 }

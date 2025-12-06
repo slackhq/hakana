@@ -162,7 +162,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             is_constant: true,
         });
 
-        self.codebase.constant_infos.insert(
+        self.codebase.insert_constant_info(
             name,
             ConstantInfo {
                 pos: definition_location,
@@ -550,8 +550,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .symbols
             .add_typedef_name(type_name, source_file.is_some());
         self.codebase
-            .type_definitions
-            .insert(type_name, type_definition);
+            .insert_type_definition(type_name, type_definition);
 
         typedef.recurse(c, self)
     }
@@ -715,8 +714,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
 
         self.codebase
-            .functionlike_infos
-            .insert((name, StrId::EMPTY), functionlike_storage);
+            .insert_functionlike_info((name, StrId::EMPTY), functionlike_storage);
 
         c.has_yield = false;
         c.has_static_field_access = false;

@@ -195,6 +195,48 @@ where
         hook.after_populate(&codebase, &interner, &config);
     }
 
+    // Check for duplicate definitions and skip analysis if found
+    if codebase.has_duplicates() {
+        if let Some(client) = lsp_client {
+            client
+                .log_message(
+                    MessageType::ERROR,
+                    "ERROR: Duplicate definitions found in codebase. Skipping analysis.",
+                )
+                .await;
+        }
+
+        let duplicate_issues = emit_duplicate_definition_issues(&codebase, &interner);
+
+        let (analysis_result, arc_scan_data) = get_analysis_ready(
+            &config,
+            codebase,
+            interner,
+            file_system,
+            resolved_names,
+            cached_analysis.symbol_references,
+            cached_analysis.existing_issues,
+            cached_analysis.definition_locations,
+        );
+
+        // Add duplicate issues to the result
+        {
+            let mut result = analysis_result.lock().unwrap();
+            for (file_path, issues) in duplicate_issues {
+                result
+                    .emitted_issues
+                    .entry(file_path)
+                    .or_default()
+                    .extend(issues);
+            }
+            result.has_invalid_hack_files = true;
+        }
+
+        let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
+        let analysis_result = (*analysis_result.lock().unwrap()).clone();
+        return Ok((analysis_result, scan_data));
+    }
+
     let (analysis_result, arc_scan_data) = get_analysis_ready(
         &config,
         codebase,
@@ -383,6 +425,41 @@ pub fn scan_and_analyze<F: FnOnce()>(
         ));
     }
 
+    // Check for duplicate definitions and skip analysis if found
+    if codebase.has_duplicates() {
+        logger.log_sync("ERROR: Duplicate definitions found in codebase. Skipping analysis.");
+
+        let duplicate_issues = emit_duplicate_definition_issues(&codebase, &interner);
+
+        let (analysis_result, arc_scan_data) = get_analysis_ready(
+            &config,
+            codebase,
+            interner,
+            file_system,
+            resolved_names,
+            cached_analysis.symbol_references,
+            cached_analysis.existing_issues,
+            cached_analysis.definition_locations,
+        );
+
+        // Add duplicate issues to the result
+        {
+            let mut result = analysis_result.lock().unwrap();
+            for (file_path, issues) in duplicate_issues {
+                result
+                    .emitted_issues
+                    .entry(file_path)
+                    .or_default()
+                    .extend(issues);
+            }
+            result.has_invalid_hack_files = true;
+        }
+
+        let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
+        let analysis_result = (*analysis_result.lock().unwrap()).clone();
+        return Ok((analysis_result, scan_data));
+    }
+
     let (analysis_result, arc_scan_data) = get_analysis_ready(
         &config,
         codebase,
@@ -467,6 +544,149 @@ pub fn scan_and_analyze<F: FnOnce()>(
     }
 
     Ok((analysis_result, scan_data))
+}
+
+/// Checks the codebase for duplicate definitions and emits issues for them.
+/// Returns a map of file paths to issues for each duplicate definition found.
+fn emit_duplicate_definition_issues(
+    codebase: &CodebaseInfo,
+    interner: &Interner,
+) -> FxHashMap<FilePath, Vec<Issue>> {
+    let mut issues: FxHashMap<FilePath, Vec<Issue>> = FxHashMap::default();
+
+    // Check for duplicate classlike definitions
+    for (name, file_paths) in &codebase.classlike_infos_defs {
+        if file_paths.len() > 1 {
+            let name_str = interner.lookup(name);
+            for file_path in file_paths {
+                let other_files: Vec<&str> = file_paths
+                    .iter()
+                    .filter(|fp| *fp != file_path)
+                    .map(|fp| interner.lookup(&fp.0))
+                    .collect();
+                let message = format!(
+                    "Class/interface/trait/enum `{}` is also defined in: {}",
+                    name_str,
+                    other_files.join(", ")
+                );
+                issues.entry(*file_path).or_default().push(Issue::new(
+                    IssueKind::DuplicateClassDefinition,
+                    message,
+                    HPos {
+                        file_path: *file_path,
+                        start_offset: 0,
+                        end_offset: 0,
+                        start_line: 1,
+                        end_line: 1,
+                        start_column: 1,
+                        end_column: 1,
+                    },
+                    &None,
+                ));
+            }
+        }
+    }
+
+    // Check for duplicate function definitions
+    for (key, file_paths) in &codebase.functionlike_infos_defs {
+        if file_paths.len() > 1 {
+            let name_str = interner.lookup(&key.0);
+            for file_path in file_paths {
+                let other_files: Vec<&str> = file_paths
+                    .iter()
+                    .filter(|fp| *fp != file_path)
+                    .map(|fp| interner.lookup(&fp.0))
+                    .collect();
+                let message = format!(
+                    "Function `{}` is also defined in: {}",
+                    name_str,
+                    other_files.join(", ")
+                );
+                issues.entry(*file_path).or_default().push(Issue::new(
+                    IssueKind::DuplicateFunctionDefinition,
+                    message,
+                    HPos {
+                        file_path: *file_path,
+                        start_offset: 0,
+                        end_offset: 0,
+                        start_line: 1,
+                        end_line: 1,
+                        start_column: 1,
+                        end_column: 1,
+                    },
+                    &None,
+                ));
+            }
+        }
+    }
+
+    // Check for duplicate type definitions
+    for (name, file_paths) in &codebase.type_definitions_defs {
+        if file_paths.len() > 1 {
+            let name_str = interner.lookup(name);
+            for file_path in file_paths {
+                let other_files: Vec<&str> = file_paths
+                    .iter()
+                    .filter(|fp| *fp != file_path)
+                    .map(|fp| interner.lookup(&fp.0))
+                    .collect();
+                let message = format!(
+                    "Type definition `{}` is also defined in: {}",
+                    name_str,
+                    other_files.join(", ")
+                );
+                issues.entry(*file_path).or_default().push(Issue::new(
+                    IssueKind::DuplicateTypeDefinition,
+                    message,
+                    HPos {
+                        file_path: *file_path,
+                        start_offset: 0,
+                        end_offset: 0,
+                        start_line: 1,
+                        end_line: 1,
+                        start_column: 1,
+                        end_column: 1,
+                    },
+                    &None,
+                ));
+            }
+        }
+    }
+
+    // Check for duplicate constant definitions
+    for (name, file_paths) in &codebase.constant_infos_defs {
+        if file_paths.len() > 1 {
+            let name_str = interner.lookup(name);
+            for file_path in file_paths {
+                let other_files: Vec<&str> = file_paths
+                    .iter()
+                    .filter(|fp| *fp != file_path)
+                    .map(|fp| interner.lookup(&fp.0))
+                    .collect();
+                let message = format!(
+                    "Constant `{}` is also defined in: {}",
+                    name_str,
+                    other_files.join(", ")
+                );
+                issues.entry(*file_path).or_default().push(Issue::new(
+                    IssueKind::DuplicateConstantDefinition,
+                    message,
+                    HPos {
+                        file_path: *file_path,
+                        start_offset: 0,
+                        end_offset: 0,
+                        start_line: 1,
+                        end_line: 1,
+                        start_column: 1,
+                        end_column: 1,
+                    },
+                    &None,
+                ));
+            }
+        }
+    }
+
+    issues
 }
 
 /// Progress information passed to the progress callback.

@@ -574,9 +574,13 @@ fn invalidate_changed_codebase_elements(
                 Some(kind) => {
                     if let SymbolKind::TypeDefinition | SymbolKind::NewtypeDefinition = kind {
                         codebase.type_definitions.remove(&ast_node.name);
+                        // Also remove from defs tracking
+                        codebase.type_definitions_defs.remove(&ast_node.name);
                     } else if let Some(classlike_info) =
                         codebase.classlike_infos.remove(&ast_node.name)
                     {
+                        // Also remove from defs tracking
+                        codebase.classlike_infos_defs.remove(&ast_node.name);
                         for method_name in classlike_info.methods {
                             codebase
                                 .functionlike_infos
@@ -589,8 +593,14 @@ fn invalidate_changed_codebase_elements(
                         codebase
                             .functionlike_infos
                             .remove(&(ast_node.name, StrId::EMPTY));
+                        // Also remove from defs tracking
+                        codebase
+                            .functionlike_infos_defs
+                            .remove(&(ast_node.name, StrId::EMPTY));
                     } else if ast_node.is_constant {
                         codebase.constant_infos.remove(&ast_node.name);
+                        // Also remove from defs tracking
+                        codebase.constant_infos_defs.remove(&ast_node.name);
                     }
                 }
             }
