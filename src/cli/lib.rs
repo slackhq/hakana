@@ -2715,8 +2715,8 @@ fn do_server(
         config_path: Some(config_path),
         plugins,
         header: header.to_string(),
-        find_unused_expressions: false,
-        find_unused_definitions: false,
+        find_unused_expressions: true,
+        find_unused_definitions: true,
     };
 
     match Server::new(server_config, Arc::new(logger)) {
