@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hakana_aast_helper::Uses;
+use hakana_code_info::t_atomic::TGenericParam;
 use hakana_str::{StrId, ThreadedInterner};
 use no_pos_hash::{Hasher, NoPosHash, position_insensitive_hash};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -721,7 +722,7 @@ pub(crate) fn scan(
                     let template_types = param_type.get_template_types();
 
                     for template_type in template_types {
-                        if let TAtomic::TGenericParam { param_name, .. } = template_type {
+                        if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = template_type {
                             storage.template_readonly.remove(param_name);
                         }
                     }
@@ -1170,7 +1171,7 @@ fn visit_property_declaration(
             let template_types = property_type.get_template_types();
 
             for template_type in template_types {
-                if let TAtomic::TGenericParam { param_name, .. } = template_type {
+                if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = template_type {
                     classlike_storage.template_readonly.remove(param_name);
                 }
             }

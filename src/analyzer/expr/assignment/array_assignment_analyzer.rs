@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
 use hakana_code_info::data_flow::node::VariableSourceKind;
-use hakana_code_info::t_atomic::TVec;
+use hakana_code_info::t_atomic::{TGenericParam, TVec};
 use hakana_code_info::ttype::{
     combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
     template::TemplateBound, type_combiner, wrap_atomic,
@@ -229,7 +229,7 @@ fn update_atomic_given_key(
     current_type: &TUnion,
     codebase: &CodebaseInfo,
 ) -> TAtomic {
-    if let TAtomic::TGenericParam { as_type, .. } = &atomic_type {
+    if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = &atomic_type {
         if as_type.types.len() == 1 {
             // destructure generic after update
             return update_atomic_given_key(

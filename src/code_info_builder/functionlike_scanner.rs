@@ -23,6 +23,7 @@ use hakana_code_info::issue::get_issue_from_comment;
 use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::method_info::MethodInfo;
 use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::TGenericParam;
 use hakana_code_info::taint::string_to_sink_types;
 use hakana_code_info::taint::string_to_source_types;
 use hakana_code_info::ttype::get_mixed_any;
@@ -229,7 +230,7 @@ pub(crate) fn get_functionlike(
                     )
                     .unwrap();
 
-                    super_type.types.push(TAtomic::TGenericParam {
+                    super_type.types.push(TAtomic::TGenericParam(TGenericParam {
                         param_name: *param_name,
                         as_type: Box::new(if let Some(template_as_type) = &template_as_type {
                             template_as_type.clone()
@@ -238,7 +239,7 @@ pub(crate) fn get_functionlike(
                         }),
                         defining_entity: GenericParent::FunctionLike(name.unwrap()),
                         extra_types: None,
-                    });
+                    }));
 
                     template_supers.push((*param_name, super_type));
                 }
@@ -276,7 +277,7 @@ pub(crate) fn get_functionlike(
         )
         .unwrap();
 
-        if let TAtomic::TGenericParam { param_name, .. } = where_first {
+        if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = where_first {
             if let ast_defs::ConstraintKind::ConstraintEq | ast_defs::ConstraintKind::ConstraintAs =
                 where_hint.1
             {

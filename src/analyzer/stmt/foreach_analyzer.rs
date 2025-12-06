@@ -14,7 +14,7 @@ use crate::{
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic, TDict},
+    t_atomic::{DictKey, TAtomic, TDict, TGenericParam},
     t_union::TUnion,
     var_name::VarName,
 };
@@ -240,7 +240,7 @@ fn check_iterator_type(
     let codebase = statements_analyzer.codebase;
 
     while let Some(mut iterator_atomic_type) = iterator_atomic_types.pop() {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = iterator_atomic_type
         {
             iterator_atomic_types.extend(&as_type.types);

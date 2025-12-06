@@ -7,6 +7,7 @@ use hakana_code_info::t_atomic::DictKey;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_atomic::TClosure;
 use hakana_code_info::t_atomic::TDict;
+use hakana_code_info::t_atomic::TGenericParam;
 use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::get_arraykey;
@@ -129,12 +130,12 @@ fn get_classname_type_from_hint(
     ) {
         let as_type = inner_type.get_single_owned();
 
-        if let TAtomic::TGenericParam {
+        if let TAtomic::TGenericParam(TGenericParam {
             param_name,
             defining_entity,
             as_type,
             ..
-        } = as_type
+        }) = as_type
         {
             if is_class_ptr {
                 TAtomic::TGenericClassPtr {
@@ -182,12 +183,12 @@ fn get_typename_type_from_hint(
     ) {
         let as_type = inner_type.get_single_owned();
 
-        if let TAtomic::TGenericParam {
+        if let TAtomic::TGenericParam(TGenericParam {
             param_name,
             defining_entity,
             as_type,
             ..
-        } = as_type
+        }) = as_type
         {
             TAtomic::TGenericTypename {
                 param_name,
@@ -490,12 +491,12 @@ fn get_template_type(
 ) -> TAtomic {
     let (defining_entity, as_type) = &defining_entities[0];
 
-    TAtomic::TGenericParam {
+    TAtomic::TGenericParam(TGenericParam {
         param_name: *type_name,
         as_type: Box::new((**as_type).clone()),
         defining_entity: *defining_entity,
         extra_types: None,
-    }
+    })
 }
 
 pub fn get_type_from_hint(

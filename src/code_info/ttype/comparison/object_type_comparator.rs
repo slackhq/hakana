@@ -1,4 +1,5 @@
 use crate::code_location::FilePath;
+use crate::t_atomic::TGenericParam;
 use crate::ttype::wrap_atomic;
 use crate::{GenericParent, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
@@ -50,18 +51,18 @@ fn is_intersection_shallowly_contained_by(
     inside_assertion: bool,
     atomic_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
-    if let TAtomic::TGenericParam {
+    if let TAtomic::TGenericParam(TGenericParam {
         defining_entity: container_defining_entity,
         param_name: container_param_name,
         ..
-    } = intersection_container_type
+    }) = intersection_container_type
     {
-        if let TAtomic::TGenericParam {
+        if let TAtomic::TGenericParam(TGenericParam {
             defining_entity: input_defining_entity,
             param_name: input_param_name,
             as_type: input_extends,
             ..
-        } = intersection_input_type
+        }) = intersection_input_type
         {
             if input_param_name == container_param_name
                 && input_defining_entity == container_defining_entity
@@ -113,10 +114,10 @@ fn is_intersection_shallowly_contained_by(
         return false;
     }
 
-    if let TAtomic::TGenericParam {
+    if let TAtomic::TGenericParam(TGenericParam {
         as_type: input_extends,
         ..
-    } = intersection_input_type
+    }) = intersection_input_type
     {
         let mut intersection_container_type = intersection_container_type.clone();
 

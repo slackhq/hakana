@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     GenericParent,
     codebase_info::CodebaseInfo,
-    t_atomic::{TAtomic, TDict, TVec},
+    t_atomic::{TAtomic, TDict, TGenericParam, TVec},
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -31,12 +31,12 @@ pub fn replace(
         atomic_type = replace_atomic(atomic_type, template_result, codebase);
 
         match &atomic_type {
-            TAtomic::TGenericParam {
+            TAtomic::TGenericParam(TGenericParam {
                 param_name,
                 defining_entity,
                 as_type,
                 ..
-            } => {
+            }) => {
                 let key = param_name;
 
                 let template_type = replace_template_param(
@@ -89,12 +89,12 @@ pub fn replace(
                             class_template_type = Some(TAtomic::TClassname {
                                 as_type: Box::new(template_type_part.clone()),
                             });
-                        } else if let TAtomic::TGenericParam {
+                        } else if let TAtomic::TGenericParam(TGenericParam {
                             as_type,
                             param_name,
                             defining_entity,
                             ..
-                        } = template_type_part
+                        }) = template_type_part
                         {
                             let first_atomic_type = as_type.get_single();
 
@@ -146,12 +146,12 @@ pub fn replace(
                                     newtype: *type_newtype,
                                 }),
                             });
-                        } else if let TAtomic::TGenericParam {
+                        } else if let TAtomic::TGenericParam(TGenericParam {
                             as_type,
                             param_name,
                             defining_entity,
                             ..
-                        } = template_type_part
+                        }) = template_type_part
                         {
                             let first_atomic_type = as_type.get_single();
 
@@ -231,7 +231,7 @@ fn replace_template_param(
                     {
                         if let Some(param_inner) = param_map.get(key) {
                             let template_name =
-                                if let TAtomic::TGenericParam { param_name, .. } =
+                                if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) =
                                     param_inner.get_single()
                                 {
                                     param_name

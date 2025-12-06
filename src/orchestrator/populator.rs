@@ -8,7 +8,7 @@ use hakana_code_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::symbol_references::{ReferenceSource, SymbolReferences};
-use hakana_code_info::t_atomic::{TAtomic, populate_atomic_type};
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam, populate_atomic_type};
 use hakana_code_info::t_union::{TUnion, populate_union_type};
 use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
@@ -903,11 +903,11 @@ fn extend_type(
     let mut cloned = type_.types.clone();
 
     while let Some(atomic_type) = cloned.pop() {
-        if let TAtomic::TGenericParam {
+        if let TAtomic::TGenericParam(TGenericParam {
             defining_entity: GenericParent::ClassLike(defining_entity),
             param_name,
             ..
-        } = &atomic_type
+        }) = &atomic_type
         {
             if let Some(ex) = template_extended_params.get(defining_entity) {
                 if let Some(referenced_type) = ex.get(param_name) {

@@ -6,7 +6,7 @@ use crate::{
     code_location::FilePath,
     codebase_info::CodebaseInfo,
     data_flow::node::DataFlowNode,
-    t_atomic::{DictKey, TAtomic, TDict, TVec},
+    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TVec},
     t_union::TUnion,
     type_resolution::TypeResolutionContext,
 };
@@ -1166,7 +1166,7 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TString { .. } => "string".to_string(),
-        TAtomic::TGenericParam { param_name, .. } => interner.lookup(param_name).to_string(),
+        TAtomic::TGenericParam(TGenericParam { param_name, .. }) => interner.lookup(param_name).to_string(),
         TAtomic::TGenericClassname {
             param_name,
             defining_entity,

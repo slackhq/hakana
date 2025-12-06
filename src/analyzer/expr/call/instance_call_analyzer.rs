@@ -13,7 +13,7 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
 use oxidized::aast;
 use oxidized::pos::Pos;
@@ -111,7 +111,7 @@ pub(crate) fn analyze(
                         continue;
                     }
                 }
-                TAtomic::TGenericParam { as_type, .. }
+                TAtomic::TGenericParam(TGenericParam { as_type, .. })
                 | TAtomic::TClassTypeConstant { as_type, .. } => {
                     class_types.extend(&as_type.types);
                     continue;

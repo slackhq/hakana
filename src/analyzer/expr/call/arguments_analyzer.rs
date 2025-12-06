@@ -30,7 +30,7 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
 use hakana_code_info::t_union::{TUnion, populate_union_type};
 use hakana_code_info::ttype::template::{
     self, TemplateBound, TemplateResult, inferred_type_replacer, standin_type_replacer,
@@ -769,12 +769,12 @@ fn adjust_param_type(
         }
 
         for template_type in bindable_template_params {
-            if let TAtomic::TGenericParam {
+            if let TAtomic::TGenericParam(TGenericParam {
                 param_name,
                 defining_entity,
                 as_type,
                 ..
-            } = template_type
+            }) = template_type
             {
                 if (if let Some(bounds_by_param) = template_result.lower_bounds.get(&param_name) {
                     bounds_by_param.get(&defining_entity)
@@ -1407,11 +1407,11 @@ pub(crate) fn get_template_types_for_class_member(
                         let output_type = if type_.has_template() {
                             let mut output_type = None;
                             for atomic_type in &type_.types {
-                                let output_type_candidate = if let TAtomic::TGenericParam {
+                                let output_type_candidate = if let TAtomic::TGenericParam(TGenericParam {
                                     defining_entity: GenericParent::ClassLike(defining_entity),
                                     param_name,
                                     ..
-                                } = &atomic_type
+                                }) = &atomic_type
                                 {
                                     (*get_generic_param_for_offset(
                                         defining_entity,

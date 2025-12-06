@@ -1,4 +1,5 @@
 use crate::code_location::FilePath;
+use crate::t_atomic::TGenericParam;
 use crate::ttype::{template::TemplateBound, wrap_atomic};
 use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
 
@@ -85,11 +86,11 @@ pub fn is_contained_by(
 
                 continue;
             }
-            TAtomic::TGenericParam {
+            TAtomic::TGenericParam(TGenericParam {
                 extra_types: None,
                 as_type,
                 ..
-            } => {
+            }) => {
                 if !container_has_template {
                     input_atomic_types.extend(as_type.types.iter().collect::<Vec<_>>());
                     continue;
@@ -156,7 +157,7 @@ fn check_atomic_contained_by_union(
         }
 
         for container_atomic_type in container_atomic_types {
-            if let TAtomic::TGenericParam { as_type, .. } = container_atomic_type {
+            if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = container_atomic_type {
                 if as_type.is_arraykey() {
                     return None;
                 }

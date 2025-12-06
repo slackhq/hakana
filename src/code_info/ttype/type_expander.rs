@@ -11,7 +11,7 @@ use crate::{
     },
     functionlike_info::FunctionLikeInfo,
     functionlike_parameter::FnParameter,
-    t_atomic::{DictKey, TAtomic, TClosure, TDict, TVec},
+    t_atomic::{DictKey, TAtomic, TClosure, TDict, TGenericParam, TVec},
     t_union::TUnion,
     ttype::intersect_union_types_simple,
     type_definition_info::TypeDefinitionInfo,
@@ -311,11 +311,11 @@ fn expand_atomic(
                 );
             }
         }
-    } else if let TAtomic::TGenericParam {
+    } else if let TAtomic::TGenericParam(TGenericParam {
         param_name,
         as_type,
         ..
-    } = return_type_part
+    }) = return_type_part
     {
         if let Some(where_constraints) = options.where_constraints {
             for (_, constraint_type) in where_constraints.iter().filter(|(k, _)| k == param_name) {

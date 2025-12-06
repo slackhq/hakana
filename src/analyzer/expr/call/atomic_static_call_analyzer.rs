@@ -3,7 +3,7 @@ use hakana_code_info::{
     classlike_info::ClassLikeInfo,
     function_context::FunctionContext,
     issue::{Issue, IssueKind},
-    t_atomic::TAtomic,
+    t_atomic::{TAtomic, TGenericParam},
 };
 use hakana_str::StrId;
 use oxidized::{aast, ast_defs::Pos};
@@ -100,7 +100,7 @@ pub(crate) fn analyze(
                 }
             }
             TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } => *name,
-            TAtomic::TGenericParam { as_type, .. }
+            TAtomic::TGenericParam(TGenericParam { as_type, .. })
             | TAtomic::TClassTypeConstant { as_type, .. } => {
                 let classlike_name =
                     if let TAtomic::TNamedObject { name, .. } = &as_type.types.first().unwrap() {

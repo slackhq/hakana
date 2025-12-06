@@ -216,6 +216,15 @@ impl TVec {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+pub struct TGenericParam {
+    pub param_name: StrId,
+    pub as_type: Box<TUnion>,
+    pub defining_entity: GenericParent,
+    pub extra_types: Option<Vec<TAtomic>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
+#[derivative(Hash)]
 pub enum TAtomic {
     /// Corresponds to the arraykey type in Hack
     TArraykey {
@@ -304,12 +313,7 @@ pub enum TAtomic {
     // .1 => TNonEmptyString
     // .2 => TNonspecificLiteralString
     TStringWithFlags(bool, bool, bool),
-    TGenericParam {
-        param_name: StrId,
-        as_type: Box<TUnion>,
-        defining_entity: GenericParent,
-        extra_types: Option<Vec<TAtomic>>,
-    },
+    TGenericParam(TGenericParam),
     TGenericClassname {
         param_name: StrId,
         defining_entity: GenericParent,
@@ -669,11 +673,11 @@ impl TAtomic {
 
                 str + "string"
             }
-            TAtomic::TGenericParam {
+            TAtomic::TGenericParam(TGenericParam {
                 param_name,
                 defining_entity,
                 ..
-            } => {
+            }) => {
                 let mut str = String::new();
                 if let Some(interner) = interner {
                     str += interner.lookup(param_name);
@@ -899,11 +903,11 @@ impl TAtomic {
                 }
             },
 
-            TAtomic::TGenericParam {
+            TAtomic::TGenericParam(TGenericParam {
                 param_name,
                 defining_entity,
                 ..
-            } => {
+            }) => {
                 let mut str = String::new();
                 str += param_name.0.to_string().as_str();
                 str += ":";
@@ -1045,11 +1049,11 @@ impl TAtomic {
 
     pub fn is_templated_as_mixed(&self, has_any: &mut bool) -> bool {
         match self {
-            TAtomic::TGenericParam {
+            TAtomic::TGenericParam(TGenericParam {
                 as_type,
                 extra_types: None,
                 ..
-            } => as_type.is_mixed_with_any(has_any),
+            }) => as_type.is_mixed_with_any(has_any),
             _ => false,
         }
     }
@@ -1060,22 +1064,22 @@ impl TAtomic {
             TAtomic::TClosure(_) => true,
             TAtomic::TAwaitable { .. } => true,
             TAtomic::TNamedObject { .. } => true,
-            TAtomic::TGenericParam {
+            TAtomic::TGenericParam(TGenericParam {
                 as_type,
                 extra_types: None,
                 ..
-            } => as_type.is_objecty(),
+            }) => as_type.is_objecty(),
             _ => false,
         }
     }
 
     pub fn is_templated_as_object(&self) -> bool {
         match self {
-            TAtomic::TGenericParam {
+            TAtomic::TGenericParam(TGenericParam {
                 as_type,
                 extra_types: None,
                 ..
-            } => as_type.is_objecty(),
+            }) => as_type.is_objecty(),
             _ => false,
         }
     }
@@ -1259,17 +1263,17 @@ impl TAtomic {
 
     pub fn replace_template_extends(&self, new_as_type: TUnion) -> TAtomic {
         match self {
-            TAtomic::TGenericParam {
+            TAtomic::TGenericParam(TGenericParam {
                 param_name,
                 defining_entity,
                 extra_types,
                 ..
-            } => TAtomic::TGenericParam {
+            }) => TAtomic::TGenericParam(TGenericParam {
                 as_type: Box::new(new_as_type),
                 param_name: *param_name,
                 defining_entity: *defining_entity,
                 extra_types: extra_types.clone(),
-            },
+            }),
             TAtomic::TClassTypeConstant {
                 class_type,
                 member_name,
@@ -1492,7 +1496,7 @@ impl TAtomic {
 
     pub fn add_intersection_type(&mut self, atomic: TAtomic) {
         if let TAtomic::TNamedObject { extra_types, .. }
-        | TAtomic::TGenericParam { extra_types, .. } = self
+        | TAtomic::TGenericParam(TGenericParam { extra_types, .. }) = self
         {
             if let Some(extra_types) = extra_types {
                 extra_types.push(atomic);
@@ -1509,10 +1513,10 @@ impl TAtomic {
             ref mut extra_types,
             ..
         }
-        | TAtomic::TGenericParam {
+        | TAtomic::TGenericParam(TGenericParam {
             ref mut extra_types,
             ..
-        } = clone
+        }) = clone
         {
             *extra_types = None
         }
@@ -1526,31 +1530,31 @@ impl TAtomic {
                 extra_types: Some(extra_types),
                 ..
             }
-            | TAtomic::TGenericParam {
+            | TAtomic::TGenericParam(TGenericParam {
                 extra_types: Some(extra_types),
                 ..
-            } => {
+            }) => {
                 let mut intersection_types = vec![];
                 intersection_types.push(self);
                 intersection_types.extend(extra_types);
                 (intersection_types, vec![])
             }
             _ => {
-                if let TAtomic::TGenericParam { as_type, .. } = self {
+                if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = self {
                     for as_atomic in &as_type.types {
                         // T1 as T2 as object becomes (T1 as object) & (T2 as object)
-                        if let TAtomic::TGenericParam {
+                        if let TAtomic::TGenericParam(TGenericParam {
                             as_type: extends_as_type,
                             ..
-                        } = as_atomic
+                        }) = as_atomic
                         {
                             let mut new_intersection_types = vec![];
                             let intersection_types = as_atomic.get_intersection_types();
                             new_intersection_types.extend(intersection_types.1);
                             let mut type_part = self.clone();
-                            if let TAtomic::TGenericParam {
+                            if let TAtomic::TGenericParam(TGenericParam {
                                 ref mut as_type, ..
-                            } = type_part
+                            }) = type_part
                             {
                                 as_type.clone_from(extends_as_type);
                             }
@@ -1746,7 +1750,7 @@ impl TAtomic {
                 as_type: Some(as_type),
                 ..
             } => as_type.is_json_compatible(banned_type_aliases),
-            TAtomic::TGenericParam { as_type, .. }
+            TAtomic::TGenericParam(TGenericParam { as_type, .. })
             | TAtomic::TClassTypeConstant { as_type, .. } => {
                 as_type.is_json_compatible(banned_type_aliases)
             }
@@ -1839,7 +1843,7 @@ impl HasTypeNodes for TAtomic {
             } => {
                 vec![]
             }
-            TAtomic::TGenericParam { as_type, .. } => {
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
                 vec![TypeNode::Union(as_type)]
             }
             TAtomic::TTypeAlias {
@@ -2135,7 +2139,7 @@ pub fn populate_atomic_type(
                 force,
             );
         }
-        TAtomic::TGenericParam { as_type, .. } => {
+        TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
             populate_union_type(
                 as_type,
                 codebase_symbols,

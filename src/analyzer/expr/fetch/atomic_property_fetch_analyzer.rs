@@ -6,6 +6,7 @@ use crate::{
 };
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TGenericParam;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
@@ -387,7 +388,7 @@ fn update_template_types(
             .get(type_name)
         {
             for mapped_type_atomic in &mapped_type.types {
-                if let TAtomic::TGenericParam { param_name, .. } = &mapped_type_atomic {
+                if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = &mapped_type_atomic {
                     let position = property_class_storage
                         .template_types
                         .iter()

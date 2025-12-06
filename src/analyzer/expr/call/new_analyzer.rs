@@ -21,7 +21,7 @@ use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
 use hakana_code_info::t_union::{TUnion, populate_union_type};
 use hakana_code_info::ttype::template::{self, TemplateBound, TemplateResult};
 use hakana_code_info::ttype::{
@@ -204,7 +204,7 @@ fn analyze_atomic(
             }
         }
         TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } => *name,
-        TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. } => {
+        TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. } => {
             let generic_param_type = &as_type.types[0];
             if let TAtomic::TNamedObject { name, .. } = generic_param_type {
                 *name

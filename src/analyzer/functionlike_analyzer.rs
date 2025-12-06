@@ -27,7 +27,7 @@ use hakana_code_info::function_context::{FunctionContext, FunctionLikeIdentifier
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::{TAtomic, TVec};
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TVec};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
@@ -309,12 +309,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             .map(|(param_name, template_map)| {
                                 let first_map_entry = template_map.iter().next().unwrap();
 
-                                wrap_atomic(TAtomic::TGenericParam {
+                                wrap_atomic(TAtomic::TGenericParam(TGenericParam {
                                     param_name: *param_name,
                                     as_type: Box::new((*first_map_entry.1).clone()),
                                     defining_entity: first_map_entry.0,
                                     extra_types: None,
-                                })
+                                }))
                             })
                             .collect::<Vec<_>>(),
                     )

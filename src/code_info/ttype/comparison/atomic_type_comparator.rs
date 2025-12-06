@@ -1,5 +1,5 @@
 use crate::code_location::FilePath;
-use crate::t_atomic::{TDict, TVec};
+use crate::t_atomic::{TDict, TGenericParam, TVec};
 use crate::ttype::{get_arrayish_params, get_value_param, wrap_atomic};
 use crate::{class_constant_info::ConstantInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 use hakana_str::StrId;
@@ -25,13 +25,13 @@ pub fn is_contained_by(
         return true;
     }
 
-    if let TAtomic::TGenericParam { .. }
+    if let TAtomic::TGenericParam(TGenericParam { .. })
     | TAtomic::TNamedObject {
         extra_types: Some(_),
         ..
     } = container_type_part
     {
-        if let TAtomic::TGenericParam { .. }
+        if let TAtomic::TGenericParam(TGenericParam { .. })
         | TAtomic::TNamedObject {
             extra_types: Some(_),
             ..
@@ -124,7 +124,7 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TNull = input_type_part {
-        if let TAtomic::TGenericParam { as_type, .. } = container_type_part {
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = container_type_part {
             if as_type.is_nullable() || as_type.is_mixed() {
                 return true;
             }
@@ -414,15 +414,15 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TGenericParam {
+    if let TAtomic::TGenericParam(TGenericParam {
         as_type: container_type_extends,
         ..
-    } = container_type_part
+    }) = container_type_part
     {
-        if let TAtomic::TGenericParam {
+        if let TAtomic::TGenericParam(TGenericParam {
             as_type: input_type_extends,
             ..
-        } = input_type_part
+        }) = input_type_part
         {
             return union_type_comparator::is_contained_by(
                 codebase,
@@ -456,11 +456,11 @@ pub fn is_contained_by(
 
     // TODO handle conditional container_type_part
 
-    if let TAtomic::TGenericParam {
+    if let TAtomic::TGenericParam(TGenericParam {
         extra_types: input_extra_types,
         as_type: input_extends,
         ..
-    } = input_type_part
+    }) = input_type_part
     {
         if let Some(input_extra_types) = input_extra_types {
             for input_extra_type in input_extra_types {

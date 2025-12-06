@@ -7,7 +7,7 @@ use hakana_code_info::{
         path::{ArrayDataKind, PathKind},
     },
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic, TDict, TVec},
+    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TVec},
     t_union::TUnion,
 };
 use hakana_code_info::{
@@ -322,7 +322,7 @@ pub(crate) fn get_array_access_type_given_offset(
     let mut stmt_type = None;
 
     while let Some(atomic_var_type) = array_atomic_types.pop() {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. }
         | TAtomic::TTypeAlias {
             as_type: Some(as_type),

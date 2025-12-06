@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TGenericParam;
 use hakana_code_info::ttype::template::TemplateBound;
 use rustc_hash::FxHashMap;
 
@@ -89,7 +90,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
     let mut e1_types = e1_type.types.clone();
 
     while let Some(mut e1_type_atomic) = e1_types.pop() {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. }
         | TAtomic::TTypeAlias {
             as_type: Some(as_type),
@@ -137,7 +138,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
         let mut e2_types = e2_type.types.clone();
 
         while let Some(mut e2_type_atomic) = e2_types.pop() {
-            if let TAtomic::TGenericParam { ref as_type, .. }
+            if let TAtomic::TGenericParam(TGenericParam { ref as_type, .. })
             | TAtomic::TClassTypeConstant { ref as_type, .. }
             | TAtomic::TTypeAlias {
                 as_type: Some(ref as_type),

@@ -12,7 +12,7 @@ use hakana_code_info::{
     code_location::FilePath,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{TAtomic, TDict, TVec},
+    t_atomic::{TAtomic, TDict, TGenericParam, TVec},
     t_union::TUnion,
     ttype::{
         get_bool, get_false, get_float, get_null, get_object, get_scalar, get_true,
@@ -374,7 +374,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             return Some(TAtomic::TNull);
         }
         (
-            TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. },
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TNull,
         ) => {
             *did_remove_type = true;
@@ -444,11 +444,11 @@ pub(crate) fn intersect_atomic_with_atomic(
             return Some(type_1_atomic.clone());
         }
         (
-            TAtomic::TGenericParam {
+            TAtomic::TGenericParam(TGenericParam {
                 as_type,
                 extra_types: None,
                 ..
-            },
+            }),
             TAtomic::TObject,
         ) => {
             return if as_type.is_objecty() {
@@ -457,7 +457,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 None
             };
         }
-        (TAtomic::TGenericParam { as_type, .. }, TAtomic::TObject) => {
+        (TAtomic::TGenericParam(TGenericParam { as_type, .. }), TAtomic::TObject) => {
             *did_remove_type = true;
 
             if as_type.is_mixed() {
@@ -637,7 +637,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (
-            TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. },
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TString,
         ) => {
             *did_remove_type = true;
@@ -716,7 +716,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             return Some(TAtomic::TInt);
         }
         (
-            TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. },
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TInt,
         ) => {
             *did_remove_type = true;
@@ -862,7 +862,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (
-            TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. },
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TMixedWithFlags(_, _, _, true),
         ) => {
             let type_1_atomic = type_1_atomic.replace_template_extends(
@@ -1520,7 +1520,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 is_shape: false,
             }));
         }
-        (TAtomic::TGenericParam { as_type, .. }, TAtomic::TNamedObject { .. }) => {
+        (TAtomic::TGenericParam(TGenericParam { as_type, .. }), TAtomic::TNamedObject { .. }) => {
             let new_as = intersect_union_with_atomic(
                 statements_analyzer,
                 analysis_data,
@@ -1533,9 +1533,9 @@ pub(crate) fn intersect_atomic_with_atomic(
             if let Some(new_as) = new_as {
                 let mut type_1_atomic = type_1_atomic.clone();
 
-                if let TAtomic::TGenericParam {
+                if let TAtomic::TGenericParam(TGenericParam {
                     ref mut as_type, ..
-                } = type_1_atomic
+                }) = type_1_atomic
                 {
                     *as_type = Box::new(new_as);
                 }
@@ -1543,7 +1543,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 return Some(type_1_atomic);
             }
         }
-        (TAtomic::TNamedObject { .. }, TAtomic::TGenericParam { as_type, .. }) => {
+        (TAtomic::TNamedObject { .. }, TAtomic::TGenericParam(TGenericParam { as_type, .. })) => {
             let new_as = intersect_union_with_atomic(
                 statements_analyzer,
                 analysis_data,
@@ -1556,9 +1556,9 @@ pub(crate) fn intersect_atomic_with_atomic(
             if let Some(new_as) = new_as {
                 let mut type_2_atomic = type_2_atomic.clone();
 
-                if let TAtomic::TGenericParam {
+                if let TAtomic::TGenericParam(TGenericParam {
                     ref mut as_type, ..
-                } = type_2_atomic
+                }) = type_2_atomic
                 {
                     *as_type = Box::new(new_as);
                 }
@@ -2077,10 +2077,10 @@ fn intersect_contained_atomic_with_another(
 
     if let TAtomic::TNamedObject { .. } = sub_atomic {
         let mut type_1_atomic = super_atomic.clone();
-        if let TAtomic::TGenericParam {
+        if let TAtomic::TGenericParam(TGenericParam {
             as_type: ref mut type_1_as_type,
             ..
-        } = type_1_atomic
+        }) = type_1_atomic
         {
             if type_1_as_type.has_object_type() {
                 let type_1_as = intersect_union_with_atomic(

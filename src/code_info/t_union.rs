@@ -2,7 +2,7 @@ use crate::{
     codebase_info::Symbols,
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
-    t_atomic::{DictKey, TAtomic, TVec, populate_atomic_type},
+    t_atomic::{DictKey, TAtomic, TGenericParam, TVec, populate_atomic_type},
 };
 use derivative::Derivative;
 use hakana_str::{Interner, StrId};
@@ -228,7 +228,7 @@ impl TUnion {
 
     pub fn has_template_or_static(&self) -> bool {
         for atomic in &self.types {
-            if let TAtomic::TGenericParam { .. } = atomic {
+            if let TAtomic::TGenericParam(TGenericParam { .. }) = atomic {
                 return true;
             }
 
@@ -244,7 +244,7 @@ impl TUnion {
 
                 if let Some(extra_types) = extra_types {
                     for extra_type in extra_types {
-                        if let TAtomic::TGenericParam { .. } = extra_type {
+                        if let TAtomic::TGenericParam(TGenericParam { .. }) = extra_type {
                             return true;
                         }
                     }
@@ -257,7 +257,7 @@ impl TUnion {
 
     pub fn has_template(&self) -> bool {
         for atomic in &self.types {
-            if let TAtomic::TGenericParam { .. } = atomic {
+            if let TAtomic::TGenericParam(TGenericParam { .. }) = atomic {
                 return true;
             }
 
@@ -267,7 +267,7 @@ impl TUnion {
             } = atomic
             {
                 for extra_type in extra_types {
-                    if let TAtomic::TGenericParam { .. } = extra_type {
+                    if let TAtomic::TGenericParam(TGenericParam { .. }) = extra_type {
                         return true;
                     }
                 }
@@ -300,7 +300,7 @@ impl TUnion {
 
         for child_node in all_child_nodes {
             if let TypeNode::Atomic(
-                TAtomic::TGenericParam { .. }
+                TAtomic::TGenericParam(TGenericParam { .. })
                 | TAtomic::TGenericClassPtr { .. }
                 | TAtomic::TGenericClassname { .. }
                 | TAtomic::TGenericTypename { .. },
@@ -326,7 +326,7 @@ impl TUnion {
 
         for child_node in all_child_nodes {
             if let TypeNode::Atomic(inner) = child_node {
-                if let TAtomic::TGenericParam { .. }
+                if let TAtomic::TGenericParam(TGenericParam { .. })
                 | TAtomic::TGenericClassPtr { .. }
                 | TAtomic::TGenericClassname { .. }
                 | TAtomic::TGenericTypename { .. }

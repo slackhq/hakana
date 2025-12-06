@@ -21,7 +21,7 @@ use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::template::{TemplateBound, TemplateResult};
@@ -340,11 +340,11 @@ pub(crate) fn get_generic_param_for_offset(
         for (extended_class_name, type_map) in template_extended_params {
             for (extended_template_name, extended_type) in type_map {
                 for extended_atomic_type in &extended_type.types {
-                    if let TAtomic::TGenericParam {
+                    if let TAtomic::TGenericParam(TGenericParam {
                         param_name: extended_param_name,
                         defining_entity,
                         ..
-                    } = &extended_atomic_type
+                    }) = &extended_atomic_type
                     {
                         if extended_param_name == template_name
                             && defining_entity == &GenericParent::ClassLike(*classlike_name)

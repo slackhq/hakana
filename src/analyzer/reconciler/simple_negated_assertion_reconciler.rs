@@ -5,7 +5,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_code_info::t_atomic::TVec;
+use hakana_code_info::t_atomic::{TGenericParam, TVec};
 use hakana_code_info::ttype::{
     comparison::union_type_comparator, get_nothing, get_null, wrap_atomic,
 };
@@ -339,7 +339,7 @@ fn subtract_object(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -415,7 +415,7 @@ fn subtract_vec(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -490,7 +490,7 @@ fn subtract_keyset(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -565,7 +565,7 @@ fn subtract_dict(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -640,7 +640,7 @@ fn subtract_string(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -738,7 +738,7 @@ fn subtract_int(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -853,7 +853,7 @@ fn subtract_float(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = &atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -952,7 +952,7 @@ fn subtract_num(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -1049,7 +1049,7 @@ fn subtract_arraykey(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -1148,7 +1148,7 @@ fn subtract_bool(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -1235,7 +1235,7 @@ pub(crate) fn subtract_null(
 
     for atomic in existing_var_types {
         match atomic {
-            TAtomic::TGenericParam { ref as_type, .. }
+            TAtomic::TGenericParam(TGenericParam { ref as_type, .. })
             | TAtomic::TClassTypeConstant { ref as_type, .. } => {
                 let new_atomic = atomic.replace_template_extends(subtract_null(
                     assertion,
@@ -1322,7 +1322,7 @@ fn subtract_false(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } = atomic
         {
             if !is_equality && !as_type.is_mixed() {
@@ -1406,7 +1406,7 @@ fn subtract_true(
 
     for atomic in existing_var_types {
         match atomic {
-            TAtomic::TGenericParam { as_type, .. }
+            TAtomic::TGenericParam(TGenericParam { as_type, .. })
             | TAtomic::TClassTypeConstant { as_type, .. } => {
                 if !is_equality && !as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(subtract_true(
@@ -1499,7 +1499,7 @@ fn reconcile_falsy(
             did_remove_type = true;
 
             match atomic {
-                TAtomic::TGenericParam { ref as_type, .. } => {
+                TAtomic::TGenericParam(TGenericParam { ref as_type, .. }) => {
                     if !as_type.is_mixed() {
                         let atomic = atomic.replace_template_extends(reconcile_falsy(
                             assertion,
@@ -1724,7 +1724,7 @@ fn reconcile_empty_countable(
                     acceptable_types.push(new_atomic);
                 }
             }
-            TAtomic::TGenericParam { as_type, .. } => {
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
                 did_remove_type = true;
                 if !as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(reconcile_empty_countable(
@@ -1963,7 +1963,7 @@ fn reconcile_no_array_key(
 
                 acceptable_types.push(atomic);
             }
-            TAtomic::TGenericParam { ref as_type, .. } => {
+            TAtomic::TGenericParam(TGenericParam { ref as_type, .. }) => {
                 if as_type.is_mixed() {
                     acceptable_types.push(atomic);
                 } else {

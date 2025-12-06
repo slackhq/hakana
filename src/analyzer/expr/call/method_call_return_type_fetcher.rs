@@ -15,7 +15,7 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{
     get_mixed_any, get_nothing, get_string, template,
@@ -122,7 +122,7 @@ pub(crate) fn fetch(
         &TypeExpansionOptions {
             self_class: Some(method_id.0),
             static_class_type: match lhs_type_part {
-                TAtomic::TNamedObject { .. } | TAtomic::TGenericParam { .. } => {
+                TAtomic::TNamedObject { .. } | TAtomic::TGenericParam(TGenericParam { .. }) => {
                     type_expander::StaticClassType::Object(lhs_type_part)
                 }
                 TAtomic::TGenericClassname { as_type, .. }

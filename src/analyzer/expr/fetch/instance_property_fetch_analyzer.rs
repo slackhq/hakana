@@ -5,7 +5,7 @@ use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::EFFECT_READ_PROPS;
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
 use hakana_code_info::var_name::VarName;
 use itertools::Itertools;
@@ -95,7 +95,7 @@ pub(crate) fn analyze(
     if let Some(prop_name) = prop_name {
         let mut var_atomic_types = stmt_var_type.types.iter().collect_vec();
         while let Some(mut var_atomic_type) = var_atomic_types.pop() {
-            if let TAtomic::TGenericParam { as_type, .. }
+            if let TAtomic::TGenericParam(TGenericParam { as_type, .. })
             | TAtomic::TClassTypeConstant { as_type, .. } = var_atomic_type
             {
                 var_atomic_types.extend(&as_type.types);

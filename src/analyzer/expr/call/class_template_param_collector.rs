@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hakana_code_info::t_atomic::TGenericParam;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 
@@ -137,11 +138,11 @@ pub(crate) fn resolve_template_param(
     let mut output_type_extends = None;
 
     for type_extends_atomic in &input_type_extends.types {
-        if let TAtomic::TGenericParam {
+        if let TAtomic::TGenericParam(TGenericParam {
             param_name,
             defining_entity: GenericParent::ClassLike(defining_entity),
             ..
-        } = &type_extends_atomic
+        }) = &type_extends_atomic
         {
             if let Some(entry) = static_class_storage
                 .template_types
@@ -200,11 +201,11 @@ fn expand_type(
     let mut output_type_extends = Vec::new();
 
     for type_extends_atomic in &input_type_extends.types {
-        if let Some(extended_type) = if let TAtomic::TGenericParam {
+        if let Some(extended_type) = if let TAtomic::TGenericParam(TGenericParam {
             param_name,
             defining_entity: GenericParent::ClassLike(defining_entity),
             ..
-        } = type_extends_atomic
+        }) = type_extends_atomic
         {
             if static_classlike_name != defining_entity
                 || !static_template_types.iter().any(|(k, _)| k == param_name)

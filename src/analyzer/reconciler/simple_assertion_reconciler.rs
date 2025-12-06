@@ -8,7 +8,7 @@ use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{DictKey, TAtomic, TDict, TVec},
+    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TVec},
     t_union::TUnion,
 };
 use hakana_code_info::{
@@ -210,7 +210,7 @@ fn reconcile_truthy(
             did_remove_type = true;
 
             match atomic {
-                TAtomic::TGenericParam { ref as_type, .. } => {
+                TAtomic::TGenericParam(TGenericParam { ref as_type, .. }) => {
                     if !as_type.is_mixed() {
                         let atomic = atomic.replace_template_extends(reconcile_truthy(
                             assertion,
@@ -801,7 +801,7 @@ fn reconcile_has_array_key(
                     did_remove_type = true;
                 }
             }
-            TAtomic::TGenericParam { ref as_type, .. }
+            TAtomic::TGenericParam(TGenericParam { ref as_type, .. })
             | TAtomic::TClassTypeConstant { ref as_type, .. } => {
                 if as_type.is_mixed() {
                     acceptable_types.push(atomic);
@@ -1058,7 +1058,7 @@ fn reconcile_has_nonnull_entry_for_key(
                     did_remove_type = true;
                 }
             }
-            TAtomic::TGenericParam { ref as_type, .. }
+            TAtomic::TGenericParam(TGenericParam { ref as_type, .. })
             | TAtomic::TClassTypeConstant { ref as_type, .. } => {
                 if as_type.is_mixed() {
                     acceptable_types.push(atomic);
