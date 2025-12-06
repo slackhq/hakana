@@ -4,7 +4,7 @@ use super::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::statements_analyzer::StatementsAnalyzer;
-use hakana_code_info::t_atomic::TDict;
+use hakana_code_info::t_atomic::{TDict, TNamedObject};
 use hakana_code_info::ttype::{
     comparison::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
@@ -209,14 +209,14 @@ fn subtract_complex_type(
 
         match (&existing_atomic, assertion_type) {
             (
-                TAtomic::TNamedObject {
+                TAtomic::TNamedObject(TNamedObject {
                     name: existing_classlike_name,
                     ..
-                },
-                TAtomic::TNamedObject {
+                }),
+                TAtomic::TNamedObject(TNamedObject {
                     name: assertion_classlike_name,
                     ..
-                },
+                }),
             ) => {
                 if let Some(classlike_storage) = statements_analyzer
                     .codebase
@@ -312,7 +312,7 @@ fn handle_negated_class(
 ) {
     for child_classlike in child_classlikes {
         if child_classlike != assertion_classlike_name {
-            let alternate_class = TAtomic::TNamedObject {
+            let alternate_class = TAtomic::TNamedObject(TNamedObject {
                 name: *child_classlike,
                 type_params: if let Some(child_classlike_info) = statements_analyzer
                     .codebase
@@ -336,7 +336,7 @@ fn handle_negated_class(
                 extra_types: None,
                 is_this: false,
                 remapped_params: false,
-            };
+            });
 
             if let Some(acceptable_alternate_class) = intersect_atomic_with_atomic(
                 statements_analyzer,
@@ -632,7 +632,7 @@ pub(crate) fn handle_literal_negated_equality(
                 did_remove_type = true;
                 acceptable_types.push(existing_atomic_type);
             }
-            TAtomic::TNamedObject { name, .. } => {
+            TAtomic::TNamedObject(TNamedObject { name, .. }) => {
                 if name == StrId::XHP_CHILD {
                     did_remove_type = true;
                 }

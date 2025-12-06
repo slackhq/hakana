@@ -1,5 +1,5 @@
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
-use crate::{code_location::FilePath, codebase_info::CodebaseInfo, t_atomic::TAtomic};
+use crate::{code_location::FilePath, codebase_info::CodebaseInfo, t_atomic::{TAtomic, TNamedObject}};
 
 pub fn is_contained_by(
     codebase: &CodebaseInfo,
@@ -572,13 +572,13 @@ pub fn is_contained_by(
 
                     typedef_info.actual_type.clone().get_single_owned()
                 } else {
-                    TAtomic::TNamedObject {
+                    TAtomic::TNamedObject(TNamedObject {
                         name: *input_name,
                         type_params: None,
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    }
+                    })
                 };
 
                 return atomic_type_comparator::is_contained_by(
@@ -687,13 +687,13 @@ pub fn is_contained_by(
             if atomic_type_comparator::is_contained_by(
                 codebase,
                 file_path,
-                &TAtomic::TNamedObject {
+                &TAtomic::TNamedObject(TNamedObject {
                     name: *container_name,
                     type_params: None,
                     is_this: false,
                     extra_types: None,
                     remapped_params: false,
-                },
+                }),
                 input_name,
                 inside_assertion,
                 atomic_comparison_result,

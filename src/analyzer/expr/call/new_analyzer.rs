@@ -21,7 +21,7 @@ use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TNamedObject};
 use hakana_code_info::t_union::{TUnion, populate_union_type};
 use hakana_code_info::ttype::template::{self, TemplateBound, TemplateResult};
 use hakana_code_info::ttype::{
@@ -79,13 +79,13 @@ pub(crate) fn analyze(
                             can_extend = true;
                         }
 
-                        wrap_atomic(TAtomic::TNamedObject {
+                        wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                             name: *self_name,
                             type_params: None,
                             is_this: !classlike_storage.is_final,
                             extra_types: None,
                             remapped_params: false,
-                        })
+                        }))
                     }
                     _ => {
                         let resolved_names = statements_analyzer.file_analyzer.resolved_names;
@@ -171,7 +171,7 @@ fn analyze_atomic(
     let mut from_classname = false;
 
     let classlike_name = match &lhs_type_part {
-        TAtomic::TNamedObject { name, is_this, .. } => {
+        TAtomic::TNamedObject(TNamedObject { name, is_this, .. }) => {
             from_static = *is_this;
             // todo check class name and register usage
             *name
@@ -184,7 +184,7 @@ fn analyze_atomic(
         | TAtomic::TClassPtr { as_type }
         | TAtomic::TGenericClassPtr { as_type, .. } => {
             let as_type = *as_type.clone();
-            if let TAtomic::TNamedObject { name, .. } = as_type {
+            if let TAtomic::TNamedObject(TNamedObject { name, .. }) = as_type {
                 from_classname = true;
 
                 name
@@ -206,7 +206,7 @@ fn analyze_atomic(
         TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } => *name,
         TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. } => {
             let generic_param_type = &as_type.types[0];
-            if let TAtomic::TNamedObject { name, .. } = generic_param_type {
+            if let TAtomic::TNamedObject(TNamedObject { name, .. }) = generic_param_type {
                 *name
             } else {
                 return Ok(());
@@ -649,13 +649,13 @@ fn analyze_named_constructor(
         };
     }
 
-    let mut result_type = wrap_atomic(TAtomic::TNamedObject {
+    let mut result_type = wrap_atomic(TAtomic::TNamedObject(TNamedObject {
         name: classlike_name,
         type_params: generic_type_params,
         is_this: from_static,
         extra_types: None,
         remapped_params: false,
-    });
+    }));
 
     if from_classname {
         let descendants = codebase.get_all_descendants(&classlike_name);

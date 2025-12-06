@@ -4,7 +4,7 @@ use crate::{
     classlike_info::Variance,
     code_location::FilePath,
     codebase_info::{CodebaseInfo, symbols::SymbolKind},
-    t_atomic::{DictKey, TAtomic, TDict, TVec},
+    t_atomic::{DictKey, TAtomic, TDict, TNamedObject, TVec},
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -127,7 +127,7 @@ pub fn combine(
     }
 
     for (_, (generic_type, generic_type_params)) in combination.object_type_params {
-        let generic_object = TAtomic::TNamedObject {
+        let generic_object = TAtomic::TNamedObject(TNamedObject {
             is_this: *combination
                 .object_static
                 .get(&generic_type)
@@ -136,7 +136,7 @@ pub fn combine(
             type_params: Some(generic_type_params),
             extra_types: None,
             remapped_params: false,
-        };
+        });
 
         new_types.push(generic_object);
     }
@@ -710,9 +710,9 @@ fn scrape_type_properties(
     }
 
     // TODO (maybe) add support for Vector, Map etc.
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         ref name, is_this, ..
-    } = atomic
+    }) = atomic
     {
         if let Some(object_static) = combination.object_static.get(name) {
             if *object_static && !is_this {
@@ -723,11 +723,11 @@ fn scrape_type_properties(
         }
     }
 
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name: ref fq_class_name,
         type_params: Some(type_params),
         ..
-    } = atomic
+    }) = atomic
     {
         match fq_class_name {
             &StrId::CONTAINER => {
@@ -909,12 +909,12 @@ fn scrape_type_properties(
         return;
     }
 
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name: ref fq_class_name,
         type_params: None,
         ref extra_types,
         ..
-    } = atomic
+    }) = atomic
     {
         if !combination.has_object_top_type {
             if combination.value_types.contains_key(&atomic.get_key()) {
@@ -945,11 +945,11 @@ fn scrape_type_properties(
         let mut types_to_remove = Vec::new();
 
         for (key, existing_type) in &combination.value_types {
-            if let TAtomic::TNamedObject {
+            if let TAtomic::TNamedObject(TNamedObject {
                 name: existing_name,
                 extra_types: existing_extra_types,
                 ..
-            } = &existing_type
+            }) = &existing_type
             {
                 if extra_types.is_some() || existing_extra_types.is_some() {
                     if object_type_comparator::is_shallowly_contained_by(

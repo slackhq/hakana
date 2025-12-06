@@ -8,6 +8,7 @@ use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_atomic::TClosure;
 use hakana_code_info::t_atomic::TDict;
 use hakana_code_info::t_atomic::TGenericParam;
+use hakana_code_info::t_atomic::TNamedObject;
 use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::get_arraykey;
@@ -407,13 +408,13 @@ fn get_reference_type(
             StrId::THIS
         };
 
-        return TAtomic::TNamedObject {
+        return TAtomic::TNamedObject(TNamedObject {
             name: class_name,
             type_params: None,
             is_this: type_name != "self",
             extra_types: None,
             remapped_params: false,
-        };
+        });
     }
 
     let type_params: Vec<TUnion> = extra_info
@@ -432,7 +433,7 @@ fn get_reference_type(
         .collect();
 
     if type_name == "Generator" {
-        return TAtomic::TNamedObject {
+        return TAtomic::TNamedObject(TNamedObject {
             name: *resolved_names
                 .get(&(applied_type.0.start_offset() as u32))
                 .unwrap(),
@@ -448,7 +449,7 @@ fn get_reference_type(
             is_this: false,
             extra_types: None,
             remapped_params: false,
-        };
+        });
     }
 
     if type_name == "\\HH\\MemberOf" {

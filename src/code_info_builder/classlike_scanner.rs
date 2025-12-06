@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_aast_helper::Uses;
-use hakana_code_info::t_atomic::TGenericParam;
+use hakana_code_info::t_atomic::{TGenericParam, TNamedObject};
 use hakana_str::{StrId, ThreadedInterner};
 use no_pos_hash::{Hasher, NoPosHash, position_insensitive_hash};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -318,13 +318,13 @@ pub(crate) fn scan(
                     vec![Arc::new(wrap_atomic(TAtomic::TTypeAlias {
                         name: StrId::MEMBER_OF,
                         type_params: Some(vec![
-                            wrap_atomic(TAtomic::TNamedObject {
+                            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                                 name: *class_name,
                                 type_params: None,
                                 is_this: false,
                                 extra_types: None,
                                 remapped_params: false,
-                            }),
+                            })),
                             wrap_atomic(underlying_enum_type.clone()),
                         ]),
                         as_type: None,
@@ -722,7 +722,9 @@ pub(crate) fn scan(
                     let template_types = param_type.get_template_types();
 
                     for template_type in template_types {
-                        if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = template_type {
+                        if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) =
+                            template_type
+                        {
                             storage.template_readonly.remove(param_name);
                         }
                     }

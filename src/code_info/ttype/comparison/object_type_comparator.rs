@@ -1,5 +1,5 @@
 use crate::code_location::FilePath;
-use crate::t_atomic::TGenericParam;
+use crate::t_atomic::{TGenericParam, TNamedObject};
 use crate::ttype::wrap_atomic;
 use crate::{GenericParent, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
@@ -121,9 +121,9 @@ fn is_intersection_shallowly_contained_by(
     {
         let mut intersection_container_type = intersection_container_type.clone();
 
-        if let TAtomic::TNamedObject {
+        if let TAtomic::TNamedObject(TNamedObject {
             ref mut is_this, ..
-        } = intersection_container_type
+        }) = intersection_container_type
         {
             *is_this = false;
         }
@@ -141,12 +141,12 @@ fn is_intersection_shallowly_contained_by(
     }
 
     let (container_name, container_is_this) = match intersection_container_type {
-        TAtomic::TNamedObject { name, is_this, .. } => (name, *is_this),
+        TAtomic::TNamedObject(TNamedObject { name, is_this, .. }) => (name, *is_this),
         _ => panic!(),
     };
 
     let (input_name, input_is_this) = match intersection_input_type {
-        TAtomic::TNamedObject { name, is_this, .. } => (name, *is_this),
+        TAtomic::TNamedObject(TNamedObject { name, is_this, .. }) => (name, *is_this),
         _ => panic!(),
     };
 

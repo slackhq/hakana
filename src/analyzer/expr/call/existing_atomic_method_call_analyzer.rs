@@ -4,7 +4,7 @@ use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::TDict;
+use hakana_code_info::t_atomic::{TDict, TNamedObject};
 use hakana_code_info::ttype::get_null;
 use hakana_code_info::ttype::template::standin_type_replacer::{self, StandinOpts};
 use hakana_code_info::ttype::{
@@ -236,7 +236,7 @@ pub(crate) fn analyze(
     if let (Some(async_version), Some(method_name_pos)) =
         (functionlike_storage.async_version, method_name_pos)
     {
-        if let TAtomic::TNamedObject { name, .. } = lhs_type_part {
+        if let TAtomic::TNamedObject(TNamedObject { name, .. }) = lhs_type_part {
             if !codebase.class_extends_or_implements(name, &StrId::XHP_CHILD) {
                 super::function_call_analyzer::check_implicit_asio_join(
                     statements_analyzer,

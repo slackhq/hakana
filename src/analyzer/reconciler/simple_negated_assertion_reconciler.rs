@@ -5,7 +5,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_code_info::t_atomic::{TGenericParam, TVec};
+use hakana_code_info::t_atomic::{TGenericParam, TNamedObject, TVec};
 use hakana_code_info::ttype::{
     comparison::union_type_comparator, get_nothing, get_null, wrap_atomic,
 };
@@ -1268,11 +1268,11 @@ pub(crate) fn subtract_null(
             TAtomic::TNull => {
                 did_remove_type = true;
             }
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: StrId::XHP_CHILD,
                 type_params: None,
                 ..
-            } => {
+            }) => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }
@@ -1992,7 +1992,7 @@ fn reconcile_no_array_key(
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }
-            TAtomic::TNamedObject { .. } => {
+            TAtomic::TNamedObject(TNamedObject { .. }) => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }

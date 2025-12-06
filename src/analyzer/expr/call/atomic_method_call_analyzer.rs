@@ -1,3 +1,4 @@
+use hakana_code_info::t_atomic::TNamedObject;
 use hakana_str::StrId;
 
 use hakana_code_info::ttype::{get_mixed_any, get_nothing, intersect_union_types_simple};
@@ -59,11 +60,11 @@ pub(crate) fn analyze(
     result: &mut AtomicMethodCallAnalysisResult,
 ) -> Result<(), AnalysisError> {
     match &lhs_type_part {
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             name: classlike_name,
             extra_types,
             ..
-        } => {
+        }) => {
             handle_method_call_on_named_object(
                 result,
                 classlike_name,
@@ -188,10 +189,10 @@ pub(crate) fn handle_method_call_on_named_object(
 
     if let Some(extra_types) = extra_types {
         for extra_atomic_type in extra_types {
-            if let TAtomic::TNamedObject {
+            if let TAtomic::TNamedObject(TNamedObject {
                 name: extra_classlike_name,
                 ..
-            } = extra_atomic_type
+            }) = extra_atomic_type
             {
                 classlike_names.push(*extra_classlike_name);
             }

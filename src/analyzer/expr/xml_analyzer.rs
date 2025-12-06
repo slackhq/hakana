@@ -16,6 +16,7 @@ use hakana_code_info::issue::Issue;
 use hakana_code_info::issue::IssueKind;
 use hakana_code_info::property_info::PropertyKind;
 use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::TNamedObject;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::SinkType;
 use hakana_code_info::ttype::get_named_object;
@@ -290,10 +291,10 @@ fn handle_attribute_spread(
         .cloned()
     {
         for expr_type_atomic in &expr_type.types {
-            if let TAtomic::TNamedObject {
+            if let TAtomic::TNamedObject(TNamedObject {
                 name: spread_xhp_class,
                 ..
-            } = expr_type_atomic
+            }) = expr_type_atomic
             {
                 if let Some(spread_class_info) = codebase.classlike_infos.get(spread_xhp_class) {
                     let all_attributes = spread_class_info

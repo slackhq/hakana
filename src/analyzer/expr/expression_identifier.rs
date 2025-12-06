@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use hakana_code_info::{
     ExprId, VarId, ast::get_id_name, codebase_info::CodebaseInfo,
-    functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion,
+    functionlike_identifier::FunctionLikeIdentifier, t_atomic::{TAtomic, TNamedObject}, t_union::TUnion,
 };
 use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -238,7 +238,7 @@ pub fn get_method_id_from_call(
                 lhs_expr.1.end_offset() as u32,
             )) {
                 let t = lhs_expr_type.types.first().unwrap();
-                if let TAtomic::TNamedObject { name, .. } = t {
+                if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
                     name
                 } else {
                     return None;

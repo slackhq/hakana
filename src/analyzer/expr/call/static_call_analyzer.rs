@@ -5,7 +5,7 @@ use crate::scope::control_action::ControlAction;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::EFFECT_WRITE_PROPS;
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TNamedObject};
 use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use hakana_str::StrId;
 use oxidized::aast;
@@ -95,13 +95,13 @@ pub(crate) fn analyze(
                             None
                         };
 
-                        wrap_atomic(TAtomic::TNamedObject {
+                        wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                             name: *self_name,
                             type_params: type_params,
                             is_this: !classlike_storage.is_final,
                             extra_types: None,
                             remapped_params: false,
-                        })
+                        }))
                     }
                     StrId::STATIC => {
                         let self_name =
@@ -115,13 +115,13 @@ pub(crate) fn analyze(
 
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
 
-                        wrap_atomic(TAtomic::TNamedObject {
+                        wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                             name: *self_name,
                             type_params: None,
                             is_this: !classlike_storage.is_final,
                             extra_types: None,
                             remapped_params: false,
-                        })
+                        }))
                     }
                     _ => {
                         let type_resolution_context =
@@ -130,12 +130,12 @@ pub(crate) fn analyze(
                         let lhs = get_named_object(*name, Some(type_resolution_context));
 
                         match lhs.get_single() {
-                            TAtomic::TNamedObject { name, .. } => {
+                            TAtomic::TNamedObject(TNamedObject { name, .. }) => {
                                 classlike_name = Some(*name);
                             }
                             TAtomic::TGenericClassname { as_type, .. }
                             | TAtomic::TGenericClassPtr { as_type, .. } => {
-                                if let TAtomic::TNamedObject { name, .. } = &**as_type {
+                                if let TAtomic::TNamedObject(TNamedObject { name, .. }) = &**as_type {
                                     classlike_name = Some(*name);
                                 }
                             }

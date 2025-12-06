@@ -3,7 +3,7 @@ use crate::{
     classlike_info::Variance,
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
-    t_atomic::TAtomic,
+    t_atomic::{TAtomic, TNamedObject},
     t_union::TUnion,
 };
 use crate::{
@@ -26,20 +26,20 @@ pub(crate) fn is_contained_by(
     let mut all_types_contain = true;
 
     let input_name = match input_type_part {
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             name: input_name, ..
-        } => input_name,
+        }) => input_name,
         _ => {
             return false;
         }
     };
 
     let (container_name, container_remapped_params) = match container_type_part {
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             name: container_name,
             remapped_params: container_remapped_params,
             ..
-        } => (container_name, container_remapped_params),
+        }) => (container_name, container_remapped_params),
         _ => panic!(),
     };
 
@@ -52,17 +52,17 @@ pub(crate) fn is_contained_by(
     }
 
     let container_type_params = match container_type_part {
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             type_params: Some(type_params),
             ..
-        } => type_params,
+        }) => type_params,
         _ => panic!(),
     };
 
     // handle case where input named object has no generic params
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         type_params: None, ..
-    } = input_type_part
+    }) = input_type_part
     {
         if codebase.class_exists(input_name) {
             let class_storage = codebase.classlike_infos.get(input_name).unwrap();
@@ -72,10 +72,10 @@ pub(crate) fn is_contained_by(
             if let Some(extended_params) =
                 class_storage.template_extended_params.get(container_name)
             {
-                if let TAtomic::TNamedObject {
+                if let TAtomic::TNamedObject(TNamedObject {
                     ref mut type_params,
                     ..
-                } = input_type_part
+                }) = input_type_part
                 {
                     *type_params = Some(
                         extended_params
@@ -99,10 +99,10 @@ pub(crate) fn is_contained_by(
                             .collect(),
                     );
                 }
-            } else if let TAtomic::TNamedObject {
+            } else if let TAtomic::TNamedObject(TNamedObject {
                 ref mut type_params,
                 ..
-            } = input_type_part
+            }) = input_type_part
             {
                 *type_params = Some(vec![get_mixed_any(); container_type_params.len()]);
             }
@@ -130,10 +130,10 @@ pub(crate) fn is_contained_by(
     );
 
     let container_type_params = match container_type_part {
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             type_params: Some(type_params),
             ..
-        } => type_params,
+        }) => type_params,
         _ => panic!(),
     };
 
@@ -184,10 +184,10 @@ pub(crate) fn compare_generic_params(
             atomic_comparison_result.replacement_atomic_type = Some(input_type_part.clone());
         }
 
-        if let Some(TAtomic::TNamedObject {
+        if let Some(TAtomic::TNamedObject(TNamedObject {
             type_params: Some(ref mut type_params),
             ..
-        }) = atomic_comparison_result.replacement_atomic_type
+        })) = atomic_comparison_result.replacement_atomic_type
         {
             if let Some(input_param_offset) = input_param_offset {
                 if let Some(existing_param) = type_params.get_mut(input_param_offset) {
@@ -254,10 +254,10 @@ pub(crate) fn compare_generic_params(
                 atomic_comparison_result.replacement_atomic_type = Some(input_type_part.clone());
             }
 
-            if let Some(TAtomic::TNamedObject {
+            if let Some(TAtomic::TNamedObject(TNamedObject {
                 type_params: Some(ref mut type_params),
                 ..
-            }) = atomic_comparison_result.replacement_atomic_type
+            })) = atomic_comparison_result.replacement_atomic_type
             {
                 type_params.insert(container_param_offset, container_param.clone());
             }

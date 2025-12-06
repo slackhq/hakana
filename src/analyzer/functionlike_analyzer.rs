@@ -27,7 +27,7 @@ use hakana_code_info::function_context::{FunctionContext, FunctionLikeIdentifier
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TVec};
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TNamedObject, TVec};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
@@ -299,7 +299,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut context = BlockContext::new(function_context);
 
         if !stmt.static_ {
-            let mut this_type = wrap_atomic(TAtomic::TNamedObject {
+            let mut this_type = wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                 name: classlike_storage.name,
                 type_params: if !classlike_storage.template_types.is_empty() {
                     Some(
@@ -324,7 +324,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 is_this: !classlike_storage.is_final,
                 extra_types: None,
                 remapped_params: false,
-            });
+            }));
 
             if let GraphKind::WholeProgram(_) = &analysis_result.program_dataflow_graph.kind {
                 if classlike_storage.specialize_instance {
@@ -895,7 +895,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 }
 
                 if let Some(inferred_yield_type) = &analysis_data.inferred_yield_type {
-                    inferred_return_type = Some(wrap_atomic(TAtomic::TNamedObject {
+                    inferred_return_type = Some(wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                         name: if functionlike_storage.is_async {
                             StrId::ASYNC_GENERATOR
                         } else {
@@ -909,7 +909,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    }))
+                    })))
                 }
             }
         } else {
@@ -1317,7 +1317,7 @@ pub(crate) fn add_symbol_references_with_location(
     for type_node in param_type.get_all_child_nodes() {
         if let hakana_code_info::t_union::TypeNode::Atomic(atomic) = type_node {
             match atomic {
-                TAtomic::TNamedObject { name, .. } | TAtomic::TTypeAlias { name, .. } => {
+                TAtomic::TNamedObject(TNamedObject { name, .. }) | TAtomic::TTypeAlias { name, .. } => {
                     if let Some(location) = type_location {
                         analysis_data.definition_locations.insert(
                             (location.start_offset, location.end_offset),
@@ -1379,7 +1379,7 @@ pub(crate) fn add_symbol_references_with_location(
                     member_name,
                     ..
                 } => match class_type.as_ref() {
-                    TAtomic::TNamedObject { name, .. } | TAtomic::TReference { name, .. } => {
+                    TAtomic::TNamedObject(TNamedObject { name, .. }) | TAtomic::TReference { name, .. } => {
                         match calling_functionlike_id {
                             Some(FunctionLikeIdentifier::Function(calling_function)) => {
                                 analysis_data

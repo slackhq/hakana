@@ -6,7 +6,7 @@ use crate::{
     code_location::FilePath,
     codebase_info::CodebaseInfo,
     data_flow::node::DataFlowNode,
-    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TVec},
+    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TNamedObject, TVec},
     t_union::TUnion,
     type_resolution::TypeResolutionContext,
 };
@@ -139,13 +139,13 @@ pub fn get_named_object(
             });
         }
     }
-    wrap_atomic(TAtomic::TNamedObject {
+    wrap_atomic(TAtomic::TNamedObject(TNamedObject {
         name,
         type_params: None,
         is_this: false,
         extra_types: None,
         remapped_params: false,
-    })
+    }))
 }
 
 #[inline]
@@ -415,7 +415,7 @@ fn intersect_atomic_with_atomic_simple(
             TAtomic::TObject { .. }
             | TAtomic::TClosure(_)
             | TAtomic::TAwaitable { .. }
-            | TAtomic::TNamedObject { .. },
+            | TAtomic::TNamedObject(TNamedObject { .. }),
             TAtomic::TObject,
         ) => {
             return Some(type_1_atomic.clone());
@@ -635,12 +635,12 @@ fn intersect_atomic_with_atomic_simple(
             }
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: type_1_name, ..
-            },
-            TAtomic::TNamedObject {
+            }),
+            TAtomic::TNamedObject(TNamedObject {
                 name: type_2_name, ..
-            },
+            }),
         ) => {
             if (codebase.interface_exists(type_1_name)
                 && codebase.can_intersect_interface(type_2_name))
@@ -853,11 +853,11 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
         TAtomic::TKeyset { type_param, .. } => {
             Some(((**type_param).clone(), (**type_param).clone()))
         }
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             name,
             type_params: Some(type_params),
             ..
-        } => match name {
+        }) => match name {
             &StrId::KEYED_CONTAINER | &StrId::KEYED_TRAVERSABLE | &StrId::ANY_ARRAY => Some((
                 type_params.first().unwrap().clone(),
                 type_params.get(1).unwrap().clone(),
@@ -909,11 +909,11 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
 
             Some(type_param)
         }
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             name,
             type_params: Some(type_params),
             ..
-        } => match name {
+        }) => match name {
             &StrId::KEYED_CONTAINER | &StrId::KEYED_TRAVERSABLE | &StrId::ANY_ARRAY => {
                 Some(type_params.get(1).unwrap().clone())
             }
@@ -943,11 +943,11 @@ pub fn get_union_syntax_type(
 
         t_atomic_strings.insert({
             let s = get_atomic_syntax_type(atomic, codebase, interner, is_valid);
-            if let TAtomic::TNamedObject {
+            if let TAtomic::TNamedObject(TNamedObject {
                 name,
                 type_params: None,
                 ..
-            } = atomic
+            }) = atomic
             {
                 if let Some(storage) = codebase.classlike_infos.get(name) {
                     if let Some(parent_class) = &storage.direct_parent_class {
@@ -1132,9 +1132,9 @@ pub fn get_atomic_syntax_type(
         TAtomic::TLiteralInt { .. } => "int".to_string(),
         TAtomic::TLiteralString { .. } | TAtomic::TStringWithFlags(..) => "string".to_string(),
         TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => "mixed".to_string(),
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             name, type_params, ..
-        } => match type_params {
+        }) => match type_params {
             None => interner.lookup(name).to_string(),
             Some(type_params) => {
                 let mut param_strings = vec![];

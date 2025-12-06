@@ -17,7 +17,7 @@ use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TVec},
+    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TNamedObject, TVec},
     t_union::TUnion,
     var_name::VarName,
 };
@@ -277,7 +277,7 @@ pub(crate) fn reconcile_keyed_types(
                 } else {
                     let narrowed_symbol = if type_changed {
                         if result_type.is_single() {
-                            if let TAtomic::TNamedObject { name, .. } = result_type.get_single() {
+                            if let TAtomic::TNamedObject(TNamedObject { name, .. }) = result_type.get_single() {
                                 Some(name)
                             } else {
                                 None
@@ -891,11 +891,11 @@ fn get_value_for_key(
                         return Some(hakana_code_info::ttype::get_mixed_maybe_from_loop(
                             inside_loop,
                         ));
-                    } else if let TAtomic::TNamedObject {
+                    } else if let TAtomic::TNamedObject(TNamedObject {
                         name,
                         type_params: Some(type_params),
                         ..
-                    } = &existing_key_type_part
+                    }) = &existing_key_type_part
                     {
                         match name {
                             &StrId::KEYED_CONTAINER | &StrId::CONTAINER => {
@@ -979,10 +979,10 @@ fn get_value_for_key(
                     | TAtomic::TObject { .. } = existing_key_type_part
                     {
                         class_property_type = get_mixed_any();
-                    } else if let TAtomic::TNamedObject {
+                    } else if let TAtomic::TNamedObject(TNamedObject {
                         name: fq_class_name,
                         ..
-                    } = existing_key_type_part
+                    }) = existing_key_type_part
                     {
                         if fq_class_name == StrId::STD_CLASS
                             || !codebase.class_or_interface_exists(&fq_class_name)

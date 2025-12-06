@@ -8,7 +8,7 @@ use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_code_info::data_flow::path::{ArrayDataKind, PathKind};
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
-use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict, TVec};
+use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict, TNamedObject, TVec};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::{SinkType, SourceType};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
@@ -799,7 +799,7 @@ fn get_type_structure_type(
                 TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } => *name,
                 TAtomic::TClassname { as_type } | TAtomic::TClassPtr { as_type } => {
                     match &**as_type {
-                        TAtomic::TNamedObject { name, is_this, .. } => {
+                        TAtomic::TNamedObject(TNamedObject { name, is_this, .. }) => {
                             if *is_this {
                                 if let Some(this_class) = this_class {
                                     this_class
@@ -815,7 +815,7 @@ fn get_type_structure_type(
                         }
                     }
                 }
-                TAtomic::TNamedObject { name, is_this, .. } => {
+                TAtomic::TNamedObject(TNamedObject { name, is_this, .. }) => {
                     if *is_this {
                         if let Some(this_class) = this_class {
                             this_class

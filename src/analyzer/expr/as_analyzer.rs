@@ -8,7 +8,7 @@ use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_code_info::EFFECT_IMPURE;
 use hakana_code_info::data_flow::graph::GraphKind;
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TNamedObject};
 use hakana_code_info::ttype::wrap_atomic;
 use hakana_code_info::ttype::{
     get_mixed_any,
@@ -151,7 +151,7 @@ pub(crate) fn analyze<'expr>(
         } else {
             for t in &hint_type.types {
                 if let TAtomic::TReference { name, .. }
-                | TAtomic::TNamedObject { name, .. }
+                | TAtomic::TNamedObject(TNamedObject { name, .. })
                 | TAtomic::TTypeAlias { name, .. } = t
                 {
                     analysis_data.definition_locations.insert(

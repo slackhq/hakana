@@ -6,7 +6,7 @@ use crate::{
 };
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::t_atomic::TGenericParam;
+use hakana_code_info::t_atomic::{TGenericParam, TNamedObject};
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
@@ -43,7 +43,7 @@ pub(crate) fn analyze(
     let codebase = statements_analyzer.codebase;
 
     let classlike_name = match &lhs_type_part {
-        TAtomic::TNamedObject { name, .. } => *name,
+        TAtomic::TNamedObject(TNamedObject { name, .. }) => *name,
         TAtomic::TReference {
             name: classlike_name,
             ..
@@ -251,7 +251,7 @@ fn get_class_property_type(
         );
 
         if !declaring_class_storage.template_types.is_empty() {
-            if let TAtomic::TNamedObject { type_params, .. } = &lhs_type_part {
+            if let TAtomic::TNamedObject(TNamedObject { type_params, .. }) = &lhs_type_part {
                 class_property_type = localize_property_type(
                     statements_analyzer,
                     class_property_type,

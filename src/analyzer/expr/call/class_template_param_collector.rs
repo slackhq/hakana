@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hakana_code_info::t_atomic::TGenericParam;
+use hakana_code_info::t_atomic::{TGenericParam, TNamedObject};
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 
@@ -27,10 +27,10 @@ pub(crate) fn collect(
 
     let e = &static_class_storage.template_extended_params;
 
-    if let Some(TAtomic::TNamedObject {
+    if let Some(TAtomic::TNamedObject(TNamedObject {
         type_params: Some(lhs_type_params),
         ..
-    }) = &lhs_type_part
+    })) = &lhs_type_part
     {
         if class_storage.name == static_class_storage.name
             && !static_class_storage.template_types.is_empty()
@@ -105,11 +105,11 @@ pub(crate) fn collect(
                 }
             }
 
-            let self_call = if let Some(TAtomic::TNamedObject {
+            let self_call = if let Some(TAtomic::TNamedObject(TNamedObject {
                 is_this: true,
                 name: self_class_name,
                 ..
-            }) = lhs_type_part
+            })) = lhs_type_part
             {
                 template_classname == &GenericParent::ClassLike(*self_class_name)
             } else {

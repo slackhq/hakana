@@ -31,7 +31,7 @@ use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TNamedObject};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::type_expander::get_closure_from_id;
 use hakana_code_info::ttype::{
@@ -144,7 +144,7 @@ pub(crate) fn analyze(
                 ) {
                     for t in &hint_type.types {
                         if let TAtomic::TReference { name, .. }
-                        | TAtomic::TNamedObject { name, .. }
+                        | TAtomic::TNamedObject(TNamedObject { name, .. })
                         | TAtomic::TTypeAlias { name, .. } = t
                         {
                             analysis_data.definition_locations.insert(

@@ -225,6 +225,16 @@ pub struct TGenericParam {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+pub struct TNamedObject {
+    pub name: StrId,
+    pub type_params: Option<Vec<TUnion>>,
+    pub is_this: bool,
+    pub extra_types: Option<Vec<TAtomic>>,
+    pub remapped_params: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
+#[derivative(Hash)]
 pub enum TAtomic {
     /// Corresponds to the arraykey type in Hack
     TArraykey {
@@ -292,13 +302,7 @@ pub enum TAtomic {
     // .2 => TFalsyMixed
     // .3 => TNonnullMixed
     TMixedWithFlags(bool, bool, bool, bool),
-    TNamedObject {
-        name: StrId,
-        type_params: Option<Vec<TUnion>>,
-        is_this: bool,
-        extra_types: Option<Vec<TAtomic>>,
-        remapped_params: bool,
-    },
+    TNamedObject(TNamedObject),
     TObject,
     TNothing,
     TNull,
@@ -562,13 +566,13 @@ impl TAtomic {
                 "mixed"
             }
             .to_string(),
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name,
                 type_params,
                 is_this,
                 extra_types,
                 ..
-            } => {
+            }) => {
                 if *name != StrId::THIS {
                     refs.push(*name);
                 }
@@ -854,12 +858,12 @@ impl TAtomic {
 
             TAtomic::TStringWithFlags(..) => "string".to_string(),
 
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name,
                 type_params,
                 extra_types,
                 ..
-            } => {
+            }) => {
                 let mut start = match type_params {
                     None => name.0.to_string(),
                     Some(type_params) => {
@@ -1063,7 +1067,7 @@ impl TAtomic {
             TAtomic::TObject { .. } => true,
             TAtomic::TClosure(_) => true,
             TAtomic::TAwaitable { .. } => true,
-            TAtomic::TNamedObject { .. } => true,
+            TAtomic::TNamedObject(TNamedObject { .. }) => true,
             TAtomic::TGenericParam(TGenericParam {
                 as_type,
                 extra_types: None,
@@ -1331,7 +1335,7 @@ impl TAtomic {
             | &TAtomic::TClassname { .. }
             | &TAtomic::TTypename { .. }
             | &TAtomic::TAwaitable { .. } => true,
-            &TAtomic::TNamedObject { name, .. } => !matches!(
+            &TAtomic::TNamedObject(TNamedObject { name, .. }) => !matches!(
                 name,
                 &StrId::CONTAINER
                     | &StrId::KEYED_CONTAINER
@@ -1452,7 +1456,7 @@ impl TAtomic {
     pub fn is_array_accessible_with_string_key(&self, interner: &Interner) -> bool {
         match self {
             TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } => true,
-            TAtomic::TNamedObject { name, .. } => {
+            TAtomic::TNamedObject(TNamedObject { name, .. }) => {
                 matches!(interner.lookup(name), "HH\\KeyedContainer" | "HH\\AnyArray")
             }
             _ => false,
@@ -1464,7 +1468,7 @@ impl TAtomic {
             TAtomic::TDict(TDict { .. }) | TAtomic::TVec(TVec { .. }) | TAtomic::TKeyset { .. } => {
                 true
             }
-            TAtomic::TNamedObject { name, .. } => matches!(
+            TAtomic::TNamedObject(TNamedObject { name, .. }) => matches!(
                 interner.lookup(name),
                 "HH\\KeyedContainer" | "HH\\Container" | "HH\\AnyArray"
             ),
@@ -1495,7 +1499,7 @@ impl TAtomic {
     }
 
     pub fn add_intersection_type(&mut self, atomic: TAtomic) {
-        if let TAtomic::TNamedObject { extra_types, .. }
+        if let TAtomic::TNamedObject(TNamedObject { extra_types, .. })
         | TAtomic::TGenericParam(TGenericParam { extra_types, .. }) = self
         {
             if let Some(extra_types) = extra_types {
@@ -1509,10 +1513,10 @@ impl TAtomic {
     pub fn clone_without_intersection_types(&self) -> TAtomic {
         let mut clone = self.clone();
 
-        if let TAtomic::TNamedObject {
+        if let TAtomic::TNamedObject(TNamedObject {
             ref mut extra_types,
             ..
-        }
+        })
         | TAtomic::TGenericParam(TGenericParam {
             ref mut extra_types,
             ..
@@ -1526,10 +1530,10 @@ impl TAtomic {
 
     pub fn get_intersection_types(&self) -> (Vec<&TAtomic>, Vec<TAtomic>) {
         match self {
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 extra_types: Some(extra_types),
                 ..
-            }
+            })
             | TAtomic::TGenericParam(TGenericParam {
                 extra_types: Some(extra_types),
                 ..
@@ -1598,11 +1602,11 @@ impl TAtomic {
                         Box::new(TUnion::new(vec![TAtomic::TArraykey { from_any: true }]));
                 }
             }
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name,
                 type_params: Some(type_params),
                 ..
-            } => {
+            }) => {
                 if name == &StrId::KEYED_CONTAINER
                     || name == &StrId::ANY_ARRAY
                     || name == &StrId::KEYED_TRAVERSABLE
@@ -1681,9 +1685,9 @@ impl TAtomic {
         }
 
         match self {
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name, type_params, ..
-            } => {
+            }) => {
                 if let Some(type_params) = type_params {
                     if name == &StrId::ANY_ARRAY || name == &StrId::KEYED_CONTAINER {
                         return type_params[1].is_json_compatible(banned_type_aliases);
@@ -1801,19 +1805,19 @@ impl HasTypeNodes for TAtomic {
             TAtomic::TAwaitable { value, .. } => {
                 vec![TypeNode::Union(value)]
             }
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 type_params: Some(type_params),
                 ..
-            } => {
+            }) => {
                 let mut vec = vec![];
                 for type_param in type_params {
                     vec.push(TypeNode::Union(type_param));
                 }
                 vec
             }
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 type_params: None, ..
-            } => vec![],
+            }) => vec![],
             TAtomic::TVec(TVec {
                 type_param,
                 known_items,
@@ -1989,9 +1993,9 @@ pub fn populate_atomic_type(
                 force,
             );
         }
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             name, type_params, ..
-        }
+        })
         | TAtomic::TTypeAlias {
             name, type_params, ..
         } => {
@@ -2072,23 +2076,23 @@ pub fn populate_atomic_type(
                         };
                     }
                     _ => {
-                        *t_atomic = TAtomic::TNamedObject {
+                        *t_atomic = TAtomic::TNamedObject(TNamedObject {
                             name: *name,
                             type_params: type_params.clone(),
                             is_this: false,
                             extra_types: None,
                             remapped_params: false,
-                        };
+                        });
                     }
                 }
             } else if *name == StrId::PHP_INCOMPLETE_CLASS {
-                *t_atomic = TAtomic::TNamedObject {
+                *t_atomic = TAtomic::TNamedObject(TNamedObject {
                     name: *name,
                     type_params: None,
                     is_this: false,
                     extra_types: None,
                     remapped_params: false,
-                };
+                });
             }
         }
         &mut TAtomic::TMemberReference {

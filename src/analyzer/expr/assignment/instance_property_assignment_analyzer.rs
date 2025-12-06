@@ -6,7 +6,7 @@ use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     function_context::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
-    t_atomic::TAtomic,
+    t_atomic::{TAtomic, TNamedObject},
     t_union::TUnion,
 };
 use hakana_code_info::{
@@ -375,7 +375,7 @@ pub(crate) fn analyze_atomic_assignment(
 ) -> Option<(TUnion, (StrId, StrId), TUnion)> {
     let codebase = statements_analyzer.codebase;
     let fq_class_name = match lhs_type_part {
-        TAtomic::TNamedObject { name, .. } => *name,
+        TAtomic::TNamedObject(TNamedObject { name, .. }) => *name,
         TAtomic::TReference { name, .. } => {
             analysis_data.maybe_add_issue(
                 Issue::new(
@@ -567,10 +567,10 @@ pub(crate) fn analyze_atomic_assignment(
                 get_mixed_any()
             };
 
-        if let TAtomic::TNamedObject {
+        if let TAtomic::TNamedObject(TNamedObject {
             type_params: Some(lhs_type_params),
             ..
-        } = lhs_type_part
+        }) = lhs_type_part
         {
             class_property_type = localize_property_type(
                 statements_analyzer,

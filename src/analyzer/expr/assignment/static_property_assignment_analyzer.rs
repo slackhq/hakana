@@ -3,7 +3,7 @@ use std::rc::Rc;
 use hakana_code_info::{
     ast::get_id_name,
     issue::{Issue, IssueKind},
-    t_atomic::TAtomic,
+    t_atomic::{TAtomic, TNamedObject},
     t_union::TUnion,
 };
 use hakana_code_info::{
@@ -127,11 +127,11 @@ pub(crate) fn analyze(
 
                 if let Some(lhs_type) = lhs_type {
                     for lhs_atomic_type in lhs_type.types.clone() {
-                        if let TAtomic::TNamedObject {
+                        if let TAtomic::TNamedObject(TNamedObject {
                             name,
                             type_params: None,
                             ..
-                        } = lhs_atomic_type
+                        }) = lhs_atomic_type
                         {
                             fq_class_names.push(name);
                         }

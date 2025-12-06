@@ -12,7 +12,7 @@ use hakana_code_info::{
     code_location::FilePath,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{TAtomic, TDict, TGenericParam, TVec},
+    t_atomic::{TAtomic, TDict, TGenericParam, TNamedObject, TVec},
     t_union::TUnion,
     ttype::{
         get_bool, get_false, get_float, get_null, get_object, get_scalar, get_true,
@@ -413,20 +413,20 @@ pub(crate) fn intersect_atomic_with_atomic(
             return Some(type_1_atomic.clone());
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: StrId::XHP_CHILD,
                 type_params: None,
                 ..
-            },
+            }),
             TAtomic::TNull,
         ) => {
             *did_remove_type = true;
             return Some(TAtomic::TNull);
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 type_params: None, ..
-            },
+            }),
             TAtomic::TNull,
         ) => {
             return None;
@@ -438,7 +438,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             TAtomic::TObject { .. }
             | TAtomic::TClosure(_)
             | TAtomic::TAwaitable { .. }
-            | TAtomic::TNamedObject { .. },
+            | TAtomic::TNamedObject(TNamedObject { .. }),
             TAtomic::TObject,
         ) => {
             return Some(type_1_atomic.clone());
@@ -670,20 +670,20 @@ pub(crate) fn intersect_atomic_with_atomic(
             return Some(type_1_atomic.clone());
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: StrId::XHP_CHILD,
                 type_params: None,
                 ..
-            },
+            }),
             TAtomic::TString,
         ) => {
             *did_remove_type = true;
             return Some(TAtomic::TString);
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 type_params: None, ..
-            },
+            }),
             TAtomic::TString,
         ) => return None,
         (type_1_atomic, TAtomic::TString) => {
@@ -898,11 +898,11 @@ pub(crate) fn intersect_atomic_with_atomic(
         }
         (TAtomic::TNull, TAtomic::TMixedWithFlags(_, _, _, true)) => return None,
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: StrId::XHP_CHILD,
                 type_params: None,
                 ..
-            },
+            }),
             TAtomic::TMixedWithFlags(_, _, _, true),
         ) => {
             *did_remove_type = true;
@@ -912,11 +912,11 @@ pub(crate) fn intersect_atomic_with_atomic(
             return Some(type_1_atomic.clone());
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: type_1_name,
                 type_params: Some(type_1_params),
                 ..
-            },
+            }),
             TAtomic::TDict(TDict {
                 known_items: None,
                 params: Some(type_2_params),
@@ -947,11 +947,11 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: type_1_name,
                 type_params: Some(type_1_params),
                 ..
-            },
+            }),
             TAtomic::TKeyset {
                 type_param: type_2_param,
                 ..
@@ -991,10 +991,10 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: StrId::XHP_CHILD,
                 ..
-            }
+            })
             | TAtomic::TMixed
             | TAtomic::TMixedWithFlags(..)
             | TAtomic::TMixedFromLoopIsset,
@@ -1368,26 +1368,26 @@ pub(crate) fn intersect_atomic_with_atomic(
             });
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: type_1_name, ..
-            },
-            TAtomic::TNamedObject {
+            }),
+            TAtomic::TNamedObject(TNamedObject {
                 name: type_2_name,
                 type_params: type_2_params,
                 ..
-            },
+            }),
         ) => {
             if type_1_name == &StrId::XHP_CHILD {
                 if type_2_name == &StrId::KEYED_CONTAINER
                     || type_2_name == &StrId::KEYED_TRAVERSABLE
                 {
-                    let mut atomic = TAtomic::TNamedObject {
+                    let mut atomic = TAtomic::TNamedObject(TNamedObject {
                         name: StrId::ANY_ARRAY,
                         type_params: type_2_params.clone(),
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    };
+                    });
                     atomic.remove_placeholders();
                     return Some(atomic);
                 } else if type_2_name == &StrId::CONTAINER || type_2_name == &StrId::TRAVERSABLE {
@@ -1395,13 +1395,13 @@ pub(crate) fn intersect_atomic_with_atomic(
                         .as_ref()
                         .map(|type_2_params| vec![get_arraykey(true), type_2_params[0].clone()]);
 
-                    let mut atomic = TAtomic::TNamedObject {
+                    let mut atomic = TAtomic::TNamedObject(TNamedObject {
                         name: StrId::ANY_ARRAY,
                         type_params: type_2_params,
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    };
+                    });
                     atomic.remove_placeholders();
                     return Some(atomic);
                 }
@@ -1474,11 +1474,11 @@ pub(crate) fn intersect_atomic_with_atomic(
             });
         }
         (
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: type_1_name,
                 type_params: Some(type_1_params),
                 ..
-            },
+            }),
             TAtomic::TDict(TDict {
                 known_items: Some(type_2_known_items),
                 params: type_2_params,
@@ -1520,7 +1520,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 is_shape: false,
             }));
         }
-        (TAtomic::TGenericParam(TGenericParam { as_type, .. }), TAtomic::TNamedObject { .. }) => {
+        (TAtomic::TGenericParam(TGenericParam { as_type, .. }), TAtomic::TNamedObject(TNamedObject { .. })) => {
             let new_as = intersect_union_with_atomic(
                 statements_analyzer,
                 analysis_data,
@@ -1543,7 +1543,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 return Some(type_1_atomic);
             }
         }
-        (TAtomic::TNamedObject { .. }, TAtomic::TGenericParam(TGenericParam { as_type, .. })) => {
+        (TAtomic::TNamedObject(TNamedObject { .. }), TAtomic::TGenericParam(TGenericParam { as_type, .. })) => {
             let new_as = intersect_union_with_atomic(
                 statements_analyzer,
                 analysis_data,
@@ -2050,32 +2050,32 @@ fn intersect_contained_atomic_with_another(
     did_remove_type: &mut bool,
 ) -> Option<TAtomic> {
     if generic_coercion {
-        if let TAtomic::TNamedObject {
+        if let TAtomic::TNamedObject(TNamedObject {
             name: sub_atomic_name,
             type_params: None,
             ..
-        } = sub_atomic
+        }) = sub_atomic
         {
-            if let TAtomic::TNamedObject {
+            if let TAtomic::TNamedObject(TNamedObject {
                 name: super_atomic_name,
                 type_params: Some(super_params),
                 ..
-            } = super_atomic
+            }) = super_atomic
             {
                 if super_atomic_name == sub_atomic_name {
-                    return Some(TAtomic::TNamedObject {
+                    return Some(TAtomic::TNamedObject(TNamedObject {
                         name: *sub_atomic_name,
                         type_params: Some(super_params.clone()),
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    });
+                    }));
                 }
             }
         }
     }
 
-    if let TAtomic::TNamedObject { .. } = sub_atomic {
+    if let TAtomic::TNamedObject(TNamedObject { .. }) = sub_atomic {
         let mut type_1_atomic = super_atomic.clone();
         if let TAtomic::TGenericParam(TGenericParam {
             as_type: ref mut type_1_as_type,

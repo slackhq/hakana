@@ -2,7 +2,7 @@ use crate::{
     codebase_info::Symbols,
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
-    t_atomic::{DictKey, TAtomic, TGenericParam, TVec, populate_atomic_type},
+    t_atomic::{DictKey, TAtomic, TGenericParam, TNamedObject, TVec, populate_atomic_type},
 };
 use derivative::Derivative;
 use hakana_str::{Interner, StrId};
@@ -232,11 +232,11 @@ impl TUnion {
                 return true;
             }
 
-            if let TAtomic::TNamedObject {
+            if let TAtomic::TNamedObject(TNamedObject {
                 extra_types,
                 is_this,
                 ..
-            } = atomic
+            }) = atomic
             {
                 if *is_this {
                     return true;
@@ -261,10 +261,10 @@ impl TUnion {
                 return true;
             }
 
-            if let TAtomic::TNamedObject {
+            if let TAtomic::TNamedObject(TNamedObject {
                 extra_types: Some(extra_types),
                 ..
-            } = atomic
+            }) = atomic
             {
                 for extra_type in extra_types {
                     if let TAtomic::TGenericParam(TGenericParam { .. }) = extra_type {
@@ -343,7 +343,7 @@ impl TUnion {
     pub fn is_objecty(&self) -> bool {
         for atomic in &self.types {
             if let &TAtomic::TObject { .. }
-            | TAtomic::TNamedObject { .. }
+            | TAtomic::TNamedObject(TNamedObject { .. })
             | TAtomic::TAwaitable { .. }
             | TAtomic::TClosure(_) = atomic
             {
@@ -358,7 +358,7 @@ impl TUnion {
 
     pub fn is_generator(&self) -> bool {
         for atomic in &self.types {
-            if let &TAtomic::TNamedObject { name, .. } = &atomic {
+            if let &TAtomic::TNamedObject(TNamedObject { name, .. }) = &atomic {
                 if *name == StrId::GENERATOR {
                     continue;
                 }
@@ -494,9 +494,12 @@ impl TUnion {
     }
 
     pub fn has_static_object(&self) -> bool {
-        self.types
-            .iter()
-            .any(|atomic| matches!(atomic, TAtomic::TNamedObject { is_this: true, .. }))
+        self.types.iter().any(|atomic| {
+            matches!(
+                atomic,
+                TAtomic::TNamedObject(TNamedObject { is_this: true, .. })
+            )
+        })
     }
 
     pub fn has_typealias(&self) -> bool {
@@ -506,9 +509,12 @@ impl TUnion {
     }
 
     pub fn is_static_object(&self) -> bool {
-        self.types
-            .iter()
-            .all(|atomic| matches!(atomic, TAtomic::TNamedObject { is_this: true, .. }))
+        self.types.iter().all(|atomic| {
+            matches!(
+                atomic,
+                TAtomic::TNamedObject(TNamedObject { is_this: true, .. })
+            )
+        })
     }
 
     pub fn get_key(&self) -> String {

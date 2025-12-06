@@ -14,7 +14,7 @@ use crate::{
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic, TDict, TGenericParam},
+    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TNamedObject},
     t_union::TUnion,
     var_name::VarName,
 };
@@ -478,11 +478,11 @@ fn check_iterator_type(
                 value_type.as_ref(),
                 codebase,
             ));
-        } else if let TAtomic::TNamedObject {
+        } else if let TAtomic::TNamedObject(TNamedObject {
             name,
             type_params: Some(type_params),
             ..
-        } = iterator_atomic_type
+        }) = iterator_atomic_type
         {
             match *name {
                 StrId::KEYED_CONTAINER | StrId::KEYED_ITERATOR | StrId::KEYED_TRAVERSABLE => {

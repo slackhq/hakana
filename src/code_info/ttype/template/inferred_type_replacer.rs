@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     GenericParent,
     codebase_info::CodebaseInfo,
-    t_atomic::{TAtomic, TDict, TGenericParam, TVec},
+    t_atomic::{TAtomic, TDict, TGenericParam, TNamedObject, TVec},
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -85,7 +85,7 @@ pub fn replace(
                             class_template_type = Some(TAtomic::TClassname {
                                 as_type: Box::new(TAtomic::TObject),
                             });
-                        } else if let TAtomic::TNamedObject { .. } = template_type_part {
+                        } else if let TAtomic::TNamedObject(TNamedObject { .. }) = template_type_part {
                             class_template_type = Some(TAtomic::TClassname {
                                 as_type: Box::new(template_type_part.clone()),
                             });
@@ -297,10 +297,10 @@ fn replace_atomic(
         } => {
             *type_param = Box::new(replace(type_param, template_result, codebase));
         }
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             type_params: Some(ref mut type_params),
             ..
-        } => {
+        }) => {
             for type_param in type_params {
                 *type_param = replace(type_param, template_result, codebase);
             }

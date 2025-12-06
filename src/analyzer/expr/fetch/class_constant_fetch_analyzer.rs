@@ -6,6 +6,7 @@ use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::ast::get_id_name;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TNamedObject;
 use hakana_code_info::ttype::type_expander::{StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
@@ -64,7 +65,7 @@ pub(crate) fn analyze(
                 if let Some(lhs_type) = analysis_data.get_rc_expr_type(lhs_expr.pos()).cloned() {
                     for atomic_type in &lhs_type.types {
                         match atomic_type {
-                            TAtomic::TNamedObject { name, is_this, .. } => {
+                            TAtomic::TNamedObject(TNamedObject { name, is_this, .. }) => {
                                 stmt_type = Some(add_optional_union_type(
                                     analyse_known_class_constant(
                                         codebase,
@@ -83,7 +84,7 @@ pub(crate) fn analyze(
                             }
                             TAtomic::TClassPtr { as_type }
                             | TAtomic::TGenericClassPtr { as_type, .. } => {
-                                if let TAtomic::TNamedObject { name, is_this, .. } = &**as_type {
+                                if let TAtomic::TNamedObject(TNamedObject { name, is_this, .. }) = &**as_type {
                                     stmt_type = Some(add_optional_union_type(
                                         analyse_known_class_constant(
                                             codebase,
@@ -210,13 +211,13 @@ fn analyse_known_class_constant(
 
     if const_name == "class" {
         let inner_object = if is_this {
-            let named_object = TAtomic::TNamedObject {
+            let named_object = TAtomic::TNamedObject(TNamedObject {
                 name: *classlike_name,
                 type_params: None,
                 is_this,
                 extra_types: None,
                 remapped_params: false,
-            };
+            });
             TAtomic::TClassPtr {
                 as_type: Box::new(named_object),
             }
@@ -312,13 +313,13 @@ fn analyse_known_class_constant(
     );
 
     if let Some(ref mut class_constant_type) = class_constant_type {
-        let this_class = TAtomic::TNamedObject {
+        let this_class = TAtomic::TNamedObject(TNamedObject {
             name: *classlike_name,
             type_params: None,
             is_this,
             extra_types: None,
             remapped_params: false,
-        };
+        });
         type_expander::expand_union(
             codebase,
             &Some(statements_analyzer.interner),

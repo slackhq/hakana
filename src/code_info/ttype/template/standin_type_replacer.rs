@@ -1,4 +1,4 @@
-use crate::t_atomic::TGenericParam;
+use crate::t_atomic::{TGenericParam, TNamedObject};
 use crate::{GenericParent, function_context::FunctionLikeIdentifier};
 use crate::{
     classlike_info::Variance,
@@ -150,7 +150,7 @@ fn handle_atomic_standin(
     was_single: bool,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
-    let normalized_key = if let TAtomic::TNamedObject { name, .. } = atomic_type {
+    let normalized_key = if let TAtomic::TNamedObject(TNamedObject { name, .. }) = atomic_type {
         name.0.to_string()
     } else if let TAtomic::TTypeAlias { name, .. } = atomic_type {
         name.0.to_string()
@@ -526,17 +526,17 @@ fn replace_atomic<'a>(
 
             return atomic_type;
         }
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             ref mut type_params,
             ref name,
             remapped_params,
             ..
-        } => {
+        }) => {
             if let Some(type_params) = type_params {
-                let mapped_type_params = if let Some(TAtomic::TNamedObject {
+                let mapped_type_params = if let Some(TAtomic::TNamedObject(TNamedObject {
                     type_params: Some(_),
                     ..
-                }) = &input_type
+                })) = &input_type
                 {
                     Some(get_mapped_generic_type_params(
                         codebase,
@@ -553,10 +553,10 @@ fn replace_atomic<'a>(
                 for (offset, type_param) in type_params.iter_mut().enumerate() {
                     let input_type_param = match &input_type {
                         Some(input_inner) => match input_inner {
-                            TAtomic::TNamedObject {
+                            TAtomic::TNamedObject(TNamedObject {
                                 type_params: Some(input_type_parts),
                                 ..
-                            } => input_type_parts.get(offset).cloned(),
+                            }) => input_type_parts.get(offset).cloned(),
                             TAtomic::TDict(TDict { .. })
                             | TAtomic::TVec(TVec { .. })
                             | TAtomic::TKeyset { .. } => {
@@ -789,18 +789,19 @@ fn handle_template_param_standin<'a>(
     opts: StandinOpts,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
-    let (param_name, defining_entity, extra_types, as_type) = if let TAtomic::TGenericParam(TGenericParam {
-        param_name,
-        defining_entity,
-        extra_types,
-        as_type,
-        ..
-    }) = atomic_type
-    {
-        (param_name, defining_entity, extra_types, as_type)
-    } else {
-        panic!()
-    };
+    let (param_name, defining_entity, extra_types, as_type) =
+        if let TAtomic::TGenericParam(TGenericParam {
+            param_name,
+            defining_entity,
+            extra_types,
+            as_type,
+            ..
+        }) = atomic_type
+        {
+            (param_name, defining_entity, extra_types, as_type)
+        } else {
+            panic!()
+        };
 
     if let Some(calling_class) = opts.calling_class {
         if defining_entity == &GenericParent::ClassLike(calling_class) {
@@ -838,7 +839,9 @@ fn handle_template_param_standin<'a>(
             if extra_type_union.is_single() {
                 let extra_type = extra_type_union.get_single().clone();
 
-                if let TAtomic::TNamedObject { .. } | TAtomic::TGenericParam(TGenericParam { .. }) = extra_type {
+                if let TAtomic::TNamedObject(TNamedObject { .. })
+                | TAtomic::TGenericParam(TGenericParam { .. }) = extra_type
+                {
                     new_extra_types.push(extra_type);
                 }
             }
@@ -1058,10 +1061,10 @@ fn handle_template_param_standin<'a>(
         // Only override extra_types if we have new_extra_types to add
         // Don't clear existing extra_types (e.g., from intersection types)
         if !new_extra_types.is_empty() {
-            if let TAtomic::TNamedObject {
+            if let TAtomic::TNamedObject(TNamedObject {
                 extra_types: ref mut atomic_extra_types,
                 ..
-            }
+            })
             | TAtomic::TGenericParam(TGenericParam {
                 extra_types: ref mut atomic_extra_types,
                 ..
@@ -1155,13 +1158,13 @@ fn handle_template_param_class_standin<'a>(
                 if let TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } =
                     input_atomic_type
                 {
-                    valid_input_atomic_types.push(TAtomic::TNamedObject {
+                    valid_input_atomic_types.push(TAtomic::TNamedObject(TNamedObject {
                         name: *name,
                         type_params: None,
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    });
+                    }));
                 } else if let TAtomic::TGenericClassname {
                     param_name,
                     as_type,
@@ -1271,7 +1274,9 @@ fn handle_template_param_class_standin<'a>(
                 .unwrap();
 
             for template_atomic_type in &template_type.types {
-                if let TAtomic::TNamedObject { .. } | TAtomic::TObject = &template_atomic_type {
+                if let TAtomic::TNamedObject(TNamedObject { .. }) | TAtomic::TObject =
+                    &template_atomic_type
+                {
                     atomic_types.push(TAtomic::TClassname {
                         as_type: Box::new(template_atomic_type.clone()),
                     });
@@ -1509,13 +1514,13 @@ pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Ve
                 .collect()
         }
     } else if codebase.classlike_infos.contains_key(name) {
-        vec![TAtomic::TNamedObject {
+        vec![TAtomic::TNamedObject(TNamedObject {
             name: *name,
             type_params: None,
             is_this: false,
             extra_types: None,
             remapped_params: false,
-        }]
+        })]
     } else {
         vec![]
     }
@@ -1562,7 +1567,7 @@ fn find_matching_atomic_types_for_template(
             }
             (
                 TAtomic::TDict(TDict { .. }) | TAtomic::TVec(TVec { .. }) | TAtomic::TKeyset { .. },
-                TAtomic::TNamedObject { name, .. },
+                TAtomic::TNamedObject(TNamedObject { name, .. }),
             ) => {
                 if is_array_container(name) {
                     matching_atomic_types.push(atomic_input_type.clone());
@@ -1584,10 +1589,10 @@ fn find_matching_atomic_types_for_template(
                     as_type: base_as_type,
                 },
             ) => {
-                if let TAtomic::TNamedObject {
+                if let TAtomic::TNamedObject(TNamedObject {
                     name: base_as_value,
                     ..
-                } = &**base_as_type
+                }) = &**base_as_type
                 {
                     let classlike_info = codebase.classlike_infos.get(atomic_class_name);
 
@@ -1598,7 +1603,7 @@ fn find_matching_atomic_types_for_template(
                             *depth += 1;
 
                             matching_atomic_types.push(TAtomic::TClassname {
-                                as_type: Box::new(TAtomic::TNamedObject {
+                                as_type: Box::new(TAtomic::TNamedObject(TNamedObject {
                                     name: *base_as_value,
                                     type_params: Some(
                                         extended_params
@@ -1610,7 +1615,7 @@ fn find_matching_atomic_types_for_template(
                                     is_this: false,
                                     extra_types: None,
                                     remapped_params: false,
-                                }),
+                                })),
                             });
                             continue;
                         }
@@ -1618,14 +1623,14 @@ fn find_matching_atomic_types_for_template(
                 }
             }
             (
-                TAtomic::TNamedObject {
+                TAtomic::TNamedObject(TNamedObject {
                     name: input_name,
                     type_params: input_type_params,
                     ..
-                },
-                TAtomic::TNamedObject {
+                }),
+                TAtomic::TNamedObject(TNamedObject {
                     name: base_name, ..
-                },
+                }),
             ) => {
                 if input_name == base_name {
                     matching_atomic_types.push(atomic_input_type.clone());
@@ -1651,7 +1656,7 @@ fn find_matching_atomic_types_for_template(
                 if let Some(extended_params) =
                     classlike_info.template_extended_params.get(base_name)
                 {
-                    matching_atomic_types.push(TAtomic::TNamedObject {
+                    matching_atomic_types.push(TAtomic::TNamedObject(TNamedObject {
                         name: *input_name,
                         type_params: Some(
                             extended_params
@@ -1663,7 +1668,7 @@ fn find_matching_atomic_types_for_template(
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    });
+                    }));
                     continue;
                 }
             }
@@ -1740,20 +1745,20 @@ fn find_matching_atomic_types_for_template(
                 },
             ) => {
                 let enum_type = if let Some(class_name) = class_name {
-                    TAtomic::TNamedObject {
+                    TAtomic::TNamedObject(TNamedObject {
                         name: *class_name,
                         type_params: None,
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    }
+                    })
                 } else {
                     base_type_params[0].get_single().clone()
                 };
 
-                if let TAtomic::TNamedObject {
+                if let TAtomic::TNamedObject(TNamedObject {
                     name: enum_name, ..
-                } = &enum_type
+                }) = &enum_type
                 {
                     if let Some(classlike_info) = codebase.classlike_infos.get(enum_name) {
                         if let Some(constant_info) = classlike_info.constants.get(member_name) {
@@ -1797,13 +1802,14 @@ fn find_matching_atomic_types_for_template(
                 matching_atomic_types.push(TAtomic::TMixedWithFlags(true, false, false, false));
             }
             _ => {
-                let input_key = &if let TAtomic::TNamedObject { name, .. } = atomic_input_type {
-                    name.0.to_string()
-                } else if let TAtomic::TTypeAlias { name, .. } = atomic_input_type {
-                    name.0.to_string()
-                } else {
-                    atomic_input_type.get_key()
-                };
+                let input_key =
+                    &if let TAtomic::TNamedObject(TNamedObject { name, .. }) = atomic_input_type {
+                        name.0.to_string()
+                    } else if let TAtomic::TTypeAlias { name, .. } = atomic_input_type {
+                        name.0.to_string()
+                    } else {
+                        atomic_input_type.get_key()
+                    };
 
                 if input_key == normalized_key {
                     matching_atomic_types.push(atomic_input_type.clone());
@@ -1832,10 +1838,10 @@ pub fn get_mapped_generic_type_params(
     container_remapped_params: bool,
 ) -> Vec<(Option<usize>, TUnion)> {
     let mut input_type_params = match input_type_part {
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             type_params: Some(type_params),
             ..
-        } => type_params
+        }) => type_params
             .iter()
             .enumerate()
             .map(|(k, v)| (Some(k), v.clone()))
@@ -1844,7 +1850,7 @@ pub fn get_mapped_generic_type_params(
     };
 
     let input_name = match input_type_part {
-        TAtomic::TNamedObject { name, .. } => name,
+        TAtomic::TNamedObject(TNamedObject { name, .. }) => name,
         _ => panic!(),
     };
 
@@ -1866,10 +1872,10 @@ pub fn get_mapped_generic_type_params(
 
     if matches!(
         input_type_part,
-        TAtomic::TNamedObject {
+        TAtomic::TNamedObject(TNamedObject {
             remapped_params: false,
             ..
-        }
+        })
     ) && !container_remapped_params
     {
         for (template_name, _) in input_template_types {

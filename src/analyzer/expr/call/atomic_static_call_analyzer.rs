@@ -3,7 +3,7 @@ use hakana_code_info::{
     classlike_info::ClassLikeInfo,
     function_context::FunctionContext,
     issue::{Issue, IssueKind},
-    t_atomic::{TAtomic, TGenericParam},
+    t_atomic::{TAtomic, TGenericParam, TNamedObject},
 };
 use hakana_str::StrId;
 use oxidized::{aast, ast_defs::Pos};
@@ -44,9 +44,9 @@ pub(crate) fn analyze(
     classlike_name: Option<StrId>,
     result: &mut AtomicMethodCallAnalysisResult,
 ) -> Result<(), AnalysisError> {
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name, extra_types, ..
-    } = &lhs_type_part
+    }) = &lhs_type_part
     {
         if let aast::ClassId_::CIexpr(lhs_expr) = &expr.0.2 {
             if !matches!(&lhs_expr.2, aast::Expr_::Id(_)) {
@@ -83,7 +83,7 @@ pub(crate) fn analyze(
         classlike_name
     } else {
         match &lhs_type_part {
-            TAtomic::TNamedObject { name, .. } => *name,
+            TAtomic::TNamedObject(TNamedObject { name, .. }) => *name,
             // During the migration from classname<T> strings to class<T> pointers,
             // support invoking `new` with an LHS expression of either type.
             // This is governed by the typechecker flag `class_pointer_ban_classname_static_meth`.
@@ -92,7 +92,7 @@ pub(crate) fn analyze(
             | TAtomic::TClassPtr { as_type }
             | TAtomic::TGenericClassPtr { as_type, .. } => {
                 let as_type = *as_type.clone();
-                if let TAtomic::TNamedObject { name, .. } = as_type {
+                if let TAtomic::TNamedObject(TNamedObject { name, .. }) = as_type {
                     // todo check class name and register usage
                     name
                 } else {
@@ -103,7 +103,7 @@ pub(crate) fn analyze(
             TAtomic::TGenericParam(TGenericParam { as_type, .. })
             | TAtomic::TClassTypeConstant { as_type, .. } => {
                 let classlike_name =
-                    if let TAtomic::TNamedObject { name, .. } = &as_type.types.first().unwrap() {
+                    if let TAtomic::TNamedObject(TNamedObject { name, .. }) = &as_type.types.first().unwrap() {
                         name
                     } else {
                         return Ok(());

@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
 use hakana_code_info::data_flow::node::VariableSourceKind;
-use hakana_code_info::t_atomic::{TGenericParam, TVec};
+use hakana_code_info::t_atomic::{TGenericParam, TNamedObject, TVec};
 use hakana_code_info::ttype::{
     combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
     template::TemplateBound, type_combiner, wrap_atomic,
@@ -564,13 +564,13 @@ fn update_array_assignment_child_type(
                         analysis_data.type_variable_bounds.get_mut(name)
                     {
                         let mut bound = TemplateBound::new(
-                            wrap_atomic(TAtomic::TNamedObject {
+                            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                                 name: StrId::KEYED_CONTAINER,
                                 type_params: Some(vec![(*key_type).clone(), value_type.clone()]),
                                 is_this: false,
                                 extra_types: None,
                                 remapped_params: false,
-                            }),
+                            })),
                             0,
                             None,
                             None,
@@ -636,13 +636,13 @@ fn update_array_assignment_child_type(
                         analysis_data.type_variable_bounds.get_mut(name)
                     {
                         let mut bound = TemplateBound::new(
-                            wrap_atomic(TAtomic::TNamedObject {
+                            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                                 name: StrId::CONTAINER,
                                 type_params: Some(vec![value_type.clone()]),
                                 is_this: false,
                                 extra_types: None,
                                 remapped_params: false,
-                            }),
+                            })),
                             0,
                             None,
                             None,

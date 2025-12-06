@@ -1,5 +1,5 @@
 use crate::code_location::FilePath;
-use crate::t_atomic::{TDict, TGenericParam, TVec};
+use crate::t_atomic::{TDict, TGenericParam, TNamedObject, TVec};
 use crate::ttype::{get_arrayish_params, get_value_param, wrap_atomic};
 use crate::{class_constant_info::ConstantInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 use hakana_str::StrId;
@@ -26,16 +26,16 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TGenericParam(TGenericParam { .. })
-    | TAtomic::TNamedObject {
+    | TAtomic::TNamedObject(TNamedObject {
         extra_types: Some(_),
         ..
-    } = container_type_part
+    }) = container_type_part
     {
         if let TAtomic::TGenericParam(TGenericParam { .. })
-        | TAtomic::TNamedObject {
+        | TAtomic::TNamedObject(TNamedObject {
             extra_types: Some(_),
             ..
-        } = input_type_part
+        }) = input_type_part
         {
             return object_type_comparator::is_shallowly_contained_by(
                 codebase,
@@ -88,10 +88,10 @@ pub fn is_contained_by(
         return false;
     }
 
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name: StrId::XHP_CHILD,
         ..
-    } = container_type_part
+    }) = container_type_part
     {
         if input_type_part.is_string()
             || input_type_part.is_int()
@@ -150,11 +150,11 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name: StrId::ANY_ARRAY,
         type_params: Some(type_params),
         ..
-    } = container_type_part
+    }) = container_type_part
     {
         if let TAtomic::TVec(TVec { .. }) | TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } =
             input_type_part
@@ -215,10 +215,10 @@ pub fn is_contained_by(
         return false;
     }
 
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name: container_name,
         ..
-    } = container_type_part
+    }) = container_type_part
     {
         match input_type_part {
             TAtomic::TDict(TDict { .. }) => {
@@ -331,13 +331,13 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TObject { .. } = container_type_part {
-        if let TAtomic::TNamedObject { .. } = input_type_part {
+        if let TAtomic::TNamedObject(TNamedObject { .. }) = input_type_part {
             return true;
         }
     }
 
     if let TAtomic::TObject { .. } = input_type_part {
-        if let TAtomic::TNamedObject { .. } = container_type_part {
+        if let TAtomic::TNamedObject(TNamedObject { .. }) = container_type_part {
             atomic_comparison_result.type_coerced = Some(true);
             return false;
         }
@@ -387,10 +387,10 @@ pub fn is_contained_by(
         ) {
             if matches!(
                 container_type_part,
-                TAtomic::TNamedObject {
+                TAtomic::TNamedObject(TNamedObject {
                     type_params: Some(_),
                     ..
-                }
+                })
             ) {
                 return generic_type_comparator::is_contained_by(
                     codebase,
@@ -501,15 +501,15 @@ pub fn is_contained_by(
 
     // TODO: handle $input_type_part instanceof TConditional
 
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name: StrId::STATIC,
         ..
-    } = input_type_part
+    }) = input_type_part
     {
-        if let TAtomic::TNamedObject {
+        if let TAtomic::TNamedObject(TNamedObject {
             name: container_name,
             ..
-        } = container_type_part
+        }) = container_type_part
         {
             if container_name == &StrId::SELF {
                 return true;
@@ -518,11 +518,11 @@ pub fn is_contained_by(
     }
 
     // handle KeyedContainer and Container accepting arrays
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name: container_name,
         type_params: Some(container_type_params),
         ..
-    } = container_type_part
+    }) = container_type_part
     {
         if let StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY = *container_name {
             let type_params = get_arrayish_params(input_type_part, codebase);
@@ -619,11 +619,11 @@ pub fn is_contained_by(
     }
 
     // handle KeyedContainer and Container accepting arrays
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name: input_name,
         type_params: Some(input_type_params),
         ..
-    } = input_type_part
+    }) = input_type_part
     {
         if matches!(
             *input_name,
@@ -686,10 +686,10 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TNamedObject {
+    if let TAtomic::TNamedObject(TNamedObject {
         name: container_name,
         ..
-    } = container_type_part
+    }) = container_type_part
     {
         if container_name == &StrId::XHP_CHILD {
             if let TAtomic::TString
@@ -772,10 +772,10 @@ pub fn is_contained_by(
                     {
                         let container_enum_param = container_enum_param.get_single();
 
-                        if let TAtomic::TNamedObject {
+                        if let TAtomic::TNamedObject(TNamedObject {
                             name: container_enum_name,
                             ..
-                        } = container_enum_param
+                        }) = container_enum_param
                         {
                             if let Some(input_class_name) = input_class_name {
                                 return input_class_name == container_enum_name;

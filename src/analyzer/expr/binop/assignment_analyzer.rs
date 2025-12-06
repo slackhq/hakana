@@ -5,6 +5,7 @@ use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::data_flow::node::VariableSourceKind;
+use hakana_code_info::t_atomic::TNamedObject;
 use hakana_code_info::t_atomic::TVec;
 use hakana_code_info::var_name::VarName;
 use hakana_str::StrId;
@@ -489,11 +490,11 @@ fn analyze_list_assignment(
                 } else {
                     (**type_param).clone()
                 }
-            } else if let TAtomic::TNamedObject {
+            } else if let TAtomic::TNamedObject(TNamedObject {
                 name,
                 type_params: Some(type_params),
                 ..
-            } = assign_value_atomic_type
+            }) = assign_value_atomic_type
             {
                 if *name == StrId::VECTOR {
                     type_params[0].clone()

@@ -8,7 +8,7 @@ use hakana_code_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
-    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TVec},
+    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TNamedObject, TVec},
     t_union::TUnion,
 };
 use hakana_code_info::{
@@ -835,7 +835,7 @@ fn reconcile_has_array_key(
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }
-            TAtomic::TNamedObject { .. } => {
+            TAtomic::TNamedObject(TNamedObject { .. }) => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }
@@ -1093,7 +1093,7 @@ fn reconcile_has_nonnull_entry_for_key(
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }
-            TAtomic::TNamedObject { .. } => {
+            TAtomic::TNamedObject(TNamedObject { .. }) => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }

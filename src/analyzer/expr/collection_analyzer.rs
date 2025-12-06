@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use hakana_code_info::t_atomic::TVec;
+use hakana_code_info::t_atomic::{TNamedObject, TVec};
 use hakana_code_info::ttype::{
     get_arraykey, get_keyset, get_literal_int, get_mixed_any, get_nothing, type_combiner,
     wrap_atomic,
@@ -74,13 +74,13 @@ pub(crate) fn analyze_vals(
             VcKind::Vector => {
                 analysis_data.set_expr_type(
                     pos,
-                    wrap_atomic(TAtomic::TNamedObject {
+                    wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                         name: statements_analyzer.interner.get("HH\\Vector").unwrap(),
                         type_params: Some(vec![get_mixed_any()]),
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    }),
+                    })),
                 );
             }
             _ => {}
@@ -199,13 +199,13 @@ pub(crate) fn analyze_vals(
             analysis_data.set_expr_type(pos, keyset);
         }
         VcKind::Vector => {
-            let mut new_vec = wrap_atomic(TAtomic::TNamedObject {
+            let mut new_vec = wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                 name: statements_analyzer.interner.get("HH\\Vector").unwrap(),
                 type_params: Some(vec![get_mixed_any()]),
                 is_this: false,
                 extra_types: None,
                 remapped_params: false,
-            });
+            }));
 
             new_vec.parent_nodes = array_creation_info.parent_nodes;
 

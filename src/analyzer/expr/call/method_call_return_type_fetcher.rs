@@ -15,7 +15,7 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TNamedObject};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{
     get_mixed_any, get_nothing, get_string, template,
@@ -122,7 +122,8 @@ pub(crate) fn fetch(
         &TypeExpansionOptions {
             self_class: Some(method_id.0),
             static_class_type: match lhs_type_part {
-                TAtomic::TNamedObject { .. } | TAtomic::TGenericParam(TGenericParam { .. }) => {
+                TAtomic::TNamedObject(TNamedObject { .. })
+                | TAtomic::TGenericParam(TGenericParam { .. }) => {
                     type_expander::StaticClassType::Object(lhs_type_part)
                 }
                 TAtomic::TGenericClassname { as_type, .. }
@@ -166,13 +167,13 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
         StrId::DATE_TIME | StrId::DATE_TIME_IMMUTABLE => {
             if interner.lookup(&method_id.1) == "createFromFormat" {
                 let mut false_or_datetime = TUnion::new(vec![
-                    TAtomic::TNamedObject {
+                    TAtomic::TNamedObject(TNamedObject {
                         name: method_id.0,
                         type_params: None,
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    },
+                    }),
                     TAtomic::TFalse,
                 ]);
                 false_or_datetime.ignore_falsable_issues = true;
@@ -182,13 +183,13 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
         StrId::DOMDOCUMENT => {
             if interner.lookup(&method_id.1) == "createElement" {
                 let mut false_or_domelement = TUnion::new(vec![
-                    TAtomic::TNamedObject {
+                    TAtomic::TNamedObject(TNamedObject {
                         name: interner.get("DOMElement").unwrap(),
                         type_params: None,
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    },
+                    }),
                     TAtomic::TFalse,
                 ]);
                 false_or_domelement.ignore_falsable_issues = true;
@@ -198,13 +199,13 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
         StrId::SIMPLE_XML_ELEMENT => match interner.lookup(&method_id.1) {
             "children" | "attributes" | "addChild" => {
                 let null_or_simplexmlelement = TUnion::new(vec![
-                    TAtomic::TNamedObject {
+                    TAtomic::TNamedObject(TNamedObject {
                         name: interner.get("SimpleXMLElement").unwrap(),
                         type_params: None,
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
-                    },
+                    }),
                     TAtomic::TNull,
                 ]);
                 return Some(null_or_simplexmlelement);

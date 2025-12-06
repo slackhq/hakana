@@ -11,7 +11,7 @@ use crate::{
     },
     functionlike_info::FunctionLikeInfo,
     functionlike_parameter::FnParameter,
-    t_atomic::{DictKey, TAtomic, TClosure, TDict, TGenericParam, TVec},
+    t_atomic::{DictKey, TAtomic, TClosure, TDict, TGenericParam, TNamedObject, TVec},
     t_union::TUnion,
     ttype::intersect_union_types_simple,
     type_definition_info::TypeDefinitionInfo,
@@ -233,12 +233,12 @@ fn expand_atomic(
         );
 
         return;
-    } else if let TAtomic::TNamedObject {
+    } else if let TAtomic::TNamedObject(TNamedObject {
         name,
         type_params,
         is_this,
         ..
-    } = return_type_part
+    }) = return_type_part
     {
         if *name == StrId::THIS {
             *name = match options.static_class_type {
@@ -256,10 +256,10 @@ fn expand_atomic(
             }
         } else if *is_this {
             if let StaticClassType::Object(obj) = options.static_class_type {
-                if let TAtomic::TNamedObject {
+                if let TAtomic::TNamedObject(TNamedObject {
                     name: new_this_name,
                     ..
-                } = obj
+                }) = obj
                 {
                     if codebase.class_extends_or_implements(new_this_name, name) {
                         *skip_key = true;
@@ -665,17 +665,17 @@ fn expand_atomic(
         }
 
         match class_type.as_ref() {
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name: class_name,
                 is_this,
                 extra_types,
                 ..
-            } => {
+            }) => {
                 // Collect all classes to check for the type constant (main class + extra_types from intersections)
                 let mut classes_to_check: Vec<&StrId> = vec![class_name];
                 if let Some(extra) = extra_types {
                     for extra_type in extra {
-                        if let TAtomic::TNamedObject { name, .. } = extra_type {
+                        if let TAtomic::TNamedObject(TNamedObject { name, .. }) = extra_type {
                             classes_to_check.push(name);
                         }
                     }
@@ -732,10 +732,10 @@ fn expand_atomic(
 
                 if is_this {
                     if let StaticClassType::Object(obj) = options.static_class_type {
-                        if let TAtomic::TNamedObject {
+                        if let TAtomic::TNamedObject(TNamedObject {
                             name: new_this_name,
                             ..
-                        } = obj
+                        }) = obj
                         {
                             if !codebase.class_extends_or_implements(new_this_name, class_name) {
                                 is_this = false

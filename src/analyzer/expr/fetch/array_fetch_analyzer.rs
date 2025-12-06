@@ -7,7 +7,7 @@ use hakana_code_info::{
         path::{ArrayDataKind, PathKind},
     },
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TVec},
+    t_atomic::{DictKey, TAtomic, TDict, TGenericParam, TNamedObject, TVec},
     t_union::TUnion,
 };
 use hakana_code_info::{
@@ -436,9 +436,9 @@ pub(crate) fn get_array_access_type_given_offset(
 
                 has_valid_expected_offset = true;
             }
-            TAtomic::TNamedObject {
+            TAtomic::TNamedObject(TNamedObject {
                 name, type_params, ..
-            } => match *name {
+            }) => match *name {
                 StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => {
                     if let Some(type_params) = type_params {
                         if type_params.len() > 1 {
