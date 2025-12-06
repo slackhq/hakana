@@ -55,6 +55,13 @@ pub(crate) fn fetch(
     let codebase = statements_analyzer.codebase;
     let mut stmt_type = None;
 
+    // Get the calling function's where constraints to apply to the return type
+    let calling_where_constraints = context
+        .function_context
+        .get_functionlike_info(codebase)
+        .map(|info| &info.where_constraints)
+        .filter(|c| !c.is_empty());
+
     if let FunctionLikeIdentifier::Function(name) = functionlike_id {
         if let Some(t) = handle_special_functions(
             statements_analyzer,
@@ -129,6 +136,8 @@ pub(crate) fn fetch(
             &TypeExpansionOptions {
                 expand_templates: false,
                 expand_generic: true,
+                // Apply calling function's where constraints to narrow class template params
+                where_constraints: calling_where_constraints,
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,

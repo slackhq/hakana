@@ -1054,20 +1054,20 @@ fn handle_template_param_standin<'a>(
     let mut new_atomic_types = Vec::new();
 
     for mut atomic_type in atomic_types {
-        if let TAtomic::TNamedObject {
-            extra_types: ref mut atomic_extra_types,
-            ..
-        }
-        | TAtomic::TGenericParam {
-            extra_types: ref mut atomic_extra_types,
-            ..
-        } = atomic_type
-        {
-            *atomic_extra_types = if new_extra_types.is_empty() {
-                None
-            } else {
-                Some(new_extra_types.clone())
-            };
+        // Only override extra_types if we have new_extra_types to add
+        // Don't clear existing extra_types (e.g., from intersection types)
+        if !new_extra_types.is_empty() {
+            if let TAtomic::TNamedObject {
+                extra_types: ref mut atomic_extra_types,
+                ..
+            }
+            | TAtomic::TGenericParam {
+                extra_types: ref mut atomic_extra_types,
+                ..
+            } = atomic_type
+            {
+                *atomic_extra_types = Some(new_extra_types.clone());
+            }
         }
 
         new_atomic_types.push(atomic_type);

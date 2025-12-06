@@ -53,6 +53,13 @@ pub(crate) fn fetch(
 ) -> TUnion {
     let codebase = statements_analyzer.codebase;
 
+    // Get the calling function's where constraints to apply to the return type
+    let calling_where_constraints = context
+        .function_context
+        .get_functionlike_info(codebase)
+        .map(|info| &info.where_constraints)
+        .filter(|c| !c.is_empty());
+
     let mut return_type_candidate = if let Some(return_type) =
         get_special_method_return(method_id, statements_analyzer.interner)
     {
@@ -127,6 +134,8 @@ pub(crate) fn fetch(
             parent_class: classlike_storage.direct_parent_class,
             function_is_final: method_storage.is_final,
             expand_generic: true,
+            // Apply calling function's where constraints to narrow class template params
+            where_constraints: calling_where_constraints,
             ..Default::default()
         },
         &mut analysis_data.data_flow_graph,
