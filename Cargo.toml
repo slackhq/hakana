@@ -52,7 +52,6 @@ members = [
 ]
 exclude = ["third-party"]
 
-
 [profile.release]
 debug = true
 
