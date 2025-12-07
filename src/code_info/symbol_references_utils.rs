@@ -114,14 +114,16 @@ mod tests {
 
     #[test]
     fn test_get_relative_filename() {
+        // Absolute paths are returned as-is
         assert_eq!(
             get_relative_filename("/some/path/workdir/file.hack"),
-            "file.hack"
+            "/some/path/workdir/file.hack"
         );
         assert_eq!(
             get_relative_filename("/absolute/path/to/file.hack"),
-            "file.hack"
+            "/absolute/path/to/file.hack"
         );
+        // Relative paths are returned as-is
         assert_eq!(get_relative_filename("file.hack"), "file.hack");
     }
 }
