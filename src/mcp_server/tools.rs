@@ -40,4 +40,34 @@ impl Tool {
             }),
         }
     }
+
+    /// Definition for the goto_definition tool
+    pub fn goto_definition_definition() -> Self {
+        Tool {
+            name: "goto_definition".to_string(),
+            description: "Go to the definition of a symbol at a specific location in a file. \
+                Given a file path, line, and column, returns the location where the symbol \
+                at that position is defined. Useful for navigating from usages to definitions \
+                of functions, classes, methods, properties, and other symbols.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "The relative path to the file (relative to project root). \
+                            Example: 'src/MyClass.hack'"
+                    },
+                    "line": {
+                        "type": "integer",
+                        "description": "The 1-indexed line number where the symbol is located"
+                    },
+                    "column": {
+                        "type": "integer",
+                        "description": "The 1-indexed column number where the symbol is located"
+                    }
+                },
+                "required": ["file_path", "line", "column"]
+            }),
+        }
+    }
 }

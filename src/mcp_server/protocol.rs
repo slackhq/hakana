@@ -3,7 +3,8 @@
 use crate::tools::Tool;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_protocol::{
-    ClientSocket, FindSymbolReferencesRequest, Message, SocketPath, StatusRequest,
+    ClientSocket, FindSymbolReferencesRequest, GotoDefinitionRequest, Message, SocketPath,
+    StatusRequest,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -281,7 +282,10 @@ impl McpServer {
 
     /// Handle tools/list request
     fn handle_tools_list(&self, id: Option<Value>) -> JsonRpcResponse {
-        let tools = vec![Tool::find_symbol_usages_definition()];
+        let tools = vec![
+            Tool::find_symbol_usages_definition(),
+            Tool::goto_definition_definition(),
+        ];
 
         JsonRpcResponse::success(
             id,
@@ -309,6 +313,7 @@ impl McpServer {
 
         match call_params.name.as_str() {
             "find_symbol_usages" => self.handle_find_symbol_usages(id, call_params.arguments),
+            "goto_definition" => self.handle_goto_definition(id, call_params.arguments),
             _ => JsonRpcResponse::error(id, -32602, format!("Unknown tool: {}", call_params.name)),
         }
     }
@@ -399,6 +404,101 @@ impl McpServer {
                     "content": [{
                         "type": "text",
                         "text": format!("Error finding usages: {}", e)
+                    }],
+                    "isError": true
+                }),
+            ),
+        }
+    }
+
+    /// Handle goto_definition tool call
+    fn handle_goto_definition(&mut self, id: Option<Value>, arguments: Value) -> JsonRpcResponse {
+        // Ensure server is running
+        if let Err(e) = self.ensure_server_ready() {
+            return JsonRpcResponse::error(id, -32603, e);
+        }
+
+        #[derive(Deserialize)]
+        struct GotoDefinitionParams {
+            file_path: String,
+            line: u32,
+            column: u32,
+        }
+
+        let params: GotoDefinitionParams = match serde_json::from_value(arguments) {
+            Ok(p) => p,
+            Err(e) => {
+                return JsonRpcResponse::error(id, -32602, format!("Invalid arguments: {}", e));
+            }
+        };
+
+        // Connect to server and make the request
+        let mut client = match ClientSocket::connect(&self.socket_path) {
+            Ok(c) => c,
+            Err(e) => {
+                return JsonRpcResponse::error(
+                    id,
+                    -32603,
+                    format!("Failed to connect to server: {}", e),
+                );
+            }
+        };
+
+        let request = Message::GotoDefinition(GotoDefinitionRequest {
+            file_path: params.file_path.clone(),
+            line: params.line,
+            column: params.column,
+        });
+
+        match client.request(&request) {
+            Ok(Message::GotoDefinitionResult(response)) => {
+                let content = if !response.found {
+                    format!(
+                        "No definition found at {}:{}:{}",
+                        params.file_path, params.line, params.column
+                    )
+                } else {
+                    let file_path = response.file_path.unwrap_or_default();
+                    let start_line = response.start_line.unwrap_or(0);
+                    let start_column = response.start_column.unwrap_or(0);
+                    let end_line = response.end_line.unwrap_or(0);
+                    let end_column = response.end_column.unwrap_or(0);
+
+                    format!(
+                        "Definition found:\n\nFile: {}\nStart: line {}, column {}\nEnd: line {}, column {}",
+                        file_path, start_line, start_column, end_line, end_column
+                    )
+                };
+
+                JsonRpcResponse::success(
+                    id,
+                    json!({
+                        "content": [{
+                            "type": "text",
+                            "text": content
+                        }]
+                    }),
+                )
+            }
+            Ok(Message::Error(e)) => JsonRpcResponse::success(
+                id,
+                json!({
+                    "content": [{
+                        "type": "text",
+                        "text": format!("Server error: {}", e.message)
+                    }],
+                    "isError": true
+                }),
+            ),
+            Ok(_) => {
+                JsonRpcResponse::error(id, -32603, "Unexpected response from server".to_string())
+            }
+            Err(e) => JsonRpcResponse::success(
+                id,
+                json!({
+                    "content": [{
+                        "type": "text",
+                        "text": format!("Error looking up definition: {}", e)
                     }],
                     "isError": true
                 }),
