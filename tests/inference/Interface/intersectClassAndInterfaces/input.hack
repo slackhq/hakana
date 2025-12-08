@@ -9,5 +9,8 @@ function foo(A $a): void {
 }
 
 function bar(A $a): void {
-	if ($a is I1 && !($a is I2)) {}
+	if ($a is I1 && !($a is I2)) {
+		$a = get_class($a);
+		echo $a;
+	}
 }

@@ -85,7 +85,9 @@ pub fn replace(
                             class_template_type = Some(TAtomic::TClassname {
                                 as_type: Box::new(TAtomic::TObject),
                             });
-                        } else if let TAtomic::TNamedObject(TNamedObject { .. }) = template_type_part {
+                        } else if let TAtomic::TNamedObject(TNamedObject { .. })
+                            | TAtomic::TObjectIntersection { .. } = template_type_part
+                        {
                             class_template_type = Some(TAtomic::TClassname {
                                 as_type: Box::new(template_type_part.clone()),
                             });
