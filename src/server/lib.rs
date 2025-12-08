@@ -12,10 +12,10 @@ pub use state::ServerState;
 
 use hakana_analyzer::config::Config;
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_logger::Logger;
 use hakana_code_info::analysis_result::AnalysisResult;
-use hakana_orchestrator::file::FileStatus;
+use hakana_logger::Logger;
 use hakana_orchestrator::SuccessfulScanData;
+use hakana_orchestrator::file::FileStatus;
 use hakana_protocol::{
     AckResponse, ClientConnection, ErrorCode, ErrorResponse, GetIssuesResponse, Message,
     ProtocolIssue, ServerSocket, SocketPath,
@@ -41,10 +41,6 @@ pub struct ServerConfig {
     pub plugins: Vec<Arc<dyn CustomHook>>,
     /// Build header for cache validation.
     pub header: String,
-    /// Find unused expressions.
-    pub find_unused_expressions: bool,
-    /// Find unused definitions.
-    pub find_unused_definitions: bool,
 }
 
 impl ServerConfig {
@@ -55,8 +51,6 @@ impl ServerConfig {
             config_path: None,
             plugins: Vec::new(),
             header: String::new(),
-            find_unused_expressions: false,
-            find_unused_definitions: false,
         }
     }
 }
@@ -139,10 +133,12 @@ impl Server {
         // Any file changes during analysis will be captured
         self.logger.log_sync("Getting watchman clock...");
         let watchman_clock = watchman::get_clock(Path::new(&self.config.root_dir))?;
-        self.logger.log_sync(&format!("Watchman clock: {:?}", watchman_clock));
+        self.logger
+            .log_sync(&format!("Watchman clock: {:?}", watchman_clock));
 
         // Set socket to non-blocking so we can accept connections during analysis
-        self.socket.set_accept_timeout(Some(Duration::from_millis(10)))?;
+        self.socket
+            .set_accept_timeout(Some(Duration::from_millis(10)))?;
 
         self.logger.log_sync("Performing initial analysis...");
 
@@ -152,13 +148,15 @@ impl Server {
 
         // Perform initial analysis while accepting connections
         if let Err(e) = self.do_initial_analysis_with_connections() {
-            self.logger.log_sync(&format!("Initial analysis failed: {}", e));
+            self.logger
+                .log_sync(&format!("Initial analysis failed: {}", e));
             return Err(io::Error::new(io::ErrorKind::Other, e));
         }
 
         self.state.set_analysis_in_progress(false);
         self.state.set_phase("Ready".to_string());
-        self.logger.log_sync("Initial analysis complete. Waiting for connections...");
+        self.logger
+            .log_sync("Initial analysis complete. Waiting for connections...");
 
         // Start watchman subscription with the clock we got before analysis
         self.logger.log_sync(&format!(
@@ -175,7 +173,8 @@ impl Server {
         self.watchman_handle = Some(handle);
 
         // Set socket to non-blocking for the main loop
-        self.socket.set_accept_timeout(Some(Duration::from_millis(100)))?;
+        self.socket
+            .set_accept_timeout(Some(Duration::from_millis(100)))?;
 
         // Main loop
         loop {
@@ -220,8 +219,8 @@ impl Server {
     /// Perform initial analysis while accepting connections.
     /// This runs analysis in a background thread while the main thread handles client connections.
     fn do_initial_analysis_with_connections(&mut self) -> Result<(), String> {
-        use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
         use std::sync::Arc as StdArc;
+        use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
         // Shared state for communicating between threads
         let analysis_done = StdArc::new(AtomicBool::new(false));
@@ -285,12 +284,14 @@ impl Server {
             match self.socket.accept() {
                 Ok(mut conn) => {
                     if let Err(e) = self.handle_connection(&mut conn) {
-                        self.logger.log_sync(&format!("Connection error during init: {}", e));
+                        self.logger
+                            .log_sync(&format!("Connection error during init: {}", e));
                     }
                 }
                 Err(e) => {
                     if e.kind() != io::ErrorKind::WouldBlock {
-                        self.logger.log_sync(&format!("Accept error during init: {}", e));
+                        self.logger
+                            .log_sync(&format!("Accept error during init: {}", e));
                     }
                 }
             }
@@ -299,7 +300,9 @@ impl Server {
         }
 
         // Wait for analysis thread to finish
-        analysis_thread.join().map_err(|_| "Analysis thread panicked".to_string())?;
+        analysis_thread
+            .join()
+            .map_err(|_| "Analysis thread panicked".to_string())?;
 
         // Check for errors
         if let Some(err) = analysis_error.lock().unwrap().take() {
@@ -345,16 +348,16 @@ impl Server {
         use std::sync::atomic::Ordering;
 
         // Collect custom issue names from plugins
-        let all_custom_issues: FxHashSet<String> = config.plugins
+        let all_custom_issues: FxHashSet<String> = config
+            .plugins
             .iter()
             .flat_map(|h| h.get_custom_issue_names())
             .map(|s| s.to_string())
             .collect();
 
-        let mut analysis_config =
-            Config::new(config.root_dir.clone(), all_custom_issues);
-        analysis_config.find_unused_expressions = config.find_unused_expressions;
-        analysis_config.find_unused_definitions = config.find_unused_definitions;
+        let mut analysis_config = Config::new(config.root_dir.clone(), all_custom_issues);
+        analysis_config.find_unused_expressions = true;
+        analysis_config.find_unused_definitions = true;
         analysis_config.ast_diff = true;
         analysis_config.collect_goto_definition_locations = true;
         analysis_config.hooks = config.plugins.clone();
@@ -426,7 +429,8 @@ impl Server {
             Some(total_files_to_scan_ref),
             // Pass files_analyzed counter for real-time polling during analysis
             Some(files_analyzed_counter),
-        )).map_err(|e| e.to_string())
+        ))
+        .map_err(|e| e.to_string())
     }
 
     /// Perform incremental analysis with pending changes.
@@ -440,7 +444,8 @@ impl Server {
 
         let changes = std::mem::take(&mut self.pending_changes);
         let change_count = changes.len();
-        self.logger.log_sync(&format!("Re-analyzing {} changed files...", change_count));
+        self.logger
+            .log_sync(&format!("Re-analyzing {} changed files...", change_count));
 
         let (previous_scan_data, previous_analysis_result) = (
             self.state.scan_data.take(),
@@ -477,7 +482,8 @@ impl Server {
                 self.state.update_state(scan_data, analysis_result);
             }
             Err(e) => {
-                self.logger.log_sync(&format!("Incremental analysis failed: {}", e));
+                self.logger
+                    .log_sync(&format!("Incremental analysis failed: {}", e));
             }
         }
 
@@ -494,7 +500,8 @@ impl Server {
         self.state.set_analysis_in_progress(true);
         self.state.set_phase("Reloading config".to_string());
 
-        self.logger.log_sync("Config file changed, performing full re-analysis...");
+        self.logger
+            .log_sync("Config file changed, performing full re-analysis...");
 
         // Discard previous state - we need to re-analyze everything
         self.state.scan_data = None;
@@ -532,7 +539,8 @@ impl Server {
                 self.state.update_state(scan_data, analysis_result);
             }
             Err(e) => {
-                self.logger.log_sync(&format!("Config reload analysis failed: {}", e));
+                self.logger
+                    .log_sync(&format!("Config reload analysis failed: {}", e));
             }
         }
 
@@ -573,7 +581,8 @@ impl Server {
             for event in events {
                 match event {
                     watchman::WatchmanEvent::ConfigChanged => {
-                        self.logger.log_sync("Config file changed, scheduling full re-analysis");
+                        self.logger
+                            .log_sync("Config file changed, scheduling full re-analysis");
                         self.config_changed = true;
                         // Clear pending changes since we'll do a full re-analysis anyway
                         self.pending_changes.clear();
@@ -615,7 +624,8 @@ impl Server {
 
         let response = self.handle_message(msg);
 
-        self.logger.log_sync(&format!("Sending response: {:?}", response.message_type()));
+        self.logger
+            .log_sync(&format!("Sending response: {:?}", response.message_type()));
 
         if let Err(e) = conn.write_message(&response) {
             self.logger.log_sync(&format!("Write error: {}", e));
@@ -676,9 +686,7 @@ impl Server {
                 );
                 handler.handle_find_symbol_references(req)
             }
-            Message::FileChanged(changes) => {
-                self.handle_file_changed(changes)
-            }
+            Message::FileChanged(changes) => self.handle_file_changed(changes),
             _ => Message::Error(ErrorResponse {
                 code: ErrorCode::UnsupportedMessage,
                 message: "Use GetIssues to retrieve analysis results".to_string(),
@@ -725,7 +733,8 @@ impl Server {
             }
         }
 
-        self.logger.log_sync(&format!("Returning {} issues", issues.len()));
+        self.logger
+            .log_sync(&format!("Returning {} issues", issues.len()));
 
         Message::GetIssuesResult(GetIssuesResponse {
             analysis_complete: true,
