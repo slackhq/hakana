@@ -388,7 +388,7 @@ fn update_atomic_given_key(
     atomic_type
 }
 
-fn add_array_assignment_dataflow(
+pub(crate) fn add_array_assignment_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     expr_var_pos: &aast::Pos,

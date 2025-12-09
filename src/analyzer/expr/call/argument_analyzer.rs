@@ -20,7 +20,7 @@ use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing,
 };
-use hakana_str::Interner;
+use hakana_str::{Interner, StrId};
 use oxidized::aast;
 use oxidized::pos::Pos;
 
@@ -409,8 +409,12 @@ pub(crate) fn verify_type(
                         message.push_str(&format!(
                             ", shape field `{}` expects {}, {} given",
                             mismatch.field_name,
-                            mismatch.expected_type.get_id(Some(statements_analyzer.interner)),
-                            mismatch.actual_type.get_id(Some(statements_analyzer.interner))
+                            mismatch
+                                .expected_type
+                                .get_id(Some(statements_analyzer.interner)),
+                            mismatch
+                                .actual_type
+                                .get_id(Some(statements_analyzer.interner))
                         ));
                     }
                 }
@@ -529,6 +533,10 @@ fn add_dataflow(
     specialize_taint: bool,
     function_call_pos: &Pos,
 ) {
+    if functionlike_id == &FunctionLikeIdentifier::Method(StrId::SHAPES, StrId::PUT) {
+        return;
+    }
+
     let codebase = statements_analyzer.codebase;
 
     let data_flow_graph = &mut analysis_data.data_flow_graph;

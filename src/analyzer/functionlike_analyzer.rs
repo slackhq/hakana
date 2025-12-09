@@ -1314,7 +1314,8 @@ pub(crate) fn add_symbol_references_with_location(
     for type_node in param_type.get_all_child_nodes() {
         if let hakana_code_info::t_union::TypeNode::Atomic(atomic) = type_node {
             match atomic {
-                TAtomic::TNamedObject(TNamedObject { name, .. }) | TAtomic::TTypeAlias { name, .. } => {
+                TAtomic::TNamedObject(TNamedObject { name, .. })
+                | TAtomic::TTypeAlias { name, .. } => {
                     if let Some(location) = type_location {
                         analysis_data.definition_locations.insert(
                             (location.start_offset, location.end_offset),
@@ -1376,32 +1377,31 @@ pub(crate) fn add_symbol_references_with_location(
                     member_name,
                     ..
                 } => match class_type.as_ref() {
-                    TAtomic::TNamedObject(TNamedObject { name, .. }) | TAtomic::TReference { name, .. } => {
-                        match calling_functionlike_id {
-                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                analysis_data
-                                    .symbol_references
-                                    .add_symbol_reference_to_class_member(
-                                        calling_function,
-                                        (*name, *member_name),
-                                        true,
-                                    );
-                            }
-                            Some(FunctionLikeIdentifier::Method(
-                                calling_classlike,
-                                calling_function,
-                            )) => {
-                                analysis_data
-                                    .symbol_references
-                                    .add_class_member_reference_to_class_member(
-                                        (calling_classlike, calling_function),
-                                        (*name, *member_name),
-                                        true,
-                                    );
-                            }
-                            _ => {}
+                    TAtomic::TNamedObject(TNamedObject { name, .. })
+                    | TAtomic::TReference { name, .. } => match calling_functionlike_id {
+                        Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                            analysis_data
+                                .symbol_references
+                                .add_symbol_reference_to_class_member(
+                                    calling_function,
+                                    (*name, *member_name),
+                                    true,
+                                );
                         }
-                    }
+                        Some(FunctionLikeIdentifier::Method(
+                            calling_classlike,
+                            calling_function,
+                        )) => {
+                            analysis_data
+                                .symbol_references
+                                .add_class_member_reference_to_class_member(
+                                    (calling_classlike, calling_function),
+                                    (*name, *member_name),
+                                    true,
+                                );
+                        }
+                        _ => {}
+                    },
                     _ => {}
                 },
                 _ => {}
@@ -1418,7 +1418,8 @@ fn report_unused_expressions(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    let unused_source_nodes = check_variables_used(&analysis_data.data_flow_graph);
+    let unused_source_nodes =
+        check_variables_used(&analysis_data.data_flow_graph, statements_analyzer.interner);
 
     // Check for variables defined outside if blocks but only used inside
     let (incorrectly_scoped_nodes, async_incorrectly_scoped_nodes) =

@@ -32,7 +32,7 @@ enum VariableUsage {
     Used,
 }
 
-pub fn check_variables_used(graph: &DataFlowGraph) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
+pub fn check_variables_used(graph: &DataFlowGraph, _interner: &Interner) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
     let vars = graph
         .sources
         .iter()
@@ -49,17 +49,19 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> (Vec<DataFlowNode>, Vec<Da
 
     //println!("{:#?}", graph);
 
-    // println!("printing variable map");
+    println!("printing variable map");
 
-    // for (from_id, to) in &graph.forward_edges {
-    //     for (to_id, _) in to {
-    //         println!(
-    //             "{} -> {}",
-    //             from_id.to_string(_interner),
-    //             to_id.to_string(_interner)
-    //         );
-    //     }
-    // }
+    for (from_id, to) in &graph.forward_edges {
+        for (to_id, _) in to {
+            println!(
+                "{} -> {}",
+                from_id.to_string(_interner),
+                to_id.to_string(_interner)
+            );
+        }
+    }
+
+    println!("\n");
 
     let mut unused_nodes = Vec::new();
     let mut unused_but_referenced_nodes = Vec::new();

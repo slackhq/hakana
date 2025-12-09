@@ -1,0 +1,2 @@
+ERROR: UnusedParameter - input.hack:2:1 - Unused param $str
+ERROR: UnusedParameter - input.hack:12:1 - Unused param $str
