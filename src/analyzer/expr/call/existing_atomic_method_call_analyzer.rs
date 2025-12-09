@@ -14,7 +14,10 @@ use hakana_code_info::var_name::VarName;
 use hakana_code_info::{EFFECT_WRITE_LOCAL, GenericParent, VarId};
 use hakana_code_info::{
     assertion::Assertion,
-    data_flow::{node::DataFlowNode, path::PathKind},
+    data_flow::{
+        node::DataFlowNode,
+        path::{ArrayDataKind, PathKind},
+    },
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
@@ -435,6 +438,72 @@ fn handle_shapes_static_method(
                             .locals
                             .insert(VarName::new(expr_var_id), Rc::new(new_type));
                     }
+                }
+            }
+        }
+        StrId::PUT => {
+            // Shapes::put($shape, 'key', $value) returns a new shape with 'key' set to $value
+            if call_expr.1.len() == 3 {
+                let expr_type = analysis_data
+                    .get_rc_expr_type(call_expr.1[0].to_expr_ref().pos())
+                    .cloned();
+                let dim_var_id = expression_identifier::get_dim_id(
+                    &call_expr.1[1].to_expr_ref(),
+                    None,
+                    &FxHashMap::default(),
+                );
+                let value_type = analysis_data
+                    .get_rc_expr_type(call_expr.1[2].to_expr_ref().pos())
+                    .cloned();
+
+                if let (Some(expr_type), Some(dim_var_id), Some(value_type)) =
+                    (expr_type, dim_var_id, value_type)
+                {
+                    let mut new_type = (*expr_type).clone();
+                    // Strip surrounding quotes from the key
+                    let key_str = dim_var_id[1..dim_var_id.len() - 1].to_string();
+
+                    for atomic_type in new_type.types.iter_mut() {
+                        if let TAtomic::TDict(TDict { known_items, .. }) = atomic_type {
+                            // Add or update the key in known_items
+                            let known_items =
+                                known_items.get_or_insert_with(std::collections::BTreeMap::new);
+                            known_items.insert(
+                                DictKey::String(key_str.clone()),
+                                (false, std::sync::Arc::new((*value_type).clone())),
+                            );
+                        }
+                    }
+
+                    let result_node =
+                        DataFlowNode::get_for_array_assignment(statements_analyzer.get_hpos(pos));
+                    analysis_data.data_flow_graph.add_node(result_node.clone());
+
+                    // Old shape data flows through with Default path
+                    for parent_node in &expr_type.parent_nodes {
+                        analysis_data.data_flow_graph.add_path(
+                            &parent_node.id,
+                            &result_node.id,
+                            PathKind::Default,
+                            vec![],
+                            vec![],
+                        );
+                    }
+
+                    // New value flows through with ArrayAssignment path
+                    for parent_node in &value_type.parent_nodes {
+                        analysis_data.data_flow_graph.add_path(
+                            &parent_node.id,
+                            &result_node.id,
+                            PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_str.clone()),
+                            vec![],
+                            vec![],
+                        );
+                    }
+
+                    new_type.parent_nodes = vec![result_node];
+
+                    return Some(new_type);
                 }
             }
         }

@@ -442,6 +442,7 @@ fn main() -> Result<()> {
         "password_hash",
         "pathinfo",
         "pow",
+        "put",
         "preg_filter",
         "preg_grep",
         "preg_match",

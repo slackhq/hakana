@@ -240,17 +240,19 @@ pub(crate) fn check_arguments_match(
     for arg in args {
         let was_inside_call = context.inside_general_use;
 
-        if matches!(functionlike_info.effects, FnEffect::Some(_))
-            || matches!(functionlike_info.effects, FnEffect::Arg(_))
-            || functionlike_info.has_throw
-            || functionlike_info.user_defined
-            || functionlike_info.method_info.is_some()
-            || matches!(
-                functionlike_id,
-                FunctionLikeIdentifier::Function(StrId::ASIO_JOIN)
-            )
-        {
-            context.inside_general_use = true;
+        if functionlike_id != &FunctionLikeIdentifier::Method(StrId::SHAPES, StrId::PUT) {
+            if matches!(functionlike_info.effects, FnEffect::Some(_))
+                || matches!(functionlike_info.effects, FnEffect::Arg(_))
+                || functionlike_info.has_throw
+                || functionlike_info.user_defined
+                || functionlike_info.method_info.is_some()
+                || matches!(
+                    functionlike_id,
+                    FunctionLikeIdentifier::Function(StrId::ASIO_JOIN)
+                )
+            {
+                context.inside_general_use = true;
+            }
         }
 
         let arg_expr = arg.to_expr_ref();
@@ -1407,26 +1409,27 @@ pub(crate) fn get_template_types_for_class_member(
                         let output_type = if type_.has_template() {
                             let mut output_type = None;
                             for atomic_type in &type_.types {
-                                let output_type_candidate = if let TAtomic::TGenericParam(TGenericParam {
-                                    defining_entity: GenericParent::ClassLike(defining_entity),
-                                    param_name,
-                                    ..
-                                }) = &atomic_type
-                                {
-                                    (*get_generic_param_for_offset(
-                                        defining_entity,
+                                let output_type_candidate =
+                                    if let TAtomic::TGenericParam(TGenericParam {
+                                        defining_entity: GenericParent::ClassLike(defining_entity),
                                         param_name,
-                                        calling_template_extended,
-                                        &{
-                                            let mut p = class_template_params.clone();
-                                            p.extend(template_types.clone());
-                                            p.into_iter().collect::<FxHashMap<_, _>>()
-                                        },
-                                    ))
-                                    .clone()
-                                } else {
-                                    wrap_atomic(atomic_type.clone())
-                                };
+                                        ..
+                                    }) = &atomic_type
+                                    {
+                                        (*get_generic_param_for_offset(
+                                            defining_entity,
+                                            param_name,
+                                            calling_template_extended,
+                                            &{
+                                                let mut p = class_template_params.clone();
+                                                p.extend(template_types.clone());
+                                                p.into_iter().collect::<FxHashMap<_, _>>()
+                                            },
+                                        ))
+                                        .clone()
+                                    } else {
+                                        wrap_atomic(atomic_type.clone())
+                                    };
 
                                 output_type = Some(add_optional_union_type(
                                     output_type_candidate,
