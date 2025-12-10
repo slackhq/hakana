@@ -2,7 +2,7 @@ use clap::{Command, arg};
 use hakana_analyzer::config::{self};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::{
-    AnalysisResult, CheckPointEntry, CheckPointEntryLevel, FullEntry, HhClientEntry, Replacement,
+    AnalysisResult, CheckPointEntry, CheckPointEntryLevel, FullEntry, HhClientEntry,
 };
 use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::issue::IssueKind;
@@ -1880,119 +1880,32 @@ fn write_codegen_output_files(output_file: String, cwd: &String, errors: &Vec<(S
 }
 
 fn update_files(analysis_result: &mut AnalysisResult, root_dir: &String, interner: &Interner) {
-    let mut replacement_and_insertion_keys = analysis_result
-        .replacements
-        .keys()
-        .copied()
-        .collect::<FxHashSet<_>>();
-    replacement_and_insertion_keys.extend(analysis_result.insertions.keys().copied());
+    // Get all files that have edits
+    let files_with_edits = analysis_result.files_with_edits();
 
-    for (relative_path, original_path) in replacement_and_insertion_keys
+    // Sort by relative path for deterministic output
+    let sorted_files: BTreeMap<String, _> = files_with_edits
         .into_iter()
-        .map(|v| (v.get_relative_path(interner, root_dir), v))
-        .collect::<BTreeMap<_, _>>()
-    {
+        .map(|fp| (fp.get_relative_path(interner, root_dir), fp))
+        .collect();
+
+    for (relative_path, original_path) in sorted_files {
         println!("updating {}", relative_path);
         let file_path = format!("{}/{}", root_dir, relative_path);
         let file_contents = fs::read_to_string(&file_path).unwrap();
         let mut file = File::create(&file_path).unwrap();
-        let replacements = analysis_result
-            .replacements
-            .remove(&original_path)
-            .unwrap_or_default();
 
-        let insertions = analysis_result
-            .insertions
-            .remove(&original_path)
-            .unwrap_or_default();
+        // Get the EditSet for this file (consumes replacements and insertions)
+        let edit_set = analysis_result.take_edits_for_file(&original_path);
 
-        file.write_all(replace_contents(file_contents, replacements, insertions).as_bytes())
+        // Apply edits using the unified EditSet
+        let new_contents = edit_set
+            .apply(&file_contents)
+            .unwrap_or_else(|e| panic!("Failed to apply edits to {}: {}", &file_path, e));
+
+        file.write_all(new_contents.as_bytes())
             .unwrap_or_else(|_| panic!("Could not write file {}", &file_path));
     }
-}
-
-fn replace_contents(
-    mut file_contents: String,
-    replacements: BTreeMap<(u32, u32), Replacement>,
-    insertions: BTreeMap<u32, Vec<String>>,
-) -> String {
-    let mut replacements = replacements
-        .into_iter()
-        .map(|(k, v)| (k, vec![v]))
-        .collect::<BTreeMap<_, _>>();
-
-    for (offset, insertion) in insertions {
-        replacements
-            .entry((offset, offset))
-            .or_insert_with(Vec::new)
-            .extend(insertion.into_iter().rev().map(Replacement::Substitute));
-    }
-
-    for (&(mut start, mut end), replacements) in replacements.iter().rev() {
-        for replacement in replacements {
-            match replacement {
-                Replacement::Remove => {
-                    file_contents = file_contents[..start as usize].to_string()
-                        + &*file_contents[end as usize..].to_string();
-                }
-                Replacement::TrimPrecedingWhitespace(beg_of_line) => {
-                    let potential_whitespace =
-                        file_contents[(*beg_of_line as usize)..start as usize].to_string();
-                    if potential_whitespace.trim() == "" {
-                        start = *beg_of_line;
-
-                        if beg_of_line > &0
-                            && &file_contents[((*beg_of_line as usize) - 1)..start as usize] == "\n"
-                        {
-                            start -= 1;
-                        }
-                    }
-
-                    file_contents = file_contents[..start as usize].to_string()
-                        + &*file_contents[end as usize..].to_string();
-                }
-                Replacement::TrimPrecedingWhitespaceAndTrailingComma(beg_of_line) => {
-                    let potential_whitespace =
-                        file_contents[(*beg_of_line as usize)..start as usize].to_string();
-                    if potential_whitespace.trim() == "" {
-                        start = *beg_of_line;
-
-                        if beg_of_line > &0
-                            && &file_contents[((*beg_of_line as usize) - 1)..start as usize] == "\n"
-                        {
-                            start -= 1;
-                        }
-                    }
-
-                    if end as usize + 1 < (file_contents.len() + 1)
-                        && &file_contents[end as usize..end as usize + 1] == ","
-                    {
-                        end += 1;
-                    }
-
-                    file_contents = file_contents[..start as usize].to_string()
-                        + &*file_contents[end as usize..].to_string();
-                }
-                Replacement::TrimTrailingWhitespace(end_of_line) => {
-                    let potential_whitespace =
-                        file_contents[end as usize..(*end_of_line as usize)].to_string();
-
-                    let trimmed = potential_whitespace.trim();
-
-                    file_contents = file_contents[..start as usize].to_string()
-                        + trimmed
-                        + &*file_contents[*end_of_line as usize..].to_string();
-                }
-                Replacement::Substitute(string) => {
-                    file_contents = file_contents[..start as usize].to_string()
-                        + string
-                        + &*file_contents[end as usize..].to_string();
-                }
-            }
-        }
-    }
-
-    file_contents
 }
 
 /// Parse CODEOWNERS file and return patterns and exact file paths

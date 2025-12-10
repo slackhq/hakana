@@ -10,11 +10,17 @@ use crate::{
         graph::{DataFlowGraph, GraphKind},
         node::DataFlowNodeId,
     },
+    edit::Edit,
     function_context::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
 };
 
+// Re-export Edit types for convenience
+pub use crate::edit::{Edit as CodeEdit, EditKind, EditSet};
+
+/// Legacy Replacement enum for backward compatibility.
+/// New code should use Edit directly.
 #[derive(Clone, Debug)]
 pub enum Replacement {
     Remove,
@@ -22,6 +28,31 @@ pub enum Replacement {
     TrimPrecedingWhitespaceAndTrailingComma(u32),
     TrimTrailingWhitespace(u32),
     Substitute(String),
+}
+
+impl Replacement {
+    /// Convert a Replacement to an Edit at the given offsets
+    pub fn to_edit(self, start: u32, end: u32) -> Edit {
+        match self {
+            Replacement::Remove => Edit::delete(start, end),
+            Replacement::TrimPrecedingWhitespace(line_start) => {
+                Edit::delete_with_preceding_whitespace(start, end, line_start)
+            }
+            Replacement::TrimPrecedingWhitespaceAndTrailingComma(line_start) => {
+                Edit::delete_with_preceding_whitespace_and_trailing_comma(start, end, line_start)
+            }
+            Replacement::TrimTrailingWhitespace(line_end) => {
+                Edit::delete_with_trailing_whitespace(start, end, line_end)
+            }
+            Replacement::Substitute(s) => Edit::new(start, end, s),
+        }
+    }
+}
+
+impl From<(u32, u32, Replacement)> for Edit {
+    fn from((start, end, replacement): (u32, u32, Replacement)) -> Self {
+        replacement.to_edit(start, end)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -142,6 +173,38 @@ impl AnalysisResult {
         }
 
         issues
+    }
+
+    /// Get an EditSet for a file by converting replacements and insertions.
+    /// This consumes the replacements and insertions for the given file.
+    pub fn take_edits_for_file(&mut self, file_path: &FilePath) -> EditSet {
+        let mut edit_set = EditSet::new();
+
+        // Convert replacements to edits
+        if let Some(replacements) = self.replacements.remove(file_path) {
+            for ((start, end), replacement) in replacements {
+                edit_set.add(replacement.to_edit(start, end));
+            }
+        }
+
+        // Merge insertions
+        if let Some(insertions) = self.insertions.remove(file_path) {
+            edit_set.merge_insertions(insertions);
+        }
+
+        edit_set
+    }
+
+    /// Check if there are any edits (replacements or insertions) for any file
+    pub fn has_edits(&self) -> bool {
+        !self.replacements.is_empty() || !self.insertions.is_empty()
+    }
+
+    /// Get all file paths that have edits
+    pub fn files_with_edits(&self) -> FxHashSet<FilePath> {
+        let mut files = self.replacements.keys().copied().collect::<FxHashSet<_>>();
+        files.extend(self.insertions.keys().copied());
+        files
     }
 }
 

@@ -415,19 +415,13 @@ impl TestRunner {
 
             let input_file_path = FilePath(result.1.interner.get(&input_file).unwrap());
 
-            let replacements = result
-                .0
-                .replacements
-                .remove(&input_file_path)
-                .unwrap_or_default();
-            let insertions = result
-                .0
-                .insertions
-                .remove(&input_file_path)
-                .unwrap_or_default();
+            // Get the EditSet for this file (consumes replacements and insertions)
+            let edit_set = result.0.take_edits_for_file(&input_file_path);
 
-            let output_contents = if !replacements.is_empty() || !insertions.is_empty() {
-                crate::replace_contents(input_contents, replacements, insertions)
+            let output_contents = if !edit_set.is_empty() {
+                edit_set
+                    .apply(&input_contents)
+                    .unwrap_or_else(|e| panic!("Failed to apply edits: {}", e))
             } else {
                 input_contents
             };

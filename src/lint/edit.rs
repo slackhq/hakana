@@ -1,9 +1,19 @@
-//! Text edit representation for auto-fixes
+//! Lint-specific text edit wrappers
+//!
+//! This module provides a `usize`-based API on top of the unified edit types
+//! from `hakana_code_info::edit`. The lint system uses `usize` for byte offsets
+//! (idiomatic in Rust), while the core edit types use `u32` for memory efficiency.
 
+use hakana_code_info::edit as core_edit;
 use std::fmt;
-use std::path::PathBuf;
+
+// Re-export core types that don't need wrapping
+pub use core_edit::{FileOpType, FileOperation};
 
 /// A single text edit (replacement at a byte range)
+///
+/// This is a wrapper around the core Edit type that uses `usize` offsets
+/// for ergonomic use in the lint system.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Edit {
     /// Start byte offset
@@ -33,51 +43,16 @@ impl Edit {
     pub fn delete(start: usize, end: usize) -> Self {
         Self::new(start, end, "")
     }
+
+    /// Convert to a core Edit
+    fn to_core_edit(&self) -> core_edit::Edit {
+        core_edit::Edit::new(self.start as u32, self.end as u32, self.replacement.clone())
+    }
 }
 
 impl fmt::Display for Edit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}..{} -> {:?}", self.start, self.end, self.replacement)
-    }
-}
-
-/// A file operation (creation, deletion, etc.)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileOperation {
-    /// Type of operation
-    pub op_type: FileOpType,
-    /// Target file path (relative to the original file or absolute)
-    pub path: PathBuf,
-    /// Content for file creation
-    pub content: Option<String>,
-}
-
-/// Type of file operation
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FileOpType {
-    /// Create a new file
-    Create,
-    /// Delete an existing file
-    Delete,
-}
-
-impl FileOperation {
-    /// Create a new file operation
-    pub fn create_file(path: PathBuf, content: String) -> Self {
-        Self {
-            op_type: FileOpType::Create,
-            path,
-            content: Some(content),
-        }
-    }
-
-    /// Delete a file operation
-    pub fn delete_file(path: PathBuf) -> Self {
-        Self {
-            op_type: FileOpType::Delete,
-            path,
-            content: None,
-        }
     }
 }
 
@@ -126,41 +101,14 @@ impl EditSet {
         !self.file_operations.is_empty()
     }
 
-    /// Apply all edits to a source string
+    /// Apply all edits to a source string using the unified edit system
     pub fn apply(&self, source: &str) -> Result<String, String> {
-        let mut result = String::new();
-        let mut last_pos = 0;
-
-        let edits = self.edits();
-
-        // Check for overlapping edits
-        for window in edits.windows(2) {
-            if window[0].end > window[1].start {
-                return Err(format!(
-                    "Overlapping edits: {} and {}",
-                    window[0], window[1]
-                ));
-            }
+        // Convert to core EditSet and apply
+        let mut core_set = core_edit::EditSet::new();
+        for edit in &self.edits {
+            core_set.add(edit.to_core_edit());
         }
-
-        for edit in edits {
-            if edit.start < last_pos {
-                return Err(format!("Edit starts before previous edit ended: {}", edit));
-            }
-
-            // Add unchanged text before this edit
-            result.push_str(&source[last_pos..edit.start]);
-
-            // Add replacement text
-            result.push_str(&edit.replacement);
-
-            last_pos = edit.end;
-        }
-
-        // Add remaining text
-        result.push_str(&source[last_pos..]);
-
-        Ok(result)
+        core_set.apply(source)
     }
 }
 
