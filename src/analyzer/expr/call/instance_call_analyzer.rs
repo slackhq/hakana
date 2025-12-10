@@ -125,7 +125,7 @@ pub(crate) fn analyze(
                 }
                 TAtomic::TTypeVariable { name } => {
                     if let Some(bounds) = type_variable_bounds.get(name) {
-                        for lower_bound_info in &bounds.0 {
+                        for lower_bound_info in &bounds.lower_bounds {
                             class_types.extend(&lower_bound_info.bound_type.types);
                         }
                     }

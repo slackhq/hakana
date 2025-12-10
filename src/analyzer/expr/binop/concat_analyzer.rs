@@ -1,11 +1,18 @@
-use crate::expr::fetch::class_constant_fetch_analyzer;
+use crate::expr::fetch::class_constant_fetch_analyzer::{
+    emit_class_pointer_used_as_string, get_class_name_from_class_ptr_literal_expr,
+};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use bstr::ByteSlice;
+use hakana_code_info::analysis_result::Replacement;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TGenericParam;
 use hakana_code_info::t_union::TUnion;
-use hakana_code_info::ttype::{get_string, wrap_atomic};
+use hakana_code_info::ttype::template::TemplateBound;
+use hakana_code_info::ttype::{get_arraykey, get_string, wrap_atomic};
 use hakana_code_info::{
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
@@ -130,7 +137,45 @@ pub(crate) fn analyze_concat_nodes(
                             existing_literal_string_values = None;
                             local_nonempty_string = false;
                         }
+                        TAtomic::TLiteralClassPtr { name } => {
+                            if let Some(class_name) =
+                                get_class_name_from_class_ptr_literal_expr(concat_node)
+                            {
+                                emit_class_pointer_used_as_string(
+                                    statements_analyzer,
+                                    context,
+                                    analysis_data,
+                                    concat_node,
+                                    class_name,
+                                );
+                            } else {
+                                emit_class_pointer_used_as_string(
+                                    statements_analyzer,
+                                    context,
+                                    analysis_data,
+                                    concat_node,
+                                    &("\\".to_string() + statements_analyzer.interner.lookup(name)),
+                                );
+                            }
+
+                            existing_literal_string_values = None;
+                        }
                         _ => {
+                            if !can_be_coerced_to_string(
+                                statements_analyzer,
+                                context,
+                                analysis_data,
+                                concat_node,
+                                t,
+                            ) {
+                                concat_non_string(
+                                    statements_analyzer,
+                                    context,
+                                    analysis_data,
+                                    concat_node,
+                                    t,
+                                );
+                            }
                             local_nonempty_string = false;
                             all_literals = false;
                             existing_literal_string_values = None;
@@ -138,14 +183,6 @@ pub(crate) fn analyze_concat_nodes(
                         }
                     }
                 }
-
-                class_constant_fetch_analyzer::check_class_ptr_used_as_string(
-                    statements_analyzer,
-                    context,
-                    analysis_data,
-                    &expr_type,
-                    concat_node,
-                );
 
                 if local_nonempty_string {
                     nonempty_string = true;
@@ -222,5 +259,101 @@ pub(crate) fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(),
             }
         }
         _ => vec![expr],
+    }
+}
+
+fn can_be_coerced_to_string(
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    context: &BlockContext,
+    analysis_data: &mut FunctionAnalysisData,
+    expr: &aast::Expr<(), ()>,
+    t: &TAtomic,
+) -> bool {
+    match t {
+        TAtomic::TStringWithFlags(..)
+        | TAtomic::TString
+        | TAtomic::TArraykey { .. }
+        | TAtomic::TLiteralInt { .. }
+        | TAtomic::TLiteralString { .. }
+        | TAtomic::TEnum { .. }
+        | TAtomic::TEnumLiteralCase { .. }
+        | TAtomic::TClassname { .. }
+        | TAtomic::TGenericClassname { .. }
+        | TAtomic::TTypename { .. }
+        | TAtomic::TGenericTypename { .. }
+        | TAtomic::TLiteralClassname { .. }
+        | TAtomic::TInt => true,
+
+        TAtomic::TTypeVariable { name } => {
+            analysis_data
+                .type_variable_bounds
+                .entry(name.clone())
+                .and_modify(|v| {
+                    v.upper_bounds.push(TemplateBound {
+                        bound_type: get_arraykey(false),
+                        appearance_depth: 0,
+                        arg_offset: None,
+                        equality_bound_classlike: None,
+                        pos: Some(statements_analyzer.get_hpos(expr.pos())),
+                    })
+                });
+            true
+        }
+
+        TAtomic::TMixedWithFlags(true, _, _, _) => true,
+
+        // This generally comes from json_encode and is unlikely
+        TAtomic::TFalse => true,
+
+        TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        }
+        | TAtomic::TGenericParam(TGenericParam { as_type, .. }) => as_type.types.iter().all(|t| {
+            can_be_coerced_to_string(statements_analyzer, context, analysis_data, expr, t)
+        }),
+
+        _ => false,
+    }
+}
+
+fn concat_non_string(
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    context: &BlockContext,
+    analysis_data: &mut FunctionAnalysisData,
+    expr: &aast::Expr<(), ()>,
+    t: &TAtomic,
+) {
+    let pos = expr.pos();
+    let issue = Issue::new(
+        IssueKind::ImplicitStringCast,
+        format!(
+            "Cannot convert {} to type string implicitly",
+            t.get_id(Some(statements_analyzer.interner))
+        ),
+        statements_analyzer.get_hpos(pos),
+        &context.function_context.calling_functionlike_id,
+    );
+
+    let config = statements_analyzer.get_config();
+
+    if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+        // Only replace code that's not already covered by a FIXME
+        if !context
+            .function_context
+            .is_production(statements_analyzer.codebase)
+            || analysis_data.get_matching_hakana_fixme(&issue).is_none()
+        {
+            analysis_data.add_replacement(
+                (pos.start_offset() as u32, pos.start_offset() as u32),
+                Replacement::Substitute("((string)".to_string()),
+            );
+            analysis_data.add_replacement(
+                (pos.end_offset() as u32, pos.end_offset() as u32),
+                Replacement::Substitute(")".to_string()),
+            );
+        }
+    } else {
+        analysis_data.maybe_add_issue(issue, config, statements_analyzer.get_file_path_actual());
     }
 }

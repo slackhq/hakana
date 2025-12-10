@@ -1025,17 +1025,17 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 {
                     let existing_bounds_copy = existing_bounds.clone();
                     let filtered_lower_bounds = bounds
-                        .0
+                        .lower_bounds
                         .into_iter()
-                        .filter(|bound| !existing_bounds_copy.0.contains(bound));
+                        .filter(|bound| !existing_bounds_copy.lower_bounds.contains(bound));
                     let filtered_upper_bounds = bounds
-                        .1
+                        .upper_bounds
                         .into_iter()
-                        .filter(|bound| !existing_bounds_copy.1.contains(bound));
+                        .filter(|bound| !existing_bounds_copy.upper_bounds.contains(bound));
 
-                    existing_bounds.0.extend(filtered_lower_bounds);
-                    existing_bounds.1.extend(filtered_upper_bounds);
-                    existing_bounds.1.dedup();
+                    existing_bounds.lower_bounds.extend(filtered_lower_bounds);
+                    existing_bounds.upper_bounds.extend(filtered_upper_bounds);
+                    existing_bounds.upper_bounds.dedup();
                 } else {
                     parent_analysis_data
                         .type_variable_bounds
@@ -1046,8 +1046,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if !analysis_data.type_variable_bounds.is_empty() {
                 for (_, bounds) in analysis_data.type_variable_bounds.clone() {
                     reconcile_lower_bounds_with_upper_bounds(
-                        &bounds.0,
-                        &bounds.1,
+                        &bounds.lower_bounds,
+                        &bounds.upper_bounds,
                         statements_analyzer,
                         &mut analysis_data,
                         functionlike_storage
@@ -1314,7 +1314,8 @@ pub(crate) fn add_symbol_references_with_location(
     for type_node in param_type.get_all_child_nodes() {
         if let hakana_code_info::t_union::TypeNode::Atomic(atomic) = type_node {
             match atomic {
-                TAtomic::TNamedObject(TNamedObject { name, .. }) | TAtomic::TTypeAlias { name, .. } => {
+                TAtomic::TNamedObject(TNamedObject { name, .. })
+                | TAtomic::TTypeAlias { name, .. } => {
                     if let Some(location) = type_location {
                         analysis_data.definition_locations.insert(
                             (location.start_offset, location.end_offset),
@@ -1376,32 +1377,31 @@ pub(crate) fn add_symbol_references_with_location(
                     member_name,
                     ..
                 } => match class_type.as_ref() {
-                    TAtomic::TNamedObject(TNamedObject { name, .. }) | TAtomic::TReference { name, .. } => {
-                        match calling_functionlike_id {
-                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                analysis_data
-                                    .symbol_references
-                                    .add_symbol_reference_to_class_member(
-                                        calling_function,
-                                        (*name, *member_name),
-                                        true,
-                                    );
-                            }
-                            Some(FunctionLikeIdentifier::Method(
-                                calling_classlike,
-                                calling_function,
-                            )) => {
-                                analysis_data
-                                    .symbol_references
-                                    .add_class_member_reference_to_class_member(
-                                        (calling_classlike, calling_function),
-                                        (*name, *member_name),
-                                        true,
-                                    );
-                            }
-                            _ => {}
+                    TAtomic::TNamedObject(TNamedObject { name, .. })
+                    | TAtomic::TReference { name, .. } => match calling_functionlike_id {
+                        Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                            analysis_data
+                                .symbol_references
+                                .add_symbol_reference_to_class_member(
+                                    calling_function,
+                                    (*name, *member_name),
+                                    true,
+                                );
                         }
-                    }
+                        Some(FunctionLikeIdentifier::Method(
+                            calling_classlike,
+                            calling_function,
+                        )) => {
+                            analysis_data
+                                .symbol_references
+                                .add_class_member_reference_to_class_member(
+                                    (calling_classlike, calling_function),
+                                    (*name, *member_name),
+                                    true,
+                                );
+                        }
+                        _ => {}
+                    },
                     _ => {}
                 },
                 _ => {}

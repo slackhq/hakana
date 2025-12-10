@@ -4,7 +4,8 @@ use super::{
     negated_assertion_reconciler, simple_assertion_reconciler, trigger_issue_for_impossible,
 };
 use crate::{
-    function_analysis_data::FunctionAnalysisData, intersect_simple,
+    function_analysis_data::{FunctionAnalysisData, TypeVariableBounds},
+    intersect_simple,
     statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::{
@@ -369,7 +370,12 @@ pub(crate) fn intersect_atomic_with_atomic(
         // Handle TObjectIntersection: intersecting A&B with C
         // returns C if C is compatible with all types in the intersection,
         // or extends the intersection if C is an interface that can be added
-        (TAtomic::TObjectIntersection { types }, TAtomic::TNamedObject(TNamedObject { name: type_2_name, .. })) => {
+        (
+            TAtomic::TObjectIntersection { types },
+            TAtomic::TNamedObject(TNamedObject {
+                name: type_2_name, ..
+            }),
+        ) => {
             let codebase = statements_analyzer.codebase;
 
             // First check if type_2 is a subtype of all types in the intersection
@@ -438,7 +444,12 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
             return None;
         }
-        (TAtomic::TNamedObject(TNamedObject { name: type_1_name, .. }), TAtomic::TObjectIntersection { types }) => {
+        (
+            TAtomic::TNamedObject(TNamedObject {
+                name: type_1_name, ..
+            }),
+            TAtomic::TObjectIntersection { types },
+        ) => {
             let codebase = statements_analyzer.codebase;
 
             // First check if type_1 is a subtype of all types in the intersection
@@ -515,7 +526,8 @@ pub(crate) fn intersect_atomic_with_atomic(
             return Some(TAtomic::TNull);
         }
         (
-            TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. },
+            TAtomic::TGenericParam(TGenericParam { as_type, .. })
+            | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TNull,
         ) => {
             *did_remove_type = true;
@@ -542,7 +554,9 @@ pub(crate) fn intersect_atomic_with_atomic(
         }
         (TAtomic::TTypeVariable { name }, TAtomic::TNull) => {
             if let Some(pos) = pos {
-                if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(name) {
+                if let Some(TypeVariableBounds { lower_bounds, .. }) =
+                    analysis_data.type_variable_bounds.get_mut(name)
+                {
                     let mut bound = TemplateBound::new(get_null(), 0, None, None);
                     bound.pos = Some(statements_analyzer.get_hpos(pos));
                     lower_bounds.push(bound);
@@ -584,13 +598,9 @@ pub(crate) fn intersect_atomic_with_atomic(
         ) => {
             return Some(type_1_atomic.clone());
         }
-        (
-            TAtomic::TGenericParam(TGenericParam {
-                as_type,
-                ..
-            }),
-            TAtomic::TObject,
-        ) if !matches!(type_1_atomic, TAtomic::TObjectIntersection { .. }) => {
+        (TAtomic::TGenericParam(TGenericParam { as_type, .. }), TAtomic::TObject)
+            if !matches!(type_1_atomic, TAtomic::TObjectIntersection { .. }) =>
+        {
             return if as_type.is_objecty() {
                 Some(type_1_atomic.clone())
             } else {
@@ -777,7 +787,8 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (
-            TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. },
+            TAtomic::TGenericParam(TGenericParam { as_type, .. })
+            | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TString,
         ) => {
             *did_remove_type = true;
@@ -799,7 +810,9 @@ pub(crate) fn intersect_atomic_with_atomic(
         }
         (TAtomic::TTypeVariable { name }, TAtomic::TString) => {
             if let Some(pos) = pos {
-                if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(name) {
+                if let Some(TypeVariableBounds { lower_bounds, .. }) =
+                    analysis_data.type_variable_bounds.get_mut(name)
+                {
                     let mut bound = TemplateBound::new(get_string(), 0, None, None);
                     bound.pos = Some(statements_analyzer.get_hpos(pos));
                     lower_bounds.push(bound);
@@ -856,7 +869,8 @@ pub(crate) fn intersect_atomic_with_atomic(
             return Some(TAtomic::TInt);
         }
         (
-            TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. },
+            TAtomic::TGenericParam(TGenericParam { as_type, .. })
+            | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TInt,
         ) => {
             *did_remove_type = true;
@@ -882,7 +896,9 @@ pub(crate) fn intersect_atomic_with_atomic(
             *did_remove_type = true;
 
             if let Some(pos) = pos {
-                if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(name) {
+                if let Some(TypeVariableBounds { lower_bounds, .. }) =
+                    analysis_data.type_variable_bounds.get_mut(name)
+                {
                     let mut bound = TemplateBound::new(get_int(), 0, None, None);
                     bound.pos = Some(statements_analyzer.get_hpos(pos));
                     lower_bounds.push(bound);
@@ -1002,7 +1018,8 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (
-            TAtomic::TGenericParam(TGenericParam { as_type, .. }) | TAtomic::TClassTypeConstant { as_type, .. },
+            TAtomic::TGenericParam(TGenericParam { as_type, .. })
+            | TAtomic::TClassTypeConstant { as_type, .. },
             TAtomic::TMixedWithFlags(_, _, _, true),
         ) => {
             let type_1_atomic = type_1_atomic.replace_template_extends(
@@ -1658,7 +1675,10 @@ pub(crate) fn intersect_atomic_with_atomic(
                 is_shape: false,
             }));
         }
-        (TAtomic::TGenericParam(TGenericParam { as_type, .. }), TAtomic::TNamedObject(TNamedObject { .. })) => {
+        (
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }),
+            TAtomic::TNamedObject(TNamedObject { .. }),
+        ) => {
             let new_as = intersect_union_with_atomic(
                 statements_analyzer,
                 analysis_data,
@@ -1681,7 +1701,10 @@ pub(crate) fn intersect_atomic_with_atomic(
                 return Some(type_1_atomic);
             }
         }
-        (TAtomic::TNamedObject(TNamedObject { .. }), TAtomic::TGenericParam(TGenericParam { as_type, .. })) => {
+        (
+            TAtomic::TNamedObject(TNamedObject { .. }),
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }),
+        ) => {
             let new_as = intersect_union_with_atomic(
                 statements_analyzer,
                 analysis_data,

@@ -1,0 +1,1 @@
+ERROR: ImplicitStringCast - input.hack:2:19 - Cannot convert float to type string implicitly

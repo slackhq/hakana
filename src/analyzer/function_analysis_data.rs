@@ -16,6 +16,12 @@ use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TypeVariableBounds {
+    pub lower_bounds: Vec<TemplateBound>,
+    pub upper_bounds: Vec<TemplateBound>,
+}
+
 pub struct FunctionAnalysisData {
     pub expr_types: FxHashMap<(u32, u32), Rc<TUnion>>,
     pub if_true_assertions: FxHashMap<(u32, u32), FxHashMap<String, Vec<Assertion>>>,
@@ -45,7 +51,7 @@ pub struct FunctionAnalysisData {
     pub hakana_fixme_or_ignores: BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>>,
     pub matched_ignore_positions: FxHashSet<(u32, u32)>,
     pub previously_used_fixme_positions: FxHashMap<(u32, u32), (u32, u32)>,
-    pub type_variable_bounds: FxHashMap<String, (Vec<TemplateBound>, Vec<TemplateBound>)>,
+    pub type_variable_bounds: FxHashMap<String, TypeVariableBounds>,
     pub migrate_function: Option<bool>,
     pub after_expr_hook_called: FxHashSet<(u32, u32)>,
     pub after_arg_hook_called: FxHashSet<(u32, u32)>,

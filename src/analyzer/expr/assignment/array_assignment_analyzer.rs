@@ -25,6 +25,7 @@ use oxidized::{
 };
 
 use crate::expression_analyzer;
+use crate::function_analysis_data::TypeVariableBounds;
 use crate::{
     expr::{expression_identifier, fetch::array_fetch_analyzer},
     function_analysis_data::FunctionAnalysisData,
@@ -560,7 +561,7 @@ fn update_array_assignment_child_type(
                     non_empty: true,
                 }),
                 TAtomic::TTypeVariable { name } => {
-                    if let Some((_, upper_bounds)) =
+                    if let Some(TypeVariableBounds { upper_bounds, .. }) =
                         analysis_data.type_variable_bounds.get_mut(name)
                     {
                         let mut bound = TemplateBound::new(
@@ -631,7 +632,7 @@ fn update_array_assignment_child_type(
                     collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false))
                 }
                 TAtomic::TTypeVariable { name } => {
-                    if let Some((_, upper_bounds)) =
+                    if let Some(TypeVariableBounds { upper_bounds, .. }) =
                         analysis_data.type_variable_bounds.get_mut(name)
                     {
                         let mut bound = TemplateBound::new(

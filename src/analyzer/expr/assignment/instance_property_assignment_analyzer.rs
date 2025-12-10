@@ -33,7 +33,7 @@ use crate::{
             get_nodes_for_property_fetch, localize_property_type,
         },
     },
-    function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::{FunctionAnalysisData, TypeVariableBounds},
     stmt_analyzer::AnalysisError,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -99,14 +99,18 @@ pub(crate) fn analyze(
             }
 
             for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
-                if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(&name) {
+                if let Some(TypeVariableBounds { lower_bounds, .. }) =
+                    analysis_data.type_variable_bounds.get_mut(&name)
+                {
                     bound.pos = Some(statements_analyzer.get_hpos(pos));
                     lower_bounds.push(bound);
                 }
             }
 
             for (name, mut bound) in union_comparison_result.type_variable_upper_bounds {
-                if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(&name) {
+                if let Some(TypeVariableBounds { upper_bounds, .. }) =
+                    analysis_data.type_variable_bounds.get_mut(&name)
+                {
                     bound.pos = Some(statements_analyzer.get_hpos(pos));
                     upper_bounds.push(bound);
                 }

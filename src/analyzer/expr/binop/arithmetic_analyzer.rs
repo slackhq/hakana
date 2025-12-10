@@ -5,7 +5,7 @@ use hakana_code_info::t_atomic::TGenericParam;
 use hakana_code_info::ttype::template::TemplateBound;
 use rustc_hash::FxHashMap;
 
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::function_analysis_data::{FunctionAnalysisData, TypeVariableBounds};
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -126,7 +126,9 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
 
         if let TAtomic::TTypeVariable { name } = &e1_type_atomic {
             results.push(e1_type_atomic.clone());
-            if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(name) {
+            if let Some(TypeVariableBounds { upper_bounds, .. }) =
+                analysis_data.type_variable_bounds.get_mut(name)
+            {
                 let mut bound = TemplateBound::new(get_num(), 0, None, None);
                 bound.pos = Some(statements_analyzer.get_hpos(left.pos()));
                 upper_bounds.push(bound);
@@ -175,7 +177,9 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             if let TAtomic::TTypeVariable { name } = &e2_type_atomic {
                 results.push(e2_type_atomic.clone());
 
-                if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(name) {
+                if let Some(TypeVariableBounds { upper_bounds, .. }) =
+                    analysis_data.type_variable_bounds.get_mut(name)
+                {
                     let mut bound = TemplateBound::new(get_num(), 0, None, None);
                     bound.pos = Some(statements_analyzer.get_hpos(left.pos()));
                     upper_bounds.push(bound);

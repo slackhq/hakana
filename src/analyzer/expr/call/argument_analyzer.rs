@@ -2,7 +2,7 @@ use crate::custom_hook::AfterArgAnalysisData;
 use crate::expr::fetch::array_fetch_analyzer::{
     add_array_fetch_dataflow, handle_array_access_on_dict, handle_array_access_on_vec,
 };
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::function_analysis_data::{FunctionAnalysisData, TypeVariableBounds};
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -409,8 +409,12 @@ pub(crate) fn verify_type(
                         message.push_str(&format!(
                             ", shape field `{}` expects {}, {} given",
                             mismatch.field_name,
-                            mismatch.expected_type.get_id(Some(statements_analyzer.interner)),
-                            mismatch.actual_type.get_id(Some(statements_analyzer.interner))
+                            mismatch
+                                .expected_type
+                                .get_id(Some(statements_analyzer.interner)),
+                            mismatch
+                                .actual_type
+                                .get_id(Some(statements_analyzer.interner))
                         ));
                     }
                 }
@@ -500,14 +504,18 @@ pub(crate) fn verify_type(
     }
 
     for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
-        if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(&name) {
+        if let Some(TypeVariableBounds { lower_bounds, .. }) =
+            analysis_data.type_variable_bounds.get_mut(&name)
+        {
             bound.pos = Some(statements_analyzer.get_hpos(input_expr.pos()));
             lower_bounds.push(bound);
         }
     }
 
     for (name, mut bound) in union_comparison_result.type_variable_upper_bounds {
-        if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(&name) {
+        if let Some(TypeVariableBounds { upper_bounds, .. }) =
+            analysis_data.type_variable_bounds.get_mut(&name)
+        {
             bound.pos = Some(statements_analyzer.get_hpos(input_expr.pos()));
             upper_bounds.push(bound);
         }

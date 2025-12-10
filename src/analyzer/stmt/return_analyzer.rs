@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::function_analysis_data::TypeVariableBounds;
 use crate::scope::BlockContext;
 use crate::scope::control_action::ControlAction;
 use crate::stmt_analyzer::AnalysisError;
@@ -373,7 +374,11 @@ pub(crate) fn analyze(
                             "The type {} is more general than the declared return type {} for {}",
                             inferred_return_type.get_id(Some(interner)),
                             expected_return_type.get_id(Some(interner)),
-                            context.function_context.calling_functionlike_id.unwrap().to_string(interner)
+                            context
+                                .function_context
+                                .calling_functionlike_id
+                                .unwrap()
+                                .to_string(interner)
                         );
 
                         // Add shape field mismatch details if available
@@ -388,15 +393,16 @@ pub(crate) fn analyze(
                             }
                         }
 
-                        analysis_data.maybe_add_issue(Issue::new(
-                            IssueKind::LessSpecificReturnStatement,
-                            message,
-                            statements_analyzer.get_hpos(&return_expr.1),
-                            &context.function_context.calling_functionlike_id,
-                        ),
-                        statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual()
-                    );
+                        analysis_data.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::LessSpecificReturnStatement,
+                                message,
+                                statements_analyzer.get_hpos(&return_expr.1),
+                                &context.function_context.calling_functionlike_id,
+                            ),
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
+                        );
                     }
                 } else {
                     analysis_data.maybe_add_issue(
@@ -439,7 +445,7 @@ pub(crate) fn analyze(
                 }
 
                 for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
-                    if let Some((lower_bounds, _)) =
+                    if let Some(TypeVariableBounds { lower_bounds, .. }) =
                         analysis_data.type_variable_bounds.get_mut(&name)
                     {
                         bound.pos = Some(statements_analyzer.get_hpos(&return_expr.1));
@@ -448,7 +454,7 @@ pub(crate) fn analyze(
                 }
 
                 for (name, mut bound) in union_comparison_result.type_variable_upper_bounds {
-                    if let Some((_, upper_bounds)) =
+                    if let Some(TypeVariableBounds { upper_bounds, .. }) =
                         analysis_data.type_variable_bounds.get_mut(&name)
                     {
                         if bound.equality_bound_classlike.is_none() {
