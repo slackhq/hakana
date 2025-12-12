@@ -1,0 +1,2 @@
+ERROR: InvalidArgument - input.hack:13:12 - Argument 2 of foo expects string, different type int(42) provided
+ERROR: InvalidArgument - input.hack:13:18 - Argument 3 of foo expects int, different type string(wrong) provided

@@ -46,6 +46,7 @@ pub fn get_aast_for_path_and_contents(
     parser_env.scour_comments = true;
     parser_env.parser_options.enable_xhp_class_modifier = true;
     parser_env.parser_options.disallow_silence = true;
+    parser_env.parser_options.allow_unstable_features = true;
 
     let mut parser_result = match aast_parser::AastParser::from_text(
         &parser_env,

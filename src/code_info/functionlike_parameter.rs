@@ -36,6 +36,8 @@ pub struct FunctionLikeParameter {
 
     pub is_variadic: bool,
 
+    pub is_named: bool,
+
     pub taint_sinks: Option<Vec<SinkType>>,
 
     pub removed_taints_when_returning_true: Option<Vec<SinkType>>,
@@ -72,6 +74,7 @@ impl FunctionLikeParameter {
             name_location,
             signature_type_location: None,
             is_variadic: false,
+            is_named: false,
             taint_sinks: None,
             assert_untainted: false,
             type_inferred: false,

@@ -755,6 +755,7 @@ fn convert_param_nodes(
             }
 
             param.is_variadic = param_node.info == ast::FunParamInfo::ParamVariadic;
+            param.is_named = param_node.named.is_some();
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
                 get_type_from_hint(
                     &param_type.1,

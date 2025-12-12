@@ -282,7 +282,18 @@ pub(crate) fn check_arguments_match(
 
     for (argument_offset, arg) in reordered_args.clone() {
         let arg_expr = arg.to_expr_ref();
-        let mut param = functionlike_params.get(argument_offset);
+
+        // For named arguments, find the parameter by name instead of position
+        let mut param = if let aast::Argument::Anamed(sid, _) = arg {
+            let arg_name = &sid.1;
+            functionlike_params.iter().find(|p| {
+                let param_name = statements_analyzer.interner.lookup(&p.name.0);
+                let clean_name = param_name.strip_prefix('$').unwrap_or(param_name);
+                clean_name == arg_name
+            })
+        } else {
+            functionlike_params.get(argument_offset)
+        };
 
         if param.is_none() {
             if let Some(last_param) = last_param {
@@ -431,12 +442,13 @@ pub(crate) fn check_arguments_match(
     let function_params = &functionlike_info.params;
 
     if function_params.len() > args.len() {
-        // Check for TooFewArguments - find the minimum required arguments
-        // This is the position of the last required (non-default, non-variadic) parameter + 1
+        // Check for TooFewArguments - find the minimum required positional arguments
+        // This is the position of the last required (non-default, non-variadic, non-named) parameter + 1
         // Skip this check if there's an unpacked argument as it could provide multiple values
+        // Named parameters are checked separately in check_named_arguments()
         let mut min_required_args = 0;
         for (i, param) in function_params.iter().enumerate() {
-            if !param.is_optional && !param.is_variadic {
+            if !param.is_optional && !param.is_variadic && !param.is_named {
                 min_required_args = i + 1;
             }
         }
@@ -498,9 +510,34 @@ pub(crate) fn check_arguments_match(
         }
     }
 
+    // Check for named argument issues
+    check_named_arguments(
+        statements_analyzer,
+        args,
+        function_params,
+        functionlike_id,
+        analysis_data,
+        context,
+        function_call_pos,
+    );
+
     for (argument_offset, arg) in reordered_args {
         let arg_expr = arg.to_expr_ref();
-        let function_param = if let Some(function_param) = function_params.get(argument_offset) {
+
+        // For named arguments, find the parameter by name instead of position
+        let function_param = if let aast::Argument::Anamed(sid, _) = arg {
+            let arg_name = &sid.1;
+            if let Some(param) = function_params.iter().find(|p| {
+                let param_name = statements_analyzer.interner.lookup(&p.name.0);
+                let clean_name = param_name.strip_prefix('$').unwrap_or(param_name);
+                clean_name == arg_name
+            }) {
+                param
+            } else {
+                // Named argument doesn't match any parameter - skip (already reported in check_named_arguments)
+                continue;
+            }
+        } else if let Some(function_param) = function_params.get(argument_offset) {
             function_param
         } else {
             let last_param = function_params.last();
@@ -1545,5 +1582,78 @@ fn check_classname_passed_as_string(
             arg_value_type,
             arg.to_expr_ref(),
         );
+    }
+}
+
+/// Check for named argument issues:
+/// - UnexpectedNamedArgument: when a named argument doesn't match any parameter
+/// - MissingRequiredNamedArgument: when a required named parameter wasn't provided
+fn check_named_arguments(
+    statements_analyzer: &StatementsAnalyzer,
+    args: &[aast::Argument<(), ()>],
+    function_params: &[FunctionLikeParameter],
+    _functionlike_id: &FunctionLikeIdentifier,
+    analysis_data: &mut FunctionAnalysisData,
+    context: &mut BlockContext,
+    function_call_pos: &Pos,
+) {
+    let interner = statements_analyzer.interner;
+
+    // Build a map of parameter names to their info
+    // Parameter names are stored with $ prefix, so we strip it for comparison
+    let param_names: FxHashMap<String, (usize, &FunctionLikeParameter)> = function_params
+        .iter()
+        .enumerate()
+        .map(|(i, param)| {
+            let name = interner.lookup(&param.name.0);
+            // Strip the $ prefix from parameter name for comparison
+            let clean_name = name.strip_prefix('$').unwrap_or(name).to_string();
+            (clean_name, (i, param))
+        })
+        .collect();
+
+    // Track which named parameters have been provided
+    let mut provided_named_params: FxHashMap<String, bool> = FxHashMap::default();
+
+    // Check each argument
+    for arg in args {
+        if let aast::Argument::Anamed(sid, _expr) = arg {
+            let arg_name = &sid.1;
+
+            // Check if this named argument matches a parameter
+            if !param_names.contains_key(arg_name.as_str()) {
+                // Unexpected named argument
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UnexpectedNamedArgument,
+                        format!("Unexpected named argument: {}", arg_name),
+                        statements_analyzer.get_hpos(function_call_pos),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            } else {
+                provided_named_params.insert(arg_name.clone(), true);
+            }
+        }
+    }
+
+    // Check for missing required named parameters
+    for (param_name, (_idx, param)) in &param_names {
+        if param.is_named && !param.is_optional && !param.is_variadic {
+            if !provided_named_params.contains_key(param_name.as_str()) {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MissingRequiredNamedArgument,
+                        format!("Missing required named argument: {}", param_name),
+                        statements_analyzer.get_hpos(function_call_pos),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
     }
 }
