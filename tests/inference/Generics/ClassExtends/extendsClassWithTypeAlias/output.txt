@@ -1,0 +1,1 @@
+ERROR: InterfaceSingleImplementor - input.hack:1:11 - Interface Foo has only one implementing class MyFoo

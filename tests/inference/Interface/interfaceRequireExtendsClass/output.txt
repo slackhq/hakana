@@ -1,0 +1,1 @@
+ERROR: InterfaceSingleImplementor - input.hack:2:11 - Interface INode has only one implementing class FooNode

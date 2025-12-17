@@ -43,6 +43,7 @@ pub enum IssueKind {
     ImpossibleTypeComparison,
     IncompatibleTypeParameters,
     InternalError,
+    InterfaceSingleImplementor,
     InvalidArgument,
     InvalidArrayOffset,
     InvalidContainsCheck,

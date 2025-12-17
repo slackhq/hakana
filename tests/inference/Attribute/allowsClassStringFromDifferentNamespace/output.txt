@@ -1,0 +1,1 @@
+ERROR: InterfaceSingleImplementor - input.hack:11:15 - Interface NamespaceOne\FoobarInterface has only one implementing class NamespaceOne\Bar

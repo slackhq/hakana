@@ -1,0 +1,2 @@
+ERROR: InterfaceSingleImplementor - input.hack:1:11 - Interface A has only one implementing class B
+ERROR: InterfaceSingleImplementor - input.hack:5:11 - Interface B has only one implementing class C

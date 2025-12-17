@@ -1,0 +1,2 @@
+ERROR: InterfaceSingleImplementor - input.hack:1:11 - Interface A has only one implementing class AChild
+ERROR: InterfaceSingleImplementor - input.hack:2:11 - Interface I has only one implementing class AChild

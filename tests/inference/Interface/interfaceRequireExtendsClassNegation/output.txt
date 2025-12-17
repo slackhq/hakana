@@ -1,1 +1,2 @@
+ERROR: InterfaceSingleImplementor - input.hack:5:11 - Interface HasFooNode has only one implementing class FooNode
 ERROR: InvalidArgument - input.hack:22:10 - Argument 1 of echo expects ?scalar, different type Node provided

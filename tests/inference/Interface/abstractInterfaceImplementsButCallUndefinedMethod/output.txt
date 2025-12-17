@@ -1,1 +1,2 @@
-NonExistentMethod
+ERROR: InterfaceSingleImplementor - input.hack:1:11 - Interface I has only one implementing class A
+ERROR: NonExistentMethod - input.hack:7:9 - Method A::foo2 does not exist

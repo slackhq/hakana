@@ -193,6 +193,31 @@ impl<'a> ClassLikeAnalyzer<'a> {
             );
         }
 
+        // Check if interface has only one implementor
+        if matches!(classlike_storage.kind, SymbolKind::Interface)
+            && classlike_storage.is_production_code
+        {
+            if let Some(descendants) = codebase.direct_classlike_descendants.get(&name) {
+                if descendants.len() == 1 {
+                    let implementor_name = descendants.iter().next().unwrap();
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::InterfaceSingleImplementor,
+                            format!(
+                                "Interface {} has only one implementing class {}",
+                                statements_analyzer.interner.lookup(&name),
+                                statements_analyzer.interner.lookup(implementor_name)
+                            ),
+                            classlike_storage.name_location,
+                            &Some(FunctionLikeIdentifier::Function(name)),
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+            }
+        }
+
         let mut existing_enum_str_values = FxHashMap::default();
         let mut existing_enum_int_values = FxHashMap::default();
 
