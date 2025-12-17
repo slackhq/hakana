@@ -13,7 +13,7 @@ final class Boo {
 }
 
 
-function foo(): void {
+async function foo(): Awaitable<void> {
     $a = await Boo::getA();
     $b = await ($a is nonnull ? $a->bar() : null);
     if ($b is nonnull) {}

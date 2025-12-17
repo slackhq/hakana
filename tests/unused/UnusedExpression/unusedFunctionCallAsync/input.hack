@@ -8,6 +8,6 @@ function foo(): void {
     Asio\join(must_use_async());
 }
 
-function foo_async(): void {
+async function foo_async(): Awaitable<void> {
     await must_use_async();
 }

@@ -1,9 +1,11 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::EFFECT_IMPURE;
+use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::{extend_dataflow_uniquely, get_mixed_any};
 use oxidized::aast;
@@ -16,6 +18,19 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
+    if !context.inside_async {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::AwaitInSyncContext,
+                "Cannot use await in a non-async function".to_string(),
+                statements_analyzer.get_hpos(expr.pos()),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+    }
+
     let was_inside_use = context.inside_general_use;
     context.inside_general_use = true;
     let was_inside_await = context.inside_await;

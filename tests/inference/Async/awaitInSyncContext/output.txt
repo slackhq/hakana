@@ -1,0 +1,1 @@
+ERROR: AwaitInSyncContext - input.hack:3:10 - Cannot use await in a non-async function

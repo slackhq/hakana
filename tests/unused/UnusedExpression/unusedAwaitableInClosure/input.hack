@@ -1,4 +1,4 @@
-function foo(): void {
+async function foo(): Awaitable<void> {
     await Vec\map_async(
         vec["hello", "world"],
         async $item ==> myFunc($item)

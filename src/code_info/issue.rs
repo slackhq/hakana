@@ -15,6 +15,7 @@ use crate::{
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum IssueKind {
     AbstractInstantiation,
+    AwaitInSyncContext,
     BannedFunction,
     CannotInferGenericParam,
     ClassnameUsedAsString,
