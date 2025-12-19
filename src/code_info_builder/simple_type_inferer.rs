@@ -313,47 +313,16 @@ pub fn get_atomic_for_prefix_regex_string(mut inner_text: String) -> TAtomic {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn get_shape_fields_from_regex(inner_text: &str) -> BTreeMap<DictKey, (bool, Arc<TUnion>)> {
-    let regex = pcre2::bytes::RegexBuilder::new()
-        .utf(true)
-        .build(inner_text);
-
+    let captures = super::pcre_parser::parse_capture_groups(inner_text);
     let mut shape_fields = BTreeMap::new();
 
-    if let Ok(regex) = regex {
-        for (i, v) in regex.capture_names().iter().enumerate() {
-            if let Some(v) = v {
-                shape_fields.insert(DictKey::String(v.clone()), (false, Arc::new(get_string())));
-            } else {
-                shape_fields.insert(DictKey::Int(i as u64), (false, Arc::new(get_string())));
-            }
-        }
-    }
-
-    shape_fields
-}
-
-#[cfg(target_arch = "wasm32")]
-fn get_shape_fields_from_regex(inner_text: &String) -> BTreeMap<DictKey, (bool, Arc<TUnion>)> {
-    let inner_text = inner_text.replace("(?<", "(?P<");
-    let regex = regex::Regex::new(&inner_text);
-
-    let mut shape_fields = BTreeMap::new();
-
-    if let Ok(regex) = regex {
-        let mut i = 0;
-        for v in regex.capture_names() {
-            if let Some(v) = v {
-                shape_fields.insert(
-                    DictKey::String(v.to_string()),
-                    (false, Arc::new(get_string())),
-                );
-            } else {
-                shape_fields.insert(DictKey::Int(i as u64), (false, Arc::new(get_string())));
-            }
-            i += 1;
-        }
+    for capture in captures {
+        let key = match capture.name {
+            Some(name) => DictKey::String(name),
+            None => DictKey::Int(capture.index as u64),
+        };
+        shape_fields.insert(key, (false, Arc::new(get_string())));
     }
 
     shape_fields

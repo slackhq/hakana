@@ -31,6 +31,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 mod classlike_scanner;
 mod functionlike_scanner;
+mod pcre_parser;
 pub mod simple_type_inferer;
 pub mod typehint_resolver;
 
