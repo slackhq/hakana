@@ -47,6 +47,7 @@ pub(crate) fn analyze<'expr>(
         analysis_data,
         context,
         stmt_pos,
+        false,
     );
 
     // todo handle more string type combinations
@@ -62,6 +63,7 @@ pub(crate) fn analyze_concat_nodes(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     stmt_pos: &aast::Pos,
+    from_format: bool,
 ) -> TUnion {
     let mut all_literals = true;
 
@@ -160,6 +162,18 @@ pub(crate) fn analyze_concat_nodes(
 
                             existing_literal_string_values = None;
                         }
+                        TAtomic::TNothing => analysis_data.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::NoValue,
+                                format!(
+                                    "Expected string or int in concatenation, nothing type provided"
+                                ),
+                                statements_analyzer.get_hpos(concat_node.pos()),
+                                &context.function_context.calling_functionlike_id,
+                            ),
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
+                        ),
                         _ => {
                             if !can_be_coerced_to_string(
                                 statements_analyzer,
@@ -167,6 +181,7 @@ pub(crate) fn analyze_concat_nodes(
                                 analysis_data,
                                 concat_node,
                                 t,
+                                from_format,
                             ) {
                                 concat_non_string(
                                     statements_analyzer,
@@ -268,6 +283,7 @@ fn can_be_coerced_to_string(
     analysis_data: &mut FunctionAnalysisData,
     expr: &aast::Expr<(), ()>,
     t: &TAtomic,
+    from_format: bool,
 ) -> bool {
     match t {
         TAtomic::TStringWithFlags(..)
@@ -283,6 +299,8 @@ fn can_be_coerced_to_string(
         | TAtomic::TGenericTypename { .. }
         | TAtomic::TLiteralClassname { .. }
         | TAtomic::TInt => true,
+
+        TAtomic::TFloat => from_format,
 
         TAtomic::TTypeVariable { name } => {
             analysis_data
@@ -310,7 +328,7 @@ fn can_be_coerced_to_string(
             ..
         }
         | TAtomic::TGenericParam(TGenericParam { as_type, .. }) => as_type.types.iter().all(|t| {
-            can_be_coerced_to_string(statements_analyzer, context, analysis_data, expr, t)
+            can_be_coerced_to_string(statements_analyzer, context, analysis_data, expr, t, false)
         }),
 
         _ => false,

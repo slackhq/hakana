@@ -782,6 +782,7 @@ fn handle_str_format(
         analysis_data,
         context,
         pos,
+        true,
     )
 }
 

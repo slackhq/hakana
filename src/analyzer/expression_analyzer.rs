@@ -377,6 +377,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 expr.pos(),
+                false,
             );
 
             analysis_data.expr_types.insert(
