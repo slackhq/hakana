@@ -65,6 +65,10 @@ pub trait InternalHook {
         None
     }
 
+    fn run_in_ide(&self) -> bool {
+        true
+    }
+
     // This hook is run after analysing every top-level definition (class, function etc)
     #[allow(unused_variables)]
     fn after_def_analysis(

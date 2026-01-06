@@ -1508,7 +1508,7 @@ fn do_analysis(
     sub_matches: &clap::ArgMatches,
     all_custom_issues: FxHashSet<String>,
     root_dir: &str,
-    analysis_hooks: Vec<Box<dyn CustomHook>>,
+    mut analysis_hooks: Vec<Box<dyn CustomHook>>,
     config_path: Option<&Path>,
     cwd: &String,
     cache_dir: String,
@@ -1701,6 +1701,9 @@ fn do_analysis(
     config.find_unused_definitions = find_unused_definitions;
     config.ignore_mixed_issues = ignore_mixed_issues;
     config.ast_diff = do_ast_diff;
+
+    // filter out any hooks that cannot run in IDEs
+    analysis_hooks.retain(|h| h.run_in_ide());
 
     config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();
 
