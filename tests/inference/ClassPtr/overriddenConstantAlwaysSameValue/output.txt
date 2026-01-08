@@ -1,0 +1,1 @@
+ERROR: RedundantTruthinessCheck - input.hack:10:9 - Type true is always truthy

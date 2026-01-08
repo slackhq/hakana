@@ -88,7 +88,15 @@ pub(crate) fn analyze(
                                     name, is_this, ..
                                 }) = &**as_type
                                 {
-                                    stmt_type = Some(add_optional_union_type(
+                                    // When checking the type of a class constant accessed on a class pointer,
+                                    // check its potential types across all descendants.
+                                    let descendants = codebase
+                                        .all_classlike_descendants
+                                        .get(name)
+                                        .map(|i| i.clone())
+                                        .unwrap_or_default();
+
+                                    let mut potential_constant_types = add_optional_union_type(
                                         analyse_known_class_constant(
                                             codebase,
                                             analysis_data,
@@ -102,7 +110,27 @@ pub(crate) fn analyze(
                                         .unwrap_or(get_mixed_any()),
                                         stmt_type.as_ref(),
                                         codebase,
-                                    ));
+                                    );
+
+                                    for class_name in descendants {
+                                        potential_constant_types = add_optional_union_type(
+                                            potential_constant_types,
+                                            analyse_known_class_constant(
+                                                codebase,
+                                                analysis_data,
+                                                context,
+                                                &class_name,
+                                                const_name,
+                                                false,
+                                                statements_analyzer,
+                                                pos,
+                                            )
+                                            .as_ref(),
+                                            codebase,
+                                        );
+                                    }
+
+                                    stmt_type = Some(potential_constant_types);
                                 }
                             }
                             TAtomic::TReference {
@@ -408,7 +436,9 @@ pub(crate) fn emit_class_pointer_used_as_string(
 
 /// Extract the referenced class name from a class<T> pointer literal expression in the form of C::class.
 /// Returns `None` if the class name cannot be determined.
-pub(crate) fn get_class_name_from_class_ptr_literal_expr(expr: &aast::Expr<(), ()>) -> Option<&str> {
+pub(crate) fn get_class_name_from_class_ptr_literal_expr(
+    expr: &aast::Expr<(), ()>,
+) -> Option<&str> {
     let aast::Expr_::ClassConst(class_id) = &expr.2 else {
         return None;
     };
