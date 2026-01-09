@@ -146,6 +146,20 @@ pub(crate) fn analyze(
             )?;
         }
 
+        // Catch redundant uses of ?-> on known non-null invocation targets.
+        if nullsafe && !has_nullsafe_null {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::ImpossibleNullTypeComparison,
+                    "Method invocation target is never null".to_string(),
+                    statements_analyzer.get_hpos(expr.1.pos()),
+                    &context.function_context.calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            )
+        }
+
         if !analysis_result.has_valid_method_call_type
             && matches!(analysis_data.data_flow_graph.kind, GraphKind::FunctionBody)
         {
