@@ -41,6 +41,12 @@ struct ShapeTypeConstant {
     map: FxHashMap<String, String>,
 }
 
+#[derive(Clone, Debug)]
+struct ShapeKeysConstant {
+    type_name: StrId,
+    allowed_keys: FxHashSet<String>,
+}
+
 #[derive(Clone)]
 struct Context {
     classlike_name: Option<StrId>,
@@ -65,6 +71,7 @@ struct Scanner<'a> {
     ast_nodes: Vec<DefSignatureNode>,
     uses: Uses,
     shape_type_constants: FxHashMap<StrId, ShapeTypeConstant>,
+    shape_keys_constants: FxHashMap<StrId, ShapeKeysConstant>,
 }
 
 impl<'ast> Visitor<'ast> for Scanner<'_> {
@@ -222,6 +229,42 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             }
         }
 
+        if let Some(mut shape_keys_constant) = self.shape_keys_constants.get(&name).cloned() {
+            let full_type = simple_type_inferer::infer(&gc.value, self.resolved_names, true);
+
+            if let Some(full_type) = full_type {
+                // Extract allowed keys from the constant
+                if let TAtomic::TDict(TDict {
+                    known_items: Some(items),
+                    ..
+                }) = full_type {
+                    for (key, _) in items {
+                        if let DictKey::String(key_str) = key {
+                            shape_keys_constant.allowed_keys.insert(key_str);
+                        }
+                    }
+                }
+
+                // Update the stored constant with the populated keys
+                self.shape_keys_constants.insert(name, shape_keys_constant.clone());
+
+                // Transform the type definition using keys-only validation  
+                let transformed_type = transform_shape_keys_constant(
+                    full_type,
+                    &shape_keys_constant.allowed_keys,
+                    &self.codebase,
+                );
+
+                if let Some(type_storage) = self
+                    .codebase
+                    .type_definitions
+                    .get_mut(&shape_keys_constant.type_name)
+                {
+                    type_storage.actual_type = wrap_atomic(transformed_type);
+                }
+            }
+        }
+
         gc.recurse(c, self)
     }
 
@@ -334,6 +377,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let mut shape_source_attribute = None;
         let mut shape_type_constant_attribute = None;
+        let mut shape_keys_constant_attribute = None;
 
         let mut attributes = vec![];
 
@@ -359,6 +403,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 }
                 StrId::HAKANA_SHAPE_TYPE_FROM_CONSTANT => {
                     shape_type_constant_attribute = Some(user_attribute);
+                }
+                StrId::HAKANA_SHAPE_KEYS_FROM_CONSTANT => {
+                    shape_keys_constant_attribute = Some(user_attribute);
                 }
                 _ => {}
             }
@@ -542,6 +589,40 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     ShapeTypeConstant {
                         type_name,
                         map: type_map,
+                    },
+                );
+            }
+        }
+
+        if let Some(shape_keys_constant_attribute) = shape_keys_constant_attribute {
+            let attribute_param_expr = &shape_keys_constant_attribute.params[0];
+
+            if let aast::Expr_::String(str) = &attribute_param_expr.2 {
+                let mut constant_name = str.to_string();
+
+                if let Some(namespace_positiion) = c.namespace_position {
+                    constant_name = self.file_source.file_contents
+                        [(namespace_positiion.0 + 10)..namespace_positiion.1]
+                        .to_string()
+                        + "\\"
+                        + &constant_name;
+                }
+                let constant_name = self.interner.intern(constant_name);
+
+                // Add symbol reference from type alias to constant so invalidation works
+                self.uses
+                    .symbol_uses
+                    .entry(type_name)
+                    .or_default()
+                    .push((constant_name, type_name));
+
+                // For ShapeKeysFromConstant, we only need to store the constant name
+                // The actual keys will be extracted from the constant during type resolution
+                self.shape_keys_constants.insert(
+                    constant_name,
+                    ShapeKeysConstant {
+                        type_name,
+                        allowed_keys: FxHashSet::default(), // Will be populated during resolution
                     },
                 );
             }
@@ -1058,6 +1139,48 @@ fn transform_shape_type_constant(
     }
 }
 
+fn transform_shape_keys_constant(
+    atomic_type: TAtomic,
+    allowed_keys: &FxHashSet<String>,
+    _codebase: &CodebaseInfo,
+) -> TAtomic {
+    match atomic_type {
+        TAtomic::TDict(TDict {
+            known_items: Some(items),
+            ..
+        }) => {
+            let mut transformed_items = std::collections::BTreeMap::new();
+
+            for (key, (_, value_type)) in items {
+                // Check if the key is allowed
+                match &key {
+                    DictKey::String(key_str) => {
+                        // Allow keys that start with "__" or are in the allowed list
+                        if key_str.starts_with("__") || allowed_keys.contains(key_str) {
+                            // Keep original value type unchanged
+                            transformed_items.insert(key, (true, value_type));
+                        }
+                        // If key is not allowed, skip it (this will cause validation errors)
+                    }
+                    _ => {
+                        // For non-string keys, keep them as-is
+                        transformed_items.insert(key, (true, value_type));
+                    }
+                }
+            }
+
+            TAtomic::TDict(TDict {
+                non_empty: !transformed_items.is_empty(),
+                known_items: Some(transformed_items),
+                params: None,
+                shape_name: None,
+                is_shape: true,
+            })
+        }
+        _ => atomic_type,
+    }
+}
+
 fn get_function_hashes(
     file_contents: &str,
     def_location: &HPos,
@@ -1141,6 +1264,7 @@ pub fn collect_info_for_aast(
         ast_nodes: Vec::new(),
         uses,
         shape_type_constants: FxHashMap::default(),
+        shape_keys_constants: FxHashMap::default(),
     };
 
     let mut context = Context {

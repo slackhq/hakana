@@ -269,6 +269,7 @@ fn main() -> Result<()> {
         "Hakana\\SecurityAnalysis\\Source",
         "Hakana\\SecurityAnalysis\\SpecializeCall",
         "Hakana\\ShapeTypeFromConstant",
+        "Hakana\\ShapeKeysFromConstant",
         "Hakana\\SpecialTypes\\LiteralString",
         "Hakana\\TestOnly",
         "MessageFormatter",
