@@ -81,7 +81,8 @@ pub(crate) fn analyze_concat_nodes(
         if let aast::Expr_::String(simple_string) = &concat_node.2 {
             if let Some(existing_literal_string_values) = &existing_literal_string_values {
                 for val in existing_literal_string_values {
-                    new_literal_string_values.push(val.clone() + simple_string.to_str().unwrap());
+                    new_literal_string_values
+                        .push(val.clone() + simple_string.to_string().as_str());
                 }
             }
 
