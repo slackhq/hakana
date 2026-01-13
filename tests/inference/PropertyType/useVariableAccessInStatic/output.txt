@@ -1,2 +1,0 @@
-ERROR: ImplicitStringCast - input.hack:8:1 - Cannot convert A2 to type string implicitly
-ERROR: ImplicitStringCast - input.hack:8:13 - Cannot convert A2 to type string implicitly
