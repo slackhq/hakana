@@ -21,6 +21,6 @@ function skipTwo(IntLinkedList $l) : ?int {
     return $l->getNext()?->getNext()?->value;
 }
 
-function bar(?IntLinkedList $l) : string {
+function bar(?IntLinkedList $l) : ?string {
     return $l?->bar();
 }
