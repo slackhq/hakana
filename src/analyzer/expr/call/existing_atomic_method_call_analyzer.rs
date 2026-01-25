@@ -197,27 +197,30 @@ pub(crate) fn analyze(
     if !functionlike_storage.where_constraints.is_empty() {
         if let Some(class_template_params) = &class_template_params {
             for (template_name, where_type) in &functionlike_storage.where_constraints {
-                let template_type = class_template_params
-                    .get(template_name)
-                    .unwrap()
-                    .get(&GenericParent::ClassLike(declaring_method_id.0))
-                    .unwrap();
-
-                standin_type_replacer::replace(
-                    where_type,
-                    &mut template_result,
-                    statements_analyzer.codebase,
-                    statements_analyzer.interner,
-                    statements_analyzer.get_file_path(),
-                    &Some(template_type),
-                    None,
-                    None,
-                    StandinOpts {
-                        calling_class: None,
-                        calling_function: context.function_context.calling_functionlike_id,
-                        ..Default::default()
-                    },
-                );
+                // Only process where constraints for class template parameters.
+                // Method template parameters (like TItem in `where TItem as T`) are
+                // handled during argument checking, not here.
+                if let Some(template_map) = class_template_params.get(template_name) {
+                    if let Some(template_type) =
+                        template_map.get(&GenericParent::ClassLike(declaring_method_id.0))
+                    {
+                        standin_type_replacer::replace(
+                            where_type,
+                            &mut template_result,
+                            statements_analyzer.codebase,
+                            statements_analyzer.interner,
+                            statements_analyzer.get_file_path(),
+                            &Some(template_type),
+                            None,
+                            None,
+                            StandinOpts {
+                                calling_class: None,
+                                calling_function: context.function_context.calling_functionlike_id,
+                                ..Default::default()
+                            },
+                        );
+                    }
+                }
             }
         }
     }
