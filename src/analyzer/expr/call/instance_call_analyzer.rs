@@ -84,7 +84,6 @@ pub(crate) fn analyze(
         }
 
         let mut class_types = class_type.types.iter().collect::<Vec<_>>();
-
         let type_variable_bounds = analysis_data.type_variable_bounds.clone();
 
         while let Some(lhs_atomic_type) = class_types.pop() {
@@ -148,7 +147,7 @@ pub(crate) fn analyze(
         }
 
         // Catch redundant uses of ?-> on known non-null invocation targets.
-        if nullsafe && !has_nullsafe_null {
+        if nullsafe && !has_nullsafe_null && !class_type.is_mixed() {
             let issue = Issue::new(
                 IssueKind::ImpossibleNullTypeComparison,
                 "Method invocation target is never null".to_string(),
