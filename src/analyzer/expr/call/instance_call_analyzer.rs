@@ -9,6 +9,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::EFFECT_WRITE_PROPS;
+use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::data_flow::path::PathKind;
@@ -148,16 +149,31 @@ pub(crate) fn analyze(
 
         // Catch redundant uses of ?-> on known non-null invocation targets.
         if nullsafe && !has_nullsafe_null {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::ImpossibleNullTypeComparison,
-                    "Method invocation target is never null".to_string(),
-                    statements_analyzer.get_hpos(expr.1.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            )
+            let issue = Issue::new(
+                IssueKind::ImpossibleNullTypeComparison,
+                "Method invocation target is never null".to_string(),
+                statements_analyzer.get_hpos(expr.1.pos()),
+                &context.function_context.calling_functionlike_id,
+            );
+
+            let config = statements_analyzer.get_config();
+            if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+                if !context
+                    .function_context
+                    .is_production(statements_analyzer.codebase)
+                    || analysis_data.get_matching_hakana_fixme(&issue).is_none()
+                {
+                    let start_offset = (expr.1.pos().start_offset() - 3) as u32;
+                    analysis_data
+                        .add_replacement((start_offset, start_offset + 1), Replacement::Remove);
+                }
+            } else {
+                analysis_data.maybe_add_issue(
+                    issue,
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                )
+            }
         }
 
         if !analysis_result.has_valid_method_call_type
