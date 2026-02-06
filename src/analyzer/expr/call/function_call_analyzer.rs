@@ -527,28 +527,20 @@ pub(crate) fn analyze(
                     &context.function_context.calling_functionlike_id,
                 );
 
-                let config = statements_analyzer.get_config();
+                if statements_analyzer.should_autofix(context, analysis_data, &issue) {
+                    analysis_data.add_replacement(
+                        (pos.start_offset() as u32, expr.0.0.end_offset() as u32 + 1),
+                        Replacement::Substitute(format!(
+                            "{}await ",
+                            if is_sub_expression { "(" } else { "" }
+                        )),
+                    );
 
-                if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
-                    // Only replace code that's not already covered by a FIXME
-                    if context.inside_await
-                        || !context.function_context.is_production(codebase)
-                        || analysis_data.get_matching_hakana_fixme(&issue).is_none()
-                    {
+                    if !is_sub_expression {
                         analysis_data.add_replacement(
-                            (pos.start_offset() as u32, expr.0.0.end_offset() as u32 + 1),
-                            Replacement::Substitute(format!(
-                                "{}await ",
-                                if is_sub_expression { "(" } else { "" }
-                            )),
+                            (pos.end_offset() as u32 - 1, pos.end_offset() as u32),
+                            Replacement::Substitute("".to_string()),
                         );
-
-                        if !is_sub_expression {
-                            analysis_data.add_replacement(
-                                (pos.end_offset() as u32 - 1, pos.end_offset() as u32),
-                                Replacement::Substitute("".to_string()),
-                            );
-                        }
                     }
                 } else {
                     analysis_data.maybe_add_issue(
@@ -789,75 +781,65 @@ pub(crate) fn check_implicit_asio_join(
 
     // If the candidate method is not callable from the current context, report an issue but don't autofix,
     // to make the optimization possibility known without emitting invalid code.
-    if config.issues_to_fix.contains(&issue.kind)
-        && !config.add_fixmes
+    if statements_analyzer.should_autofix(context, analysis_data, &issue)
         && can_call_async_version(statements_analyzer, context, functionlike_id, async_version)
     {
-        // Only replace code that's not already covered by a FIXME
-        if !context
-            .function_context
-            .is_production(statements_analyzer.codebase)
-            || analysis_data.get_matching_hakana_fixme(&issue).is_none()
-        {
-            if let Some(replacement_fn) = get_async_version_name(
-                async_version,
-                functionlike_id,
-                lhs_expr,
-                context,
-                statements_analyzer.interner,
-                true,
-            ) {
-                // The await expression emitted by autofixing a sync wrapper may be part of an expression chain.
-                // Try to account for this by seeing if the end of the current call also lines up with
-                // the end of the current statement.
-                let should_wrap_await =
-                    if let Some(current_stmt_end) = analysis_data.current_stmt_end {
-                        // offset by one to account for statement-closing comma
-                        is_sub_expression || (1 + pos.end_offset() as u32) != current_stmt_end
-                    } else {
-                        is_sub_expression
-                    };
+        if let Some(replacement_fn) = get_async_version_name(
+            async_version,
+            functionlike_id,
+            lhs_expr,
+            context,
+            statements_analyzer.interner,
+            true,
+        ) {
+            // The await expression emitted by autofixing a sync wrapper may be part of an expression chain.
+            // Try to account for this by seeing if the end of the current call also lines up with
+            // the end of the current statement.
+            let should_wrap_await = if let Some(current_stmt_end) = analysis_data.current_stmt_end {
+                // offset by one to account for statement-closing comma
+                is_sub_expression || (1 + pos.end_offset() as u32) != current_stmt_end
+            } else {
+                is_sub_expression
+            };
 
-                let await_or_join = if context.inside_async {
-                    format!("{}await ", if should_wrap_await { "(" } else { "" },)
-                } else {
-                    "Asio\\join(".into()
-                };
+            let await_or_join = if context.inside_async {
+                format!("{}await ", if should_wrap_await { "(" } else { "" },)
+            } else {
+                "Asio\\join(".into()
+            };
 
-                // Call analysis may run more than once for a given invocation,
-                // such as a variable of base type T that may be assigned subtype T' or T"
-                // in alternate loop branches. Guard against duplicate inserts resulting from this.
-                let await_or_join_insert_offset = pos.start_offset() as u32;
-                let should_insert = match analysis_data.insertions.get(&await_or_join_insert_offset)
-                {
-                    Some(existing_insertions) => !existing_insertions.contains(&await_or_join),
-                    _ => true,
-                };
+            // Call analysis may run more than once for a given invocation,
+            // such as a variable of base type T that may be assigned subtype T' or T"
+            // in alternate loop branches. Guard against duplicate inserts resulting from this.
+            let await_or_join_insert_offset = pos.start_offset() as u32;
+            let should_insert = match analysis_data.insertions.get(&await_or_join_insert_offset) {
+                Some(existing_insertions) => !existing_insertions.contains(&await_or_join),
+                _ => true,
+            };
 
-                if should_insert {
-                    analysis_data.insert_at(await_or_join_insert_offset, await_or_join);
-                }
+            if should_insert {
+                analysis_data.insert_at(await_or_join_insert_offset, await_or_join);
+            }
 
-                // Instance methods may be invoked on an arbitrary left-hand side expression,
-                // e.g. (new FooClass()). Ensure we leave this untouched when converting the method call.
-                if lhs_expr.is_some() {
-                    analysis_data.add_replacement(
-                        (name_pos.start_offset() as u32, name_pos.end_offset() as u32),
-                        Replacement::Substitute(replacement_fn),
-                    );
-                } else {
-                    analysis_data.add_replacement(
-                        (pos.start_offset() as u32, name_pos.end_offset() as u32),
-                        Replacement::Substitute(replacement_fn),
-                    );
-                }
+            // Instance methods may be invoked on an arbitrary left-hand side expression,
+            // e.g. (new FooClass()). Ensure we leave this untouched when converting the method call.
+            if lhs_expr.is_some() {
+                analysis_data.add_replacement(
+                    (name_pos.start_offset() as u32, name_pos.end_offset() as u32),
+                    Replacement::Substitute(replacement_fn),
+                );
+            } else {
+                analysis_data.add_replacement(
+                    (pos.start_offset() as u32, name_pos.end_offset() as u32),
+                    Replacement::Substitute(replacement_fn),
+                );
+            }
 
-                if should_wrap_await || !context.inside_async {
-                    analysis_data.add_replacement(
-                        (pos.end_offset() as u32, pos.end_offset() as u32),
-                        Replacement::Substitute(")".to_string()),
-                    );
-                }
+            if should_wrap_await || !context.inside_async {
+                analysis_data.add_replacement(
+                    (pos.end_offset() as u32, pos.end_offset() as u32),
+                    Replacement::Substitute(")".to_string()),
+                );
             }
         }
     } else {

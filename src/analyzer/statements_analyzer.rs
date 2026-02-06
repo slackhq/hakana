@@ -150,6 +150,25 @@ impl<'a> StatementsAnalyzer<'a> {
     pub fn get_file_path_actual(&self) -> &str {
         &self.file_analyzer.file_source.file_path_actual
     }
+
+    /// Check whether to autofix a given issue.
+    ///
+    /// An autofix should be applied if we're running in fix mode with the given issue type listed for autofixing,
+    /// and the error location isn't covered by a HAKANA_FIXME.
+    pub fn should_autofix(
+        &self,
+        context: &BlockContext,
+        analysis_data: &FunctionAnalysisData,
+        issue: &Issue,
+    ) -> bool {
+        let config = self.get_config();
+        if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+            return !context.function_context.is_production(self.codebase)
+                || analysis_data.get_matching_hakana_fixme(&issue).is_none();
+        }
+
+        false
+    }
 }
 
 impl ScopeAnalyzer for StatementsAnalyzer<'_> {
