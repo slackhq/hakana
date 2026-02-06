@@ -356,22 +356,15 @@ fn concat_non_string(
 
     let config = statements_analyzer.get_config();
 
-    if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
-        // Only replace code that's not already covered by a FIXME
-        if !context
-            .function_context
-            .is_production(statements_analyzer.codebase)
-            || analysis_data.get_matching_hakana_fixme(&issue).is_none()
-        {
-            analysis_data.add_replacement(
-                (pos.start_offset() as u32, pos.start_offset() as u32),
-                Replacement::Substitute("((string)".to_string()),
-            );
-            analysis_data.add_replacement(
-                (pos.end_offset() as u32, pos.end_offset() as u32),
-                Replacement::Substitute(")".to_string()),
-            );
-        }
+    if statements_analyzer.should_autofix(context, analysis_data, &issue) {
+        analysis_data.add_replacement(
+            (pos.start_offset() as u32, pos.start_offset() as u32),
+            Replacement::Substitute("((string)".to_string()),
+        );
+        analysis_data.add_replacement(
+            (pos.end_offset() as u32, pos.end_offset() as u32),
+            Replacement::Substitute(")".to_string()),
+        );
     } else {
         analysis_data.maybe_add_issue(issue, config, statements_analyzer.get_file_path_actual());
     }

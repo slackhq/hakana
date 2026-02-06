@@ -416,19 +416,12 @@ pub(crate) fn emit_class_pointer_used_as_string(
 
     let config = statements_analyzer.get_config();
 
-    if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
-        // Only replace code that's not already covered by a FIXME
-        if !context
-            .function_context
-            .is_production(statements_analyzer.codebase)
-            || analysis_data.get_matching_hakana_fixme(&issue).is_none()
-        {
-            let nameof_expr = format!("nameof {}", class_name);
-            analysis_data.add_replacement(
-                (pos.start_offset() as u32, pos.end_offset() as u32),
-                Replacement::Substitute(nameof_expr),
-            );
-        }
+    if statements_analyzer.should_autofix(context, analysis_data, &issue) {
+        let nameof_expr = format!("nameof {}", class_name);
+        analysis_data.add_replacement(
+            (pos.start_offset() as u32, pos.end_offset() as u32),
+            Replacement::Substitute(nameof_expr),
+        );
     } else {
         analysis_data.maybe_add_issue(issue, config, statements_analyzer.get_file_path_actual());
     }

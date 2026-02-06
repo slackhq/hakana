@@ -155,17 +155,10 @@ pub(crate) fn analyze(
                 &context.function_context.calling_functionlike_id,
             );
 
-            let config = statements_analyzer.get_config();
-            if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
-                if !context
-                    .function_context
-                    .is_production(statements_analyzer.codebase)
-                    || analysis_data.get_matching_hakana_fixme(&issue).is_none()
-                {
-                    let start_offset = (expr.1.pos().start_offset() - 3) as u32;
-                    analysis_data
-                        .add_replacement((start_offset, start_offset + 1), Replacement::Remove);
-                }
+            if statements_analyzer.should_autofix(context, analysis_data, &issue) {
+                let start_offset = (expr.1.pos().start_offset() - 3) as u32;
+                analysis_data
+                    .add_replacement((start_offset, start_offset + 1), Replacement::Remove);
             } else {
                 analysis_data.maybe_add_issue(
                     issue,
