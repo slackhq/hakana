@@ -2017,6 +2017,15 @@ fn parse_codeowners_files(root_dir: &str) -> (Vec<glob::Pattern>, FxHashSet<Stri
     (codeowner_patterns, exact_files)
 }
 
+struct FileLintResult {
+    relative_path: String,
+    error_count: usize,
+    output_lines: Vec<String>,
+    checkpoint_entries: Vec<CheckPointEntry>,
+    linter_times: rustc_hash::FxHashMap<String, std::time::Duration>,
+    was_fixed: bool,
+}
+
 fn do_lint(
     sub_matches: &clap::ArgMatches,
     root_dir: &str,
@@ -2026,7 +2035,6 @@ fn do_lint(
     use hakana_lint::{HhastLintConfig, examples};
     use rustc_hash::FxHashMap;
     use std::path::PathBuf;
-    use std::sync::Mutex;
     use walkdir::WalkDir;
 
     let config_path = sub_matches
@@ -2219,53 +2227,23 @@ fn do_lint(
         return;
     }
 
-    let total_errors = Arc::new(Mutex::new(0usize));
-    let total_files = Arc::new(Mutex::new(0usize));
-    let total_fixed = Arc::new(Mutex::new(0usize));
-    let lint_output = Arc::new(Mutex::new(Vec::new()));
-    let checkpoint_entries = Arc::new(Mutex::new(Vec::new()));
-    let linter_times = Arc::new(Mutex::new(rustc_hash::FxHashMap::<
-        String,
-        std::time::Duration,
-    >::default()));
-
     // Determine number of threads from CLI
-    let threads = if let Some(val) = sub_matches.value_of("threads").map(|f| f.to_string()) {
-        val.parse::<usize>().unwrap_or(8)
-    } else {
-        8
-    };
+    let threads = sub_matches
+        .value_of("threads")
+        .map(|f| f.to_string())
+        .and_then(|val| val.parse::<u8>().ok())
+        .unwrap_or(8);
 
-    let mut group_size = threads;
+    let root_dir_owned = root_dir.to_string();
 
-    if files_to_lint.len() < 4 * group_size {
-        group_size = 1;
-    }
-
-    let mut path_groups: FxHashMap<usize, Vec<PathBuf>> = FxHashMap::default();
-
-    for (i, path) in files_to_lint.into_iter().enumerate() {
-        let group = i % group_size;
-        path_groups.entry(group).or_insert_with(Vec::new).push(path);
-    }
-
-    let mut handles = vec![];
-
-    let root_dir = root_dir.to_string();
-
-    for (_, path_group) in path_groups {
+    // Create the process function
+    let process_fn = {
         let hhast_config = hhast_config.clone();
         let registry = registry.clone();
-        let total_errors = total_errors.clone();
-        let total_files = total_files.clone();
-        let total_fixed = total_fixed.clone();
-        let lint_output = lint_output.clone();
-        let checkpoint_entries = checkpoint_entries.clone();
-        let linter_times = linter_times.clone();
-        let root_dir = root_dir.clone();
         let fixme_linters = fixme_linters.clone();
+        let root_dir = root_dir_owned.clone();
 
-        let handle = std::thread::spawn(move || {
+        move |path: PathBuf| -> FileLintResult {
             let lint_config = hakana_lint::LintConfig {
                 allow_auto_fix: apply_fixes,
                 apply_auto_fix: apply_fixes,
@@ -2276,137 +2254,104 @@ fn do_lint(
                 root_path: Some(PathBuf::from(&root_dir)),
             };
 
-            for path in path_group {
-                let path_str = path.to_string_lossy();
+            let mut result = FileLintResult {
+                relative_path: String::new(),
+                error_count: 0,
+                output_lines: Vec::new(),
+                checkpoint_entries: Vec::new(),
+                linter_times: FxHashMap::default(),
+                was_fixed: false,
+            };
+            let path_str = path.to_string_lossy();
 
-                // Make path relative to root_dir for pattern matching
-                let relative_path = if let Ok(rel) = path.strip_prefix(&root_dir) {
-                    rel.to_string_lossy().to_string()
-                } else {
-                    path_str.to_string()
-                };
+            // Make path relative to root_dir for pattern matching
+            let relative_path = if let Ok(rel) = path.strip_prefix(&root_dir) {
+                rel.to_string_lossy().to_string()
+            } else {
+                path_str.to_string()
+            };
 
-                // Determine which linters to run for this file
-                let mut file_linters: Vec<&dyn hakana_lint::Linter> = Vec::new();
+            result.relative_path = relative_path.clone();
 
-                for linter in registry.all() {
-                    if let Some(hhast_name) = linter.hhast_name() {
-                        if hhast_config.is_linter_enabled(hhast_name, &relative_path) {
-                            file_linters.push(linter.as_ref());
-                        }
-                    } else {
-                        // No HHAST name, run unconditionally
+            // Determine which linters to run for this file
+            let mut file_linters: Vec<&dyn hakana_lint::Linter> = Vec::new();
+
+            for linter in registry.all() {
+                if let Some(hhast_name) = linter.hhast_name() {
+                    if hhast_config.is_linter_enabled(hhast_name, &relative_path) {
                         file_linters.push(linter.as_ref());
                     }
+                } else {
+                    // No HHAST name, run unconditionally
+                    file_linters.push(linter.as_ref());
                 }
+            }
 
-                if file_linters.is_empty() {
-                    continue;
+            if file_linters.is_empty() {
+                return result;
+            }
+
+            // Read file contents
+            let contents = match fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(e) => {
+                    result
+                        .output_lines
+                        .push(format!("Error reading {}: {}", path_str, e));
+                    return result;
                 }
+            };
 
-                // Read file contents
-                let contents = match fs::read_to_string(&path) {
-                    Ok(c) => c,
-                    Err(e) => {
-                        lint_output
-                            .lock()
-                            .unwrap()
-                            .push(format!("Error reading {}: {}", path_str, e));
-                        continue;
+            // Create line break map for efficient offset-to-line conversions
+            let line_break_map = LineBreakMap::new(contents.as_bytes());
+
+            // Run linters
+            match hakana_lint::run_linters(&path, &contents, &file_linters, &lint_config) {
+                Ok(lint_result) => {
+                    // Accumulate linter times
+                    for (linter_name, duration) in &lint_result.linter_times {
+                        *result
+                            .linter_times
+                            .entry(linter_name.clone())
+                            .or_insert(std::time::Duration::ZERO) += *duration;
                     }
-                };
 
-                *total_files.lock().unwrap() += 1;
+                    // Collect errors
+                    if !lint_result.errors.is_empty() {
+                        result.error_count = lint_result.errors.len();
+                        for error in &lint_result.errors {
+                            // Convert offset to line/column
+                            let (line, column) = hakana_lint::offset_to_line_column(
+                                &line_break_map,
+                                error.start_offset,
+                            );
+                            result.output_lines.push(format!(
+                                "{}:{}:{}: {} - {}",
+                                relative_path, line, column, error.severity, error.message
+                            ));
 
-                // Create line break map for efficient offset-to-line conversions
-                let line_break_map = LineBreakMap::new(contents.as_bytes());
-
-                // Run linters
-                match hakana_lint::run_linters(&path, &contents, &file_linters, &lint_config) {
-                    Ok(result) => {
-                        // Accumulate linter times
-                        let mut times = linter_times.lock().unwrap();
-                        for (linter_name, duration) in &result.linter_times {
-                            *times
-                                .entry(linter_name.clone())
-                                .or_insert(std::time::Duration::ZERO) += *duration;
+                            // Add to checkpoint entries
+                            result.checkpoint_entries.push(CheckPointEntry {
+                                case: error.linter_name.to_string(),
+                                level: CheckPointEntryLevel::Failure,
+                                filename: relative_path.clone(),
+                                line: line as u32,
+                                output: error.message.clone(),
+                            });
                         }
+                    }
 
-                        // Collect errors
-                        if !result.errors.is_empty() {
-                            *total_errors.lock().unwrap() += result.errors.len();
-                            for error in &result.errors {
-                                // Convert offset to line/column
-                                let (line, column) = hakana_lint::offset_to_line_column(
-                                    &line_break_map,
-                                    error.start_offset,
-                                );
-                                lint_output.lock().unwrap().push(format!(
-                                    "{}:{}:{}: {} - {}",
-                                    relative_path, line, column, error.severity, error.message
-                                ));
+                    // Apply fixes or add fixmes if requested and available
+                    if apply_fixes || add_fixmes {
+                        let mut file_ops_applied = false;
 
-                                // Add to checkpoint entries
-                                checkpoint_entries.lock().unwrap().push(CheckPointEntry {
-                                    case: error.linter_name.to_string(),
-                                    level: CheckPointEntryLevel::Failure,
-                                    filename: relative_path.clone(),
-                                    line: line as u32,
-                                    output: error.message.clone(),
-                                });
-                            }
-                        }
-
-                        // Apply fixes or add fixmes if requested and available
-                        if apply_fixes || add_fixmes {
-                            let mut file_ops_applied = false;
-
-                            // Apply file operations (create/delete files)
-                            if !result.file_operations.is_empty() {
-                                for file_op in &result.file_operations {
-                                    match &file_op.op_type {
-                                        hakana_lint::FileOpType::Create => {
-                                            if let Some(ref content) = file_op.content {
-                                                // Resolve relative paths relative to the source file's directory
-                                                let target_path = if file_op.path.is_absolute() {
-                                                    file_op.path.clone()
-                                                } else if let Some(parent) = path.parent() {
-                                                    parent.join(&file_op.path)
-                                                } else {
-                                                    file_op.path.clone()
-                                                };
-
-                                                // Create parent directories if they don't exist
-                                                if let Some(parent_dir) = target_path.parent() {
-                                                    if let Err(e) = fs::create_dir_all(parent_dir) {
-                                                        lint_output.lock().unwrap().push(format!(
-                                                            "Error creating directory {}: {}",
-                                                            parent_dir.display(),
-                                                            e
-                                                        ));
-                                                        continue;
-                                                    }
-                                                }
-
-                                                match fs::write(&target_path, content) {
-                                                    Ok(_) => {
-                                                        lint_output.lock().unwrap().push(format!(
-                                                            "Created: {}",
-                                                            target_path.display()
-                                                        ));
-                                                        file_ops_applied = true;
-                                                    }
-                                                    Err(e) => {
-                                                        lint_output.lock().unwrap().push(format!(
-                                                            "Error creating {}: {}",
-                                                            target_path.display(),
-                                                            e
-                                                        ));
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        hakana_lint::FileOpType::Delete => {
+                        // Apply file operations (create/delete files)
+                        if !lint_result.file_operations.is_empty() {
+                            for file_op in &lint_result.file_operations {
+                                match &file_op.op_type {
+                                    hakana_lint::FileOpType::Create => {
+                                        if let Some(ref content) = file_op.content {
+                                            // Resolve relative paths relative to the source file's directory
                                             let target_path = if file_op.path.is_absolute() {
                                                 file_op.path.clone()
                                             } else if let Some(parent) = path.parent() {
@@ -2415,17 +2360,29 @@ fn do_lint(
                                                 file_op.path.clone()
                                             };
 
-                                            match fs::remove_file(&target_path) {
+                                            // Create parent directories if they don't exist
+                                            if let Some(parent_dir) = target_path.parent() {
+                                                if let Err(e) = fs::create_dir_all(parent_dir) {
+                                                    result.output_lines.push(format!(
+                                                        "Error creating directory {}: {}",
+                                                        parent_dir.display(),
+                                                        e
+                                                    ));
+                                                    continue;
+                                                }
+                                            }
+
+                                            match fs::write(&target_path, content) {
                                                 Ok(_) => {
-                                                    lint_output.lock().unwrap().push(format!(
-                                                        "Deleted: {}",
+                                                    result.output_lines.push(format!(
+                                                        "Created: {}",
                                                         target_path.display()
                                                     ));
                                                     file_ops_applied = true;
                                                 }
                                                 Err(e) => {
-                                                    lint_output.lock().unwrap().push(format!(
-                                                        "Error deleting {}: {}",
+                                                    result.output_lines.push(format!(
+                                                        "Error creating {}: {}",
                                                         target_path.display(),
                                                         e
                                                     ));
@@ -2433,69 +2390,116 @@ fn do_lint(
                                             }
                                         }
                                     }
-                                }
-                            }
-
-                            // Apply text edits to the source file
-                            if let Some(fixed_source) = result.modified_source {
-                                match fs::write(&path, fixed_source) {
-                                    Ok(_) => {
-                                        *total_fixed.lock().unwrap() += 1;
-                                        if add_fixmes {
-                                            lint_output
-                                                .lock()
-                                                .unwrap()
-                                                .push(format!("Added fixmes: {}", relative_path));
+                                    hakana_lint::FileOpType::Delete => {
+                                        let target_path = if file_op.path.is_absolute() {
+                                            file_op.path.clone()
+                                        } else if let Some(parent) = path.parent() {
+                                            parent.join(&file_op.path)
                                         } else {
-                                            lint_output
-                                                .lock()
-                                                .unwrap()
-                                                .push(format!("Fixed: {}", relative_path));
+                                            file_op.path.clone()
+                                        };
+
+                                        match fs::remove_file(&target_path) {
+                                            Ok(_) => {
+                                                result.output_lines.push(format!(
+                                                    "Deleted: {}",
+                                                    target_path.display()
+                                                ));
+                                                file_ops_applied = true;
+                                            }
+                                            Err(e) => {
+                                                result.output_lines.push(format!(
+                                                    "Error deleting {}: {}",
+                                                    target_path.display(),
+                                                    e
+                                                ));
+                                            }
                                         }
                                     }
-                                    Err(e) => {
-                                        lint_output.lock().unwrap().push(format!(
-                                            "Error writing {} to {}: {}",
-                                            if add_fixmes { "fixmes" } else { "fixes" },
-                                            path_str,
-                                            e
-                                        ));
-                                    }
                                 }
-                            } else if file_ops_applied {
-                                // If we only did file operations, count that as a fix
-                                *total_fixed.lock().unwrap() += 1;
                             }
                         }
-                    }
-                    Err(e) => {
-                        lint_output
-                            .lock()
-                            .unwrap()
-                            .push(format!("Error linting {}: {}", path_str, e));
+
+                        // Apply text edits to the source file
+                        if let Some(fixed_source) = lint_result.modified_source {
+                            match fs::write(&path, fixed_source) {
+                                Ok(_) => {
+                                    result.was_fixed = true;
+                                    if add_fixmes {
+                                        result
+                                            .output_lines
+                                            .push(format!("Added fixmes: {}", relative_path));
+                                    } else {
+                                        result
+                                            .output_lines
+                                            .push(format!("Fixed: {}", relative_path));
+                                    }
+                                }
+                                Err(e) => {
+                                    result.output_lines.push(format!(
+                                        "Error writing {} to {}: {}",
+                                        if add_fixmes { "fixmes" } else { "fixes" },
+                                        path_str,
+                                        e
+                                    ));
+                                }
+                            }
+                        } else if file_ops_applied {
+                            // If we only did file operations, count that as a fix
+                            result.was_fixed = true;
+                        }
                     }
                 }
+                Err(e) => {
+                    result
+                        .output_lines
+                        .push(format!("Error linting {}: {}", path_str, e));
+                }
             }
-        });
 
-        handles.push(handle);
-    }
+            result
+        }
+    };
 
-    // Wait for all threads to complete
-    for handle in handles {
-        handle.join().unwrap();
+    let logger = Arc::new(Logger::DevNull);
+    let results =
+        hakana_executor::parallel_execute(files_to_lint, threads, logger, process_fn, None, None);
+
+    // Aggregate results
+    let mut all_output = Vec::new();
+    let mut all_checkpoint_entries = Vec::new();
+    let mut aggregated_linter_times = FxHashMap::<String, std::time::Duration>::default();
+    let mut final_errors = 0usize;
+    let mut final_files = 0usize;
+    let mut final_fixed = 0usize;
+
+    for file_result in results {
+        // Skip files that had no linters to run
+        if file_result.relative_path.is_empty() && file_result.error_count == 0 {
+            continue;
+        }
+
+        final_files += 1;
+        final_errors += file_result.error_count;
+        if file_result.was_fixed {
+            final_fixed += 1;
+        }
+
+        all_output.extend(file_result.output_lines);
+        all_checkpoint_entries.extend(file_result.checkpoint_entries);
+
+        for (linter_name, duration) in file_result.linter_times {
+            *aggregated_linter_times
+                .entry(linter_name)
+                .or_insert(std::time::Duration::ZERO) += duration;
+        }
     }
 
     // Print all output (sorted alphabetically)
-    let mut output = lint_output.lock().unwrap().clone();
-    output.sort();
-    for line in output.iter() {
+    all_output.sort();
+    for line in &all_output {
         println!("{}", line);
     }
-
-    let final_errors = *total_errors.lock().unwrap();
-    let final_files = *total_files.lock().unwrap();
-    let final_fixed = *total_fixed.lock().unwrap();
 
     if final_errors > 0 {
         *had_error = true;
@@ -2519,35 +2523,31 @@ fn do_lint(
     }
 
     // Print linter timing statistics (only if --debug-timings is passed)
-    if debug_timings {
-        let times = linter_times.lock().unwrap();
-        if !times.is_empty() {
-            println!("\nLinter timing statistics:");
-            let mut sorted_times: Vec<_> = times.iter().collect();
-            sorted_times.sort_by(|a, b| b.1.cmp(a.1)); // Sort by duration, descending
+    if debug_timings && !aggregated_linter_times.is_empty() {
+        println!("\nLinter timing statistics:");
+        let mut sorted_times: Vec<_> = aggregated_linter_times.iter().collect();
+        sorted_times.sort_by(|a, b| b.1.cmp(a.1)); // Sort by duration, descending
 
-            let total_time: std::time::Duration = times.values().sum();
+        let total_time: std::time::Duration = aggregated_linter_times.values().sum();
 
-            for (linter_name, duration) in sorted_times {
-                let secs = duration.as_secs_f64();
-                let percentage = if total_time.as_secs_f64() > 0.0 {
-                    (secs / total_time.as_secs_f64()) * 100.0
-                } else {
-                    0.0
-                };
-                println!(
-                    "  {:<50} {:>8.3}s ({:>5.1}%)",
-                    linter_name, secs, percentage
-                );
-            }
-            println!("  {:<50} {:>8.3}s", "Total", total_time.as_secs_f64());
+        for (linter_name, duration) in sorted_times {
+            let secs = duration.as_secs_f64();
+            let percentage = if total_time.as_secs_f64() > 0.0 {
+                (secs / total_time.as_secs_f64()) * 100.0
+            } else {
+                0.0
+            };
+            println!(
+                "  {:<50} {:>8.3}s ({:>5.1}%)",
+                linter_name, secs, percentage
+            );
         }
+        println!("  {:<50} {:>8.3}s", "Total", total_time.as_secs_f64());
     }
 
     // Write checkpoint results if output file is specified
     if let Some(output_path) = sub_matches.value_of("output") {
-        let entries = checkpoint_entries.lock().unwrap();
-        let json = serde_json::to_string_pretty(&*entries).unwrap();
+        let json = serde_json::to_string_pretty(&all_checkpoint_entries).unwrap();
         let mut output_file = fs::File::create(Path::new(output_path)).unwrap();
         write!(output_file, "{}", json).unwrap();
     }

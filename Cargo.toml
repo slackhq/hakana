@@ -46,6 +46,7 @@ members = [
     "src/logger",
     "src/js_interop",
     "src/executable_code_finder",
+    "src/executor",
     "src/protocol",
     "src/server",
     "src/mcp_server",
