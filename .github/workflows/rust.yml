@@ -1,0 +1,39 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+    paths: ['src/**', 'tests/**', 'third-party/**', 'Cargo.toml', 'build.rs', 'init.sh', '.github/workflows/rust.yml']
+  pull_request:
+    branches: [ "main" ]
+    paths: ['src/**', 'tests/**', 'third-party/**', 'Cargo.toml', 'build.rs', 'init.sh', '.github/workflows/rust.yml']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: 'true'
+
+    # Step to install OCaml compiler and dependencies
+    - name: Install OCaml
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ocaml opam
+        opam init --disable-sandboxing -y
+        eval $(opam env)
+    
+    - name: Init repository
+      run: ./init.sh
+    - name: Build & Run tests
+      run: |
+        cargo run --release --bin hakana test tests
+
+        # run Rust unit tests
+        cargo test --release --workspace
