@@ -11,6 +11,7 @@ use crate::{
         node::DataFlowNodeId,
     },
     edit::Edit,
+    function_complexity::FunctionComplexity,
     function_context::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
@@ -71,6 +72,7 @@ pub struct AnalysisResult {
     pub has_invalid_hack_files: bool,
     pub changed_during_analysis_files: FxHashSet<FilePath>,
     pub definition_locations: FxHashMap<FilePath, FxHashMap<(u32, u32), (StrId, StrId)>>,
+    pub cyclomatic_complexity: Vec<FunctionComplexity>,
 }
 
 impl AnalysisResult {
@@ -93,6 +95,7 @@ impl AnalysisResult {
             has_invalid_hack_files: false,
             changed_during_analysis_files: FxHashSet::default(),
             definition_locations: FxHashMap::default(),
+            cyclomatic_complexity: vec![],
         }
     }
 
@@ -127,6 +130,9 @@ impl AnalysisResult {
                 .or_default()
                 .extend(symbol_locations);
         }
+
+        self.cyclomatic_complexity
+            .extend(other.cyclomatic_complexity);
     }
 
     pub fn get_all_issues(

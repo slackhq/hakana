@@ -6,13 +6,13 @@ use crate::dataflow::unused_variable_analyzer::{
 };
 use crate::expr::call_analyzer::reconcile_lower_bounds_with_upper_bounds;
 use crate::expr::fetch::atomic_property_fetch_analyzer;
-use crate::expression_analyzer;
 use crate::file_analyzer::InternalError;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::stmt_analyzer::AnalysisError;
+use crate::{cyclomatic_complexity_analyzer, expression_analyzer};
 use crate::{file_analyzer::FileAnalyzer, function_analysis_data::FunctionAnalysisData};
 use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_code_info::classlike_info::ClassLikeInfo;
@@ -1070,6 +1070,15 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 functionlike_storage.ignore_taint_path,
             );
         }
+
+        cyclomatic_complexity_analyzer::analyze(
+            self.get_config(),
+            self.interner,
+            functionlike_id,
+            functionlike_storage,
+            fb_ast,
+            analysis_result,
+        );
 
         Ok((inferred_return_type, effects))
     }
