@@ -2,14 +2,13 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::Path;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicU32;
 use std::time::Instant;
 
 use super::HhiAsset;
 use super::HslAsset;
-use super::update_progressbar;
 use crate::SuccessfulScanData;
 use crate::ast_differ;
 use crate::cache::get_file_manifest;
@@ -33,8 +32,6 @@ use hakana_logger::Logger;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use hakana_str::ThreadedInterner;
-use indicatif::ProgressBar;
-use indicatif::ProgressStyle;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
@@ -47,6 +44,13 @@ pub struct ScanFilesResult {
     pub codebase_diff: CodebaseDiff,
     pub files_to_analyze: Vec<String>,
     pub invalid_files: FxHashSet<FilePath>,
+}
+
+struct FileScanResult {
+    codebase: CodebaseInfo,
+    file_path: FilePath,
+    resolved_names: Option<FxHashMap<u32, StrId>>,
+    is_invalid: bool,
 }
 
 pub fn scan_files(
@@ -262,138 +266,97 @@ pub fn scan_files(
     if !files_to_scan.is_empty() {
         let file_scanning_now = Instant::now();
 
-        // Set total files to scan if external counter provided
-        if let Some(ref total_counter) = total_files_to_scan {
-            total_counter.store(files_to_scan.len() as u32, Ordering::Relaxed);
-        }
+        // Convert file references to owned FilePaths
+        let file_paths: Vec<FilePath> = files_to_scan.into_iter().map(|fp| *fp).collect();
 
-        let bar = if logger.show_progress() {
-            let pb = ProgressBar::new(files_to_scan.len() as u64);
-            let sty =
-                ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
-            pb.set_style(sty);
-            Some(Arc::new(pb))
-        } else {
-            None
-        };
+        let analyze_map: FxHashSet<String> = files_to_analyze.clone().into_iter().collect();
 
-        // Use external counter if provided, otherwise create internal one for progress bar
-        let internal_counter = Arc::new(AtomicU32::new(0));
-        let files_scanned_counter = files_scanned.clone().unwrap_or_else(|| internal_counter.clone());
-
-        let mut group_size = threads as usize;
-
-        let mut path_groups = FxHashMap::default();
-
-        if files_to_scan.len() < 4 * group_size {
-            group_size = 1;
-        }
-
-        for (i, str_path) in files_to_scan.into_iter().enumerate() {
-            let group = i % group_size;
-            path_groups
-                .entry(group)
-                .or_insert_with(Vec::new)
-                .push(str_path);
-        }
-
-        let mut handles = vec![];
-
-        let thread_codebases = Arc::new(Mutex::new(vec![]));
-
-        for (_, path_group) in path_groups {
-            let pgc = path_group.iter().map(|c| *(*c)).collect::<Vec<_>>();
-
-            let codebases = thread_codebases.clone();
-
-            let bar = bar.clone();
-            let files_scanned_counter = files_scanned_counter.clone();
-
-            let analyze_map = files_to_analyze
-                .clone()
-                .into_iter()
-                .collect::<FxHashSet<_>>();
-
+        // Create the process function
+        let process_fn = {
             let interner = interner.clone();
-
-            let resolved_names = resolved_names.clone();
-
             let config = config.clone();
             let logger = logger.clone();
-            let invalid_files = invalid_files.clone();
 
-            let handle = std::thread::spawn(move || {
+            move |file_path: FilePath| -> FileScanResult {
                 let mut new_codebase = CodebaseInfo::new();
-                let mut new_interner = ThreadedInterner::new(interner);
+                let mut new_interner = ThreadedInterner::new(interner.clone());
                 let empty_name_context = NameContext::new(&mut new_interner);
-                let mut local_resolved_names = FxHashMap::default();
 
-                for file_path in &pgc {
-                    let str_path = new_interner
-                        .parent
-                        .lock()
-                        .unwrap()
-                        .lookup(&file_path.0)
-                        .to_string();
+                let str_path = new_interner
+                    .parent
+                    .lock()
+                    .unwrap()
+                    .lookup(&file_path.0)
+                    .to_string();
 
-                    match scan_file(
-                        &str_path,
-                        *file_path,
-                        &config.all_custom_issues,
-                        &mut new_codebase,
-                        &mut new_interner,
-                        empty_name_context.clone(),
-                        analyze_map.contains(&str_path),
-                        !config.test_files.iter().any(|p| p.matches(&str_path)),
-                        &logger.clone(),
-                    ) {
-                        Ok(scanner_result) => {
-                            local_resolved_names.insert(*file_path, scanner_result);
+                match scan_file(
+                    &str_path,
+                    file_path,
+                    &config.all_custom_issues,
+                    &mut new_codebase,
+                    &mut new_interner,
+                    empty_name_context.clone(),
+                    analyze_map.contains(&str_path),
+                    !config.test_files.iter().any(|p| p.matches(&str_path)),
+                    &logger,
+                ) {
+                    Ok(scanner_result) => FileScanResult {
+                        codebase: new_codebase,
+                        file_path,
+                        resolved_names: Some(scanner_result),
+                        is_invalid: false,
+                    },
+                    Err(parser_error) => {
+                        new_codebase.files.insert(
+                            file_path,
+                            FileInfo {
+                                parser_errors: vec![parser_error],
+                                ..FileInfo::default()
+                            },
+                        );
+                        FileScanResult {
+                            codebase: new_codebase,
+                            file_path,
+                            resolved_names: None,
+                            is_invalid: true,
                         }
-                        Err(parser_error) => {
-                            local_resolved_names.remove(file_path);
-                            new_codebase.files.insert(
-                                *file_path,
-                                FileInfo {
-                                    parser_errors: vec![parser_error],
-                                    ..FileInfo::default()
-                                },
-                            );
-                            invalid_files.lock().unwrap().push(*file_path);
-                        }
-                    };
-
-                    let tally = files_scanned_counter.fetch_add(1, Ordering::Relaxed) + 1;
-
-                    update_progressbar(tally as u64, bar.clone());
+                    }
                 }
+            }
+        };
 
-                resolved_names.lock().unwrap().extend(local_resolved_names);
+        // Execute in parallel
+        let results = hakana_executor::parallel_execute(
+            file_paths,
+            threads,
+            logger.clone(),
+            process_fn,
+            files_scanned,
+            total_files_to_scan,
+        );
 
-                let mut codebases = codebases.lock().unwrap();
-                codebases.push(new_codebase);
-            });
+        // Aggregate results
+        let mut local_resolved_names = FxHashMap::default();
+        let mut local_invalid_files = vec![];
 
-            handles.push(handle);
-        }
+        for result in results {
+            if config.ast_diff {
+                codebase_diff.extend(get_diff(&existing_changed_files, &result.codebase.files));
+            }
 
-        for handle in handles {
-            handle.join().unwrap();
-        }
+            codebase.extend(result.codebase);
 
-        if let Ok(thread_codebases) = Arc::try_unwrap(thread_codebases) {
-            for thread_codebase in thread_codebases.into_inner().unwrap().into_iter() {
-                if config.ast_diff {
-                    codebase_diff.extend(get_diff(&existing_changed_files, &thread_codebase.files));
-                }
+            if let Some(names) = result.resolved_names {
+                local_resolved_names.insert(result.file_path, names);
+            }
 
-                codebase.extend(thread_codebase);
+            if result.is_invalid {
+                local_invalid_files.push(result.file_path);
             }
         }
 
-        if let Some(bar) = &bar {
-            bar.finish_and_clear();
-        }
+        resolved_names.lock().unwrap().extend(local_resolved_names);
+        invalid_files.lock().unwrap().extend(local_invalid_files);
 
         let file_scanning_elapsed = file_scanning_now.elapsed();
 

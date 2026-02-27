@@ -1,0 +1,12 @@
+[package]
+name = "hakana-executor"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+hakana-logger = { version = "0.1.0", path = "../logger" }
+indicatif = "0.17.0-rc.11"
+rustc-hash = "1.1.0"

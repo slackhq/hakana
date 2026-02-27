@@ -7,6 +7,7 @@ edition = "2024"
 hakana-orchestrator = { path = "../orchestrator" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
+hakana-executor = { path = "../executor" }
 hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
 hakana-language-server = { path = "../language_server" }

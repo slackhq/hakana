@@ -15,7 +15,6 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_logger::Logger;
 use hakana_str::{Interner, StrId};
-use indicatif::ProgressBar;
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
 use populator::populate_codebase;
@@ -790,12 +789,6 @@ pub fn get_aast_for_path(
     };
 
     get_aast_for_path_and_contents(file_path, file_path_str, file_contents)
-}
-
-fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
-    if let Some(bar) = bar {
-        bar.set_position(percentage);
-    }
 }
 
 fn add_invalid_files(scan_data: &SuccessfulScanData, analysis_result: &mut AnalysisResult) {
