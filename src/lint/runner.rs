@@ -443,7 +443,13 @@ pub fn run_linters(
     let root_path = config.root_path.as_deref().unwrap_or(&cwd);
 
     // Create lint context
-    let ctx = LintContext::new(&source_text, &root, file_path, root_path, config.allow_auto_fix);
+    let ctx = LintContext::new(
+        &source_text,
+        &root,
+        file_path,
+        root_path,
+        config.allow_auto_fix,
+    );
 
     // Create line break map for efficient offset-to-line conversions
     let line_break_map = LineBreakMap::new(file_contents.as_bytes());

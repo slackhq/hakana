@@ -67,18 +67,16 @@ pub(crate) fn analyze(
         }) => {
             vec![*classlike_name]
         }
-        TAtomic::TObjectIntersection { types } => {
-            types
-                .iter()
-                .filter_map(|t| {
-                    if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
-                        Some(*name)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        }
+        TAtomic::TObjectIntersection { types } => types
+            .iter()
+            .filter_map(|t| {
+                if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
+                    Some(*name)
+                } else {
+                    None
+                }
+            })
+            .collect(),
         _ => vec![],
     };
 

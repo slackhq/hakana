@@ -1,7 +1,6 @@
 pub mod aliases;
 pub mod analysis_result;
 pub mod assertion;
-pub mod edit;
 pub mod ast;
 pub mod ast_signature;
 pub mod attribute_info;
@@ -12,6 +11,7 @@ pub mod code_location;
 pub mod codebase_info;
 pub mod data_flow;
 pub mod diff;
+pub mod edit;
 pub mod enum_case_info;
 pub mod file_info;
 pub mod function_context;
@@ -37,7 +37,7 @@ use std::collections::BTreeMap;
 
 use code_location::{FilePath, HPos};
 use hakana_str::{Interner, StrId};
-use oxidized::{prim_defs::Comment, pos::Pos};
+use oxidized::{pos::Pos, prim_defs::Comment};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]

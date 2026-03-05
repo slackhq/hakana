@@ -1,8 +1,12 @@
 use std::rc::Rc;
 
 use hakana_code_info::{
-    ExprId, VarId, ast::get_id_name, codebase_info::CodebaseInfo,
-    functionlike_identifier::FunctionLikeIdentifier, t_atomic::{TAtomic, TNamedObject}, t_union::TUnion,
+    ExprId, VarId,
+    ast::get_id_name,
+    codebase_info::CodebaseInfo,
+    functionlike_identifier::FunctionLikeIdentifier,
+    t_atomic::{TAtomic, TNamedObject},
+    t_union::TUnion,
 };
 use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};

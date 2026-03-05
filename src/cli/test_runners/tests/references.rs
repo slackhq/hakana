@@ -5,9 +5,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::test_runners::integration_test::{IntegrationTest, TestContext, TestResult};
-use crate::test_runners::utils::{
-    augment_with_local_config, default_config_for_test, format_diff,
-};
+use crate::test_runners::utils::{augment_with_local_config, default_config_for_test, format_diff};
 
 /// Validates symbol-reference results for `tests/references/` directories.
 ///

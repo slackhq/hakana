@@ -1,7 +1,7 @@
 //! MCP tool definitions.
 
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// A tool definition for MCP
 #[derive(Debug, Serialize)]
@@ -20,7 +20,8 @@ impl Tool {
             description: "Find all usages of a symbol in the codebase. \
                 Supports functions, classes, methods, properties, constants, \
                 class constants, and type aliases. Returns file path, line, column \
-                for each usage.".to_string(),
+                for each usage."
+                .to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
@@ -48,7 +49,8 @@ impl Tool {
             description: "Go to the definition of a symbol at a specific location in a file. \
                 Given a file path, line, and column, returns the location where the symbol \
                 at that position is defined. Useful for navigating from usages to definitions \
-                of functions, classes, methods, properties, and other symbols.".to_string(),
+                of functions, classes, methods, properties, and other symbols."
+                .to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {

@@ -188,20 +188,14 @@ pub fn default_config_for_test(dir: &str, hooks_provider: &dyn HooksProvider) ->
         analysis_config.in_migration = true;
     }
 
-    if dir.contains("/goto-definition/")
-        || dir.contains("/references/")
-        || dir.contains("/diff/")
-    {
+    if dir.contains("/goto-definition/") || dir.contains("/references/") || dir.contains("/diff/") {
         analysis_config.collect_goto_definition_locations = true;
     }
 
     analysis_config
 }
 
-pub fn compare_issues_to_expected(
-    dir: &str,
-    test_output: &[String],
-) -> (bool, Option<String>) {
+pub fn compare_issues_to_expected(dir: &str, test_output: &[String]) -> (bool, Option<String>) {
     let expected_output_path = dir.to_string() + "/output.txt";
     let expected_output = if Path::new(&expected_output_path).exists() {
         let expected = fs::read_to_string(expected_output_path)

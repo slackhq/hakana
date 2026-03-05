@@ -6,9 +6,7 @@ use std::fs;
 use std::sync::Arc;
 
 use crate::test_runners::integration_test::{IntegrationTest, TestContext, TestResult};
-use crate::test_runners::utils::{
-    augment_with_local_config, default_config_for_test, format_diff,
-};
+use crate::test_runners::utils::{augment_with_local_config, default_config_for_test, format_diff};
 
 /// Handles code-transformation tests under `tests/fix/`, `tests/migrations/`,
 /// `tests/add-fixmes/`, and `tests/remove-unused-fixmes/`.

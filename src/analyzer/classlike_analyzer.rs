@@ -290,11 +290,15 @@ impl<'a> ClassLikeAnalyzer<'a> {
         }
 
         // Add goto-definition entries for property and constant types
-        if statements_analyzer.get_config().collect_goto_definition_locations {
+        if statements_analyzer
+            .get_config()
+            .collect_goto_definition_locations
+        {
             // Property types
             for (property_name, property_info) in &classlike_storage.properties {
                 // Only track properties defined in this class
-                if property_info.pos.map(|p| p.file_path) == Some(*statements_analyzer.get_file_path())
+                if property_info.pos.map(|p| p.file_path)
+                    == Some(*statements_analyzer.get_file_path())
                 {
                     add_symbol_references_with_location(
                         &property_info.type_,

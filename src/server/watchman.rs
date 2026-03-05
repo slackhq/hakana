@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::mpsc;
 use std::thread;
-use watchman_client::prelude::*;
 use watchman_client::SubscriptionData;
+use watchman_client::prelude::*;
 
 /// Events sent from the watchman thread.
 #[derive(Debug)]
@@ -73,12 +73,15 @@ pub fn get_clock(root_dir: &Path) -> io::Result<ClockSpec> {
             )
         })?;
 
-        watchman.clock(&resolved, SyncTimeout::Default).await.map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("Failed to get watchman clock: {}", e),
-            )
-        })
+        watchman
+            .clock(&resolved, SyncTimeout::Default)
+            .await
+            .map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("Failed to get watchman clock: {}", e),
+                )
+            })
     })
 }
 
@@ -125,7 +128,9 @@ pub fn start_subscription(
             .expect("Failed to build tokio runtime");
 
         rt.block_on(async move {
-            if let Err(e) = run_subscription(root_dir, tx, ignore_files, since_clock, config_path).await {
+            if let Err(e) =
+                run_subscription(root_dir, tx, ignore_files, since_clock, config_path).await
+            {
                 eprintln!("Watchman subscription error: {}", e);
             }
         });
@@ -304,7 +309,11 @@ async fn run_subscription(
 ///     ...
 ///   ]]
 /// ]
-fn build_expression(ignore_files: &[String], project_root: &Path, config_path: Option<&PathBuf>) -> Expr {
+fn build_expression(
+    ignore_files: &[String],
+    project_root: &Path,
+    config_path: Option<&PathBuf>,
+) -> Expr {
     let project_root_str = project_root.to_string_lossy();
 
     // Build list of exclusions

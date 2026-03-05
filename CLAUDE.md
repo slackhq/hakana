@@ -10,6 +10,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `cd third-party/hhvm && git apply ../../hhvm-patch.diff && cd ../../` - Apply HHVM patches for WASM compilation
 - Binary is created at `./target/release/hakana-default`
 
+### Formatting
+- `cargo fmt` - Run before committing
+
 ### Testing
 - `cargo run --release --bin=hakana test --reuse-codebase tests` - Run all tests (recommended)
 - `cargo run --bin hakana test <path-to-test-dir>` - Run individual test directory

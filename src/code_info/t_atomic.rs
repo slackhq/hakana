@@ -855,9 +855,7 @@ impl TAtomic {
             TAtomic::TStringWithFlags(..) => "string".to_string(),
 
             TAtomic::TNamedObject(TNamedObject {
-                name,
-                type_params,
-                ..
+                name, type_params, ..
             }) => match type_params {
                 None => name.0.to_string(),
                 Some(type_params) => {
@@ -944,9 +942,7 @@ impl TAtomic {
                 str
             }
             TAtomic::TPlaceholder => "_".to_string(),
-            TAtomic::TObjectIntersection { types } => {
-                types.iter().map(|t| t.get_key()).join("&")
-            }
+            TAtomic::TObjectIntersection { types } => types.iter().map(|t| t.get_key()).join("&"),
         }
     }
 
@@ -1506,9 +1502,7 @@ impl TAtomic {
 
     pub fn get_intersection_types(&self) -> (Vec<&TAtomic>, Vec<TAtomic>) {
         match self {
-            TAtomic::TObjectIntersection { types } => {
-                (types.iter().collect(), vec![])
-            }
+            TAtomic::TObjectIntersection { types } => (types.iter().collect(), vec![]),
             _ => {
                 if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = self {
                     for as_atomic in &as_type.types {
@@ -1871,9 +1865,7 @@ impl HasTypeNodes for TAtomic {
             | TAtomic::TTypename { as_type } => {
                 vec![TypeNode::Atomic(as_type)]
             }
-            TAtomic::TObjectIntersection { types } => {
-                types.iter().map(TypeNode::Atomic).collect()
-            }
+            TAtomic::TObjectIntersection { types } => types.iter().map(TypeNode::Atomic).collect(),
             _ => vec![],
         }
     }

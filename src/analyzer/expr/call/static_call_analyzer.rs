@@ -133,7 +133,8 @@ pub(crate) fn analyze(
                             }
                             TAtomic::TGenericClassname { as_type, .. }
                             | TAtomic::TGenericClassPtr { as_type, .. } => {
-                                if let TAtomic::TNamedObject(TNamedObject { name, .. }) = &**as_type {
+                                if let TAtomic::TNamedObject(TNamedObject { name, .. }) = &**as_type
+                                {
                                     classlike_name = Some(*name);
                                 }
                             }

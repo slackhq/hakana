@@ -789,18 +789,17 @@ fn handle_template_param_standin<'a>(
     opts: StandinOpts,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
-    let (param_name, defining_entity, as_type) =
-        if let TAtomic::TGenericParam(TGenericParam {
-            param_name,
-            defining_entity,
-            as_type,
-            ..
-        }) = atomic_type
-        {
-            (param_name, defining_entity, as_type)
-        } else {
-            panic!()
-        };
+    let (param_name, defining_entity, as_type) = if let TAtomic::TGenericParam(TGenericParam {
+        param_name,
+        defining_entity,
+        as_type,
+        ..
+    }) = atomic_type
+    {
+        (param_name, defining_entity, as_type)
+    } else {
+        panic!()
+    };
 
     if let Some(calling_class) = opts.calling_class {
         if defining_entity == &GenericParent::ClassLike(calling_class) {

@@ -98,11 +98,7 @@ impl ServerState {
     }
 
     /// Update scan data and analysis result.
-    pub fn update_state(
-        &mut self,
-        scan_data: SuccessfulScanData,
-        analysis_result: AnalysisResult,
-    ) {
+    pub fn update_state(&mut self, scan_data: SuccessfulScanData, analysis_result: AnalysisResult) {
         self.total_files = scan_data.codebase.files.len() as u32;
         self.files_analyzed = self.total_files;
         self.scan_data = Some(scan_data);
@@ -122,8 +118,7 @@ impl ServerState {
         self.scan_data
             .as_ref()
             .map(|d| {
-                d.codebase.classlike_infos.len() as u32
-                    + d.codebase.functionlike_infos.len() as u32
+                d.codebase.classlike_infos.len() as u32 + d.codebase.functionlike_infos.len() as u32
             })
             .unwrap_or(0)
     }

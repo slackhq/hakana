@@ -667,34 +667,48 @@ fn expand_atomic(
         // Collect class names to check - either a single class or all classes in an intersection
         // If class_type is `this` (StrId::THIS), try to resolve it first via static_class_type
         let classes_to_check: Vec<&StrId> = match class_type.as_ref() {
-            TAtomic::TNamedObject(TNamedObject { name, is_this: true, .. }) if *name == StrId::THIS => {
+            TAtomic::TNamedObject(TNamedObject {
+                name,
+                is_this: true,
+                ..
+            }) if *name == StrId::THIS => {
                 // When we have `this::TypeConstant`, resolve `this` to the static class type
                 if let StaticClassType::Name(static_name) = &options.static_class_type {
                     vec![static_name]
-                } else if let StaticClassType::Object(TAtomic::TNamedObject(TNamedObject { name: static_name, .. })) = &options.static_class_type {
+                } else if let StaticClassType::Object(TAtomic::TNamedObject(TNamedObject {
+                    name: static_name,
+                    ..
+                })) = &options.static_class_type
+                {
                     vec![static_name]
-                } else if let StaticClassType::Object(TAtomic::TObjectIntersection { types }) = &options.static_class_type {
-                    types.iter().filter_map(|t| {
-                        if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
-                            Some(name)
-                        } else {
-                            None
-                        }
-                    }).collect()
+                } else if let StaticClassType::Object(TAtomic::TObjectIntersection { types }) =
+                    &options.static_class_type
+                {
+                    types
+                        .iter()
+                        .filter_map(|t| {
+                            if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
+                                Some(name)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect()
                 } else {
                     vec![name]
                 }
             }
             TAtomic::TNamedObject(TNamedObject { name, .. }) => vec![name],
-            TAtomic::TObjectIntersection { types } => {
-                types.iter().filter_map(|t| {
+            TAtomic::TObjectIntersection { types } => types
+                .iter()
+                .filter_map(|t| {
                     if let TAtomic::TNamedObject(TNamedObject { name, .. }) = t {
                         Some(name)
                     } else {
                         None
                     }
-                }).collect()
-            }
+                })
+                .collect(),
             _ => {
                 *skip_key = true;
                 new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
@@ -705,15 +719,13 @@ fn expand_atomic(
         // Track if we have is_this on any of the class types
         let is_this = match class_type.as_ref() {
             TAtomic::TNamedObject(TNamedObject { is_this, .. }) => *is_this,
-            TAtomic::TObjectIntersection { types } => {
-                types.iter().any(|t| {
-                    if let TAtomic::TNamedObject(TNamedObject { is_this, .. }) = t {
-                        *is_this
-                    } else {
-                        false
-                    }
-                })
-            }
+            TAtomic::TObjectIntersection { types } => types.iter().any(|t| {
+                if let TAtomic::TNamedObject(TNamedObject { is_this, .. }) = t {
+                    *is_this
+                } else {
+                    false
+                }
+            }),
             _ => false,
         };
 
@@ -756,7 +768,9 @@ fn expand_atomic(
             // Intersect all resolved types
             let mut result = resolved_types.remove(0);
             for other_type in resolved_types {
-                if let Some(intersected) = intersect_union_types_simple(&result, &other_type, codebase) {
+                if let Some(intersected) =
+                    intersect_union_types_simple(&result, &other_type, codebase)
+                {
                     result = intersected;
                 }
                 // If intersection is empty/nothing, keep the last result
