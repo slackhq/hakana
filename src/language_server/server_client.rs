@@ -15,9 +15,8 @@ use std::thread;
 use std::time::Duration;
 
 use hakana_protocol::{
-    ClientSocket, FileChange, GetIssuesRequest, GetIssuesResponse,
-    GotoDefinitionRequest, GotoDefinitionResponse, Message, ShutdownRequest,
-    SocketPath, StatusRequest, StatusResponse,
+    ClientSocket, FileChange, GetIssuesRequest, GetIssuesResponse, GotoDefinitionRequest,
+    GotoDefinitionResponse, Message, ShutdownRequest, SocketPath, StatusRequest, StatusResponse,
 };
 use rustc_hash::FxHashMap;
 
@@ -60,10 +59,7 @@ impl ServerConnection {
 
     /// Connect to an existing server or spawn a new one.
     /// This is a blocking operation.
-    pub fn connect_or_spawn(
-        project_root: &Path,
-        hakana_binary: Option<&str>,
-    ) -> io::Result<Self> {
+    pub fn connect_or_spawn(project_root: &Path, hakana_binary: Option<&str>) -> io::Result<Self> {
         let socket_path = SocketPath::for_project(project_root);
 
         // Try to connect to existing server
@@ -107,13 +103,15 @@ impl ServerConnection {
         self.server_process = None;
 
         // Spawn a new server
-        let mut server_process = Self::spawn_server(
-            &self.project_root,
-            self.hakana_binary.as_deref(),
-        )?;
+        let mut server_process =
+            Self::spawn_server(&self.project_root, self.hakana_binary.as_deref())?;
 
         // Wait for it to be ready (also checks if process died during startup)
-        Self::wait_for_server(&self.socket_path, &mut server_process, Duration::from_secs(120))?;
+        Self::wait_for_server(
+            &self.socket_path,
+            &mut server_process,
+            Duration::from_secs(120),
+        )?;
 
         self.server_process = Some(server_process);
 
@@ -123,10 +121,7 @@ impl ServerConnection {
     }
 
     /// Spawn a new hakana server process.
-    fn spawn_server(
-        project_root: &Path,
-        hakana_binary: Option<&str>,
-    ) -> io::Result<Child> {
+    fn spawn_server(project_root: &Path, hakana_binary: Option<&str>) -> io::Result<Child> {
         // Find the hakana binary
         let binary = if let Some(bin) = hakana_binary {
             PathBuf::from(bin)
@@ -134,7 +129,11 @@ impl ServerConnection {
             Self::find_hakana_binary()?
         };
 
-        eprintln!("Spawning hakana server: {} server --root {}", binary.display(), project_root.display());
+        eprintln!(
+            "Spawning hakana server: {} server --root {}",
+            binary.display(),
+            project_root.display()
+        );
 
         // Create a log file for server output so we can see errors
         let log_path = std::env::temp_dir().join("hakana-server.log");
@@ -161,7 +160,11 @@ impl ServerConnection {
             .map_err(|e| {
                 io::Error::new(
                     e.kind(),
-                    format!("Failed to spawn hakana server (binary: {}): {}", binary.display(), e),
+                    format!(
+                        "Failed to spawn hakana server (binary: {}): {}",
+                        binary.display(),
+                        e
+                    ),
                 )
             })?;
 
@@ -221,7 +224,11 @@ impl ServerConnection {
                     eprintln!("Server log contents:\n{}", log_contents);
                     return Err(io::Error::new(
                         io::ErrorKind::Other,
-                        format!("Server process exited during startup with status: {}. Check {} for details.", status, log_path.display()),
+                        format!(
+                            "Server process exited during startup with status: {}. Check {} for details.",
+                            status,
+                            log_path.display()
+                        ),
                     ));
                 }
                 Ok(None) => {
@@ -426,11 +433,8 @@ mod tests {
         thread::sleep(Duration::from_millis(100));
 
         // wait_for_server should detect the process died
-        let result = ServerConnection::wait_for_server(
-            &socket_path,
-            &mut child,
-            Duration::from_secs(1),
-        );
+        let result =
+            ServerConnection::wait_for_server(&socket_path, &mut child, Duration::from_secs(1));
 
         assert!(result.is_err(), "Should return error when process dies");
         let err = result.unwrap_err();
@@ -457,11 +461,8 @@ mod tests {
             .expect("Failed to spawn test process");
 
         // wait_for_server should timeout since no socket is created
-        let result = ServerConnection::wait_for_server(
-            &socket_path,
-            &mut child,
-            Duration::from_millis(200),
-        );
+        let result =
+            ServerConnection::wait_for_server(&socket_path, &mut child, Duration::from_millis(200));
 
         // Clean up the sleep process
         let _ = child.kill();
@@ -498,8 +499,7 @@ mod tests {
 
         // Create a minimal hakana.json
         let config_path = temp_dir.path().join("hakana.json");
-        fs::write(&config_path, r#"{"ignore_files": []}"#)
-            .expect("Failed to write config");
+        fs::write(&config_path, r#"{"ignore_files": []}"#).expect("Failed to write config");
 
         // Connect or spawn should work
         let mut conn = ServerConnection::connect_or_spawn(temp_dir.path(), None)

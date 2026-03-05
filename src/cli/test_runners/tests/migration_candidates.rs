@@ -72,8 +72,7 @@ impl IntegrationTest for MigrationCandidatesTest {
         let mut migration_candidates = vec![];
         for config_hook in &config.hooks {
             let hook: &dyn CustomHook = &**config_hook;
-            for candidate in
-                hook.get_candidates(&result.1.codebase, &result.1.interner, &result.0)
+            for candidate in hook.get_candidates(&result.1.codebase, &result.1.interner, &result.0)
             {
                 migration_candidates.push(candidate);
             }

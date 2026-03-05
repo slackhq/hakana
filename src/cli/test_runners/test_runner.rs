@@ -51,8 +51,7 @@ impl TestRunner {
             if candidate_test_folders.len() > 1 && !test_or_test_dir.ends_with("/diff") {
                 let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
                 let stub_path = format!("{}/tests/stubs/stubs.hack", cwd);
-                let (codebase, interner, file_system) =
-                    get_single_file_codebase(vec![&stub_path]);
+                let (codebase, interner, file_system) = get_single_file_codebase(vec![&stub_path]);
 
                 Some(SuccessfulScanData {
                     codebase,
@@ -98,8 +97,7 @@ impl TestRunner {
                     .or_else(|| starter_data.clone())
                     .filter(|_| !needs_fresh_codebase);
 
-                let previous_analysis_result =
-                    last_analysis_result.filter(|_| reuse_codebase);
+                let previous_analysis_result = last_analysis_result.filter(|_| reuse_codebase);
 
                 let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 

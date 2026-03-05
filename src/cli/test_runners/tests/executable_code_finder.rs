@@ -20,13 +20,7 @@ impl IntegrationTest for ExecutableCodeFinderTest {
 
         let config = Arc::new(analysis_config);
 
-        match executable_finder::scan_files(
-            &vec![ctx.dir.clone()],
-            None,
-            &config,
-            1,
-            ctx.logger,
-        ) {
+        match executable_finder::scan_files(&vec![ctx.dir.clone()], None, &config, 1, ctx.logger) {
             Ok(test_output) => {
                 let expected_output_path = ctx.dir.clone() + "/output.txt";
                 let expected_output = if Path::new(&expected_output_path).exists() {
@@ -45,8 +39,7 @@ impl IntegrationTest for ExecutableCodeFinderTest {
                     } else {
                         let expected_output_str =
                             serde_json::to_string_pretty(&expected_output).unwrap();
-                        let test_output_str =
-                            serde_json::to_string_pretty(&test_output).unwrap();
+                        let test_output_str = serde_json::to_string_pretty(&test_output).unwrap();
                         TestResult::fail(
                             ctx.dir,
                             format_diff(&expected_output_str, &test_output_str),

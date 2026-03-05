@@ -74,7 +74,11 @@ pub fn get_references_by_symbol(
 
     // Sort locations within each symbol by file then offset
     for locations in references_by_symbol.values_mut() {
-        locations.sort_by(|a, b| a.file.cmp(&b.file).then(a.start_offset.cmp(&b.start_offset)));
+        locations.sort_by(|a, b| {
+            a.file
+                .cmp(&b.file)
+                .then(a.start_offset.cmp(&b.start_offset))
+        });
     }
 
     references_by_symbol

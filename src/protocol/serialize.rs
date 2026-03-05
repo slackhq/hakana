@@ -652,7 +652,13 @@ impl Deserialize for FindSymbolReferencesResponse {
             references.push(loc);
             rest = r;
         }
-        Ok((Self { symbol_found, references }, rest))
+        Ok((
+            Self {
+                symbol_found,
+                references,
+            },
+            rest,
+        ))
     }
 }
 

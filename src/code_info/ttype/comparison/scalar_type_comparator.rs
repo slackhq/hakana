@@ -1,5 +1,9 @@
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
-use crate::{code_location::FilePath, codebase_info::CodebaseInfo, t_atomic::{TAtomic, TNamedObject}};
+use crate::{
+    code_location::FilePath,
+    codebase_info::CodebaseInfo,
+    t_atomic::{TAtomic, TNamedObject},
+};
 
 pub fn is_contained_by(
     codebase: &CodebaseInfo,

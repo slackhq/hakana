@@ -86,7 +86,7 @@ pub fn replace(
                                 as_type: Box::new(TAtomic::TObject),
                             });
                         } else if let TAtomic::TNamedObject(TNamedObject { .. })
-                            | TAtomic::TObjectIntersection { .. } = template_type_part
+                        | TAtomic::TObjectIntersection { .. } = template_type_part
                         {
                             class_template_type = Some(TAtomic::TClassname {
                                 as_type: Box::new(template_type_part.clone()),
@@ -232,14 +232,15 @@ fn replace_template_param(
                         classlike_info.template_extended_params.get(classlike_name)
                     {
                         if let Some(param_inner) = param_map.get(key) {
-                            let template_name =
-                                if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) =
-                                    param_inner.get_single()
-                                {
-                                    param_name
-                                } else {
-                                    panic!()
-                                };
+                            let template_name = if let TAtomic::TGenericParam(TGenericParam {
+                                param_name,
+                                ..
+                            }) = param_inner.get_single()
+                            {
+                                param_name
+                            } else {
+                                panic!()
+                            };
                             if let Some(bounds_map) = inferred_lower_bounds.get(template_name) {
                                 if let Some(bounds) = bounds_map.get(map_defining_entity) {
                                     template_type = Some(

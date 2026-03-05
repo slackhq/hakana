@@ -1166,7 +1166,9 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TString { .. } => "string".to_string(),
-        TAtomic::TGenericParam(TGenericParam { param_name, .. }) => interner.lookup(param_name).to_string(),
+        TAtomic::TGenericParam(TGenericParam { param_name, .. }) => {
+            interner.lookup(param_name).to_string()
+        }
         TAtomic::TGenericClassname {
             param_name,
             defining_entity,

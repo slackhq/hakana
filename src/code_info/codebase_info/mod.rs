@@ -541,7 +541,10 @@ impl CodebaseInfo {
 
         let is_duplicate = self.classlike_infos.contains_key(&name);
 
-        let defs = self.classlike_infos_defs.entry(name).or_insert_with(Vec::new);
+        let defs = self
+            .classlike_infos_defs
+            .entry(name)
+            .or_insert_with(Vec::new);
         // Only add if this file_path isn't already tracked
         if !defs.contains(&file_path) {
             defs.push(file_path);
@@ -566,7 +569,10 @@ impl CodebaseInfo {
         // Only track top-level functions (where second part is StrId::EMPTY)
         if key.1 == StrId::EMPTY {
             let file_path = info.def_location.file_path;
-            let defs = self.functionlike_infos_defs.entry(key).or_insert_with(Vec::new);
+            let defs = self
+                .functionlike_infos_defs
+                .entry(key)
+                .or_insert_with(Vec::new);
             // Only add if this file_path isn't already tracked
             if !defs.contains(&file_path) {
                 defs.push(file_path);
@@ -584,7 +590,10 @@ impl CodebaseInfo {
     /// Insert a type definition, tracking the definition location for duplicate detection.
     pub fn insert_type_definition(&mut self, name: StrId, info: TypeDefinitionInfo) -> bool {
         let file_path = info.location.file_path;
-        let defs = self.type_definitions_defs.entry(name).or_insert_with(Vec::new);
+        let defs = self
+            .type_definitions_defs
+            .entry(name)
+            .or_insert_with(Vec::new);
         // Only add if this file_path isn't already tracked
         if !defs.contains(&file_path) {
             defs.push(file_path);
@@ -602,7 +611,10 @@ impl CodebaseInfo {
     /// Insert a constant info, tracking the definition location for duplicate detection.
     pub fn insert_constant_info(&mut self, name: StrId, info: ConstantInfo) -> bool {
         let file_path = info.pos.file_path;
-        let defs = self.constant_infos_defs.entry(name).or_insert_with(Vec::new);
+        let defs = self
+            .constant_infos_defs
+            .entry(name)
+            .or_insert_with(Vec::new);
         // Only add if this file_path isn't already tracked
         if !defs.contains(&file_path) {
             defs.push(file_path);

@@ -2,10 +2,13 @@ use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_logger::Logger;
 use hakana_orchestrator::SuccessfulScanData;
 
+use super::test_runner::HooksProvider;
+use crate::test_runners::tests::{
+    CodeTransformTest, DiffTest, ExecutableCodeFinderTest, GotoDefinitionTest, LinterTest,
+    MigrationCandidatesTest, ReferencesTest, SkippedTest, StandardAnalysisTest,
+};
 use std::sync::Arc;
 use std::time::Duration;
-use crate::test_runners::tests::{CodeTransformTest, DiffTest, ExecutableCodeFinderTest, GotoDefinitionTest, LinterTest, MigrationCandidatesTest, ReferencesTest, SkippedTest, StandardAnalysisTest};
-use super::test_runner::HooksProvider;
 
 /// Shared context passed to every [`IntegrationTest`] implementation.
 pub struct TestContext<'a> {

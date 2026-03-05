@@ -136,10 +136,8 @@ impl IntegrationTest for LinterTest {
                 match hakana_lint::run_linters(&in_path, &input_contents, &linters, &config) {
                     Ok(r) => r,
                     Err(e) => {
-                        errors_output.push_str(&format!(
-                            "\n=== {} ===\nLinter error: {}\n",
-                            test_name, e
-                        ));
+                        errors_output
+                            .push_str(&format!("\n=== {} ===\nLinter error: {}\n", test_name, e));
                         all_passed = false;
                         continue;
                     }

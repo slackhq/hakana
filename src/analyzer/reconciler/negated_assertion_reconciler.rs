@@ -285,7 +285,13 @@ fn subtract_complex_type(
                 *can_be_disjunct = true;
                 acceptable_types.push(existing_atomic);
             }
-            (TAtomic::TObjectIntersection { types }, TAtomic::TNamedObject(TNamedObject { name: assertion_name, .. })) => {
+            (
+                TAtomic::TObjectIntersection { types },
+                TAtomic::TNamedObject(TNamedObject {
+                    name: assertion_name,
+                    ..
+                }),
+            ) => {
                 let codebase = statements_analyzer.codebase;
 
                 // Check if the assertion type could be an instance of the intersection

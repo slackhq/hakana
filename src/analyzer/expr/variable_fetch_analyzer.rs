@@ -15,7 +15,7 @@ use hakana_code_info::{
     issue::{Issue, IssueKind},
     t_union::TUnion,
 };
-use oxidized::{ast_defs::Pos, ast::Lid};
+use oxidized::{ast::Lid, ast_defs::Pos};
 use std::rc::Rc;
 
 pub(crate) fn analyze(

@@ -2,7 +2,7 @@
 //!
 //! This module provides the CLI parsing and entry point for running the MCP server.
 
-use clap::{arg, Command};
+use clap::{Command, arg};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_mcp_server::run_mcp_server;
 use std::env;
@@ -36,11 +36,7 @@ pub fn parse_args() -> McpConfig {
         )
         .get_matches();
 
-    let cwd = env::current_dir()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
     let root_dir = matches
         .get_one::<String>("root")
@@ -65,17 +61,11 @@ pub fn parse_args() -> McpConfig {
 }
 
 /// Run the MCP server with the given plugins and header.
-pub fn run(
-    plugins: Vec<Box<dyn CustomHook>>,
-    header: String,
-) {
+pub fn run(plugins: Vec<Box<dyn CustomHook>>, header: String) {
     let config = parse_args();
 
     // Convert hooks to Arc for reuse
-    let plugins: Vec<Arc<dyn CustomHook>> = plugins
-        .into_iter()
-        .map(Arc::from)
-        .collect();
+    let plugins: Vec<Arc<dyn CustomHook>> = plugins.into_iter().map(Arc::from).collect();
 
     if let Err(e) = run_mcp_server(
         config.root_dir,

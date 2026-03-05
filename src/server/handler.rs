@@ -1,18 +1,17 @@
 //! Request handlers for the hakana server.
 
-use hakana_protocol::{
-    AckResponse, AnalyzeRequest, AnalyzeResponse, ErrorCode, ErrorResponse, FileChange,
-    FindReferencesRequest, FindReferencesResponse, FindSymbolReferencesRequest,
-    FindSymbolReferencesResponse, GotoDefinitionRequest, GotoDefinitionResponse,
-    Message, ProtocolIssue, ReferenceLocation, SecurityCheckRequest, SecurityCheckResponse,
-    StatusResponse,
-};
 use crate::{ServerConfig, ServerState};
 use hakana_analyzer::config::Config;
 use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_logger::Logger;
 use hakana_orchestrator::file::FileStatus;
 use hakana_protocol::FileChangeStatus;
+use hakana_protocol::{
+    AckResponse, AnalyzeRequest, AnalyzeResponse, ErrorCode, ErrorResponse, FileChange,
+    FindReferencesRequest, FindReferencesResponse, FindSymbolReferencesRequest,
+    FindSymbolReferencesResponse, GotoDefinitionRequest, GotoDefinitionResponse, Message,
+    ProtocolIssue, ReferenceLocation, SecurityCheckRequest, SecurityCheckResponse, StatusResponse,
+};
 use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::path::Path;
@@ -72,9 +71,10 @@ impl<'a> RequestHandler<'a> {
         if let Some(allowed) = req.allowed_issues {
             let mut issue_filter = FxHashSet::default();
             for issue_name in allowed {
-                if let Ok(issue_kind) =
-                    hakana_code_info::issue::IssueKind::from_str_custom(&issue_name, &FxHashSet::default())
-                {
+                if let Ok(issue_kind) = hakana_code_info::issue::IssueKind::from_str_custom(
+                    &issue_name,
+                    &FxHashSet::default(),
+                ) {
                     issue_filter.insert(issue_kind);
                 }
             }
@@ -88,7 +88,8 @@ impl<'a> RequestHandler<'a> {
         if let Some(config_path) = &self.config.config_path {
             let path = Path::new(config_path);
             if path.exists() {
-                let _ = analysis_config.update_from_file(&self.config.root_dir, path, &mut interner);
+                let _ =
+                    analysis_config.update_from_file(&self.config.root_dir, path, &mut interner);
             }
         }
 
@@ -101,12 +102,8 @@ impl<'a> RequestHandler<'a> {
             let mut changes = FxHashMap::default();
             for change in req.file_changes {
                 let status = match change.status {
-                    FileChangeStatus::Added => {
-                        FileStatus::Added(0, 0)
-                    }
-                    FileChangeStatus::Modified => {
-                        FileStatus::Modified(0, 0)
-                    }
+                    FileChangeStatus::Added => FileStatus::Added(0, 0),
+                    FileChangeStatus::Modified => FileStatus::Modified(0, 0),
                     FileChangeStatus::Deleted => FileStatus::Deleted,
                 };
                 changes.insert(change.path, status);
@@ -156,10 +153,8 @@ impl<'a> RequestHandler<'a> {
                 let mut files_with_issues = FxHashSet::default();
 
                 for (file_path, file_issues) in &analysis_result.emitted_issues {
-                    let file_path_str = file_path.get_relative_path(
-                        &scan_data.interner,
-                        &self.config.root_dir,
-                    );
+                    let file_path_str =
+                        file_path.get_relative_path(&scan_data.interner, &self.config.root_dir);
                     files_with_issues.insert(file_path_str.clone());
 
                     for issue in file_issues {
@@ -222,7 +217,8 @@ impl<'a> RequestHandler<'a> {
         if let Some(config_path) = &self.config.config_path {
             let path = Path::new(config_path);
             if path.exists() {
-                let _ = analysis_config.update_from_file(&self.config.root_dir, path, &mut interner);
+                let _ =
+                    analysis_config.update_from_file(&self.config.root_dir, path, &mut interner);
             }
         }
 
@@ -251,10 +247,8 @@ impl<'a> RequestHandler<'a> {
                 let mut taint_flows = 0u32;
 
                 for (file_path, file_issues) in &analysis_result.emitted_issues {
-                    let file_path_str = file_path.get_relative_path(
-                        &scan_data.interner,
-                        &self.config.root_dir,
-                    );
+                    let file_path_str =
+                        file_path.get_relative_path(&scan_data.interner, &self.config.root_dir);
 
                     for issue in file_issues {
                         // In taint analysis mode, all issues are security-related
@@ -279,22 +273,20 @@ impl<'a> RequestHandler<'a> {
 
     /// Handle a goto-definition request.
     pub fn handle_goto_definition(self, req: GotoDefinitionRequest) -> Message {
-        let (scan_data, analysis_result) = match (
-            self.state.scan_data(),
-            self.state.analysis_result(),
-        ) {
-            (Some(sd), Some(ar)) => (sd, ar),
-            _ => {
-                return Message::GotoDefinitionResult(GotoDefinitionResponse {
-                    found: false,
-                    file_path: None,
-                    start_line: None,
-                    start_column: None,
-                    end_line: None,
-                    end_column: None,
-                });
-            }
-        };
+        let (scan_data, analysis_result) =
+            match (self.state.scan_data(), self.state.analysis_result()) {
+                (Some(sd), Some(ar)) => (sd, ar),
+                _ => {
+                    return Message::GotoDefinitionResult(GotoDefinitionResponse {
+                        found: false,
+                        file_path: None,
+                        start_line: None,
+                        start_column: None,
+                        end_line: None,
+                        end_column: None,
+                    });
+                }
+            };
 
         // Build the full file path
         let full_path = format!("{}/{}", self.config.root_dir, req.file_path);
@@ -335,12 +327,14 @@ impl<'a> RequestHandler<'a> {
         let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
 
         // Look up in definition_locations
-        if let Some(definition_locations) = analysis_result.definition_locations.get(&file_path_obj) {
+        if let Some(definition_locations) = analysis_result.definition_locations.get(&file_path_obj)
+        {
             // Find the most specific (narrowest) matching range
             let mut best_match = None;
             let mut best_range_size = u32::MAX;
 
-            for ((start_offset, end_offset), (classlike_name, member_name)) in definition_locations {
+            for ((start_offset, end_offset), (classlike_name, member_name)) in definition_locations
+            {
                 if (offset as u32) >= *start_offset && (offset as u32) <= *end_offset {
                     let range_size = end_offset - start_offset;
                     if range_size < best_range_size {
@@ -351,7 +345,10 @@ impl<'a> RequestHandler<'a> {
             }
 
             if let Some((classlike_name, member_name)) = best_match {
-                if let Some(pos) = scan_data.codebase.get_symbol_pos(classlike_name, member_name) {
+                if let Some(pos) = scan_data
+                    .codebase
+                    .get_symbol_pos(classlike_name, member_name)
+                {
                     let def_file_path = scan_data.interner.lookup(&pos.file_path.0);
                     return Message::GotoDefinitionResult(GotoDefinitionResponse {
                         found: true,
@@ -391,18 +388,16 @@ impl<'a> RequestHandler<'a> {
         use hakana_code_info::symbol_references_utils::get_references_for_symbol;
 
         // Check if analysis is ready
-        let (scan_data, analysis_result) = match (
-            self.state.scan_data(),
-            self.state.analysis_result(),
-        ) {
-            (Some(sd), Some(ar)) => (sd, ar),
-            _ => {
-                return Message::FindSymbolReferencesResult(FindSymbolReferencesResponse {
-                    symbol_found: false,
-                    references: Vec::new(),
-                });
-            }
-        };
+        let (scan_data, analysis_result) =
+            match (self.state.scan_data(), self.state.analysis_result()) {
+                (Some(sd), Some(ar)) => (sd, ar),
+                _ => {
+                    return Message::FindSymbolReferencesResult(FindSymbolReferencesResponse {
+                        symbol_found: false,
+                        references: Vec::new(),
+                    });
+                }
+            };
 
         let interner = &scan_data.interner;
         let symbol_name = &req.symbol_name;
@@ -458,12 +453,10 @@ impl<'a> RequestHandler<'a> {
                     references: locations,
                 })
             }
-            None => {
-                Message::FindSymbolReferencesResult(FindSymbolReferencesResponse {
-                    symbol_found: false,
-                    references: Vec::new(),
-                })
-            }
+            None => Message::FindSymbolReferencesResult(FindSymbolReferencesResponse {
+                symbol_found: false,
+                references: Vec::new(),
+            }),
         }
     }
 

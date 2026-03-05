@@ -277,7 +277,9 @@ pub(crate) fn reconcile_keyed_types(
                 } else {
                     let narrowed_symbol = if type_changed {
                         if result_type.is_single() {
-                            if let TAtomic::TNamedObject(TNamedObject { name, .. }) = result_type.get_single() {
+                            if let TAtomic::TNamedObject(TNamedObject { name, .. }) =
+                                result_type.get_single()
+                            {
                                 Some(name)
                             } else {
                                 None
@@ -778,7 +780,9 @@ fn get_value_for_key(
                 atomic_types.reverse();
 
                 while let Some(mut existing_key_type_part) = atomic_types.pop() {
-                    if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = existing_key_type_part {
+                    if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) =
+                        existing_key_type_part
+                    {
                         atomic_types.extend(as_type.types.clone());
                         continue;
                     }
@@ -964,7 +968,9 @@ fn get_value_for_key(
                 let mut atomic_types = base_type.types.clone();
 
                 while let Some(existing_key_type_part) = atomic_types.pop() {
-                    if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = existing_key_type_part {
+                    if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) =
+                        existing_key_type_part
+                    {
                         atomic_types.extend(as_type.types.clone());
                         continue;
                     }
