@@ -241,6 +241,17 @@ impl VirtualFileSystem {
                         }
                     }
 
+                    // Optimization: Only scan files matching the allowlist during cyclomatic complexity analysis.
+                    if config.analyze_cyclomatic_complexity
+                        && !config.cyclomatic_complexity_file_patterns.is_empty()
+                        && !config
+                            .cyclomatic_complexity_file_patterns
+                            .iter()
+                            .any(|pattern| pattern.matches(&str_path))
+                    {
+                        return;
+                    }
+
                     let interned_file_path = FilePath(interner.intern(str_path.clone()));
 
                     let updated_time = metadata

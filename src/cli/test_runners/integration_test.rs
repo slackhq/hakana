@@ -4,8 +4,9 @@ use hakana_orchestrator::SuccessfulScanData;
 
 use super::test_runner::HooksProvider;
 use crate::test_runners::tests::{
-    CodeTransformTest, DiffTest, ExecutableCodeFinderTest, GotoDefinitionTest, LinterTest,
-    MigrationCandidatesTest, ReferencesTest, SkippedTest, StandardAnalysisTest,
+    CodeTransformTest, CyclomaticComplexityTest, DiffTest, ExecutableCodeFinderTest,
+    GotoDefinitionTest, LinterTest, MigrationCandidatesTest, ReferencesTest, SkippedTest,
+    StandardAnalysisTest,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -105,6 +106,9 @@ pub(crate) fn select_test_type(dir: &str) -> Box<dyn IntegrationTest> {
     }
     if dir.contains("/executable-code-finder/") {
         return Box::new(ExecutableCodeFinderTest);
+    }
+    if dir.contains("/cyclomatic-complexity/") {
+        return Box::new(CyclomaticComplexityTest);
     }
     if dir.contains("/migrations/")
         || dir.contains("/fix/")

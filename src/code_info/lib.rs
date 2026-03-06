@@ -14,6 +14,7 @@ pub mod diff;
 pub mod edit;
 pub mod enum_case_info;
 pub mod file_info;
+pub mod function_complexity;
 pub mod function_context;
 pub mod functionlike_identifier;
 pub mod functionlike_info;
