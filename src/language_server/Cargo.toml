@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 hakana-orchestrator = { path = "../orchestrator" }
 hakana-analyzer = { path = "../analyzer" }
-hakana-logger = { path = "../logger" }
 hakana-str = { path = "../str" }
 hakana-code-info = { path = "../code_info" }
 hakana-protocol = { path = "../protocol" }
