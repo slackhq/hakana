@@ -25,7 +25,7 @@ jobs:
     - name: Install OCaml
       run: |
         sudo apt-get update
-        sudo apt-get install -y ocaml opam
+        sudo apt-get install -y ocaml opam watchman
         opam init --disable-sandboxing -y
         eval $(opam env)
     
