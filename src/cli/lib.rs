@@ -6,6 +6,7 @@ use hakana_code_info::analysis_result::{
 };
 use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::issue::IssueKind;
+use hakana_language_server::server_client::ServerConnection;
 use hakana_logger::{Logger, Verbosity};
 use hakana_str::Interner;
 use indexmap::IndexMap;
@@ -1526,42 +1527,21 @@ fn do_analysis(
     let with_server = sub_matches.is_present("with-server");
 
     // Determine if we should use server mode
-    let socket_path = SocketPath::for_project(Path::new(root_dir));
+    let project_root = Path::new(root_dir);
+    let socket_path = SocketPath::for_project(project_root);
     let use_server = if standalone {
         false
     } else if with_server {
         // --with-server: spawn server if not running
         if !socket_path.server_exists() {
-            if let Err(e) = spawn_server_for_analysis(root_dir, threads, &logger) {
-                println!(
-                    "Failed to spawn server: {}. Falling back to standalone analysis.",
-                    e
-                );
-                false
-            } else {
-                // Wait for server socket to appear
-                println!("Spawning hakana server...");
-                let start = std::time::Instant::now();
-                let timeout = Duration::from_secs(300); // 5 minutes for initial analysis
-                loop {
-                    if socket_path.server_exists() {
-                        print!("\r\x1b[K");
-                        break true;
-                    }
-                    if start.elapsed() > timeout {
-                        print!("\r\x1b[K");
-                        println!(
-                            "Timed out waiting for server to start. Falling back to standalone analysis."
-                        );
-                        break false;
-                    }
-                    // Show waiting indicator
-                    let elapsed = start.elapsed().as_secs();
-                    print!("\rWaiting for server to start... {}s", elapsed);
-                    io::stdout().flush().ok();
-                    std::thread::sleep(Duration::from_millis(100));
-                }
-            }
+            ServerConnection::connect_or_spawn(project_root, None)
+                .inspect_err(|e| {
+                    println!(
+                        "Failed to spawn server: {}. Falling back to standalone analysis.",
+                        e
+                    )
+                })
+                .is_ok()
         } else {
             true
         }
@@ -2647,44 +2627,4 @@ fn do_server(
             exit(1);
         }
     }
-}
-
-/// Spawn a server in the background for use with `hakana analyze --with-server`.
-/// Returns Ok(()) if the server was spawned successfully.
-fn spawn_server_for_analysis(root_dir: &str, threads: u8, logger: &Logger) -> Result<(), String> {
-    use std::process::{Command, Stdio};
-
-    // Find the current executable (hakana binary)
-    let current_exe = std::env::current_exe()
-        .map_err(|e| format!("Could not determine current executable: {}", e))?;
-
-    let config_path = format!("{}/hakana.json", root_dir);
-
-    logger.log_sync(&format!(
-        "Spawning server: {} server --root {}",
-        current_exe.display(),
-        root_dir
-    ));
-
-    // Spawn the server as a background process
-    // Redirect all output to null - the server runs silently in the background
-    let child = Command::new(&current_exe)
-        .arg("server")
-        .arg("--root")
-        .arg(root_dir)
-        .arg("--config")
-        .arg(&config_path)
-        .arg("--threads")
-        .arg(threads.to_string())
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn server: {}", e))?;
-
-    // Don't wait for the child - let it run in the background
-    // The child handle will be dropped but the process continues
-    std::mem::forget(child);
-
-    Ok(())
 }

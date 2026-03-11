@@ -125,7 +125,6 @@ fn find_hakana_binary() -> Result<PathBuf, String> {
 }
 
 #[test]
-#[ignore] // Run with: cargo test --test integration_test -- --ignored
 fn test_server_client_status() {
     // Use a test directory with some Hack files
     let test_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -169,7 +168,6 @@ fn test_server_client_status() {
 }
 
 #[test]
-#[ignore] // Run with: cargo test --test integration_test -- --ignored
 fn test_server_client_get_issues() {
     // Use a test directory with some Hack files
     let test_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -221,7 +219,6 @@ fn test_server_client_get_issues() {
 }
 
 #[test]
-#[ignore] // Run with: cargo test --test integration_test -- --ignored
 fn test_cli_client_connects_to_server() {
     // Use a test directory with some Hack files
     let test_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
