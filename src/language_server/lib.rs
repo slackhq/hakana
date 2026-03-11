@@ -802,20 +802,20 @@ pub async fn serve_with_plugins<Reader, Writer>(
         }
     };
 
-    // Try to connect to an existing hakana server (don't spawn one)
-    // If a server is running, use it for analysis. Otherwise fall back to local analysis.
-    let server_connection = match server_client::ServerConnection::try_connect(&cwd_path) {
-        Some(conn) => {
+    // Try to connect to an existing hakana server and use it for analysis. or start one.
+    // Fall back to local analysis if we can't start the server.
+    let server_connection = match server_client::ServerConnection::connect_or_spawn(&cwd_path, None) {
+        Ok(conn) => {
             stderr
                 .write_all_buf(&mut Cursor::new(b"Connected to hakana server\n"))
                 .await
                 .ok();
             Some(Mutex::new(conn))
         }
-        None => {
+        Err(e) => {
             stderr
                 .write_all_buf(&mut Cursor::new(
-                    b"No hakana server running. Using local analysis.\n",
+                    format!("Error starting hakana server: {} . Using local analysis.\n", e),
                 ))
                 .await
                 .ok();
