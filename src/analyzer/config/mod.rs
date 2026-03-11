@@ -38,6 +38,9 @@ pub struct Config {
     pub ast_diff: bool,
     pub max_changes_allowed: usize,
     pub collect_goto_definition_locations: bool,
+    pub analyze_cyclomatic_complexity: bool,
+    pub cyclomatic_complexity_threshold: u32,
+    pub cyclomatic_complexity_file_patterns: Vec<glob::Pattern>,
 }
 
 #[derive(Clone, Debug)]
@@ -90,6 +93,9 @@ impl Config {
             banned_builtin_functions: FxHashMap::default(),
             max_changes_allowed: 5000,
             collect_goto_definition_locations: false,
+            analyze_cyclomatic_complexity: false,
+            cyclomatic_complexity_threshold: 0,
+            cyclomatic_complexity_file_patterns: Vec::new(),
         }
     }
 

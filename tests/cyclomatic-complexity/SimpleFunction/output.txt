@@ -1,0 +1,3 @@
+tests/cyclomatic-complexity/SimpleFunction/input.hack:5 - with_branches (complexity: 4)
+tests/cyclomatic-complexity/SimpleFunction/input.hack:17 - with_loop (complexity: 3)
+tests/cyclomatic-complexity/SimpleFunction/input.hack:1 - simple (complexity: 1)

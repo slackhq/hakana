@@ -2,6 +2,7 @@ mod algebra_analyzer;
 mod classlike_analyzer;
 pub mod config;
 pub mod custom_hook;
+mod cyclomatic_complexity_analyzer;
 mod def_analyzer;
 pub mod expr;
 mod expression_analyzer;

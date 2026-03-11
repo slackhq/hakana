@@ -15,8 +15,10 @@ hakana-lint = { path = "../lint" }
 hakana-protocol = { path = "../protocol" }
 hakana-server = { path = "../server" }
 hakana-mcp-server = { path = "../mcp_server" }
+hakana-aast-helper = { path = "../aast_utils" }
 executable-finder = { path = "../executable_code_finder" }
 line_break_map = { path = "../../third-party/hhvm/hphp/hack/src/utils/line_break_map" }
+oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 walkdir = "2"
 glob = "0.3"

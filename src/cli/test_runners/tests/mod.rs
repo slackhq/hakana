@@ -1,4 +1,5 @@
 mod code_transform;
+mod cyclomatic_complexity;
 mod diff;
 mod executable_code_finder;
 mod goto_definition;
@@ -9,6 +10,7 @@ mod skipped;
 mod standard_analysis;
 
 pub use code_transform::CodeTransformTest;
+pub use cyclomatic_complexity::CyclomaticComplexityTest;
 pub use diff::DiffTest;
 pub use executable_code_finder::ExecutableCodeFinderTest;
 pub use goto_definition::GotoDefinitionTest;

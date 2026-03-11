@@ -7,6 +7,7 @@ pub use self::symbols::Symbols;
 use crate::classlike_info::ClassLikeInfo;
 use crate::code_location::HPos;
 use crate::file_info::FileInfo;
+use crate::function_context::FunctionLikeIdentifier;
 use crate::functionlike_info::FunctionLikeInfo;
 use crate::method_identifier::MethodIdentifier;
 use crate::property_info::PropertyInfo;
@@ -436,6 +437,21 @@ impl CodebaseInfo {
         }
 
         return None;
+    }
+
+    pub fn get_functionlike(
+        &self,
+        functionlike_id: &FunctionLikeIdentifier,
+    ) -> Option<&FunctionLikeInfo> {
+        match functionlike_id {
+            FunctionLikeIdentifier::Function(function_name) => {
+                self.functionlike_infos.get(&(*function_name, StrId::EMPTY))
+            }
+            FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => self
+                .functionlike_infos
+                .get(&(*fq_classlike_name, *method_name)),
+            _ => None,
+        }
     }
 
     #[inline]
