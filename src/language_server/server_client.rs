@@ -8,11 +8,11 @@
 //! Note: The server handles one request per connection, so the client
 //! reconnects for each request.
 
-use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::Duration;
+use std::{env, io};
 
 use hakana_protocol::{
     ClientSocket, FileChange, GetIssuesRequest, GetIssuesResponse, GotoDefinitionRequest,
@@ -194,13 +194,20 @@ impl ServerConnection {
             return Ok(hakana_path);
         }
 
-        Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!(
-                "Could not find hakana binary at {}. Ensure hakana is built and in the same directory as hakana-language-server.",
-                hakana_path.display()
-            ),
-        ))
+        env::var_os("PATH")
+            .map(|path| env::split_paths(&path).collect::<Vec<_>>())
+            .and_then(|paths| paths.iter()
+                .map(|p| p.join("hakana"))
+                .filter(|p| p.exists())
+                .next()
+            )
+            .ok_or(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!(
+                    "Could not find hakana binary in the PATH or at {}. Ensure hakana is built and in the PATH the same directory as hakana-language-server.",
+                    hakana_path.display()
+                ),
+            ))
     }
 
     /// Wait for the server to be ready.
