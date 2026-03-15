@@ -14,7 +14,7 @@ use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::{TAtomic, TVec};
 use hakana_code_info::t_union::TUnion;
-use hakana_code_info::taint::{SinkType, string_to_sink_types};
+use hakana_code_info::taint::{SinkType, SourceType, string_to_sink_types};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{
@@ -702,14 +702,37 @@ fn add_dataflow(
     };
     // TODO add plugin hooks for adding/removing taints
 
+    let source_transforms = if function_param.transform_taint {
+        vec![
+            (
+                SourceType::NonUriRequestHeader,
+                SourceType::UncheckedHydration,
+            ),
+            (SourceType::UriRequestHeader, SourceType::UncheckedHydration),
+        ]
+    } else {
+        vec![]
+    };
+
     for parent_node in &input_type.parent_nodes {
-        data_flow_graph.add_path(
-            &parent_node.id,
-            &method_node.id,
-            PathKind::Default,
-            vec![],
-            removed_taints.clone(),
-        );
+        if source_transforms.is_empty() {
+            data_flow_graph.add_path(
+                &parent_node.id,
+                &method_node.id,
+                PathKind::Default,
+                vec![],
+                removed_taints.clone(),
+            );
+        } else {
+            data_flow_graph.add_path_with_source_transforms(
+                &parent_node.id,
+                &method_node.id,
+                PathKind::Default,
+                vec![],
+                removed_taints.clone(),
+                source_transforms.clone(),
+            );
+        }
     }
 
     data_flow_graph.add_node(method_node);

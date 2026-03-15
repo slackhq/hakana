@@ -804,6 +804,9 @@ fn convert_param_nodes(
 
                         param.removed_taints_when_returning_true = Some(removed_taints);
                     }
+                    StrId::HAKANA_SECURITY_TRANSFORM_TAINT => {
+                        param.transform_taint = true;
+                    }
                     _ => {}
                 }
             }

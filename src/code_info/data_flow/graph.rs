@@ -3,8 +3,11 @@ use super::{
     path::{DataFlowPath, PathKind},
 };
 use crate::{
-    code_location::FilePath, data_flow::node::VariableSourceKind,
-    function_context::FunctionLikeIdentifier, t_union::TUnion, taint::SinkType,
+    code_location::FilePath,
+    data_flow::node::VariableSourceKind,
+    function_context::FunctionLikeIdentifier,
+    t_union::TUnion,
+    taint::{SinkType, SourceType},
 };
 use hakana_str::StrId;
 use oxidized::ast_defs::Pos;
@@ -110,6 +113,41 @@ impl DataFlowGraph {
                     kind: path_kind,
                     added_taints,
                     removed_taints,
+                    source_transforms: vec![],
+                },
+            );
+    }
+
+    pub fn add_path_with_source_transforms(
+        &mut self,
+        from_id: &DataFlowNodeId,
+        to_id: &DataFlowNodeId,
+        path_kind: PathKind,
+        added_taints: Vec<SinkType>,
+        removed_taints: Vec<SinkType>,
+        source_transforms: Vec<(SourceType, SourceType)>,
+    ) {
+        if from_id == to_id {
+            return;
+        }
+
+        if let GraphKind::FunctionBody = self.kind {
+            self.backward_edges
+                .entry(to_id.clone())
+                .or_default()
+                .insert(from_id.clone());
+        }
+
+        self.forward_edges
+            .entry(from_id.clone())
+            .or_default()
+            .insert(
+                to_id.clone(),
+                DataFlowPath {
+                    kind: path_kind,
+                    added_taints,
+                    removed_taints,
+                    source_transforms,
                 },
             );
     }

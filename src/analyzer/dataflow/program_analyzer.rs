@@ -19,7 +19,7 @@ use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::data_flow::tainted_node::TaintedNode;
 use hakana_code_info::issue::Issue;
 use hakana_code_info::issue::IssueKind;
-use hakana_code_info::taint::SinkType;
+use hakana_code_info::taint::{SinkType, get_sinks_for_sources};
 
 pub fn find_tainted_data(
     graph: &DataFlowGraph,
@@ -390,10 +390,26 @@ fn get_child_nodes(
             new_taints.extend(path.added_taints.clone());
             new_taints.retain(|t| !path.removed_taints.contains(t));
 
+            let mut transformed_sources = vec![];
+            if !path.source_transforms.is_empty() {
+                let original_sources = generated_source.get_taint_sources();
+                for (from_source, to_source) in &path.source_transforms {
+                    if original_sources.contains(from_source) {
+                        let old_sinks = get_sinks_for_sources(from_source);
+                        new_taints.retain(|t| !old_sinks.contains(t));
+                        new_taints.extend(get_sinks_for_sources(to_source));
+                        transformed_sources.push(to_source.clone());
+                    }
+                }
+            }
+
             let mut new_destination = TaintedNode::from(destination_node);
 
             new_destination.previous = Some(generated_source.clone());
             new_destination.taint_sinks.clone_from(&new_taints);
+            if !transformed_sources.is_empty() {
+                new_destination.taint_sources = transformed_sources;
+            }
             new_destination
                 .specialized_calls
                 .clone_from(&generated_source.specialized_calls);

@@ -2,7 +2,7 @@ use hakana_str::StrId;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
-use crate::taint::SinkType;
+use crate::taint::{SinkType, SourceType};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Display)]
 pub enum ArrayDataKind {
@@ -117,4 +117,5 @@ pub struct DataFlowPath {
     pub kind: PathKind,
     pub added_taints: Vec<SinkType>,
     pub removed_taints: Vec<SinkType>,
+    pub source_transforms: Vec<(SourceType, SourceType)>,
 }

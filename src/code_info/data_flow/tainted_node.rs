@@ -62,6 +62,10 @@ impl TaintedNode {
     }
 
     pub fn get_taint_sources(&self) -> &Vec<SourceType> {
+        if !self.taint_sources.is_empty() {
+            return &self.taint_sources;
+        }
+
         if let Some(previous_source) = &self.previous {
             return previous_source.get_taint_sources();
         }
