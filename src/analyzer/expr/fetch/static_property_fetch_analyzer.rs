@@ -1,7 +1,5 @@
-use super::{
-    atomic_property_fetch_analyzer::add_unspecialized_property_fetch_dataflow,
-    instance_property_fetch_analyzer,
-};
+use super::atomic_property_fetch_analyzer::add_unspecialized_property_fetch_dataflow;
+use super::instance_property_fetch_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -10,7 +8,7 @@ use hakana_code_info::EFFECT_READ_PROPS;
 use hakana_code_info::ast::get_id_name;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_atomic::{TAtomic, TNamedObject};
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::{
     get_named_object,
@@ -278,8 +276,10 @@ pub(crate) fn analyze(
 }
 
 /**
- * Handle simple cases where the value of the property can be
- * infered in the same scope as the current expression
+ * Handle cases where the class in a static property access is a variable
+ * expression (e.g. $model::$title where $model is an instance of A2).
+ * Resolves the class name from the variable's type and looks up the
+ * static property directly.
  */
 fn analyze_variable_static_property_fetch(
     statements_analyzer: &StatementsAnalyzer,
@@ -288,6 +288,8 @@ fn analyze_variable_static_property_fetch(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
+    let codebase = statements_analyzer.codebase;
+
     let stmt_class_type = if let aast::ClassId_::CIexpr(stmt_class_expr) = &expr.0.2 {
         let was_inside_general_use = context.inside_general_use;
         context.inside_general_use = true;
@@ -306,48 +308,184 @@ fn analyze_variable_static_property_fetch(
         None
     };
 
-    if let Some(stmt_class_type) = stmt_class_type {
-        let fake_var_name = "__fake_var_".to_string() + &pos.line().to_string();
-        context.locals.insert(
-            VarName::new(fake_var_name.to_owned()),
-            Rc::new(stmt_class_type),
-        );
+    let Some(stmt_class_type) = stmt_class_type else {
+        return Ok(());
+    };
 
-        let lhs = &aast::Expr(
-            (),
-            pos.clone(),
-            aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
-                pos.clone(),
-                (
-                    fake_var_name.len().try_into().unwrap(),
-                    fake_var_name.clone(),
-                ),
-            ))),
-        );
+    // Extract classlike name from the expression type
+    let classlike_name = stmt_class_type.types.iter().find_map(|t| match t {
+        TAtomic::TNamedObject(TNamedObject { name, .. }) => Some(*name),
+        _ => None,
+    });
 
-        let rhs = match &expr.1 {
-            aast::ClassGetExpr::CGexpr(stmt_name_expr) => stmt_name_expr.clone(),
-            aast::ClassGetExpr::CGstring(str) => aast::Expr(
-                (),
-                str.0.clone(),
-                aast::Expr_::Id(Box::new(ast::Id(str.0.clone(), str.1[1..].to_string()))),
-            ),
-        };
+    // If we can't extract a classlike name or the class doesn't exist,
+    // fall back to the old instance_property_fetch_analyzer approach
+    let classlike_name = match classlike_name {
+        Some(name) if codebase.class_exists(&name) || codebase.trait_exists(&name) => name,
+        _ => {
+            return analyze_variable_static_property_fetch_fallback(
+                statements_analyzer,
+                expr,
+                pos,
+                &stmt_class_type,
+                analysis_data,
+                context,
+            );
+        }
+    };
 
-        instance_property_fetch_analyzer::analyze(
+    let (prop_name, name_pos) = match &expr.1 {
+        aast::ClassGetExpr::CGexpr(stmt_name_expr) => {
+            if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
+                (id.1.clone(), stmt_name_expr.pos())
+            } else {
+                return Ok(());
+            }
+        }
+        aast::ClassGetExpr::CGstring(str) => (str.1[1..].to_string(), &str.0),
+    };
+
+    let prop_name_id = if let Some(id) = statements_analyzer.interner.get(&prop_name) {
+        id
+    } else {
+        return Ok(());
+    };
+
+    let property_id = (classlike_name, prop_name_id);
+
+    let declaring_property_class = if let Some(c) =
+        codebase.get_declaring_class_for_property(&property_id.0, &property_id.1)
+    {
+        c
+    } else {
+        return analyze_variable_static_property_fetch_fallback(
             statements_analyzer,
-            (lhs, &rhs),
+            expr,
             pos,
+            &stmt_class_type,
             analysis_data,
             context,
-            context.inside_assignment,
+        );
+    };
+
+    analysis_data
+        .symbol_references
+        .add_reference_to_class_member(
+            &context.function_context,
+            (property_id.0, property_id.1),
             false,
-        )?;
+        );
 
-        let stmt_type = analysis_data.get_expr_type(pos).unwrap();
-
-        analysis_data.set_expr_type(pos, stmt_type.clone());
+    if statements_analyzer
+        .get_config()
+        .collect_goto_definition_locations
+    {
+        analysis_data.definition_locations.insert(
+            (name_pos.start_offset() as u32, name_pos.end_offset() as u32),
+            (property_id.0, property_id.1),
+        );
     }
+
+    let property_type = codebase.get_property_type(&property_id.0, &property_id.1);
+
+    if let Some(property_type) = property_type {
+        let declaring_class_storage = codebase
+            .classlike_infos
+            .get(&declaring_property_class)
+            .unwrap();
+        let parent_class = declaring_class_storage.direct_parent_class;
+
+        let mut inserted_type = property_type.clone();
+        type_expander::expand_union(
+            codebase,
+            &Some(statements_analyzer.interner),
+            statements_analyzer.get_file_path(),
+            &mut inserted_type,
+            &TypeExpansionOptions {
+                self_class: Some(declaring_class_storage.name),
+                static_class_type: StaticClassType::Name(declaring_class_storage.name),
+                parent_class,
+                ..Default::default()
+            },
+            &mut analysis_data.data_flow_graph,
+            &mut 0,
+        );
+
+        inserted_type = add_unspecialized_property_fetch_dataflow(
+            DataFlowNode::get_for_localized_property(
+                property_id,
+                statements_analyzer.get_hpos(pos),
+            ),
+            &property_id,
+            analysis_data,
+            false,
+            inserted_type,
+        );
+
+        let var_id = VarName::new(format!(
+            "{}::${}",
+            statements_analyzer.interner.lookup(&classlike_name),
+            prop_name
+        ));
+
+        let rc = Rc::new(inserted_type);
+
+        context.locals.insert(var_id, rc.clone());
+
+        analysis_data.set_rc_expr_type(pos, rc);
+    }
+
+    Ok(())
+}
+
+fn analyze_variable_static_property_fetch_fallback(
+    statements_analyzer: &StatementsAnalyzer,
+    expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
+    pos: &Pos,
+    stmt_class_type: &hakana_code_info::t_union::TUnion,
+    analysis_data: &mut FunctionAnalysisData,
+    context: &mut BlockContext,
+) -> Result<(), AnalysisError> {
+    let fake_var_name = "__fake_var_".to_string() + &pos.line().to_string();
+    context.locals.insert(
+        VarName::new(fake_var_name.to_owned()),
+        Rc::new(stmt_class_type.clone()),
+    );
+
+    let lhs = &aast::Expr(
+        (),
+        pos.clone(),
+        aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
+            pos.clone(),
+            (
+                fake_var_name.len().try_into().unwrap(),
+                fake_var_name.clone(),
+            ),
+        ))),
+    );
+
+    let rhs = match &expr.1 {
+        aast::ClassGetExpr::CGexpr(stmt_name_expr) => stmt_name_expr.clone(),
+        aast::ClassGetExpr::CGstring(str) => aast::Expr(
+            (),
+            str.0.clone(),
+            aast::Expr_::Id(Box::new(ast::Id(str.0.clone(), str.1[1..].to_string()))),
+        ),
+    };
+
+    instance_property_fetch_analyzer::analyze(
+        statements_analyzer,
+        (lhs, &rhs),
+        pos,
+        analysis_data,
+        context,
+        context.inside_assignment,
+        false,
+    )?;
+
+    let stmt_type = analysis_data.get_expr_type(pos).unwrap();
+
+    analysis_data.set_expr_type(pos, stmt_type.clone());
 
     Ok(())
 }

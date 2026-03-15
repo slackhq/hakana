@@ -18,6 +18,7 @@ use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_code_info::classlike_info::ClassLikeInfo;
 use hakana_code_info::code_location::{FilePath, HPos, StmtStart};
 use hakana_code_info::codebase_info::CodebaseInfo;
+use hakana_code_info::codebase_info::symbols::SymbolKind;
 use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_code_info::data_flow::node::{
     DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind,
@@ -299,12 +300,49 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut context = BlockContext::new(function_context);
 
         if !stmt.static_ {
+            // For traits with `require class`/`require extends`, resolve $this
+            // to the required class so that its methods are accessible.
+            let (this_name, this_is_final, this_templates) =
+                if matches!(classlike_storage.kind, SymbolKind::Trait) {
+                    if let Some(required_class) = &classlike_storage.direct_parent_class {
+                        if let Some(required_storage) = self
+                            .file_analyzer
+                            .codebase
+                            .classlike_infos
+                            .get(required_class)
+                        {
+                            (
+                                required_storage.name,
+                                required_storage.is_final,
+                                &required_storage.template_types,
+                            )
+                        } else {
+                            (
+                                classlike_storage.name,
+                                classlike_storage.is_final,
+                                &classlike_storage.template_types,
+                            )
+                        }
+                    } else {
+                        (
+                            classlike_storage.name,
+                            classlike_storage.is_final,
+                            &classlike_storage.template_types,
+                        )
+                    }
+                } else {
+                    (
+                        classlike_storage.name,
+                        classlike_storage.is_final,
+                        &classlike_storage.template_types,
+                    )
+                };
+
             let mut this_type = wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                name: classlike_storage.name,
-                type_params: if !classlike_storage.template_types.is_empty() {
+                name: this_name,
+                type_params: if !this_templates.is_empty() {
                     Some(
-                        classlike_storage
-                            .template_types
+                        this_templates
                             .iter()
                             .map(|(param_name, template_map)| {
                                 let first_map_entry = template_map.iter().next().unwrap();
@@ -320,7 +358,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     None
                 },
-                is_this: !classlike_storage.is_final,
+                is_this: !this_is_final,
                 remapped_params: false,
             }));
 
