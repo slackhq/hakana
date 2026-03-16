@@ -12,7 +12,6 @@ pub enum SourceType {
     UserPII,
     UserPassword,
     SystemSecret,
-    UnauthorizedUserData,
 }
 
 impl SourceType {
@@ -26,7 +25,6 @@ impl SourceType {
             SourceType::UserPII => "PII user data",
             SourceType::UserPassword => "a user secret",
             SourceType::SystemSecret => "a system secret",
-            SourceType::UnauthorizedUserData => "unauthorized user data",
         }
     }
 }
@@ -49,6 +47,7 @@ pub enum SinkType {
     HtmlAttributeUri,
     Logging,
     Output,
+    UnauthorizedDataFetchKey,
     Custom(String),
 }
 
@@ -65,6 +64,7 @@ const PAIRS: [(SourceType, SinkType); 35] = [
     (SourceType::UriRequestHeader, SinkType::HtmlTag),
     (SourceType::UriRequestHeader, SinkType::RedirectUri),
     (SourceType::UriRequestHeader, SinkType::Cookie),
+    (SourceType::UriRequestHeader, SinkType::UnauthorizedDataFetchKey),
     // We don't want unescaped user data in any of those places either
     // Except we allow it in cookies
     (SourceType::RawUserData, SinkType::Sql),
@@ -84,6 +84,7 @@ const PAIRS: [(SourceType, SinkType); 35] = [
     (SourceType::NonUriRequestHeader, SinkType::Unserialize),
     (SourceType::NonUriRequestHeader, SinkType::CurlHeader),
     (SourceType::NonUriRequestHeader, SinkType::CurlUri),
+    (SourceType::NonUriRequestHeader, SinkType::UnauthorizedDataFetchKey),
     // We don't want user data, PII, or emails to appear in logs,
     // but it's ok for it to appear everywhere else.
     (SourceType::UserData, SinkType::Logging),
@@ -95,9 +96,6 @@ const PAIRS: [(SourceType, SinkType); 35] = [
     // System secrets have the same prohibitions
     (SourceType::SystemSecret, SinkType::Logging),
     (SourceType::SystemSecret, SinkType::Output),
-    // Unauthorized user data shouldn't be shown or logged
-    (SourceType::UnauthorizedUserData, SinkType::Output),
-    (SourceType::UnauthorizedUserData, SinkType::Logging),
 ];
 
 pub fn get_sinks_for_sources(source: &SourceType) -> Vec<SinkType> {
@@ -125,6 +123,7 @@ impl SinkType {
             SinkType::HtmlAttributeUri => "an HTML attribute with url".to_string(),
             SinkType::Logging => "a logging method".to_string(),
             SinkType::Output => "generic output".to_string(),
+            SinkType::UnauthorizedDataFetchKey => "unauthorized fetch key for data".to_string(),
             SinkType::Custom(str) => format!("Detected data passed to {}", str),
         }
     }

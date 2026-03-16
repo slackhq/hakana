@@ -14,7 +14,7 @@ use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::{TAtomic, TVec};
 use hakana_code_info::t_union::TUnion;
-use hakana_code_info::taint::{SinkType, SourceType, string_to_sink_types};
+use hakana_code_info::taint::{SinkType, string_to_sink_types};
 use hakana_code_info::ttype::comparison::type_comparison_result::TypeComparisonResult;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{
@@ -543,7 +543,7 @@ fn add_dataflow(
 
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
         if !function_param.propagate_taint
-            && !function_param.unauthorized_data_fetch_key
+            && function_param.taint_sinks.is_none()
             && (!input_type.has_taintable_value() || !param_type.has_taintable_value())
         {
             return;
@@ -705,40 +705,14 @@ fn add_dataflow(
     };
     // TODO add plugin hooks for adding/removing taints
 
-    let source_transforms = if function_param.unauthorized_data_fetch_key {
-        vec![
-            (
-                SourceType::NonUriRequestHeader,
-                SourceType::UnauthorizedUserData,
-            ),
-            (
-                SourceType::UriRequestHeader,
-                SourceType::UnauthorizedUserData,
-            ),
-        ]
-    } else {
-        vec![]
-    };
-
     for parent_node in &input_type.parent_nodes {
-        if source_transforms.is_empty() {
-            data_flow_graph.add_path(
-                &parent_node.id,
-                &method_node.id,
-                PathKind::Default,
-                vec![],
-                removed_taints.clone(),
-            );
-        } else {
-            data_flow_graph.add_path_with_source_transforms(
-                &parent_node.id,
-                &method_node.id,
-                PathKind::Default,
-                vec![],
-                removed_taints.clone(),
-                source_transforms.clone(),
-            );
-        }
+        data_flow_graph.add_path(
+            &parent_node.id,
+            &method_node.id,
+            PathKind::Default,
+            vec![],
+            removed_taints.clone(),
+        );
     }
 
     data_flow_graph.add_node(method_node);

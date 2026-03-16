@@ -982,7 +982,7 @@ fn add_dataflow(
     }
 
     for (param_offset, param) in functionlike_storage.params.iter().enumerate() {
-        if param.propagate_taint || param.unauthorized_data_fetch_key {
+        if param.propagate_taint {
             if let Some(arg) = expr.2.get(param_offset) {
                 let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
 
