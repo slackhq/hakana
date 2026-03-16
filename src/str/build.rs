@@ -269,7 +269,7 @@ fn main() -> Result<()> {
         "Hakana\\SecurityAnalysis\\Source",
         "Hakana\\SecurityAnalysis\\SpecializeCall",
         "Hakana\\SecurityAnalysis\\PropagateTaint",
-        "Hakana\\SecurityAnalysis\\TransformTaint",
+        "Hakana\\SecurityAnalysis\\UnauthorizedDataFetchKey",
         "Hakana\\ShapeTypeFromConstant",
         "Hakana\\SpecialTypes\\LiteralString",
         "Hakana\\TestOnly",

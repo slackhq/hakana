@@ -1,7 +1,6 @@
 use hakana_algebra::clause::ClauseKey;
 use hakana_code_info::EFFECT_WRITE_LOCAL;
 use hakana_code_info::VarId;
-use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::data_flow::node::VariableSourceKind;
@@ -581,10 +580,7 @@ fn analyze_assignment_to_variable(
     let can_taint = has_parent_nodes
         && match analysis_data.data_flow_graph.kind {
             GraphKind::FunctionBody => inout_node.is_none(),
-            GraphKind::WholeProgram(kind) => {
-                context.allow_taints
-                    && (kind != WholeProgramKind::Taint || assign_value_type.has_taintable_value())
-            }
+            GraphKind::WholeProgram(_) => context.allow_taints,
         };
 
     if let Some(inout_node) = &inout_node {

@@ -542,7 +542,10 @@ fn add_dataflow(
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
-        if !input_type.has_taintable_value() || !param_type.has_taintable_value() {
+        if !function_param.propagate_taint
+            && !function_param.unauthorized_data_fetch_key
+            && (!input_type.has_taintable_value() || !param_type.has_taintable_value())
+        {
             return;
         }
 
@@ -702,7 +705,7 @@ fn add_dataflow(
     };
     // TODO add plugin hooks for adding/removing taints
 
-    let source_transforms = if function_param.transform_taint {
+    let source_transforms = if function_param.unauthorized_data_fetch_key {
         vec![
             (
                 SourceType::NonUriRequestHeader,

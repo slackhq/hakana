@@ -42,7 +42,7 @@ pub struct FunctionLikeParameter {
 
     pub removed_taints_when_returning_true: Option<Vec<SinkType>>,
 
-    pub transform_taint: bool,
+    pub unauthorized_data_fetch_key: bool,
 
     pub propagate_taint: bool,
 
@@ -80,7 +80,7 @@ impl FunctionLikeParameter {
             is_variadic: false,
             is_named: false,
             taint_sinks: None,
-            transform_taint: false,
+            unauthorized_data_fetch_key: false,
             propagate_taint: false,
             assert_untainted: false,
             type_inferred: false,
