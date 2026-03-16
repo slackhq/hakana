@@ -711,7 +711,10 @@ fn add_dataflow(
                 SourceType::NonUriRequestHeader,
                 SourceType::UnauthorizedUserData,
             ),
-            (SourceType::UriRequestHeader, SourceType::UnauthorizedUserData),
+            (
+                SourceType::UriRequestHeader,
+                SourceType::UnauthorizedUserData,
+            ),
         ]
     } else {
         vec![]
