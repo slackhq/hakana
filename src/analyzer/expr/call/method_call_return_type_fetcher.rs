@@ -374,6 +374,27 @@ fn add_dataflow(
         );
     }
 
+    for (param_offset, param) in functionlike_storage.params.iter().enumerate() {
+        if param.propagate_taint {
+            if let Some(arg) = call_expr.1.get(param_offset) {
+                let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
+
+                add_special_param_dataflow(
+                    statements_analyzer,
+                    &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+                    functionlike_storage.specialize_call,
+                    param_offset,
+                    arg_pos,
+                    call_pos,
+                    &FxHashMap::default(),
+                    &mut analysis_data.data_flow_graph,
+                    &method_call_node,
+                    PathKind::Default,
+                );
+            }
+        }
+    }
+
     analysis_data
         .data_flow_graph
         .add_node(method_call_node.clone());

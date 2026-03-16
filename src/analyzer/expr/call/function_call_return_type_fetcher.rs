@@ -981,6 +981,27 @@ fn add_dataflow(
         }
     }
 
+    for (param_offset, param) in functionlike_storage.params.iter().enumerate() {
+        if param.propagate_taint {
+            if let Some(arg) = expr.2.get(param_offset) {
+                let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
+
+                add_special_param_dataflow(
+                    statements_analyzer,
+                    functionlike_id,
+                    functionlike_storage.specialize_call,
+                    param_offset,
+                    arg_pos,
+                    pos,
+                    &added_removed_taints,
+                    data_flow_graph,
+                    &function_call_node,
+                    PathKind::Default,
+                );
+            }
+        }
+    }
+
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !functionlike_storage.taint_source_types.is_empty() {
             let function_call_node_source = DataFlowNode {

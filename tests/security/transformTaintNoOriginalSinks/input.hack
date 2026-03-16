@@ -4,7 +4,7 @@ function load_from_db(string $id): string {
 
 class EntityLoader {
     public function loadEntity(
-        <<\Hakana\Security\TransformTaint>> string $id,
+        <<\Hakana\SecurityAnalysis\TransformTaint>> string $id,
     ): string {
         return load_from_db($id);
     }

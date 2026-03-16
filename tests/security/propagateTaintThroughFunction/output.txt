@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:17:12 - Data from a URL query string found its way to an HTML tag using path call to getInput (input.hack:2:22) ----> $id (input.hack:15:5) ----> decode_id#1 (input.hack:16:26) ----> call to decode_id (input.hack:6:77) ----> $decoded (input.hack:16:5) ----> output#1 (input.hack:17:12)

@@ -12,7 +12,7 @@ pub enum SourceType {
     UserPII,
     UserPassword,
     SystemSecret,
-    UncheckedHydration,
+    UnauthorizedUserData,
 }
 
 impl SourceType {
@@ -26,7 +26,7 @@ impl SourceType {
             SourceType::UserPII => "PII user data",
             SourceType::UserPassword => "a user secret",
             SourceType::SystemSecret => "a system secret",
-            SourceType::UncheckedHydration => "input-controlled data loaded without access checks",
+            SourceType::UnauthorizedUserData => "unauthorized user data",
         }
     }
 }
@@ -95,9 +95,9 @@ const PAIRS: [(SourceType, SinkType); 35] = [
     // System secrets have the same prohibitions
     (SourceType::SystemSecret, SinkType::Logging),
     (SourceType::SystemSecret, SinkType::Output),
-    // Input-controlled data loaded without access checks shouldn't be shown or logged
-    (SourceType::UncheckedHydration, SinkType::Output),
-    (SourceType::UncheckedHydration, SinkType::Logging),
+    // Unauthorized user data shouldn't be shown or logged
+    (SourceType::UnauthorizedUserData, SinkType::Output),
+    (SourceType::UnauthorizedUserData, SinkType::Logging),
 ];
 
 pub fn get_sinks_for_sources(source: &SourceType) -> Vec<SinkType> {

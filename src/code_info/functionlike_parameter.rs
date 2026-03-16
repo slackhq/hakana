@@ -44,6 +44,8 @@ pub struct FunctionLikeParameter {
 
     pub transform_taint: bool,
 
+    pub propagate_taint: bool,
+
     pub assert_untainted: bool,
 
     /**
@@ -79,6 +81,7 @@ impl FunctionLikeParameter {
             is_named: false,
             taint_sinks: None,
             transform_taint: false,
+            propagate_taint: false,
             assert_untainted: false,
             type_inferred: false,
             expect_variable: false,
