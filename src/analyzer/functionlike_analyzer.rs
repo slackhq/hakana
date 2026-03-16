@@ -302,41 +302,30 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if !stmt.static_ {
             // For traits with `require class`/`require extends`, resolve $this
             // to the required class so that its methods are accessible.
-            let (this_name, this_is_final, this_templates) =
-                if matches!(classlike_storage.kind, SymbolKind::Trait) {
-                    if let Some(required_class) = &classlike_storage.direct_parent_class {
-                        if let Some(required_storage) = self
-                            .file_analyzer
-                            .codebase
-                            .classlike_infos
-                            .get(required_class)
-                        {
-                            (
-                                required_storage.name,
-                                required_storage.is_final,
-                                &required_storage.template_types,
-                            )
-                        } else {
-                            (
-                                classlike_storage.name,
-                                classlike_storage.is_final,
-                                &classlike_storage.template_types,
-                            )
-                        }
-                    } else {
-                        (
-                            classlike_storage.name,
-                            classlike_storage.is_final,
-                            &classlike_storage.template_types,
-                        )
-                    }
-                } else {
+            let (this_name, this_is_final, this_templates) = classlike_storage
+                .direct_parent_class
+                .filter(|_| matches!(classlike_storage.kind, SymbolKind::Trait))
+                .as_ref()
+                .and_then(|required_class| {
+                    self.file_analyzer
+                        .codebase
+                        .classlike_infos
+                        .get(required_class)
+                })
+                .map(|required_storage| {
+                    (
+                        required_storage.name,
+                        required_storage.is_final,
+                        &required_storage.template_types,
+                    )
+                })
+                .unwrap_or_else(|| {
                     (
                         classlike_storage.name,
                         classlike_storage.is_final,
                         &classlike_storage.template_types,
                     )
-                };
+                });
 
             let mut this_type = wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                 name: this_name,
