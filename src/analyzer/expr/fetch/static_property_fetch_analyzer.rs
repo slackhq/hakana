@@ -348,6 +348,20 @@ fn analyze_variable_static_property_fetch(
     let prop_name_id = if let Some(id) = statements_analyzer.interner.get(&prop_name) {
         id
     } else {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentProperty,
+                format!(
+                    "Cannot access undefined property {}::${}",
+                    statements_analyzer.interner.lookup(&classlike_name),
+                    prop_name,
+                ),
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
         return Ok(());
     };
 
@@ -358,14 +372,21 @@ fn analyze_variable_static_property_fetch(
     {
         c
     } else {
-        return analyze_variable_static_property_fetch_fallback(
-            statements_analyzer,
-            expr,
-            pos,
-            &stmt_class_type,
-            analysis_data,
-            context,
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentProperty,
+                format!(
+                    "Cannot access undefined property {}::${}",
+                    statements_analyzer.interner.lookup(&classlike_name),
+                    statements_analyzer.interner.lookup(&prop_name_id),
+                ),
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
         );
+        return Ok(());
     };
 
     analysis_data
