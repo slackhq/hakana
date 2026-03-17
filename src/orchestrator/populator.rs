@@ -425,13 +425,19 @@ fn populate_classlike_storage(
     }
 
     if let Some(parent_classname) = &storage.direct_parent_class.clone() {
-        populate_data_from_parent_classlike(
-            &mut storage,
-            codebase,
-            parent_classname,
-            symbol_references,
-            safe_symbols,
-        );
+        // For traits, direct_parent_class comes from `require class`/`require extends`,
+        // not from actual inheritance. Skip populating from it to avoid circular
+        // dependencies (trait requires class, class uses trait). Trait methods access
+        // the required class's members via $this type resolution instead.
+        if !matches!(storage.kind, SymbolKind::Trait) {
+            populate_data_from_parent_classlike(
+                &mut storage,
+                codebase,
+                parent_classname,
+                symbol_references,
+                safe_symbols,
+            );
+        }
     }
 
     for direct_enum_extends in &storage.enum_class_extends.clone() {
