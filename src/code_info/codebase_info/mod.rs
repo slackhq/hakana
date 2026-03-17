@@ -185,7 +185,9 @@ impl CodebaseInfo {
         parent_trait: &StrId,
     ) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
-            if classlike_storage.used_traits.contains(parent_trait) {
+            if classlike_storage.used_traits.contains(parent_trait)
+                || classlike_storage.inherited_traits.contains(parent_trait)
+            {
                 return true;
             }
 

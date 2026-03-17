@@ -4,10 +4,16 @@ abstract class A {
   }
 }
 
+trait T2 {
+  public function helper(): void {}
+}
+
 trait T1 {
   require class B;
+  use T2;
 
   public function foo(): string {
+    $this->helper();
     return $this->getStr();
   }
 }
@@ -19,4 +25,10 @@ final class B extends A {
   public function getStr(): string {
     return "a";
   }
+}
+
+function foo(): void {
+  $b = new B();
+  $b->foo();
+  $b->getStr();
 }
