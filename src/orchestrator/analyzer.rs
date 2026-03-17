@@ -1,5 +1,5 @@
 use crate::file::get_file_contents_hash;
-use crate::{SuccessfulScanData, get_aast_for_path};
+use crate::{SuccessfulScanData, get_aast_for_path, update_progressbar};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
 use hakana_code_info::FileSource;
@@ -11,11 +11,12 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_logger::Logger;
 use hakana_str::{Interner, StrId};
+use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 use std::{fs, io};
@@ -32,7 +33,10 @@ pub fn analyze_files(
     file_analysis_time: &mut Duration,
     files_processed: Option<Arc<AtomicU32>>,
 ) -> io::Result<()> {
-    // Filter paths
+    let mut group_size = threads as usize;
+
+    let mut path_groups = FxHashMap::default();
+
     if let Some(filter) = filter {
         paths.retain(|str_path| str_path.matches(filter.as_str()).count() > 0);
     }
@@ -45,58 +49,105 @@ pub fn analyze_files(
         }
     }
 
-    let process_fn = {
-        let config = config.clone();
+    let total_file_count = paths.len() as u64;
+
+    if (paths.len() / group_size) < 4 {
+        group_size = 1;
+    }
+
+    for (i, str_path) in paths.iter().enumerate() {
+        let group = i % group_size;
+        path_groups
+            .entry(group)
+            .or_insert_with(Vec::new)
+            .push(str_path);
+    }
+
+    let bar = if logger.show_progress() {
+        let pb = ProgressBar::new(total_file_count);
+        let sty = ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
+        pb.set_style(sty);
+        Some(Arc::new(pb))
+    } else {
+        None
+    };
+
+    let mut handles = vec![];
+
+    // Use external counter if provided, otherwise create internal one for progress bar
+    let internal_counter = Arc::new(AtomicU32::new(0));
+    let files_processed_counter = files_processed.unwrap_or_else(|| internal_counter.clone());
+
+    let arc_file_analysis_time = Arc::new(Mutex::new(Duration::default()));
+
+    for (_, path_group) in path_groups {
+        let scan_data = scan_data.clone();
+
+        let pgc = path_group.iter().map(|c| (*c).clone()).collect::<Vec<_>>();
+
+        let analysis_result = analysis_result.clone();
+
+        let analysis_config = config.clone();
+
+        let files_processed_counter = files_processed_counter.clone();
+        let bar = bar.clone();
+
         let logger = logger.clone();
 
-        move |str_path: String| -> (AnalysisResult, Duration) {
+        let arc_file_analysis_time = arc_file_analysis_time.clone();
+
+        let handle = std::thread::spawn(move || {
             let codebase = &scan_data.codebase;
             let interner = &scan_data.interner;
             let resolved_names = &scan_data.resolved_names;
 
+            let mut file_analysis_time = Duration::default();
+
             let mut new_analysis_result =
-                AnalysisResult::new(config.graph_kind, SymbolReferences::new());
+                AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
-            let file_path = FilePath(interner.get(&str_path).unwrap());
+            for str_path in &pgc {
+                let file_path = FilePath(interner.get(str_path).unwrap());
 
-            let duration = if let Some(resolved_names) = resolved_names.get(&file_path) {
-                analyze_file(
-                    file_path,
-                    &str_path,
-                    scan_data.file_system.file_hashes_and_times.get(&file_path),
-                    codebase,
-                    interner,
-                    &config,
-                    &mut new_analysis_result,
-                    resolved_names,
-                    &logger,
-                )
-            } else {
-                Duration::default()
-            };
+                if let Some(resolved_names) = resolved_names.get(&file_path) {
+                    file_analysis_time += analyze_file(
+                        file_path,
+                        str_path,
+                        scan_data.file_system.file_hashes_and_times.get(&file_path),
+                        codebase,
+                        interner,
+                        &analysis_config,
+                        &mut new_analysis_result,
+                        resolved_names,
+                        &logger,
+                    );
+                }
 
-            (new_analysis_result, duration)
-        }
-    };
+                let tally = files_processed_counter.fetch_add(1, Ordering::Relaxed) + 1;
 
-    // Execute in parallel
-    let results = hakana_executor::parallel_execute(
-        paths,
-        threads,
-        logger,
-        process_fn,
-        files_processed,
-        None,
-    );
+                update_progressbar(tally as u64, bar.clone());
+            }
 
-    // Aggregate results
-    let mut total_duration = Duration::default();
-    for (result, duration) in results {
-        analysis_result.lock().unwrap().extend(result);
-        total_duration += duration;
+            let mut t = arc_file_analysis_time.lock().unwrap();
+            *t += file_analysis_time;
+            analysis_result.lock().unwrap().extend(new_analysis_result);
+        });
+
+        handles.push(handle);
     }
 
-    *file_analysis_time = total_duration;
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    *file_analysis_time = Arc::try_unwrap(arc_file_analysis_time)
+        .unwrap()
+        .into_inner()
+        .unwrap();
+
+    if let Some(bar) = &bar {
+        bar.finish_and_clear();
+    }
 
     Ok(())
 }
