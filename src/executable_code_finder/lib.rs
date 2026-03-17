@@ -4,12 +4,14 @@ use hakana_code_info::file_info::ParserError;
 use hakana_logger::Logger;
 use hakana_orchestrator::scanner::get_filesystem;
 use hakana_str::{Interner, ThreadedInterner};
+use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast::{Def, Expr_, Stmt_};
 use oxidized::ast::Pos;
 use oxidized::{
     aast,
     aast_visitor::{AstParams, Node, Visitor, visit},
 };
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
@@ -47,57 +49,92 @@ pub fn scan_files(
         Some(false),
     );
 
-    if files_to_scan.is_empty() {
-        return Ok(vec![]);
-    }
+    let executable_lines = Arc::new(Mutex::new(vec![]));
 
-    let file_scanning_now = Instant::now();
+    if !files_to_scan.is_empty() {
+        let file_scanning_now = Instant::now();
 
-    // Convert string paths to FilePaths
-    let file_paths: Vec<FilePath> = files_to_scan
-        .into_iter()
-        .map(|str_path| FilePath(interner.get(str_path.as_str()).unwrap()))
-        .collect();
+        let bar = if logger.show_progress() {
+            let pb = ProgressBar::new(files_to_scan.len() as u64);
+            let sty =
+                ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
+            pb.set_style(sty);
+            Some(Arc::new(pb))
+        } else {
+            None
+        };
 
-    // Wrap interner in Arc<Mutex<>> for thread-safe access
-    let interner = Arc::new(Mutex::new(interner));
+        let files_processed: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 
-    // Create the process function
-    let process_fn = {
-        let interner = interner.clone();
-        let root_dir = config.root_dir.clone();
-        let logger = logger.clone();
-
-        move |file_path: FilePath| -> ExecutableLines {
-            let new_interner = ThreadedInterner::new(interner.clone());
-            scan_file(&new_interner, &root_dir, file_path, &logger)
+        let mut group_size = threads as usize;
+        let mut path_groups = FxHashMap::default();
+        if files_to_scan.len() < 4 * group_size {
+            group_size = 1;
         }
-    };
 
-    // Execute in parallel
-    let results = hakana_executor::parallel_execute(
-        file_paths,
-        threads,
-        logger.clone(),
-        process_fn,
-        None,
-        None,
-    );
+        for (i, str_path) in files_to_scan.into_iter().enumerate() {
+            let group = i % group_size;
+            path_groups
+                .entry(group)
+                .or_insert_with(Vec::new)
+                .push(FilePath(interner.get(str_path.as_str()).unwrap()));
+        }
 
-    // Filter out empty results
-    let executable_lines: Vec<ExecutableLines> = results
-        .into_iter()
-        .filter(|res| !res.executable_lines.is_empty())
-        .collect();
+        let interner = Arc::new(Mutex::new(interner));
+        let mut handles = vec![];
 
-    if logger.can_log_timing() {
-        logger.log_sync(&format!(
-            "Scanning files took {:.2?}",
-            file_scanning_now.elapsed()
-        ));
+        for (_, path_group) in path_groups {
+            let interner = interner.clone();
+            let bar = bar.clone();
+            let files_processed = files_processed.clone();
+            let logger = logger.clone();
+            let executable_lines = executable_lines.clone();
+            let root_dir = config.root_dir.clone();
+
+            let handle = std::thread::spawn(move || {
+                let new_interner = ThreadedInterner::new(interner);
+
+                for file_path in &path_group {
+                    let res = scan_file(&new_interner, &root_dir, *file_path, &logger.clone());
+                    let mut executable_lines = executable_lines.lock().unwrap();
+                    if !res.executable_lines.is_empty() {
+                        executable_lines.push(res);
+                    }
+                    let mut tally = files_processed.lock().unwrap();
+                    *tally += 1;
+                    update_progressbar(*tally, bar.clone());
+                }
+            });
+
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        if let Some(bar) = &bar {
+            bar.finish_and_clear();
+        }
+
+        if logger.can_log_timing() {
+            logger.log_sync(&format!(
+                "Scanning files took {:.2?}",
+                file_scanning_now.elapsed()
+            ));
+        }
     }
 
-    Ok(executable_lines)
+    Ok(Arc::try_unwrap(executable_lines)
+        .unwrap()
+        .into_inner()
+        .unwrap())
+}
+
+fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
+    if let Some(bar) = bar {
+        bar.set_position(percentage);
+    }
 }
 
 pub(crate) fn scan_file(
