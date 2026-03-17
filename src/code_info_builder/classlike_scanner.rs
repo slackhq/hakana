@@ -540,7 +540,7 @@ pub(crate) fn scan(
             name, type_params, ..
         } = trait_type
         {
-            storage.used_traits.push(name);
+            storage.used_traits.insert(name);
 
             let mut hasher = rustc_hash::FxHasher::default();
             name.0.hash(&mut hasher);

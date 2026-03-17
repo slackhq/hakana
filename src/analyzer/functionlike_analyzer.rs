@@ -18,7 +18,6 @@ use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_code_info::classlike_info::ClassLikeInfo;
 use hakana_code_info::code_location::{FilePath, HPos, StmtStart};
 use hakana_code_info::codebase_info::CodebaseInfo;
-use hakana_code_info::codebase_info::symbols::SymbolKind;
 use hakana_code_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_code_info::data_flow::node::{
     DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind,
