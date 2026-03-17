@@ -414,17 +414,17 @@ fn populate_classlike_storage(
         }
     }
 
-    for trait_name in &storage.used_traits.clone() {
-        populate_data_from_trait(
-            &mut storage,
-            codebase,
-            trait_name,
-            symbol_references,
-            safe_symbols,
-        );
-    }
-
-    if let Some(parent_classname) = &storage.direct_parent_class.clone() {
+    if matches!(storage.kind, SymbolKind::Trait) {
+        for trait_name in &storage.used_traits.clone() {
+            populate_data_from_trait(
+                &mut storage,
+                codebase,
+                trait_name,
+                symbol_references,
+                safe_symbols,
+            );
+        }
+    } else if let Some(parent_classname) = &storage.direct_parent_class.clone() {
         populate_data_from_parent_classlike(
             &mut storage,
             codebase,
@@ -489,6 +489,41 @@ fn populate_classlike_storage(
 
     storage.is_populated = true;
 
+    // For traits, direct_parent_class comes from `require class`/`require extends`,
+    // not from actual inheritance. Populate it as the final step to avoid circular
+    // dependencies (trait requires class, class uses trait).
+    // Likewise, traits on a class may declare a `require extends` / `require class`
+    // relationship with the class being populated so they also should be populated last.
+    if matches!(storage.kind, SymbolKind::Trait) {
+        if let Some(parent_classname) = &storage.direct_parent_class.clone() {
+            codebase
+                .classlike_infos
+                .insert(*classlike_name, storage.clone());
+
+            populate_data_from_parent_classlike(
+                &mut storage,
+                codebase,
+                parent_classname,
+                symbol_references,
+                safe_symbols,
+            );
+        }
+    } else if !storage.used_traits.is_empty() {
+        codebase
+            .classlike_infos
+            .insert(*classlike_name, storage.clone());
+
+        for trait_name in &storage.used_traits.clone() {
+            populate_data_from_trait(
+                &mut storage,
+                codebase,
+                trait_name,
+                symbol_references,
+                safe_symbols,
+            );
+        }
+    }
+
     codebase.classlike_infos.insert(*classlike_name, storage);
 }
 
@@ -541,7 +576,7 @@ fn populate_interface_data_from_parent_interface(
 
     populate_interface_data_from_parent_or_implemented_interface(storage, parent_interface_storage);
 
-    inherit_methods_from_parent(storage, parent_interface_storage);
+    inherit_methods_from_parent(codebase, storage, parent_interface_storage);
 
     storage
         .all_parent_interfaces
@@ -579,7 +614,7 @@ fn populate_data_from_parent_classlike(
 
     extend_template_params(storage, parent_storage);
 
-    inherit_methods_from_parent(storage, parent_storage);
+    inherit_methods_from_parent(codebase, storage, parent_storage);
     inherit_properties_from_parent(storage, parent_storage);
 
     storage
@@ -593,9 +628,18 @@ fn populate_data_from_parent_classlike(
         storage.has_visitor_issues = true;
     }
 
+    if matches!(storage.kind, SymbolKind::Trait) {
+        storage
+            .used_traits
+            .extend(parent_storage.used_traits.clone());
+    }
+
     storage
-        .used_traits
+        .inherited_traits
         .extend(parent_storage.used_traits.clone());
+    storage
+        .inherited_traits
+        .extend(parent_storage.inherited_traits.clone());
 
     storage.constants.extend(
         parent_storage
@@ -690,15 +734,24 @@ fn populate_data_from_trait(
 
     extend_template_params(storage, trait_storage);
 
-    inherit_methods_from_parent(storage, trait_storage);
+    inherit_methods_from_parent(codebase, storage, trait_storage);
     inherit_properties_from_parent(storage, trait_storage);
 }
 
 #[allow(clippy::needless_borrow)]
-fn inherit_methods_from_parent(storage: &mut ClassLikeInfo, parent_storage: &ClassLikeInfo) {
+fn inherit_methods_from_parent(
+    codebase: &CodebaseInfo,
+    storage: &mut ClassLikeInfo,
+    parent_storage: &ClassLikeInfo,
+) {
     let classlike_name = &storage.name;
 
     for (method_name, appearing_classlike) in &parent_storage.appearing_method_ids {
+        // Avoid inserting own trait methods when resolving a trait with a `require class` or `require extends` constraint,
+        // e.g. trait T1 require extends C -> C use T1
+        if appearing_classlike == classlike_name {
+            continue;
+        }
         if storage.appearing_method_ids.contains_key(method_name) {
             continue;
         }
@@ -716,6 +769,12 @@ fn inherit_methods_from_parent(storage: &mut ClassLikeInfo, parent_storage: &Cla
     }
 
     for (method_name, declaring_class) in &parent_storage.inheritable_method_ids {
+        // Avoid inserting own trait methods when resolving a trait with a `require class` or `require extends` constraint,
+        // e.g. trait T1 require extends C -> C use T1
+        if declaring_class == classlike_name {
+            continue;
+        }
+
         if *method_name != StrId::EMPTY || parent_storage.preserve_constructor_signature {
             storage
                 .overridden_method_ids
@@ -734,8 +793,20 @@ fn inherit_methods_from_parent(storage: &mut ClassLikeInfo, parent_storage: &Cla
             }
         }
 
-        if let Some(_) = storage.declaring_method_ids.get(method_name) {
-            continue;
+        // A trait method may override an existing method inherited from a parent class
+        // (but thankfully not from an earlier trait as that's a type error)
+        if storage.declaring_method_ids.contains_key(method_name) {
+            if !matches!(parent_storage.kind, SymbolKind::Trait)
+                || codebase
+                    .classlike_infos
+                    .get(declaring_class)
+                    .map(|declaring_classlike_storage| {
+                        !matches!(declaring_classlike_storage.kind, SymbolKind::Trait)
+                    })
+                    .unwrap_or(true)
+            {
+                continue;
+            }
         }
 
         storage
@@ -759,6 +830,10 @@ fn inherit_properties_from_parent(storage: &mut ClassLikeInfo, parent_storage: &
 
     // register where they appear (can never be in a trait)
     for (property_name, appearing_classlike) in &parent_storage.appearing_property_ids {
+        if classlike_name == appearing_classlike {
+            continue;
+        }
+
         if storage.appearing_property_ids.contains_key(property_name) {
             continue;
         }
@@ -788,6 +863,9 @@ fn inherit_properties_from_parent(storage: &mut ClassLikeInfo, parent_storage: &
 
     // register where they're declared
     for (property_name, declaring_classlike) in &parent_storage.declaring_property_ids {
+        if classlike_name == declaring_classlike {
+            continue;
+        }
         if storage.declaring_property_ids.contains_key(property_name) {
             continue;
         }

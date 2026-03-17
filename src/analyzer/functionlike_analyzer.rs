@@ -300,38 +300,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut context = BlockContext::new(function_context);
 
         if !stmt.static_ {
-            // For traits with `require class`/`require extends`, resolve $this
-            // to the required class so that its methods are accessible.
-            let (this_name, this_is_final, this_templates) = classlike_storage
-                .direct_parent_class
-                .filter(|_| matches!(classlike_storage.kind, SymbolKind::Trait))
-                .as_ref()
-                .and_then(|required_class| {
-                    self.file_analyzer
-                        .codebase
-                        .classlike_infos
-                        .get(required_class)
-                })
-                .map(|required_storage| {
-                    (
-                        required_storage.name,
-                        required_storage.is_final,
-                        &required_storage.template_types,
-                    )
-                })
-                .unwrap_or_else(|| {
-                    (
-                        classlike_storage.name,
-                        classlike_storage.is_final,
-                        &classlike_storage.template_types,
-                    )
-                });
-
             let mut this_type = wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                name: this_name,
-                type_params: if !this_templates.is_empty() {
+                name: classlike_storage.name,
+                type_params: if !classlike_storage.template_types.is_empty() {
                     Some(
-                        this_templates
+                        classlike_storage
+                            .template_types
                             .iter()
                             .map(|(param_name, template_map)| {
                                 let first_map_entry = template_map.iter().next().unwrap();
@@ -347,7 +321,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     None
                 },
-                is_this: !this_is_final,
+                is_this: !classlike_storage.is_final,
                 remapped_params: false,
             }));
 

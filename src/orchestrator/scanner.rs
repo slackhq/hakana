@@ -2,9 +2,9 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::Path;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 
 use super::HhiAsset;
@@ -279,7 +279,9 @@ pub fn scan_files(
 
         // Use external counter if provided, otherwise create internal one for progress bar
         let internal_counter = Arc::new(AtomicU32::new(0));
-        let files_scanned_counter = files_scanned.clone().unwrap_or_else(|| internal_counter.clone());
+        let files_scanned_counter = files_scanned
+            .clone()
+            .unwrap_or_else(|| internal_counter.clone());
 
         let mut group_size = threads as usize;
 

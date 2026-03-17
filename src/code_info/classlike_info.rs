@@ -83,7 +83,9 @@ pub struct ClassLikeInfo {
 
     pub kind: SymbolKind,
 
-    pub used_traits: FxHashSet<StrId>,
+    pub used_traits: Vec<StrId>,
+
+    pub inherited_traits: FxHashSet<StrId>,
 
     pub immutable: bool,
 
@@ -253,7 +255,8 @@ impl ClassLikeInfo {
             template_type_implements_count: FxHashMap::default(),
             template_type_uses_count: FxHashMap::default(),
             template_types: vec![],
-            used_traits: FxHashSet::default(),
+            used_traits: vec![],
+            inherited_traits: FxHashSet::default(),
             name,
             type_constants: FxHashMap::default(),
             user_defined: false,

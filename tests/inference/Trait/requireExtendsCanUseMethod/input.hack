@@ -4,17 +4,26 @@ abstract class A {
   }
 }
 
+trait T2 {
+  public function helper(): void {}
+}
+
+trait T1 {
+  require extends B;
+  use T2;
+
+  public function foo(): string {
+    $this->helper();
+    self::staticMethodOnB();
+    return $this->getStr();
+  }
+}
+
 abstract class B extends A {
   <<__Override>>
   public function getStr(): string {
     return "a";
   }
-}
 
-trait T1 {
-  require extends B;
-
-  public function foo(): string {
-    return $this->getStr();
-  }
+  public static function staticMethodOnB(): void {}
 }
