@@ -11,9 +11,10 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::property_info::PropertyKind;
 use hakana_str::{Interner, StrId};
+use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
 
 use crate::file::VirtualFileSystem;
 
@@ -65,6 +66,7 @@ pub(crate) fn find_unused_definitions(
     }
 
     check_enum_exclusivity(analysis_result, codebase, interner, &config);
+    check_functions_could_be_async(analysis_result, codebase, interner, &config);
 
     let referenced_symbols_and_members = analysis_result.symbol_references.back_references();
     let mut test_symbols = codebase
@@ -890,6 +892,133 @@ fn get_trait_users(
     }
 
     base_set
+}
+
+fn check_functions_could_be_async(
+    analysis_result: &mut AnalysisResult,
+    codebase: &CodebaseInfo,
+    interner: &Interner,
+    config: &Config,
+) {
+    if !config.can_add_issue_kind(&IssueKind::FunctionCouldBeMadeAsync) {
+        return;
+    }
+
+    let analysis_result_mut = Arc::new(RwLock::new(analysis_result));
+    codebase.functionlike_infos.par_iter().for_each_with(
+        analysis_result_mut,
+        |analysis_result_mut, (functionlike_name, functionlike_info)| {
+            if functionlike_info.is_async
+                || !functionlike_info.has_asio_join
+                || !functionlike_info.user_defined
+                || functionlike_info.is_closure
+                || functionlike_info.dynamically_callable
+                || functionlike_name.1 == StrId::CONSTRUCT
+            {
+                return;
+            }
+
+            let Some(name_pos) = functionlike_info.name_location else {
+                return;
+            };
+
+            let file_path = interner.lookup(&name_pos.file_path.0);
+
+            if !config.allow_issue_kind_in_file(&IssueKind::FunctionCouldBeMadeAsync, file_path) {
+                return;
+            }
+
+            if functionlike_info
+                .suppressed_issues
+                .iter()
+                .any(|(i, _)| i == &IssueKind::FunctionCouldBeMadeAsync)
+            {
+                return;
+            }
+
+            // Skip methods that override a non-async base method
+            if !functionlike_name.1.is_empty() {
+                if let Some(classlike_info) = codebase.classlike_infos.get(&functionlike_name.0) {
+                    if let Some(parent_classes) = classlike_info
+                        .overridden_method_ids
+                        .get(&functionlike_name.1)
+                    {
+                        let has_non_async_parent = parent_classes.iter().any(|parent_class| {
+                            codebase
+                                .functionlike_infos
+                                .get(&(*parent_class, functionlike_name.1))
+                                .is_some_and(|info| !info.is_async)
+                        });
+                        if has_non_async_parent {
+                            return;
+                        }
+                    }
+                }
+            }
+
+            let all_callers_async = {
+                let analysis_result = analysis_result_mut.read().unwrap();
+
+                let callers = analysis_result
+                    .symbol_references
+                    .get_references_to_symbol(*functionlike_name);
+
+                if callers.is_empty() {
+                    return;
+                }
+
+                callers.iter().all(|caller| {
+                    codebase
+                        .functionlike_infos
+                        .get(caller)
+                        .is_some_and(|info| info.is_async)
+                })
+            };
+
+            if !all_callers_async {
+                return;
+            }
+
+            let display_name = if functionlike_name.1.is_empty() {
+                interner.lookup(&functionlike_name.0).to_string()
+            } else {
+                format!(
+                    "{}::{}",
+                    interner.lookup(&functionlike_name.0),
+                    interner.lookup(&functionlike_name.1)
+                )
+            };
+
+            let calling_functionlike_id = if functionlike_name.1.is_empty() {
+                FunctionLikeIdentifier::Function(functionlike_name.0)
+            } else {
+                FunctionLikeIdentifier::Method(functionlike_name.0, functionlike_name.1)
+            };
+
+            let issue = Issue::new(
+                IssueKind::FunctionCouldBeMadeAsync,
+                format!(
+                    "{} contains Asio\\join and all callers are async, so it could be made async",
+                    display_name,
+                ),
+                name_pos,
+                &Some(calling_functionlike_id),
+            );
+
+            if config.can_add_issue(&issue) {
+                let mut analysis_result = analysis_result_mut.write().unwrap();
+                *analysis_result
+                    .issue_counts
+                    .entry(issue.kind.clone())
+                    .or_insert(0) += 1;
+                analysis_result
+                    .emitted_definition_issues
+                    .entry(name_pos.file_path)
+                    .or_default()
+                    .push(issue);
+            }
+        },
+    );
 }
 
 fn check_enum_exclusivity(

@@ -1,0 +1,3 @@
+ERROR: UnnecessaryAsyncAnnotation - input.hack:1:16 - This function is marked async but has no async behaviour
+ERROR: UnusedFunction - input.hack:10:16 - Unused function async_caller
+ERROR: UnusedFunction - input.hack:15:10 - Unused function sync_caller

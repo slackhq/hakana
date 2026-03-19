@@ -1,0 +1,4 @@
+ERROR: UnnecessaryAsyncAnnotation - input.hack:1:16 - This function is marked async but has no async behaviour
+ERROR: FunctionCouldBeMadeAsync - input.hack:5:10 - get_data contains Asio\join and all callers are async, so it could be made async
+ERROR: UnusedFunction - input.hack:10:16 - Unused function caller1
+ERROR: UnusedFunction - input.hack:15:16 - Unused function caller2

@@ -184,14 +184,14 @@ impl Config {
         Ok(())
     }
 
-    pub fn can_add_issue(&self, issue: &Issue) -> bool {
-        if let Some(issue_filter) = &self.allowed_issues {
-            if !issue_filter.contains(&issue.kind) {
-                return false;
-            }
-        }
+    pub fn can_add_issue_kind(&self, kind: &IssueKind) -> bool {
+        self.allowed_issues
+            .as_ref()
+            .is_none_or(|issue_filter| issue_filter.contains(kind))
+    }
 
-        true
+    pub fn can_add_issue(&self, issue: &Issue) -> bool {
+        self.can_add_issue_kind(&issue.kind)
     }
 
     pub fn allow_issues_in_file(&self, file: &str) -> bool {
