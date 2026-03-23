@@ -64,7 +64,10 @@ const PAIRS: [(SourceType, SinkType); 35] = [
     (SourceType::UriRequestHeader, SinkType::HtmlTag),
     (SourceType::UriRequestHeader, SinkType::RedirectUri),
     (SourceType::UriRequestHeader, SinkType::Cookie),
-    (SourceType::UriRequestHeader, SinkType::UnauthorizedDataFetchKey),
+    (
+        SourceType::UriRequestHeader,
+        SinkType::UnauthorizedDataFetchKey,
+    ),
     // We don't want unescaped user data in any of those places either
     // Except we allow it in cookies
     (SourceType::RawUserData, SinkType::Sql),
@@ -84,7 +87,10 @@ const PAIRS: [(SourceType, SinkType); 35] = [
     (SourceType::NonUriRequestHeader, SinkType::Unserialize),
     (SourceType::NonUriRequestHeader, SinkType::CurlHeader),
     (SourceType::NonUriRequestHeader, SinkType::CurlUri),
-    (SourceType::NonUriRequestHeader, SinkType::UnauthorizedDataFetchKey),
+    (
+        SourceType::NonUriRequestHeader,
+        SinkType::UnauthorizedDataFetchKey,
+    ),
     // We don't want user data, PII, or emails to appear in logs,
     // but it's ok for it to appear everywhere else.
     (SourceType::UserData, SinkType::Logging),
