@@ -737,8 +737,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_expr(&mut self, c: &mut Context, p: &aast::Expr<(), ()>) -> Result<(), ()> {
-        let result = p.recurse(c, self);
-
         let mut fun = None;
         match &p.2 {
             aast::Expr_::Yield(_) => {
@@ -777,7 +775,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             let had_throw = c.has_throw;
             let had_asio_join = c.has_asio_join;
 
+            c.has_yield = false;
+            c.has_throw = false;
+            c.has_asio_join = false;
+
             let mut functionlike_storage = self.visit_function(c, None, fun, &[], &vec![], None);
+            let result = p.recurse(c, self);
 
             if c.has_yield {
                 functionlike_storage.has_yield = true;
@@ -804,9 +807,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             );
 
             self.closure_refs.push(fun.span.start_offset() as u32);
+            return result;
         }
 
-        result
+        p.recurse(c, self)
     }
 }
 
