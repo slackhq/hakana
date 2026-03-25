@@ -855,12 +855,6 @@ impl Serialize for Message {
             Self::GotoDefinition(req) => req.serialize(buf),
             Self::FindReferences(req) => req.serialize(buf),
             Self::FindSymbolReferences(req) => req.serialize(buf),
-            Self::FileChanged(changes) => {
-                write_u32(buf, changes.len() as u32);
-                for change in changes {
-                    change.serialize(buf);
-                }
-            }
             Self::GetIssues(req) => req.serialize(buf),
             Self::Status(req) => req.serialize(buf),
             Self::Shutdown(req) => req.serialize(buf),
@@ -903,16 +897,6 @@ impl Message {
             MessageType::FindSymbolReferencesRequest => {
                 let (req, _) = FindSymbolReferencesRequest::deserialize(data)?;
                 Self::FindSymbolReferences(req)
-            }
-            MessageType::FileChangedNotification => {
-                let (len, mut rest) = read_u32(data)?;
-                let mut changes = Vec::with_capacity(len as usize);
-                for _ in 0..len {
-                    let (change, r) = FileChange::deserialize(rest)?;
-                    changes.push(change);
-                    rest = r;
-                }
-                Self::FileChanged(changes)
             }
             MessageType::GetIssuesRequest => {
                 let (req, _) = GetIssuesRequest::deserialize(data)?;

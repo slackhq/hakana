@@ -316,36 +316,6 @@ impl ServerConnection {
         }
     }
 
-    /// Send file changes to the server.
-    pub fn notify_file_changes(
-        &mut self,
-        changes: FxHashMap<String, hakana_orchestrator::file::FileStatus>,
-    ) -> io::Result<()> {
-        let mut socket = self.connect()?;
-        let file_changes: Vec<FileChange> = changes
-            .into_iter()
-            .map(|(path, status)| FileChange {
-                path,
-                status: status.into(),
-            })
-            .collect();
-
-        let request = Message::FileChanged(file_changes);
-
-        match socket.request(&request) {
-            Ok(Message::Ack(_)) => Ok(()),
-            Ok(Message::Error(e)) => Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Server error: {}", e.message),
-            )),
-            Ok(_) => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Unexpected response type",
-            )),
-            Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{}", e))),
-        }
-    }
-
     /// Request goto-definition.
     pub fn goto_definition(
         &mut self,

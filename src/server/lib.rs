@@ -686,7 +686,6 @@ impl Server {
                 );
                 handler.handle_find_symbol_references(req)
             }
-            Message::FileChanged(changes) => self.handle_file_changed(changes),
             _ => Message::Error(ErrorResponse {
                 code: ErrorCode::UnsupportedMessage,
                 message: "Use GetIssues to retrieve analysis results".to_string(),
@@ -744,33 +743,5 @@ impl Server {
             phase: "Complete".to_string(),
             progress_percent: 100,
         })
-    }
-
-    /// Handle file changed notifications from clients (e.g., LSP forwarding VS Code events).
-    fn handle_file_changed(&mut self, changes: Vec<hakana_protocol::FileChange>) -> Message {
-        use hakana_protocol::FileChangeStatus;
-
-        let change_count = changes.len();
-        self.logger.log_sync(&format!(
-            "Received {} file change notification(s) from client",
-            change_count
-        ));
-
-        // Convert protocol changes to FileStatus and add to pending changes
-        for change in changes {
-            let status = match change.status {
-                FileChangeStatus::Added => FileStatus::Added(0, 0),
-                FileChangeStatus::Modified => FileStatus::Modified(0, 0),
-                FileChangeStatus::Deleted => FileStatus::Deleted,
-            };
-            self.pending_changes.insert(change.path, status);
-        }
-
-        self.logger.log_sync(&format!(
-            "Total pending changes: {}",
-            self.pending_changes.len()
-        ));
-
-        Message::Ack(AckResponse)
     }
 }

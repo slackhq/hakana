@@ -11,7 +11,6 @@ pub enum MessageType {
     SecurityCheckRequest = 0x02,
     GotoDefinitionRequest = 0x03,
     FindReferencesRequest = 0x04,
-    FileChangedNotification = 0x05,
     GetIssuesRequest = 0x06,
     FindSymbolReferencesRequest = 0x07,
     StatusRequest = 0x10,
@@ -40,7 +39,6 @@ impl TryFrom<u8> for MessageType {
             0x02 => Ok(Self::SecurityCheckRequest),
             0x03 => Ok(Self::GotoDefinitionRequest),
             0x04 => Ok(Self::FindReferencesRequest),
-            0x05 => Ok(Self::FileChangedNotification),
             0x06 => Ok(Self::GetIssuesRequest),
             0x07 => Ok(Self::FindSymbolReferencesRequest),
             0x10 => Ok(Self::StatusRequest),
@@ -340,7 +338,6 @@ pub enum Message {
     GotoDefinition(GotoDefinitionRequest),
     FindReferences(FindReferencesRequest),
     FindSymbolReferences(FindSymbolReferencesRequest),
-    FileChanged(Vec<FileChange>),
     GetIssues(GetIssuesRequest),
     Status(StatusRequest),
     Shutdown(ShutdownRequest),
@@ -366,7 +363,6 @@ impl Message {
             Self::GotoDefinition(_) => MessageType::GotoDefinitionRequest,
             Self::FindReferences(_) => MessageType::FindReferencesRequest,
             Self::FindSymbolReferences(_) => MessageType::FindSymbolReferencesRequest,
-            Self::FileChanged(_) => MessageType::FileChangedNotification,
             Self::GetIssues(_) => MessageType::GetIssuesRequest,
             Self::Status(_) => MessageType::StatusRequest,
             Self::Shutdown(_) => MessageType::ShutdownRequest,
@@ -391,7 +387,6 @@ impl Message {
                 | Self::GotoDefinition(_)
                 | Self::FindReferences(_)
                 | Self::FindSymbolReferences(_)
-                | Self::FileChanged(_)
                 | Self::GetIssues(_)
                 | Self::Status(_)
                 | Self::Shutdown(_)

@@ -118,35 +118,39 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        let registration = Registration {
-            id: "watch-hack-files".to_string(),
-            method: "workspace/didChangeWatchedFiles".to_string(),
-            register_options: Some(
-                serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
-                    watchers: vec![
-                        FileSystemWatcher {
-                            glob_pattern: GlobPattern::String("**/*.{hack,php,hhi}".to_string()),
-                            kind: None,
-                        },
-                        FileSystemWatcher {
-                            glob_pattern: GlobPattern::String("**/.git/index.lock".to_string()),
-                            kind: Some(WatchKind::Delete),
-                        },
-                        FileSystemWatcher {
-                            glob_pattern: GlobPattern::String("**/[!.]*/**/".to_string()),
-                            kind: Some(WatchKind::Delete),
-                        },
-                    ],
-                })
-                .unwrap(),
-            ),
-        };
+        if self.server_connection.is_none() {
+            let registration = Registration {
+                id: "watch-hack-files".to_string(),
+                method: "workspace/didChangeWatchedFiles".to_string(),
+                register_options: Some(
+                    serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
+                        watchers: vec![
+                            FileSystemWatcher {
+                                glob_pattern: GlobPattern::String(
+                                    "**/*.{hack,php,hhi}".to_string(),
+                                ),
+                                kind: None,
+                            },
+                            FileSystemWatcher {
+                                glob_pattern: GlobPattern::String("**/.git/index.lock".to_string()),
+                                kind: Some(WatchKind::Delete),
+                            },
+                            FileSystemWatcher {
+                                glob_pattern: GlobPattern::String("**/[!.]*/**/".to_string()),
+                                kind: Some(WatchKind::Delete),
+                            },
+                        ],
+                    })
+                    .unwrap(),
+                ),
+            };
 
-        let registrations = vec![registration];
-        self.client
-            .register_capability(registrations)
-            .await
-            .unwrap();
+            let registrations = vec![registration];
+            self.client
+                .register_capability(registrations)
+                .await
+                .unwrap();
+        }
 
         self.emit_issues().await;
 
@@ -159,6 +163,12 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+        if self.server_connection.is_some() {
+            self.do_analysis().await;
+            self.emit_issues().await;
+            return;
+        }
+
         let mut new_file_statuses = FxHashMap::default();
 
         self.client
@@ -222,7 +232,12 @@ impl LanguageServer for Backend {
     }
 
     async fn did_save(&self, _params: DidSaveTextDocumentParams) {
-        // File saves are handled by the file watcher
+        // File saves are handled by the file watcher when not in server mode
+        if self.server_connection.is_some() {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            self.do_analysis().await;
+            self.emit_issues().await;
+        }
     }
 
     async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
@@ -340,33 +355,6 @@ impl Backend {
     #[cfg(not(target_arch = "wasm32"))]
     async fn do_analysis_via_server(&self, server_conn: &Mutex<server_client::ServerConnection>) {
         let mut all_diagnostics_guard = self.all_diagnostics.write().await;
-
-        // First, forward any pending file changes to the server
-        let file_changes = {
-            let mut file_changes_guard = self.file_changes.write().await;
-            file_changes_guard.take()
-        };
-
-        if let Some(changes) = file_changes {
-            if !changes.is_empty() {
-                self.client
-                    .log_message(
-                        MessageType::INFO,
-                        format!("Forwarding {} file change(s) to server", changes.len()),
-                    )
-                    .await;
-
-                let mut conn = server_conn.lock().await;
-                if let Err(e) = conn.notify_file_changes(changes) {
-                    self.client
-                        .log_message(
-                            MessageType::ERROR,
-                            format!("Failed to notify server of file changes: {}", e),
-                        )
-                        .await;
-                }
-            }
-        }
 
         self.client
             .log_message(MessageType::INFO, "Fetching issues from server")
