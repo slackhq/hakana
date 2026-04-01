@@ -68,6 +68,7 @@ pub fn replace(
                 defining_entity,
                 ..
             } => {
+                let is_class_ptr = matches!(atomic_type, TAtomic::TGenericClassPtr { .. });
                 if let Some(bounds) = template_result
                     .lower_bounds
                     .get(param_name)
@@ -82,15 +83,27 @@ pub fn replace(
                         if template_type_part.is_mixed()
                             || matches!(template_type_part, TAtomic::TObject)
                         {
-                            class_template_type = Some(TAtomic::TClassname {
-                                as_type: Box::new(TAtomic::TObject),
-                            });
+                            if is_class_ptr {
+                                class_template_type = Some(TAtomic::TClassPtr {
+                                    as_type: Box::new(TAtomic::TObject),
+                                });
+                            } else {
+                                class_template_type = Some(TAtomic::TClassname {
+                                    as_type: Box::new(TAtomic::TObject),
+                                });
+                            }
                         } else if let TAtomic::TNamedObject(TNamedObject { .. })
                         | TAtomic::TObjectIntersection { .. } = template_type_part
                         {
-                            class_template_type = Some(TAtomic::TClassname {
-                                as_type: Box::new(template_type_part.clone()),
-                            });
+                            if is_class_ptr {
+                                class_template_type = Some(TAtomic::TClassPtr {
+                                    as_type: Box::new(template_type_part.clone()),
+                                });
+                            } else {
+                                class_template_type = Some(TAtomic::TClassname {
+                                    as_type: Box::new(template_type_part.clone()),
+                                });
+                            }
                         } else if let TAtomic::TGenericParam(TGenericParam {
                             as_type,
                             param_name,
@@ -100,11 +113,19 @@ pub fn replace(
                         {
                             let first_atomic_type = as_type.get_single();
 
-                            class_template_type = Some(TAtomic::TGenericClassname {
-                                param_name: *param_name,
-                                as_type: Box::new(first_atomic_type.clone()),
-                                defining_entity: *defining_entity,
-                            })
+                            if is_class_ptr {
+                                class_template_type = Some(TAtomic::TGenericClassPtr {
+                                    param_name: *param_name,
+                                    as_type: Box::new(first_atomic_type.clone()),
+                                    defining_entity: *defining_entity,
+                                })
+                            } else {
+                                class_template_type = Some(TAtomic::TGenericClassname {
+                                    param_name: *param_name,
+                                    as_type: Box::new(first_atomic_type.clone()),
+                                    defining_entity: *defining_entity,
+                                })
+                            }
                         }
                     }
 

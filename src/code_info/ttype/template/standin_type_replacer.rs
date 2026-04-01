@@ -747,6 +747,28 @@ fn replace_atomic<'a>(
 
             return atomic_type;
         }
+        TAtomic::TClassPtr { ref mut as_type } => {
+            *as_type = Box::new(replace_atomic(
+                as_type,
+                template_result,
+                codebase,
+                interner,
+                file_path,
+                if let Some(TAtomic::TClassPtr {
+                    as_type: input_as_type,
+                }) = input_type
+                {
+                    Some(*input_as_type)
+                } else {
+                    None
+                },
+                input_arg_offset,
+                input_arg_pos,
+                opts,
+            ));
+
+            return atomic_type;
+        }
         TAtomic::TTypename { ref mut as_type } => {
             *as_type = Box::new(replace_atomic(
                 as_type,
@@ -1079,6 +1101,7 @@ fn handle_template_param_class_standin<'a>(
         ..
     } = atomic_type
     {
+        let is_class_ptr = matches!(atomic_type, TAtomic::TGenericClassPtr { .. });
         let mut atomic_type_as = *as_type.clone();
         if let Some(calling_class) = opts.calling_class {
             if defining_entity == &GenericParent::ClassLike(calling_class) {
@@ -1220,9 +1243,15 @@ fn handle_template_param_class_standin<'a>(
                 if let TAtomic::TNamedObject(TNamedObject { .. }) | TAtomic::TObject =
                     &template_atomic_type
                 {
-                    atomic_types.push(TAtomic::TClassname {
-                        as_type: Box::new(template_atomic_type.clone()),
-                    });
+                    if is_class_ptr {
+                        atomic_types.push(TAtomic::TClassPtr {
+                            as_type: Box::new(template_atomic_type.clone()),
+                        });
+                    } else {
+                        atomic_types.push(TAtomic::TClassname {
+                            as_type: Box::new(template_atomic_type.clone()),
+                        });
+                    }
                 }
             }
         }
@@ -1234,10 +1263,22 @@ fn handle_template_param_class_standin<'a>(
                 ..
             }) = &atomic_type_as
             {
-                atomic_types.push(TAtomic::TGenericClassname {
-                    param_name: *param_name,
-                    as_type: Box::new(atomic_type_as.clone()),
-                    defining_entity: *defining_entity,
+                if is_class_ptr {
+                    atomic_types.push(TAtomic::TGenericClassPtr {
+                        param_name: *param_name,
+                        as_type: Box::new(atomic_type_as.clone()),
+                        defining_entity: *defining_entity,
+                    });
+                } else {
+                    atomic_types.push(TAtomic::TGenericClassname {
+                        param_name: *param_name,
+                        as_type: Box::new(atomic_type_as.clone()),
+                        defining_entity: *defining_entity,
+                    });
+                }
+            } else if is_class_ptr {
+                atomic_types.push(TAtomic::TClassPtr {
+                    as_type: Box::new(atomic_type_as),
                 });
             } else {
                 atomic_types.push(TAtomic::TClassname {
