@@ -50,12 +50,22 @@ pub struct Clause {
 impl PartialEq for Clause {
     fn eq(&self, other: &Self) -> bool {
         self.hash == other.hash
+            && (self.hash > 0
+                || (self.wedge == other.wedge
+                    && self.reconcilable == other.reconcilable
+                    && self.creating_object_id == other.creating_object_id))
     }
 }
 
 impl Hash for Clause {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.hash.hash(state)
+        if self.hash == 0 {
+            self.wedge.hash(state);
+            self.reconcilable.hash(state);
+            self.creating_object_id.hash(state);
+        } else {
+            self.hash.hash(state);
+        }
     }
 }
 
@@ -76,7 +86,6 @@ impl Clause {
             generated: generated.unwrap_or(false),
             hash: get_hash(
                 &possibilities,
-                creating_object_id,
                 wedge.unwrap_or(false),
                 reconcilable.unwrap_or(true),
             ),
@@ -96,7 +105,6 @@ impl Clause {
         Some(Clause {
             hash: get_hash(
                 &possibilities,
-                self.creating_object_id,
                 self.wedge,
                 self.reconcilable,
             ),
@@ -121,7 +129,6 @@ impl Clause {
         Clause {
             hash: get_hash(
                 &possibilities,
-                self.creating_object_id,
                 self.wedge,
                 self.reconcilable,
             ),
@@ -247,15 +254,11 @@ impl Clause {
 #[inline]
 fn get_hash(
     possibilities: &BTreeMap<ClauseKey, IndexMap<u64, Assertion>>,
-    creating_object_id: (u32, u32),
     wedge: bool,
     reconcilable: bool,
 ) -> u32 {
     if wedge || !reconcilable {
-        (Wrapping(creating_object_id.0)
-            + Wrapping(creating_object_id.1)
-            + Wrapping(if wedge { 100000 } else { 0 }))
-        .0
+        0
     } else {
         let mut hasher = rustc_hash::FxHasher::default();
 
@@ -269,6 +272,7 @@ fn get_hash(
             }
         }
 
-        hasher.finish() as u32
+        let h = hasher.finish();
+        (h as u32) ^ ((h >> 32) as u32)
     }
 }

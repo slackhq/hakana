@@ -531,14 +531,11 @@ fn populate_interface_data_from_parent_or_implemented_interface(
     storage: &mut ClassLikeInfo,
     interface_storage: &ClassLikeInfo,
 ) {
-    storage.constants.extend(
-        interface_storage
-            .constants
-            .iter()
-            .filter(|(k, _)| !storage.constants.contains_key(*k))
-            .map(|v| (*v.0, v.1.clone()))
-            .collect::<FxHashMap<_, _>>(),
-    );
+    for (k, v) in &interface_storage.constants {
+        if !storage.constants.contains_key(k) {
+            storage.constants.insert(*k, v.clone());
+        }
+    }
 
     storage
         .invalid_dependencies
@@ -641,14 +638,11 @@ fn populate_data_from_parent_classlike(
         .inherited_traits
         .extend(parent_storage.inherited_traits.clone());
 
-    storage.constants.extend(
-        parent_storage
-            .constants
-            .iter()
-            .filter(|(k, _)| !storage.constants.contains_key(*k))
-            .map(|v| (*v.0, v.1.clone()))
-            .collect::<FxHashMap<_, _>>(),
-    );
+    for (k, v) in &parent_storage.constants {
+        if !storage.constants.contains_key(k) {
+            storage.constants.insert(*k, v.clone());
+        }
+    }
 
     // Don't inherit type constants for traits from their required_classlikes.
     // The actual class using the trait will inherit type constants from its own parent,
@@ -691,14 +685,11 @@ fn populate_data_from_trait(
         return;
     };
 
-    storage.constants.extend(
-        trait_storage
-            .constants
-            .iter()
-            .filter(|(k, _)| !storage.constants.contains_key(*k))
-            .map(|v| (*v.0, v.1.clone()))
-            .collect::<FxHashMap<_, _>>(),
-    );
+    for (k, v) in &trait_storage.constants {
+        if !storage.constants.contains_key(k) {
+            storage.constants.insert(*k, v.clone());
+        }
+    }
 
     storage
         .all_parent_interfaces
