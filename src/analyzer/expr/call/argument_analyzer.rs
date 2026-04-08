@@ -266,7 +266,8 @@ pub(crate) fn verify_type(
         input_type,
         param_type,
         false,
-        input_type.ignore_falsable_issues,
+        input_type.ignore_falsable_issues
+            && !statements_analyzer.get_config().strict_falsable_types,
         false,
         &mut union_comparison_result,
     );

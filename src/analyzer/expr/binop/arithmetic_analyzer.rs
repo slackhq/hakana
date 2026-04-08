@@ -118,7 +118,9 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
         }
 
         if let TAtomic::TFalse = e1_type_atomic {
-            if e1_type.ignore_falsable_issues {
+            if e1_type.ignore_falsable_issues
+                && !statements_analyzer.get_config().strict_falsable_types
+            {
                 continue;
             }
             e1_type_atomic = zero.clone();
@@ -168,7 +170,9 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             }
 
             if let TAtomic::TFalse = e2_type_atomic {
-                if e2_type.ignore_falsable_issues {
+                if e2_type.ignore_falsable_issues
+                    && !statements_analyzer.get_config().strict_falsable_types
+                {
                     continue;
                 }
                 e2_type_atomic = zero.clone();

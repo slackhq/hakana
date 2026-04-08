@@ -17,6 +17,8 @@ pub struct JsonConfig {
     pub allowed_issues: Vec<String>,
     #[serde(default)]
     pub test_files: Vec<String>,
+    #[serde(default)]
+    pub strict_falsable_types: bool,
 }
 
 #[derive(Deserialize, Debug, Default)]

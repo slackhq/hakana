@@ -1,3 +1,4 @@
+use crate::scope_analyzer::ScopeAnalyzer;
 use bstr::BString;
 use hakana_code_info::classlike_info::ClassConstantType;
 use hakana_code_info::code_location::HPos;
@@ -354,7 +355,8 @@ fn handle_special_functions(
                         expr_type,
                         &get_string(),
                         false,
-                        expr_type.ignore_falsable_issues,
+                        expr_type.ignore_falsable_issues
+                            && !statements_analyzer.get_config().strict_falsable_types,
                         false,
                         &mut TypeComparisonResult::new(),
                     ) {
@@ -380,7 +382,8 @@ fn handle_special_functions(
                         expr_type,
                         &get_string(),
                         false,
-                        expr_type.ignore_falsable_issues,
+                        expr_type.ignore_falsable_issues
+                            && !statements_analyzer.get_config().strict_falsable_types,
                         false,
                         &mut TypeComparisonResult::new(),
                     ) {

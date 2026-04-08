@@ -849,7 +849,8 @@ pub(crate) fn handle_array_access_on_dict(
                 dim_type
             },
             true,
-            value_param.ignore_falsable_issues,
+            value_param.ignore_falsable_issues
+                && !statements_analyzer.get_config().strict_falsable_types,
             false,
             &mut union_comparison_result,
         );

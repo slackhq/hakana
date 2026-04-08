@@ -221,7 +221,8 @@ pub(crate) fn analyze(
                 assign_value_type,
                 &class_property_type,
                 false,
-                assign_value_type.ignore_falsable_issues,
+                assign_value_type.ignore_falsable_issues
+                    && !statements_analyzer.get_config().strict_falsable_types,
                 false,
                 &mut union_comparison_result,
             );

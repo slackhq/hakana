@@ -860,7 +860,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             callsite_return_type,
                             &expected_return_type,
                             false,
-                            callsite_return_type.ignore_falsable_issues,
+                            callsite_return_type.ignore_falsable_issues
+                                && !statements_analyzer.get_config().strict_falsable_types,
                             false,
                             &mut TypeComparisonResult::new(),
                         ) {

@@ -107,7 +107,9 @@ pub(crate) fn analyze(
                     continue;
                 }
                 TAtomic::TFalse => {
-                    if class_type.ignore_falsable_issues {
+                    if class_type.ignore_falsable_issues
+                        && !statements_analyzer.get_config().strict_falsable_types
+                    {
                         continue;
                     }
                 }

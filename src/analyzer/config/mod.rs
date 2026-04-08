@@ -41,6 +41,7 @@ pub struct Config {
     pub analyze_cyclomatic_complexity: bool,
     pub cyclomatic_complexity_threshold: u32,
     pub cyclomatic_complexity_file_patterns: Vec<glob::Pattern>,
+    pub strict_falsable_types: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -96,6 +97,7 @@ impl Config {
             analyze_cyclomatic_complexity: false,
             cyclomatic_complexity_threshold: 0,
             cyclomatic_complexity_file_patterns: Vec::new(),
+            strict_falsable_types: false,
         }
     }
 
@@ -180,6 +182,8 @@ impl Config {
             })
             .collect();
         self.security_config.max_depth = json_config.security_analysis.max_depth.unwrap_or(40);
+
+        self.strict_falsable_types = json_config.strict_falsable_types;
 
         Ok(())
     }

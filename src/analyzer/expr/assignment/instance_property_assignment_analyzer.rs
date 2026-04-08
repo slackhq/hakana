@@ -84,7 +84,8 @@ pub(crate) fn analyze(
             assignment_type,
             class_property_type,
             true,
-            assignment_type.ignore_falsable_issues,
+            assignment_type.ignore_falsable_issues
+                && !statements_analyzer.get_config().strict_falsable_types,
             false,
             &mut union_comparison_result,
         );

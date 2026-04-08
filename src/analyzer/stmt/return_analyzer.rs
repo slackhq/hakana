@@ -490,7 +490,8 @@ pub(crate) fn analyze(
             if inferred_return_type.is_falsable()
                 && !expected_return_type.is_falsable()
                 && !expected_return_type.has_template()
-                && !inferred_return_type.ignore_falsable_issues
+                && (!inferred_return_type.ignore_falsable_issues
+                    || statements_analyzer.get_config().strict_falsable_types)
             {
                 analysis_data.maybe_add_issue(Issue::new(
                     IssueKind::FalsableReturnStatement,
