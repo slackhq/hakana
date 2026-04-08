@@ -5,6 +5,7 @@ use serde::Deserialize;
 #[derive(Deserialize, Debug, Default)]
 pub struct TestConfig {
     pub max_changes_allowed: Option<usize>,
+    pub strict_falsable_types: Option<bool>,
 }
 
 pub(crate) fn read_from_file(path: &Path) -> Result<TestConfig, Box<dyn Error>> {
