@@ -77,18 +77,18 @@ pub fn replace(
                 {
                     let template_type = get_most_specific_type_from_bounds(bounds, codebase);
 
-                    let mut class_template_type = None;
+                    let mut class_template_types = Vec::new();
 
                     for template_type_part in &template_type.types {
                         if template_type_part.is_mixed()
                             || matches!(template_type_part, TAtomic::TObject)
                         {
                             if is_class_ptr {
-                                class_template_type = Some(TAtomic::TClassPtr {
+                                class_template_types.push(TAtomic::TClassPtr {
                                     as_type: Box::new(TAtomic::TObject),
                                 });
                             } else {
-                                class_template_type = Some(TAtomic::TClassname {
+                                class_template_types.push(TAtomic::TClassname {
                                     as_type: Box::new(TAtomic::TObject),
                                 });
                             }
@@ -96,11 +96,11 @@ pub fn replace(
                         | TAtomic::TObjectIntersection { .. } = template_type_part
                         {
                             if is_class_ptr {
-                                class_template_type = Some(TAtomic::TClassPtr {
+                                class_template_types.push(TAtomic::TClassPtr {
                                     as_type: Box::new(template_type_part.clone()),
                                 });
                             } else {
-                                class_template_type = Some(TAtomic::TClassname {
+                                class_template_types.push(TAtomic::TClassname {
                                     as_type: Box::new(template_type_part.clone()),
                                 });
                             }
@@ -114,13 +114,13 @@ pub fn replace(
                             let first_atomic_type = as_type.get_single();
 
                             if is_class_ptr {
-                                class_template_type = Some(TAtomic::TGenericClassPtr {
+                                class_template_types.push(TAtomic::TGenericClassPtr {
                                     param_name: *param_name,
                                     as_type: Box::new(first_atomic_type.clone()),
                                     defining_entity: *defining_entity,
                                 })
                             } else {
-                                class_template_type = Some(TAtomic::TGenericClassname {
+                                class_template_types.push(TAtomic::TGenericClassname {
                                     param_name: *param_name,
                                     as_type: Box::new(first_atomic_type.clone()),
                                     defining_entity: *defining_entity,
@@ -129,9 +129,9 @@ pub fn replace(
                         }
                     }
 
-                    if let Some(class_template_type) = class_template_type {
+                    if !class_template_types.is_empty() {
                         keys_to_unset.insert(*param_name);
-                        new_types.push(class_template_type);
+                        new_types.extend(class_template_types);
                     }
                 }
             }
@@ -148,11 +148,11 @@ pub fn replace(
                 {
                     let template_type = get_most_specific_type_from_bounds(bounds, codebase);
 
-                    let mut class_template_type = None;
+                    let mut class_template_types = Vec::new();
 
                     for template_type_part in &template_type.types {
                         if template_type_part.is_mixed() {
-                            class_template_type = Some(TAtomic::TTypename {
+                            class_template_types.push(TAtomic::TTypename {
                                 as_type: Box::new(TAtomic::TObject),
                             });
                         } else if let TAtomic::TTypeAlias {
@@ -161,7 +161,7 @@ pub fn replace(
                             ..
                         } = template_type_part
                         {
-                            class_template_type = Some(TAtomic::TTypename {
+                            class_template_types.push(TAtomic::TTypename {
                                 as_type: Box::new(TAtomic::TTypeAlias {
                                     name: *type_name,
                                     type_params: None,
@@ -178,7 +178,7 @@ pub fn replace(
                         {
                             let first_atomic_type = as_type.get_single();
 
-                            class_template_type = Some(TAtomic::TGenericTypename {
+                            class_template_types.push(TAtomic::TGenericTypename {
                                 param_name: *param_name,
                                 as_type: Box::new(first_atomic_type.clone()),
                                 defining_entity: *defining_entity,
@@ -186,9 +186,9 @@ pub fn replace(
                         }
                     }
 
-                    if let Some(class_template_type) = class_template_type {
+                    if !class_template_types.is_empty() {
                         keys_to_unset.insert(*param_name);
-                        new_types.push(class_template_type);
+                        new_types.extend(class_template_types);
                     }
                 }
             }
