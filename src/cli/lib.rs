@@ -18,7 +18,7 @@ use serde_json::json;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
@@ -26,6 +26,16 @@ use test_runners::test_runner::TestRunner;
 
 pub mod mcp;
 pub mod test_runners;
+
+/// Print a message only when stdout is a terminal (not piped).
+/// Use this for informational/summary output that should not appear in piped output.
+macro_rules! tty_println {
+    ($($arg:tt)*) => {
+        if std::io::stdout().is_terminal() {
+            println!($($arg)*);
+        }
+    };
+}
 
 pub fn init(
     analysis_hooks: Vec<Box<dyn CustomHook>>,
@@ -599,7 +609,11 @@ pub fn init(
 
     let cwd = (env::current_dir()).unwrap().to_str().unwrap().to_string();
 
-    println!("{}\n", header);
+    let stdout_is_tty = std::io::stdout().is_terminal();
+
+    if stdout_is_tty {
+        println!("{}\n", header);
+    }
 
     let threads = match matches.subcommand() {
         Some(("test", _)) => 1,
@@ -621,14 +635,24 @@ pub fn init(
                 Logger::DevNull
             }
         }
-        Some((_, sub_matches)) => Logger::CommandLine(if sub_matches.is_present("debug") {
-            Verbosity::Debugging
-        } else if sub_matches.is_present("show-timing") {
-            Verbosity::Timing
-        } else {
-            Verbosity::Simple
-        }),
-        _ => Logger::CommandLine(Verbosity::Simple),
+        Some((_, sub_matches)) => {
+            if sub_matches.is_present("debug") {
+                Logger::CommandLine(Verbosity::Debugging)
+            } else if sub_matches.is_present("show-timing") {
+                Logger::CommandLine(Verbosity::Timing)
+            } else if stdout_is_tty {
+                Logger::CommandLine(Verbosity::Simple)
+            } else {
+                Logger::DevNull
+            }
+        }
+        _ => {
+            if stdout_is_tty {
+                Logger::CommandLine(Verbosity::Simple)
+            } else {
+                Logger::DevNull
+            }
+        }
     };
 
     let root_dir = match matches.subcommand() {
@@ -938,7 +962,7 @@ fn do_find_executable(
                 serde_json::to_string_pretty(&file_infos).unwrap()
             ) {
                 Ok(_) => {
-                    println!("Done")
+                    tty_println!("Done")
                 }
                 Err(err) => {
                     println!("error: {}", err)
@@ -1243,7 +1267,7 @@ fn do_migration_candidates(
     );
 
     if let Ok(result) = result {
-        println!("\nSymbols to migrate:\n");
+        tty_println!("\nSymbols to migrate:\n");
         for config_hook in &config.hooks {
             let migration_candidates =
                 config_hook.get_candidates(&result.1.codebase, &result.1.interner, &result.0);
@@ -1375,7 +1399,7 @@ fn do_codegen(
             match info {
                 Ok(info) => {
                     write!(output_path, "{}", &info).unwrap();
-                    println!("Saved {}", name);
+                    tty_println!("Saved {}", name);
                     updated_count += 1;
                 }
                 Err(err) => {
@@ -1402,9 +1426,9 @@ fn do_codegen(
         }
 
         if check_codegen {
-            println!("\n{} codegen files verified!", verified_count);
+            tty_println!("\n{} codegen files verified!", verified_count);
         } else {
-            println!("\n{} files generated", updated_count);
+            tty_println!("\n{} files generated", updated_count);
         }
     }
 }
@@ -1472,7 +1496,7 @@ fn do_find_paths(
         }
 
         if !*had_error {
-            println!("\nNo security issues found!\n");
+            tty_println!("\nNo security issues found!\n");
         }
     }
 }
@@ -1542,7 +1566,7 @@ fn do_security_check(
         }
 
         if !*had_error {
-            println!("\nNo security issues found!\n");
+            tty_println!("\nNo security issues found!\n");
         }
 
         if let Some(output_file) = output_file {
@@ -1604,9 +1628,13 @@ fn do_analysis(
 
     // Use server mode if available
     if use_server {
+        let stdout_is_tty = io::stdout().is_terminal();
+
         // Clear any "Waiting for server" message
-        print!("\r\x1b[K");
-        io::stdout().flush().ok();
+        if stdout_is_tty {
+            print!("\r\x1b[K");
+            io::stdout().flush().ok();
+        }
         let find_unused_expressions = sub_matches.is_present("find-unused-expressions");
         let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
 
@@ -1618,10 +1646,16 @@ fn do_analysis(
 
         // Poll for results, showing progress bar if analysis is in progress
         // Reconnect for each request since server handles one request per connection
-        let pb = ProgressBar::new(100);
-        pb.set_style(
-            ProgressStyle::with_template("{bar:40.green/yellow} {percent:>3}% - {msg}").unwrap(),
-        );
+        let pb = if stdout_is_tty {
+            let pb = ProgressBar::new(100);
+            pb.set_style(
+                ProgressStyle::with_template("{bar:40.green/yellow} {percent:>3}% - {msg}")
+                    .unwrap(),
+            );
+            pb
+        } else {
+            ProgressBar::hidden()
+        };
 
         loop {
             let mut client = match ClientSocket::connect(&socket_path) {
@@ -1652,10 +1686,10 @@ fn do_analysis(
                         }
 
                         if !*had_error {
-                            println!("\nNo issues reported!\n");
+                            tty_println!("\nNo issues reported!\n");
                         }
 
-                        println!("\nAnalyzed {} files", result.files_analyzed);
+                        tty_println!("\nAnalyzed {} files", result.files_analyzed);
                         return;
                     } else {
                         // Update progress bar
@@ -1789,7 +1823,7 @@ fn do_analysis(
         }
 
         if !*had_error {
-            println!("\nNo issues reported!\n");
+            tty_println!("\nNo issues reported!\n");
         }
 
         if let Some(output_file) = output_file {
@@ -1925,7 +1959,7 @@ fn update_files(analysis_result: &mut AnalysisResult, root_dir: &String, interne
         .collect();
 
     for (relative_path, original_path) in sorted_files {
-        println!("updating {}", relative_path);
+        tty_println!("updating {}", relative_path);
         let file_path = format!("{}/{}", root_dir, relative_path);
         let file_contents = fs::read_to_string(&file_path).unwrap();
         let mut file = File::create(&file_path).unwrap();
@@ -2107,7 +2141,7 @@ fn do_lint(
             }
         }
     } else {
-        println!(
+        tty_println!(
             "No hhast-lint.json found at {}. Using default configuration.",
             config_path
         );
@@ -2162,7 +2196,7 @@ fn do_lint(
                 }
             }
             if !found {
-                println!("Warning: Unknown linter '{}'", linter_name);
+                eprintln!("Warning: Unknown linter '{}'", linter_name);
             }
         }
     }
@@ -2240,14 +2274,14 @@ fn do_lint(
     }
 
     if skip_codeowners && skipped_codeowner_files > 0 {
-        println!(
+        tty_println!(
             "Skipped {} file(s) with codeowners",
             skipped_codeowner_files
         );
     }
 
     if files_to_lint.is_empty() {
-        println!("\nNo files to lint.");
+        tty_println!("\nNo files to lint.");
         return;
     }
 
@@ -2535,19 +2569,20 @@ fn do_lint(
 
     // Print summary
     if final_errors > 0 {
-        println!(
+        tty_println!(
             "\nFound {} lint issue(s) in {} file(s)",
-            final_errors, final_files
+            final_errors,
+            final_files
         );
         if (apply_fixes || add_fixmes) && final_fixed > 0 {
             if add_fixmes {
-                println!("Added fixmes to {} file(s)", final_fixed);
+                tty_println!("Added fixmes to {} file(s)", final_fixed);
             } else {
-                println!("Fixed {} file(s)", final_fixed);
+                tty_println!("Fixed {} file(s)", final_fixed);
             }
         }
     } else {
-        println!("\nNo lint issues found! Checked {} file(s).", final_files);
+        tty_println!("\nNo lint issues found! Checked {} file(s).", final_files);
     }
 
     // Print linter timing statistics (only if --debug-timings is passed)
@@ -2667,8 +2702,8 @@ fn do_server(
 
     match Server::new(server_config, Arc::new(logger)) {
         Ok(mut server) => {
-            println!("Starting hakana server...");
-            println!("Socket: {}", server.socket_path().path().display());
+            tty_println!("Starting hakana server...");
+            tty_println!("Socket: {}", server.socket_path().path().display());
             if let Err(e) = server.run() {
                 println!("Server error: {}", e);
                 exit(1);
@@ -2750,9 +2785,9 @@ fn do_cyclomatic_complexity(
         let total_functions = successful_run_data.codebase.functionlike_infos.len();
 
         if results.is_empty() {
-            println!("No functions exceed complexity threshold of {}", threshold);
+            tty_println!("No functions exceed complexity threshold of {}", threshold);
         } else {
-            println!(
+            tty_println!(
                 "{}/{} functions exceed the complexity threshold:\n",
                 results.len(),
                 total_functions
@@ -2777,7 +2812,7 @@ fn do_cyclomatic_complexity(
             let json = serde_json::to_string_pretty(&report).unwrap();
             let mut out = fs::File::create(Path::new(&output_path_str)).unwrap();
             write!(out, "{}", json).unwrap();
-            println!("\nResults written to: {}", output_path_str);
+            tty_println!("\nResults written to: {}", output_path_str);
         }
 
         if !results.is_empty() {
