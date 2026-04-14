@@ -486,12 +486,23 @@ pub(crate) fn analyze(
             )?;
         }
 
+        aast::Expr_::Upcast(boxed) => {
+            as_analyzer::analyze(
+                statements_analyzer,
+                expr.pos(),
+                &boxed.0,
+                &boxed.1,
+                false,
+                analysis_data,
+                context,
+            )?;
+        }
+
         aast::Expr_::Collection(_)
         | aast::Expr_::This
         | aast::Expr_::Omitted
         | aast::Expr_::Dollardollar(_)
         | aast::Expr_::ReadonlyExpr(_)
-        | aast::Expr_::Upcast(_)
         | aast::Expr_::ExpressionTree(_)
         | aast::Expr_::Lplaceholder(_)
         | aast::Expr_::MethodCaller(_)
