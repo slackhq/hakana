@@ -1,3 +1,8 @@
 ERROR: LessSpecificArgument - input.hack:19:17 - Argument 1 of takesString expects string, parent type Foo::A provided
 ERROR: RedundantTypeComparison - input.hack:21:10 - Type Bar::A is always string
 ERROR: RedundantTypeComparison - input.hack:22:10 - Type BarInt::A is always int
+ERROR: ImpossibleTypeComparison - input.hack:24:14 - Type string(c) is never Bar
+ERROR: InvalidArgument - input.hack:24:14 - Argument 1 of takesFoo expects Foo, different type string(c) provided
+ERROR: ImpossibleTypeComparison - input.hack:25:17 - Type int(999) is never BarInt
+ERROR: InvalidArgument - input.hack:25:17 - Argument 1 of takesBarInt expects BarInt, different type int(999) provided
+ERROR: RedundantTypeComparison - input.hack:26:14 - Type Foo::A is always Foo

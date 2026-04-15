@@ -1,9 +1,45 @@
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
 use crate::{
+    class_constant_info::ConstantInfo,
     code_location::FilePath,
     codebase_info::CodebaseInfo,
     t_atomic::{TAtomic, TNamedObject},
 };
+use hakana_str::StrId;
+
+/// Checks whether a literal int or string value matches a single case of an enum.
+fn literal_matches_enum_case(literal: &TAtomic, member_storage: &ConstantInfo) -> bool {
+    match (literal, &member_storage.inferred_type) {
+        (
+            TAtomic::TLiteralString { value: input_value },
+            Some(TAtomic::TLiteralString {
+                value: inferred_value,
+            }),
+        ) => inferred_value == input_value,
+        (
+            TAtomic::TLiteralInt { value: input_value },
+            Some(TAtomic::TLiteralInt {
+                value: inferred_value,
+            }),
+        ) => inferred_value == input_value,
+        _ => false,
+    }
+}
+
+/// Checks whether a literal int or string value matches any case of the given enum.
+fn literal_matches_enum_value(
+    codebase: &CodebaseInfo,
+    enum_name: &StrId,
+    literal: &TAtomic,
+) -> bool {
+    let Some(c) = codebase.classlike_infos.get(enum_name) else {
+        return false;
+    };
+
+    c.constants
+        .values()
+        .any(|member_storage| literal_matches_enum_case(literal, member_storage))
+}
 
 pub fn is_contained_by(
     codebase: &CodebaseInfo,
@@ -168,43 +204,32 @@ pub fn is_contained_by(
             return container_name == input_name;
         }
 
-        // check if a string matches an enum case
-        if let TAtomic::TLiteralString { value: input_value } = input_type_part {
-            if let Some(c) = codebase.classlike_infos.get(container_name) {
-                for (_, const_storage) in &c.constants {
-                    if let Some(TAtomic::TLiteralString {
-                        value: inferred_value,
-                    }) = &const_storage.inferred_type
-                    {
-                        if inferred_value == input_value {
-                            return true;
-                        }
-                    }
-                }
-            }
-        } else if let TAtomic::TLiteralInt { value: input_value } = input_type_part {
-            if let Some(c) = codebase.classlike_infos.get(container_name) {
-                for (_, const_storage) in &c.constants {
-                    if let Some(TAtomic::TLiteralInt {
-                        value: inferred_value,
-                    }) = &const_storage.inferred_type
-                    {
-                        if inferred_value == input_value {
-                            return true;
-                        }
-                    }
-                }
-            }
+        // Consider an enum to contain literal ints or strings matching one of its cases.
+        // This requires an `as EnumType` assertion to avoid a typechecker error,
+        // so only admit this if comparing types outside such an assertion so that we do not
+        // falsely raise a RedundantTypeComparison error.
+        if !inside_assertion
+            && literal_matches_enum_value(codebase, container_name, input_type_part)
+        {
+            return true;
         }
 
         return false;
     }
 
     if let TAtomic::TEnum {
+        name: container_name,
         as_type: input_as_type,
         ..
     } = input_type_part
     {
+        // Ensure an enum is considered compatible with literal ints or strings matching one of its cases
+        // for type assertion purposes.
+        if inside_assertion
+            && literal_matches_enum_value(codebase, container_name, container_type_part)
+        {
+            return true;
+        }
         let input_as_type = match input_as_type {
             Some(input_as_type) => input_as_type,
             _ => &TAtomic::TArraykey { from_any: false },
@@ -274,32 +299,14 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        // check if a string matches an enum case
-        if let TAtomic::TLiteralString { value: input_value } = input_type_part {
-            if let Some(c) = codebase.classlike_infos.get(container_name) {
-                if let Some(TAtomic::TLiteralString {
-                    value: inferred_value,
-                }) = &c.constants.get(member_name).unwrap().inferred_type
-                {
-                    if inferred_value == input_value {
-                        return true;
-                    }
-                }
-            }
-        } else if let TAtomic::TLiteralInt { value: input_value } = input_type_part {
-            if let Some(c) = codebase.classlike_infos.get(container_name) {
-                if let Some(TAtomic::TLiteralInt {
-                    value: inferred_value,
-                }) = &c.constants.get(member_name).unwrap().inferred_type
-                {
-                    if inferred_value == input_value {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+        return codebase
+            .classlike_infos
+            .get(container_name)
+            .and_then(|c| c.constants.get(member_name))
+            // check if a literal int or string matches an enum case
+            .is_some_and(|member_storage| {
+                literal_matches_enum_case(input_type_part, member_storage)
+            });
     }
 
     // compare non-identical types
