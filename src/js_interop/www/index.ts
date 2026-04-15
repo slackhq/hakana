@@ -70,7 +70,8 @@ import { ScannerAndAnalyzer } from "../pkg/js_interop";
     // oniguruma is a low-level library and stock wasm-loader isn't equipped with advanced low-level API's to interact with libonig
     await loadWASM(require('onigasm/lib/onigasm.wasm').default);
     let languageId = 'source.hack';
-    addGrammar(languageId, () => import('./tm/grammars/hack.tmLanguage.json'));
+    const grammar = { ...(await import("./tm/grammars/hack.tmLanguage.json")) };
+    addGrammar(languageId, grammar);
     await activateLanguage(languageId, 'hack', 'asap');
     editor.setOption('mode', 'hack');
 
