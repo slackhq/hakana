@@ -2,8 +2,6 @@ const path = require('path');
 const webpack = require('webpack');
 const HTMLWebpackPlugin = require('html-webpack-plugin')
 
-const CopyWebpackPlugin = require('copy-webpack-plugin')
-
 module.exports = {
   mode: 'development',
   devtool: 'source-map',
@@ -54,7 +52,6 @@ module.exports = {
     syncWebAssembly: true
   },
   plugins: [
-    new CopyWebpackPlugin(['index.html']),
     new HTMLWebpackPlugin({
       template: path.resolve('./index.html')
     }),
