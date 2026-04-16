@@ -2,7 +2,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
-use hakana_code_info::analysis_result::Replacement;
+
 use hakana_code_info::ast::get_id_name;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
@@ -368,81 +368,4 @@ fn analyse_known_class_constant(
     }
 
     class_constant_type
-}
-
-/// Check whether the given expression is a class<T> pointer literal and raise an issue if so.
-pub(crate) fn check_class_ptr_used_as_string(
-    statements_analyzer: &StatementsAnalyzer,
-    context: &BlockContext,
-    analysis_data: &mut FunctionAnalysisData,
-    expr_type: &TUnion,
-    expr: &aast::Expr<(), ()>,
-) {
-    let is_literal_class_ptr = expr_type
-        .types
-        .iter()
-        .all(|t| matches!(t, TAtomic::TLiteralClassPtr { name: _ }));
-
-    if is_literal_class_ptr
-        && let Some(class_name) = get_class_name_from_class_ptr_literal_expr(expr)
-    {
-        emit_class_pointer_used_as_string(
-            statements_analyzer,
-            context,
-            analysis_data,
-            expr,
-            class_name,
-        );
-    }
-}
-
-pub(crate) fn emit_class_pointer_used_as_string(
-    statements_analyzer: &StatementsAnalyzer<'_>,
-    context: &BlockContext,
-    analysis_data: &mut FunctionAnalysisData,
-    expr: &aast::Expr<(), ()>,
-    class_name: &str,
-) {
-    let pos = expr.pos();
-    let issue = Issue::new(
-        IssueKind::ClassnameUsedAsString,
-        format!(
-            "Using {} in this position will lead to an implicit runtime conversion to string, please use \"nameof {}\" instead",
-            class_name, class_name
-        ),
-        statements_analyzer.get_hpos(pos),
-        &context.function_context.calling_functionlike_id,
-    );
-
-    let config = statements_analyzer.get_config();
-
-    if statements_analyzer.should_autofix(context, analysis_data, &issue) {
-        let nameof_expr = format!("nameof {}", class_name);
-        analysis_data.add_replacement(
-            (pos.start_offset() as u32, pos.end_offset() as u32),
-            Replacement::Substitute(nameof_expr),
-        );
-    } else {
-        analysis_data.maybe_add_issue(issue, config, statements_analyzer.get_file_path_actual());
-    }
-}
-
-/// Extract the referenced class name from a class<T> pointer literal expression in the form of C::class.
-/// Returns `None` if the class name cannot be determined.
-pub(crate) fn get_class_name_from_class_ptr_literal_expr(
-    expr: &aast::Expr<(), ()>,
-) -> Option<&str> {
-    let aast::Expr_::ClassConst(class_id) = &expr.2 else {
-        return None;
-    };
-
-    let aast::ClassId_::CIexpr(ci_expr) = &(**class_id).0.2 else {
-        return None;
-    };
-
-    if let aast::Expr_::Id(inner_class_id) = &ci_expr.2 {
-        Some(inner_class_id.name())
-    } else {
-        None
-    }
 }

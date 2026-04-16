@@ -18,7 +18,6 @@ pub enum IssueKind {
     AwaitInSyncContext,
     BannedFunction,
     CannotInferGenericParam,
-    ClassnameUsedAsString,
     CloneInsideLoop,
     CustomIssue(Box<String>),
     DuplicateClassDefinition,

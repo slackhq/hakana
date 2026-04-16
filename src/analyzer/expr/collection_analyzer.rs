@@ -20,7 +20,6 @@ use oxidized::{
     ast_defs::Pos,
 };
 
-use crate::expr::fetch::class_constant_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
@@ -373,18 +372,6 @@ fn analyze_vals_item(
         array_creation_info,
     );
 
-    // Using a classname type inside a keyset<string> or keyset<classname<C>>
-    // is a typechecker error in new Hack.
-    if matches!(container_type, VcKind::Keyset) {
-        class_constant_fetch_analyzer::check_class_ptr_used_as_string(
-            statements_analyzer,
-            context,
-            analysis_data,
-            &value_item_type,
-            item_value,
-        );
-    }
-
     if key_item_type.is_single() && key_item_type.has_int() && matches!(container_type, VcKind::Vec)
     {
         array_creation_info
@@ -437,18 +424,6 @@ fn analyze_keyvals_item(
         key.pos(),
         array_creation_info,
     );
-
-    // Using a classname type as the key of a dict<string, T> or dict<classname<C>, T>
-    // is a typechecker error in new Hack.
-    if matches!(container_type, KvcKind::Dict) {
-        class_constant_fetch_analyzer::check_class_ptr_used_as_string(
-            statements_analyzer,
-            context,
-            analysis_data,
-            &key_item_type,
-            key,
-        );
-    }
 
     // Now check types of the values
     expression_analyzer::analyze(statements_analyzer, value, analysis_data, context, true)?;

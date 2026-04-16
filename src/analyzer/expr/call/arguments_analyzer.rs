@@ -17,7 +17,7 @@ use crate::expr::binop::assignment_analyzer;
 use crate::expr::call_analyzer::get_generic_param_for_offset;
 use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
-use crate::expr::fetch::class_constant_fetch_analyzer;
+
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -368,15 +368,6 @@ pub(crate) fn check_arguments_match(
             template_result,
             statements_analyzer,
             functionlike_id,
-        );
-
-        check_classname_passed_as_string(
-            statements_analyzer,
-            context,
-            analysis_data,
-            &param_type,
-            &arg_value_type,
-            arg,
         );
 
         param_types.insert(argument_offset, param_type);
@@ -1562,29 +1553,6 @@ pub(crate) fn get_template_types_for_class_member(
 
 /// Check for expressions of type classname<T> used in a string context.
 ///
-/// Presently, this only checks for and autofixes the by far the most common case
-/// of using a classname literal (i.e. C::class) as a parameter to a function that takes string.
-fn check_classname_passed_as_string(
-    statements_analyzer: &StatementsAnalyzer,
-    context: &BlockContext,
-    analysis_data: &mut FunctionAnalysisData,
-    param_type: &TUnion,
-    arg_value_type: &TUnion,
-    arg: &aast::Argument<(), ()>,
-) {
-    let is_string_param = param_type.types.iter().any(|t| *t == TAtomic::TString);
-
-    if is_string_param {
-        class_constant_fetch_analyzer::check_class_ptr_used_as_string(
-            statements_analyzer,
-            context,
-            analysis_data,
-            arg_value_type,
-            arg.to_expr_ref(),
-        );
-    }
-}
-
 /// Check for named argument issues:
 /// - UnexpectedNamedArgument: when a named argument doesn't match any parameter
 /// - MissingRequiredNamedArgument: when a required named parameter wasn't provided
