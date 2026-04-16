@@ -1,0 +1,2 @@
+ERROR: NonBoolCondition - input.hack:2:9 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:3:13 - Only bool values can be used as a condition
