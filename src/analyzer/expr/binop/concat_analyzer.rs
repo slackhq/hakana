@@ -1,6 +1,3 @@
-use crate::expr::fetch::class_constant_fetch_analyzer::{
-    emit_class_pointer_used_as_string, get_class_name_from_class_ptr_literal_expr,
-};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -140,27 +137,7 @@ pub(crate) fn analyze_concat_nodes(
                             existing_literal_string_values = None;
                             local_nonempty_string = false;
                         }
-                        TAtomic::TLiteralClassPtr { name } => {
-                            if let Some(class_name) =
-                                get_class_name_from_class_ptr_literal_expr(concat_node)
-                            {
-                                emit_class_pointer_used_as_string(
-                                    statements_analyzer,
-                                    context,
-                                    analysis_data,
-                                    concat_node,
-                                    class_name,
-                                );
-                            } else {
-                                emit_class_pointer_used_as_string(
-                                    statements_analyzer,
-                                    context,
-                                    analysis_data,
-                                    concat_node,
-                                    &("\\".to_string() + statements_analyzer.interner.lookup(name)),
-                                );
-                            }
-
+                        TAtomic::TLiteralClassPtr { .. } => {
                             existing_literal_string_values = None;
                         }
                         TAtomic::TNothing => analysis_data.maybe_add_issue(
