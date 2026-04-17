@@ -8,10 +8,11 @@ use crate::{
 };
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
-    functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
+    t_atomic::{TAtomic, TNamedObject},
     t_union::TUnion,
 };
+use hakana_str::StrId;
 use oxidized::{aast, ast, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -197,9 +198,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             analysis_data,
             cond.pos(),
-            &externally_applied_context
-                .function_context
-                .calling_functionlike_id,
+            &externally_applied_context,
             &cond_type,
         );
     }
@@ -312,7 +311,7 @@ pub(crate) fn handle_paradoxical_condition(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
-    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
+    context: &BlockContext,
     expr_type: &TUnion,
 ) {
     if expr_type.is_always_falsy() {
@@ -324,7 +323,7 @@ pub(crate) fn handle_paradoxical_condition(
                     expr_type.get_id(Some(statements_analyzer.interner))
                 ),
                 statements_analyzer.get_hpos(pos),
-                calling_functionlike_id,
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
@@ -338,10 +337,50 @@ pub(crate) fn handle_paradoxical_condition(
                     expr_type.get_id(Some(statements_analyzer.interner))
                 ),
                 statements_analyzer.get_hpos(pos),
-                calling_functionlike_id,
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
         );
+    }
+
+    if !expr_type.is_bool()
+        && expr_type.is_nullable()
+        && expr_type.types.iter().all(|t| {
+            matches!(
+                t,
+                TAtomic::TNull | TAtomic::TObject | TAtomic::TNamedObject(..)
+            ) && !matches!(
+                t,
+                TAtomic::TNamedObject(TNamedObject {
+                    name: StrId::CONTAINER
+                        | StrId::KEYED_CONTAINER
+                        | StrId::ANY_ARRAY
+                        | StrId::TRAVERSABLE
+                        | StrId::KEYED_TRAVERSABLE,
+                    ..
+                })
+            )
+        })
+        && !analysis_data
+            .insertions
+            .contains_key(&(pos.end_offset() as u32))
+    {
+        let issue = Issue::new(
+            IssueKind::NonBoolCondition,
+            "Only bool values can be used as a condition".to_string(),
+            statements_analyzer.get_hpos(pos),
+            &context.function_context.calling_functionlike_id,
+        );
+
+        if statements_analyzer.should_autofix(context, analysis_data, &issue) {
+            analysis_data.insert_at(pos.end_offset() as u32, " is nonnull".to_string());
+        } else {
+            analysis_data.maybe_add_issue(
+                issue,
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
     }
 }

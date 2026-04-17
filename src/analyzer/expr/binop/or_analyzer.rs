@@ -74,7 +74,7 @@ pub(crate) fn analyze<'expr>(
                 statements_analyzer,
                 analysis_data,
                 left.pos(),
-                &context.function_context.calling_functionlike_id,
+                context,
                 &cond_type,
             );
         }
@@ -244,7 +244,7 @@ pub(crate) fn analyze<'expr>(
             statements_analyzer,
             analysis_data,
             right.pos(),
-            &context.function_context.calling_functionlike_id,
+            context,
             &cond_type,
         );
     }

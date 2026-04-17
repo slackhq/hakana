@@ -103,11 +103,7 @@ impl Clause {
         }
 
         Some(Clause {
-            hash: get_hash(
-                &possibilities,
-                self.wedge,
-                self.reconcilable,
-            ),
+            hash: get_hash(&possibilities, self.wedge, self.reconcilable),
             possibilities,
             creating_conditional_id: self.creating_conditional_id,
             creating_object_id: self.creating_object_id,
@@ -127,11 +123,7 @@ impl Clause {
         possibilities.insert(var_id, new_possibility);
 
         Clause {
-            hash: get_hash(
-                &possibilities,
-                self.wedge,
-                self.reconcilable,
-            ),
+            hash: get_hash(&possibilities, self.wedge, self.reconcilable),
             possibilities,
             creating_conditional_id: self.creating_conditional_id,
             creating_object_id: self.creating_object_id,

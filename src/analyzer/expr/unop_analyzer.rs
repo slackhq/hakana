@@ -1,9 +1,14 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_code_info::analysis_result::Replacement;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::{TAtomic, TNamedObject};
 use hakana_code_info::ttype::{get_bool, get_literal_int};
+use hakana_str::StrId;
 use oxidized::ast::Binop;
 use oxidized::ast_defs::Bop;
 use oxidized::pos::Pos;
@@ -42,6 +47,50 @@ pub(crate) fn analyze(
             }
         }
         oxidized::ast_defs::Uop::Unot => {
+            if let Some(expr_type) = analysis_data.get_expr_type(expr.1.pos()).cloned()
+                && expr_type.is_nullable()
+                && expr_type.types.iter().all(|t| {
+                    matches!(
+                        t,
+                        TAtomic::TNull | TAtomic::TObject | TAtomic::TNamedObject(..)
+                    ) && !matches!(
+                        t,
+                        TAtomic::TNamedObject(TNamedObject {
+                            name: StrId::CONTAINER
+                                | StrId::KEYED_CONTAINER
+                                | StrId::ANY_ARRAY
+                                | StrId::TRAVERSABLE
+                                | StrId::KEYED_TRAVERSABLE,
+                            ..
+                        })
+                    )
+                })
+                && !analysis_data
+                    .insertions
+                    .contains_key(&(pos.end_offset() as u32))
+            {
+                let issue = Issue::new(
+                    IssueKind::NonBoolCondition,
+                    "Only bool values can be used as a condition".to_string(),
+                    statements_analyzer.get_hpos(pos),
+                    &context.function_context.calling_functionlike_id,
+                );
+
+                if statements_analyzer.should_autofix(context, analysis_data, &issue) {
+                    analysis_data.add_replacement(
+                        (pos.start_offset() as u32, pos.start_offset() as u32 + 1),
+                        Replacement::Remove,
+                    );
+                    analysis_data.insert_at(pos.end_offset() as u32, " is null".to_string());
+                } else {
+                    analysis_data.maybe_add_issue(
+                        issue,
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+            }
+
             add_decision_dataflow(
                 statements_analyzer,
                 analysis_data,
