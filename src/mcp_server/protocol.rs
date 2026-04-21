@@ -8,7 +8,7 @@ use hakana_protocol::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::io::{self, BufRead, Write};
+use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
@@ -244,8 +244,8 @@ impl McpServer {
     fn handle_request(&mut self, request: JsonRpcRequest) -> JsonRpcResponse {
         match request.method.as_str() {
             "initialize" => self.handle_initialize(request.id, request.params),
-            "initialized" => {
-                // Notification, no response needed
+            "initialized" | "notifications/initialized" => {
+                self.initialized = true;
                 JsonRpcResponse::success(request.id, json!({}))
             }
             "tools/list" => self.handle_tools_list(request.id),
@@ -507,20 +507,13 @@ impl McpServer {
     }
 }
 
-/// Run the MCP server, reading from stdin and writing to stdout
-pub fn run_mcp_server(
-    root_dir: String,
-    threads: u8,
-    config_path: Option<String>,
-    plugins: Vec<Arc<dyn CustomHook>>,
-    header: String,
+/// Run the MCP server message loop over the given reader/writer.
+fn run_mcp_server_io(
+    server: &mut McpServer,
+    reader: impl io::BufRead,
+    writer: &mut impl io::Write,
 ) -> io::Result<()> {
-    let mut server = McpServer::new(root_dir, threads, config_path, plugins, header);
-
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-
-    for line in stdin.lock().lines() {
+    for line in reader.lines() {
         let line = line?;
         if line.trim().is_empty() {
             continue;
@@ -532,27 +525,120 @@ pub fn run_mcp_server(
                 let error_response =
                     JsonRpcResponse::error(None, -32700, format!("Parse error: {}", e));
                 let response_json = serde_json::to_string(&error_response)?;
-                writeln!(stdout, "{}", response_json)?;
-                stdout.flush()?;
+                writeln!(writer, "{}", response_json)?;
+                writer.flush()?;
                 continue;
             }
         };
+
+        let is_notification = request.id.is_none();
 
         // Handle shutdown specially
         if request.method == "shutdown" {
             let response = server.handle_request(request);
             let response_json = serde_json::to_string(&response)?;
-            writeln!(stdout, "{}", response_json)?;
-            stdout.flush()?;
+            writeln!(writer, "{}", response_json)?;
+            writer.flush()?;
             break;
         }
 
         let response = server.handle_request(request);
+
+        // Per JSON-RPC 2.0, notifications (no "id") must not receive a response
+        if is_notification {
+            continue;
+        }
+
         let response_json = serde_json::to_string(&response)?;
-        writeln!(stdout, "{}", response_json)?;
-        stdout.flush()?;
+        writeln!(writer, "{}", response_json)?;
+        writer.flush()?;
     }
+
+    Ok(())
+}
+
+/// Run the MCP server, reading from stdin and writing to stdout
+pub fn run_mcp_server(
+    root_dir: String,
+    threads: u8,
+    config_path: Option<String>,
+    plugins: Vec<Arc<dyn CustomHook>>,
+    header: String,
+) -> io::Result<()> {
+    let mut server = McpServer::new(root_dir, threads, config_path, plugins, header);
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+
+    run_mcp_server_io(&mut server, stdin.lock(), &mut stdout)?;
 
     eprintln!("Hakana MCP server shutting down");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::BufReader;
+
+    fn run_session(messages: &[&str]) -> Vec<serde_json::Value> {
+        let input = messages.join("\n") + "\n";
+        let reader = BufReader::new(input.as_bytes());
+        let mut output = Vec::new();
+
+        let mut server = McpServer::new(
+            "/tmp/fake".to_string(),
+            1,
+            None,
+            vec![],
+            String::new(),
+        );
+        run_mcp_server_io(&mut server, reader, &mut output).unwrap();
+
+        String::from_utf8(output)
+            .unwrap()
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect()
+    }
+
+    /// Repro from https://gist.slack-github.com/juno-suarez/445e9b74e09d3c8bf44ffa125eab7649
+    ///
+    /// Sends the initialize request followed by a notifications/initialized
+    /// notification (no "id"). The server must respond to the request but
+    /// must NOT respond to the notification per JSON-RPC 2.0.
+    #[test]
+    fn notifications_initialized_gets_no_response() {
+        let initialize = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}"#;
+        let notification = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+
+        let responses = run_session(&[initialize, notification]);
+
+        // Exactly one response: the initialize result for id=1
+        assert_eq!(responses.len(), 1, "expected 1 response, got: {responses:?}");
+        assert_eq!(responses[0]["id"], 1);
+        assert!(responses[0]["result"].is_object());
+        assert!(responses[0]["error"].is_null());
+    }
+
+    #[test]
+    fn unknown_method_with_id_gets_error_response() {
+        let request = r#"{"jsonrpc":"2.0","id":42,"method":"bogus/method"}"#;
+        let responses = run_session(&[request]);
+
+        assert_eq!(responses.len(), 1);
+        assert_eq!(responses[0]["id"], 42);
+        assert_eq!(responses[0]["error"]["code"], -32601);
+    }
+
+    #[test]
+    fn unknown_notification_is_silently_ignored() {
+        let initialize = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}"#;
+        let notification = r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":99}}"#;
+
+        let responses = run_session(&[initialize, notification]);
+
+        // Only the initialize response, no response for the notification
+        assert_eq!(responses.len(), 1, "expected 1 response, got: {responses:?}");
+        assert_eq!(responses[0]["id"], 1);
+    }
 }
