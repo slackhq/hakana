@@ -25,9 +25,15 @@ jobs:
     - name: Install OCaml
       run: |
         sudo apt-get update
-        sudo apt-get install -y ocaml opam watchman
+        sudo apt-get install -y ocaml opam
         opam init --disable-sandboxing -y
         eval $(opam env)
+    - name: Install watchman
+      run: |
+        # last version before upstream CI stopped working
+        curl -L --output watchman.deb https://github.com/facebook/watchman/releases/download/v2023.05.01.00/watchman_ubuntu22.04_v2023.05.01.00.deb
+        echo "4a2c75809c56823180b7965a3fd9a68ffc0190149c8fd218a182ada08260d235 watchman.deb" | sha256sum -c
+        sudo apt install -y ./watchman.deb
     
     - name: Init repository
       run: ./init.sh
