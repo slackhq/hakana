@@ -2,38 +2,60 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
-    paths: ['src/**', 'tests/**', 'third-party/**', 'Cargo.toml', 'build.rs', 'init.sh', '.github/workflows/rust.yml']
+    branches: ["main"]
+    paths:
+      [
+        "src/**",
+        "tests/**",
+        "third-party/**",
+        "Cargo.toml",
+        "build.rs",
+        "init.sh",
+        ".github/workflows/rust.yml",
+      ]
   pull_request:
-    branches: [ "main" ]
-    paths: ['src/**', 'tests/**', 'third-party/**', 'Cargo.toml', 'build.rs', 'init.sh', '.github/workflows/rust.yml']
+    branches: ["main"]
+    paths:
+      [
+        "src/**",
+        "tests/**",
+        "third-party/**",
+        "Cargo.toml",
+        "build.rs",
+        "init.sh",
+        ".github/workflows/rust.yml",
+      ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
-      with:
-        submodules: 'true'
+      - uses: actions/checkout@v6
+        with:
+          submodules: "true"
 
-    # Step to install OCaml compiler and dependencies
-    - name: Install OCaml
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ocaml opam watchman
-        opam init --disable-sandboxing -y
-        eval $(opam env)
-    
-    - name: Init repository
-      run: ./init.sh
-    - name: Build & Run tests
-      run: |
-        cargo run --release --bin hakana test tests
+      # Step to install OCaml compiler and dependencies
+      - name: Install OCaml
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ocaml opam
+          opam init --disable-sandboxing -y
+          eval $(opam env)
+      - name: Install watchman
+        run: |
+          curl -L --output watchman.deb https://github.com/mszabo-wikia/watchman/releases/download/v0.1.3-testing/watchman_ubuntu24.04_v0.1.3-testing.deb
+          echo "d88fa6b2b5040b6cf3f3c26b3c0eb21d4273c9591205657bb4363b83f8483944 watchman.deb" | sha256sum -c
+          sudo apt install -y ./watchman.deb
 
-        # run Rust unit tests
-        cargo test --release --workspace
+      - name: Init repository
+        run: ./init.sh
+      - name: Build & Run tests
+        run: |
+          cargo run --release --bin hakana test tests
+
+          # run Rust unit tests
+          cargo test --release --workspace
