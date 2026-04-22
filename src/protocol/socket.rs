@@ -1,12 +1,10 @@
 //! Unix socket utilities for hakana client-server communication.
 
 use std::fs;
-use std::io::{self, BufReader, BufWriter};
-use std::os::unix::net::{UnixListener, UnixStream};
+use std::io;
+use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
-use crate::serialize::{ProtocolError, read_message, write_message};
 use crate::types::Message;
 
 /// Socket path configuration.
@@ -61,21 +59,17 @@ impl SocketPath {
     }
 }
 
-/// Server-side socket wrapper.
 pub struct ServerSocket {
-    listener: UnixListener,
+    listener: tokio::net::UnixListener,
     socket_path: SocketPath,
 }
 
 impl ServerSocket {
-    /// Create and bind a new server socket.
     pub fn bind(socket_path: SocketPath) -> io::Result<Self> {
-        // Clean up any stale socket file
         socket_path.cleanup()?;
 
-        let listener = UnixListener::bind(socket_path.path())?;
+        let listener = tokio::net::UnixListener::bind(socket_path.path())?;
 
-        // Set socket permissions to owner-only
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -89,21 +83,11 @@ impl ServerSocket {
         })
     }
 
-    /// Accept a new client connection.
-    pub fn accept(&self) -> io::Result<ClientConnection> {
-        let (stream, _addr) = self.listener.accept()?;
-        // Ensure the connection stream is in blocking mode
-        stream.set_nonblocking(false)?;
+    pub async fn accept(&self) -> io::Result<ClientConnection> {
+        let (stream, _addr) = self.listener.accept().await?;
         Ok(ClientConnection::new(stream))
     }
 
-    /// Set the accept timeout.
-    pub fn set_accept_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
-        self.listener.set_nonblocking(timeout.is_some())?;
-        Ok(())
-    }
-
-    /// Get the socket path.
     pub fn socket_path(&self) -> &SocketPath {
         &self.socket_path
     }
@@ -115,96 +99,55 @@ impl Drop for ServerSocket {
     }
 }
 
-/// A connection to a client (server-side).
 pub struct ClientConnection {
-    reader: BufReader<UnixStream>,
-    writer: BufWriter<UnixStream>,
+    reader: tokio::io::BufReader<tokio::net::unix::OwnedReadHalf>,
+    writer: tokio::io::BufWriter<tokio::net::unix::OwnedWriteHalf>,
 }
 
 impl ClientConnection {
-    fn new(stream: UnixStream) -> Self {
-        // Set a generous write timeout for large responses
-        let _ = stream.set_write_timeout(Some(Duration::from_secs(300)));
-        let reader = BufReader::new(stream.try_clone().expect("Failed to clone stream"));
-        let writer = BufWriter::new(stream);
+    fn new(stream: tokio::net::UnixStream) -> Self {
+        let (read_half, write_half) = stream.into_split();
+        let reader = tokio::io::BufReader::new(read_half);
+        let writer = tokio::io::BufWriter::new(write_half);
         Self { reader, writer }
     }
 
-    /// Read a message from the client.
-    pub fn read_message(&mut self) -> Result<Message, ProtocolError> {
-        read_message(&mut self.reader)
+    pub async fn read_message(&mut self) -> Result<Message, crate::serialize::ProtocolError> {
+        crate::serialize::read_message(&mut self.reader).await
     }
 
-    /// Write a message to the client.
-    pub fn write_message(&mut self, msg: &Message) -> Result<(), ProtocolError> {
-        write_message(&mut self.writer, msg)
-    }
-
-    /// Set read timeout.
-    pub fn set_read_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
-        self.reader.get_ref().set_read_timeout(timeout)
-    }
-
-    /// Set write timeout.
-    pub fn set_write_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
-        self.writer.get_ref().set_write_timeout(timeout)
+    pub async fn write_message(
+        &mut self,
+        msg: &Message,
+    ) -> Result<(), crate::serialize::ProtocolError> {
+        crate::serialize::write_message(&mut self.writer, msg).await
     }
 }
 
-/// Client-side socket wrapper.
 pub struct ClientSocket {
-    reader: BufReader<UnixStream>,
-    writer: BufWriter<UnixStream>,
+    reader: tokio::io::BufReader<tokio::net::unix::OwnedReadHalf>,
+    writer: tokio::io::BufWriter<tokio::net::unix::OwnedWriteHalf>,
 }
 
 impl ClientSocket {
-    /// Connect to a server.
-    pub fn connect(socket_path: &SocketPath) -> io::Result<Self> {
-        let stream = UnixStream::connect(socket_path.path())?;
-        // Set generous timeouts for large responses
-        stream.set_read_timeout(Some(Duration::from_secs(300)))?;
-        stream.set_write_timeout(Some(Duration::from_secs(60)))?;
-        let reader = BufReader::new(stream.try_clone()?);
-        let writer = BufWriter::new(stream);
+    pub async fn connect(socket_path: &SocketPath) -> io::Result<Self> {
+        let stream = tokio::net::UnixStream::connect(socket_path.path()).await?;
+        let (read_half, write_half) = stream.into_split();
+        let reader = tokio::io::BufReader::new(read_half);
+        let writer = tokio::io::BufWriter::new(write_half);
         Ok(Self { reader, writer })
     }
 
-    /// Connect with a timeout.
-    pub fn connect_timeout(socket_path: &SocketPath, timeout: Duration) -> io::Result<Self> {
-        // Unix sockets don't have a direct connect_timeout, so we use non-blocking connect
-        // For simplicity, we'll just use regular connect with a read/write timeout
-        let stream = UnixStream::connect(socket_path.path())?;
-        stream.set_read_timeout(Some(timeout))?;
-        stream.set_write_timeout(Some(timeout))?;
-        let reader = BufReader::new(stream.try_clone()?);
-        let writer = BufWriter::new(stream);
-        Ok(Self { reader, writer })
+    pub async fn request(
+        &mut self,
+        msg: &Message,
+    ) -> Result<Message, crate::serialize::ProtocolError> {
+        crate::serialize::write_message(&mut self.writer, msg).await?;
+        crate::serialize::read_message(&mut self.reader).await
     }
 
-    /// Send a request and wait for a response.
-    pub fn request(&mut self, msg: &Message) -> Result<Message, ProtocolError> {
-        write_message(&mut self.writer, msg)?;
-        read_message(&mut self.reader)
-    }
-
-    /// Send a message without waiting for a response (for notifications).
-    pub fn send(&mut self, msg: &Message) -> Result<(), ProtocolError> {
-        write_message(&mut self.writer, msg)
-    }
-
-    /// Read a message from the server.
-    pub fn read_message(&mut self) -> Result<Message, ProtocolError> {
-        read_message(&mut self.reader)
-    }
-
-    /// Set read timeout.
-    pub fn set_read_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
-        self.reader.get_ref().set_read_timeout(timeout)
-    }
-
-    /// Set write timeout.
-    pub fn set_write_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
-        self.writer.get_ref().set_write_timeout(timeout)
+    pub async fn send(&mut self, msg: &Message) -> Result<(), crate::serialize::ProtocolError> {
+        crate::serialize::write_message(&mut self.writer, msg).await
     }
 }
 
@@ -212,7 +155,6 @@ impl ClientSocket {
 mod tests {
     use super::*;
     use crate::types::*;
-    use std::thread;
 
     #[test]
     fn test_socket_path_hash() {
@@ -226,23 +168,19 @@ mod tests {
         assert_ne!(path1.path(), path3.path());
     }
 
-    #[test]
-    fn test_client_server_roundtrip() {
+    #[tokio::test]
+    async fn test_client_server_roundtrip() {
         let socket_path = SocketPath::from_path(PathBuf::from("/tmp/hakana-test-roundtrip.sock"));
 
-        // Clean up any stale socket
         let _ = socket_path.cleanup();
 
-        // Start server in a thread
         let server_socket_path = socket_path.clone();
-        let server_handle = thread::spawn(move || {
+        let server_handle = tokio::spawn(async move {
             let server = ServerSocket::bind(server_socket_path).expect("Failed to bind");
-            let mut conn = server.accept().expect("Failed to accept");
+            let mut conn = server.accept().await.expect("Failed to accept");
 
-            // Read request
-            let msg = conn.read_message().expect("Failed to read");
+            let msg = conn.read_message().await.expect("Failed to read");
             if let Message::Status(_) = msg {
-                // Send response
                 let response = Message::StatusResult(StatusResponse {
                     ready: true,
                     files_count: 100,
@@ -252,19 +190,20 @@ mod tests {
                     pending_requests: 0,
                     project_root: "/home/user/project".to_string(),
                 });
-                conn.write_message(&response).expect("Failed to write");
+                conn.write_message(&response)
+                    .await
+                    .expect("Failed to write");
             }
         });
 
-        // Give server time to start
-        thread::sleep(Duration::from_millis(100));
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-        // Connect client
-        let mut client = ClientSocket::connect(&socket_path).expect("Failed to connect");
+        let mut client = ClientSocket::connect(&socket_path)
+            .await
+            .expect("Failed to connect");
 
-        // Send request and get response
         let request = Message::Status(StatusRequest);
-        let response = client.request(&request).expect("Failed to request");
+        let response = client.request(&request).await.expect("Failed to request");
 
         if let Message::StatusResult(status) = response {
             assert!(status.ready);
@@ -273,6 +212,6 @@ mod tests {
             panic!("Expected StatusResponse");
         }
 
-        server_handle.join().unwrap();
+        server_handle.await.unwrap();
     }
 }

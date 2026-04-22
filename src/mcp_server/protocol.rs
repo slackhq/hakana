@@ -1,5 +1,3 @@
-//! MCP protocol implementation using JSON-RPC over stdio.
-
 use crate::tools::Tool;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_protocol::{
@@ -12,16 +10,15 @@ use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::time::Instant;
 
-/// MCP protocol version
 const PROTOCOL_VERSION: &str = "2024-11-05";
 
-/// Server information
 const SERVER_NAME: &str = "hakana-mcp";
 const SERVER_VERSION: &str = "0.1.0";
 
-/// JSON-RPC request structure
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
     #[allow(dead_code)]
@@ -32,7 +29,6 @@ struct JsonRpcRequest {
     params: Value,
 }
 
-/// JSON-RPC response structure
 #[derive(Debug, Serialize)]
 struct JsonRpcResponse {
     jsonrpc: String,
@@ -44,7 +40,6 @@ struct JsonRpcResponse {
     error: Option<JsonRpcError>,
 }
 
-/// JSON-RPC error structure
 #[derive(Debug, Serialize)]
 struct JsonRpcError {
     code: i32,
@@ -77,27 +72,18 @@ impl JsonRpcResponse {
     }
 }
 
-/// MCP Server state
 pub struct McpServer {
-    /// Root directory of the project
     root_dir: String,
-    /// Number of threads for analysis
     threads: u8,
-    /// Analysis config path
     config_path: Option<String>,
-    /// Analysis plugins (unused but kept for API compatibility)
     #[allow(dead_code)]
     plugins: Vec<Arc<dyn CustomHook>>,
-    /// Socket path for connecting to hakana server
     socket_path: SocketPath,
-    /// Whether server is ready
     server_ready: bool,
-    /// Whether the server has been initialized
     initialized: bool,
 }
 
 impl McpServer {
-    /// Create a new MCP server
     pub fn new(
         root_dir: String,
         threads: u8,
@@ -117,21 +103,18 @@ impl McpServer {
         }
     }
 
-    /// Try to connect to existing hakana server, or spawn one and wait for it
-    fn ensure_server_ready(&mut self) -> Result<(), String> {
+    async fn ensure_server_ready(&mut self) -> Result<(), String> {
         if self.server_ready {
             return Ok(());
         }
 
         if !self.socket_path.server_exists() {
-            // Spawn a new server
             eprintln!("Spawning hakana server...");
             self.spawn_server()?;
 
-            // Wait for server socket to appear
             eprintln!("Waiting for server to start...");
             let start = Instant::now();
-            let timeout = Duration::from_secs(300); // 5 minutes for initial analysis
+            let timeout = Duration::from_secs(300);
 
             loop {
                 if self.socket_path.server_exists() {
@@ -140,21 +123,18 @@ impl McpServer {
                 if start.elapsed() > timeout {
                     return Err("Timed out waiting for hakana server to start".to_string());
                 }
-                std::thread::sleep(Duration::from_millis(100));
+                tokio::time::sleep(Duration::from_millis(100)).await;
             }
             eprintln!("Server socket appeared, waiting for analysis to complete...");
         }
 
-        // Poll server until analysis is complete
-        self.wait_for_server_ready()?;
+        self.wait_for_server_ready().await?;
         self.server_ready = true;
 
         Ok(())
     }
 
-    /// Spawn a hakana server in the background
     fn spawn_server(&self) -> Result<(), String> {
-        // Find the hakana binary (should be in the same directory as hakana-mcp)
         let current_exe = std::env::current_exe()
             .map_err(|e| format!("Could not determine current executable: {}", e))?;
 
@@ -174,7 +154,6 @@ impl McpServer {
             self.root_dir
         );
 
-        // Spawn the server as a background process
         let child = Command::new(&hakana_exe)
             .arg("server")
             .arg("--root")
@@ -189,59 +168,43 @@ impl McpServer {
             .spawn()
             .map_err(|e| format!("Failed to spawn server: {}", e))?;
 
-        // Don't wait for the child - let it run in the background
         std::mem::forget(child);
 
         Ok(())
     }
 
-    /// Wait for the server to complete its initial analysis
-    fn wait_for_server_ready(&self) -> Result<(), String> {
+    async fn wait_for_server_ready(&self) -> Result<(), String> {
         let start = Instant::now();
-        let timeout = Duration::from_secs(300); // 5 minutes
+        let timeout = Duration::from_secs(300);
 
         loop {
             if start.elapsed() > timeout {
                 return Err("Timed out waiting for server to complete analysis".to_string());
             }
 
-            match ClientSocket::connect(&self.socket_path) {
-                Ok(mut client) => {
-                    match client.request(&Message::Status(StatusRequest)) {
-                        Ok(Message::StatusResult(status)) => {
-                            if status.ready && !status.analysis_in_progress {
-                                eprintln!(
-                                    "\nServer analysis complete: {} files, {} symbols",
-                                    status.files_count, status.symbols_count
-                                );
-                                return Ok(());
-                            }
-                            // Still analyzing, show progress
-                            let elapsed = start.elapsed().as_secs();
-                            eprint!(
-                                "\rAnalysis in progress... {}s (files: {})",
-                                elapsed, status.files_count
-                            );
-                        }
-                        Ok(_) => {
-                            // Unexpected response, wait and retry
-                        }
-                        Err(_) => {
-                            // Connection error, wait and retry
-                        }
-                    }
+            if let Ok(mut client) = ClientSocket::connect(&self.socket_path).await
+                && let Ok(Message::StatusResult(status)) =
+                    client.request(&Message::Status(StatusRequest)).await
+            {
+                if status.ready && !status.analysis_in_progress {
+                    eprintln!(
+                        "\nServer analysis complete: {} files, {} symbols",
+                        status.files_count, status.symbols_count
+                    );
+                    return Ok(());
                 }
-                Err(_) => {
-                    // Server not ready yet, wait and retry
-                }
+                let elapsed = start.elapsed().as_secs();
+                eprint!(
+                    "\rAnalysis in progress... {}s (files: {})",
+                    elapsed, status.files_count
+                );
             }
 
-            std::thread::sleep(Duration::from_millis(500));
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
     }
 
-    /// Handle an incoming JSON-RPC request
-    fn handle_request(&mut self, request: JsonRpcRequest) -> JsonRpcResponse {
+    async fn handle_request(&mut self, request: JsonRpcRequest) -> JsonRpcResponse {
         match request.method.as_str() {
             "initialize" => self.handle_initialize(request.id, request.params),
             "initialized" | "notifications/initialized" => {
@@ -249,7 +212,7 @@ impl McpServer {
                 JsonRpcResponse::success(request.id, json!({}))
             }
             "tools/list" => self.handle_tools_list(request.id),
-            "tools/call" => self.handle_tools_call(request.id, request.params),
+            "tools/call" => self.handle_tools_call(request.id, request.params).await,
             "shutdown" => JsonRpcResponse::success(request.id, json!({})),
             _ => JsonRpcResponse::error(
                 request.id,
@@ -259,7 +222,6 @@ impl McpServer {
         }
     }
 
-    /// Handle initialize request
     fn handle_initialize(&mut self, id: Option<Value>, _params: Value) -> JsonRpcResponse {
         self.initialized = true;
 
@@ -280,7 +242,6 @@ impl McpServer {
         )
     }
 
-    /// Handle tools/list request
     fn handle_tools_list(&self, id: Option<Value>) -> JsonRpcResponse {
         let tools = vec![
             Tool::find_symbol_usages_definition(),
@@ -295,8 +256,7 @@ impl McpServer {
         )
     }
 
-    /// Handle tools/call request
-    fn handle_tools_call(&mut self, id: Option<Value>, params: Value) -> JsonRpcResponse {
+    async fn handle_tools_call(&mut self, id: Option<Value>, params: Value) -> JsonRpcResponse {
         #[derive(Deserialize)]
         struct ToolCallParams {
             name: String,
@@ -312,20 +272,21 @@ impl McpServer {
         };
 
         match call_params.name.as_str() {
-            "find_symbol_usages" => self.handle_find_symbol_usages(id, call_params.arguments),
-            "goto_definition" => self.handle_goto_definition(id, call_params.arguments),
+            "find_symbol_usages" => {
+                self.handle_find_symbol_usages(id, call_params.arguments)
+                    .await
+            }
+            "goto_definition" => self.handle_goto_definition(id, call_params.arguments).await,
             _ => JsonRpcResponse::error(id, -32602, format!("Unknown tool: {}", call_params.name)),
         }
     }
 
-    /// Handle find_symbol_usages tool call
-    fn handle_find_symbol_usages(
+    async fn handle_find_symbol_usages(
         &mut self,
         id: Option<Value>,
         arguments: Value,
     ) -> JsonRpcResponse {
-        // Ensure server is running
-        if let Err(e) = self.ensure_server_ready() {
+        if let Err(e) = self.ensure_server_ready().await {
             return JsonRpcResponse::error(id, -32603, e);
         }
 
@@ -341,8 +302,7 @@ impl McpServer {
             }
         };
 
-        // Connect to server and make the request
-        let mut client = match ClientSocket::connect(&self.socket_path) {
+        let mut client = match ClientSocket::connect(&self.socket_path).await {
             Ok(c) => c,
             Err(e) => {
                 return JsonRpcResponse::error(
@@ -357,7 +317,7 @@ impl McpServer {
             symbol_name: params.symbol_name.clone(),
         });
 
-        match client.request(&request) {
+        match client.request(&request).await {
             Ok(Message::FindSymbolReferencesResult(response)) => {
                 let content = if !response.symbol_found {
                     format!("Symbol not found: {}", params.symbol_name)
@@ -411,10 +371,12 @@ impl McpServer {
         }
     }
 
-    /// Handle goto_definition tool call
-    fn handle_goto_definition(&mut self, id: Option<Value>, arguments: Value) -> JsonRpcResponse {
-        // Ensure server is running
-        if let Err(e) = self.ensure_server_ready() {
+    async fn handle_goto_definition(
+        &mut self,
+        id: Option<Value>,
+        arguments: Value,
+    ) -> JsonRpcResponse {
+        if let Err(e) = self.ensure_server_ready().await {
             return JsonRpcResponse::error(id, -32603, e);
         }
 
@@ -432,8 +394,7 @@ impl McpServer {
             }
         };
 
-        // Connect to server and make the request
-        let mut client = match ClientSocket::connect(&self.socket_path) {
+        let mut client = match ClientSocket::connect(&self.socket_path).await {
             Ok(c) => c,
             Err(e) => {
                 return JsonRpcResponse::error(
@@ -450,7 +411,7 @@ impl McpServer {
             column: params.column,
         });
 
-        match client.request(&request) {
+        match client.request(&request).await {
             Ok(Message::GotoDefinitionResult(response)) => {
                 let content = if !response.found {
                     format!(
@@ -507,14 +468,14 @@ impl McpServer {
     }
 }
 
-/// Run the MCP server message loop over the given reader/writer.
-fn run_mcp_server_io(
+async fn run_mcp_server_io(
     server: &mut McpServer,
-    reader: impl io::BufRead,
-    writer: &mut impl io::Write,
+    reader: impl tokio::io::AsyncBufRead + Unpin,
+    writer: &mut (impl tokio::io::AsyncWrite + Unpin),
 ) -> io::Result<()> {
-    for line in reader.lines() {
-        let line = line?;
+    let mut lines = reader.lines();
+
+    while let Some(line) = lines.next_line().await? {
         if line.trim().is_empty() {
             continue;
         }
@@ -525,40 +486,43 @@ fn run_mcp_server_io(
                 let error_response =
                     JsonRpcResponse::error(None, -32700, format!("Parse error: {}", e));
                 let response_json = serde_json::to_string(&error_response)?;
-                writeln!(writer, "{}", response_json)?;
-                writer.flush()?;
+                writer
+                    .write_all(format!("{}\n", response_json).as_bytes())
+                    .await?;
+                writer.flush().await?;
                 continue;
             }
         };
 
         let is_notification = request.id.is_none();
 
-        // Handle shutdown specially
         if request.method == "shutdown" {
-            let response = server.handle_request(request);
+            let response = server.handle_request(request).await;
             let response_json = serde_json::to_string(&response)?;
-            writeln!(writer, "{}", response_json)?;
-            writer.flush()?;
+            writer
+                .write_all(format!("{}\n", response_json).as_bytes())
+                .await?;
+            writer.flush().await?;
             break;
         }
 
-        let response = server.handle_request(request);
+        let response = server.handle_request(request).await;
 
-        // Per JSON-RPC 2.0, notifications (no "id") must not receive a response
         if is_notification {
             continue;
         }
 
         let response_json = serde_json::to_string(&response)?;
-        writeln!(writer, "{}", response_json)?;
-        writer.flush()?;
+        writer
+            .write_all(format!("{}\n", response_json).as_bytes())
+            .await?;
+        writer.flush().await?;
     }
 
     Ok(())
 }
 
-/// Run the MCP server, reading from stdin and writing to stdout
-pub fn run_mcp_server(
+pub async fn run_mcp_server(
     root_dir: String,
     threads: u8,
     config_path: Option<String>,
@@ -566,10 +530,10 @@ pub fn run_mcp_server(
     header: String,
 ) -> io::Result<()> {
     let mut server = McpServer::new(root_dir, threads, config_path, plugins, header);
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
+    let stdin = BufReader::new(tokio::io::stdin());
+    let mut stdout = tokio::io::stdout();
 
-    run_mcp_server_io(&mut server, stdin.lock(), &mut stdout)?;
+    run_mcp_server_io(&mut server, stdin, &mut stdout).await?;
 
     eprintln!("Hakana MCP server shutting down");
     Ok(())
@@ -578,21 +542,16 @@ pub fn run_mcp_server(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::BufReader;
 
-    fn run_session(messages: &[&str]) -> Vec<serde_json::Value> {
+    async fn run_session(messages: &[&str]) -> Vec<serde_json::Value> {
         let input = messages.join("\n") + "\n";
         let reader = BufReader::new(input.as_bytes());
         let mut output = Vec::new();
 
-        let mut server = McpServer::new(
-            "/tmp/fake".to_string(),
-            1,
-            None,
-            vec![],
-            String::new(),
-        );
-        run_mcp_server_io(&mut server, reader, &mut output).unwrap();
+        let mut server = McpServer::new("/tmp/fake".to_string(), 1, None, vec![], String::new());
+        run_mcp_server_io(&mut server, reader, &mut output)
+            .await
+            .unwrap();
 
         String::from_utf8(output)
             .unwrap()
@@ -601,44 +560,46 @@ mod tests {
             .collect()
     }
 
-    /// Repro from https://gist.slack-github.com/juno-suarez/445e9b74e09d3c8bf44ffa125eab7649
-    ///
-    /// Sends the initialize request followed by a notifications/initialized
-    /// notification (no "id"). The server must respond to the request but
-    /// must NOT respond to the notification per JSON-RPC 2.0.
-    #[test]
-    fn notifications_initialized_gets_no_response() {
+    #[tokio::test]
+    async fn notifications_initialized_gets_no_response() {
         let initialize = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}"#;
         let notification = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
 
-        let responses = run_session(&[initialize, notification]);
+        let responses = run_session(&[initialize, notification]).await;
 
-        // Exactly one response: the initialize result for id=1
-        assert_eq!(responses.len(), 1, "expected 1 response, got: {responses:?}");
+        assert_eq!(
+            responses.len(),
+            1,
+            "expected 1 response, got: {responses:?}"
+        );
         assert_eq!(responses[0]["id"], 1);
         assert!(responses[0]["result"].is_object());
         assert!(responses[0]["error"].is_null());
     }
 
-    #[test]
-    fn unknown_method_with_id_gets_error_response() {
+    #[tokio::test]
+    async fn unknown_method_with_id_gets_error_response() {
         let request = r#"{"jsonrpc":"2.0","id":42,"method":"bogus/method"}"#;
-        let responses = run_session(&[request]);
+        let responses = run_session(&[request]).await;
 
         assert_eq!(responses.len(), 1);
         assert_eq!(responses[0]["id"], 42);
         assert_eq!(responses[0]["error"]["code"], -32601);
     }
 
-    #[test]
-    fn unknown_notification_is_silently_ignored() {
+    #[tokio::test]
+    async fn unknown_notification_is_silently_ignored() {
         let initialize = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}"#;
-        let notification = r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":99}}"#;
+        let notification =
+            r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":99}}"#;
 
-        let responses = run_session(&[initialize, notification]);
+        let responses = run_session(&[initialize, notification]).await;
 
-        // Only the initialize response, no response for the notification
-        assert_eq!(responses.len(), 1, "expected 1 response, got: {responses:?}");
+        assert_eq!(
+            responses.len(),
+            1,
+            "expected 1 response, got: {responses:?}"
+        );
         assert_eq!(responses[0]["id"], 1);
     }
 }

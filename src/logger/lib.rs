@@ -1,15 +1,25 @@
+use tokio::sync::mpsc::Sender;
+
 pub enum Logger {
     DevNull,
     CommandLine(Verbosity),
+    Channel(tokio::sync::mpsc::Sender<String>),
 }
 
 impl Logger {
+    fn try_send(tx: &Sender<String>, message: &str) {
+        if let Err(e) = tx.blocking_send(message.to_string()) {
+            eprintln!("error reporting event {}", e);
+        }
+    }
+
     pub async fn log(&self, message: &str) {
         match self {
             Logger::DevNull => {}
             Logger::CommandLine(_) => {
                 println!("{}", message);
             }
+            Logger::Channel(tx) => Logger::try_send(tx, message),
         }
     }
 
@@ -19,12 +29,13 @@ impl Logger {
             Logger::CommandLine(_) => {
                 println!("{}", message);
             }
+            Logger::Channel(tx) => Logger::try_send(tx, message),
         }
     }
 
     pub async fn log_debug(&self, message: &str) {
         match self {
-            Logger::DevNull => {}
+            Logger::DevNull | Logger::Channel(_) => {}
             Logger::CommandLine(verbosity) => {
                 if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
                     println!("{}", message);
@@ -43,7 +54,7 @@ impl Logger {
 
     pub fn can_log_timing(&self) -> bool {
         match self {
-            Logger::DevNull => false,
+            Logger::DevNull | Logger::Channel(_) => false,
             Logger::CommandLine(verbosity) => {
                 matches!(verbosity, Verbosity::Debugging | Verbosity::Timing)
             }
@@ -52,7 +63,7 @@ impl Logger {
 
     pub fn get_verbosity(&self) -> Verbosity {
         match self {
-            Logger::DevNull => Verbosity::Simple,
+            Logger::DevNull | Logger::Channel(_) => Verbosity::Simple,
             Logger::CommandLine(verbosity) => *verbosity,
         }
     }

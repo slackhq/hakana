@@ -56,8 +56,7 @@ impl LanguageServer {
     }
 
     /// Read a single response from the language server
-    async fn read_response(&mut self) -> std::io::Result<Value> {
-        let mut reader = BufReader::new(&mut self.client);
+    async fn read_response(reader: &mut BufReader<&mut DuplexStream>) -> std::io::Result<Value> {
         let mut headers = Vec::new();
 
         // Read headers
@@ -101,6 +100,8 @@ impl LanguageServer {
         let start = std::time::Instant::now();
         let timeout_duration = Duration::from_secs(timeout_secs);
 
+        let mut reader = BufReader::new(&mut self.client);
+
         loop {
             if start.elapsed() > timeout_duration {
                 return Err(std::io::Error::new(
@@ -109,7 +110,7 @@ impl LanguageServer {
                 ));
             }
 
-            let result = timeout(timeout_duration, self.read_response()).await?;
+            let result = timeout(timeout_duration, Self::read_response(&mut reader)).await?;
             let response = result?;
 
             // Check if this is the response we're waiting for

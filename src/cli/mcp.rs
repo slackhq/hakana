@@ -61,7 +61,7 @@ pub fn parse_args() -> McpConfig {
 }
 
 /// Run the MCP server with the given plugins and header.
-pub fn run(plugins: Vec<Box<dyn CustomHook>>, header: String) {
+pub async fn run(plugins: Vec<Box<dyn CustomHook>>, header: String) {
     let config = parse_args();
 
     // Convert hooks to Arc for reuse
@@ -73,7 +73,9 @@ pub fn run(plugins: Vec<Box<dyn CustomHook>>, header: String) {
         Some(config.config_path),
         plugins,
         header,
-    ) {
+    )
+    .await
+    {
         eprintln!("MCP server error: {}", e);
         std::process::exit(1);
     }

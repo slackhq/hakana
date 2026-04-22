@@ -11,6 +11,7 @@ hakana-analyzer = { path = "../analyzer" }
 hakana-code-info = { path = "../code_info" }
 hakana-orchestrator = { path = "../orchestrator" }
 hakana-protocol = { path = "../protocol" }
+tokio = { version = "1.28", features = ["rt-multi-thread", "net", "time", "io-util"] }
 hakana-server = { path = "../server" }
 hakana-str = { path = "../str" }
 hakana-logger = { path = "../logger" }
