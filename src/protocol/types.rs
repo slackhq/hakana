@@ -234,6 +234,8 @@ pub struct GetIssuesRequest {
     pub find_unused_expressions: bool,
     /// Find unused definitions (dead code).
     pub find_unused_definitions: bool,
+    /// Whether to wait until the next analysis run.
+    pub block_until_next_analysis: bool,
 }
 
 /// Response with current issues.

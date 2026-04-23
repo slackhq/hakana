@@ -7,7 +7,9 @@
 //! └──────────────┴──────────────┴─────────────────┘
 //! ```
 
-use std::io::{self, Read, Write};
+use std::io;
+
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::types::*;
 
@@ -669,6 +671,7 @@ impl Serialize for GetIssuesRequest {
         write_option_string(buf, &self.filter);
         write_bool(buf, self.find_unused_expressions);
         write_bool(buf, self.find_unused_definitions);
+        write_bool(buf, self.block_until_next_analysis);
     }
 }
 
@@ -677,11 +680,13 @@ impl Deserialize for GetIssuesRequest {
         let (filter, rest) = read_option_string(data)?;
         let (find_unused_expressions, rest) = read_bool(rest)?;
         let (find_unused_definitions, rest) = read_bool(rest)?;
+        let (block_until_next_analysis, rest) = read_bool(rest)?;
         Ok((
             Self {
                 filter,
                 find_unused_expressions,
                 find_unused_definitions,
+                block_until_next_analysis,
             },
             rest,
         ))
@@ -1014,22 +1019,26 @@ pub fn decode_message(data: &[u8]) -> Result<(Message, &[u8]), ProtocolError> {
     Ok((msg, &data[4 + frame_len..]))
 }
 
-/// Read a complete message from a reader.
-pub fn read_message<R: Read>(reader: &mut R) -> Result<Message, ProtocolError> {
-    // Read length prefix
+pub async fn read_message<R: tokio::io::AsyncRead + Unpin>(
+    reader: &mut R,
+) -> Result<Message, ProtocolError> {
     let mut len_buf = [0u8; 4];
-    reader.read_exact(&mut len_buf)?;
+    reader
+        .read_exact(&mut len_buf)
+        .await
+        .map_err(|e| ProtocolError::Io(e))?;
     let len = u32::from_le_bytes(len_buf);
 
     if len > MAX_MESSAGE_SIZE {
         return Err(ProtocolError::MessageTooLarge(len));
     }
 
-    // Read the rest of the frame
     let mut frame = vec![0u8; len as usize];
-    reader.read_exact(&mut frame)?;
+    reader
+        .read_exact(&mut frame)
+        .await
+        .map_err(|e| ProtocolError::Io(e))?;
 
-    // Parse message type
     if frame.is_empty() {
         return Err(ProtocolError::UnexpectedEof);
     }
@@ -1037,16 +1046,20 @@ pub fn read_message<R: Read>(reader: &mut R) -> Result<Message, ProtocolError> {
     let msg_type =
         MessageType::try_from(msg_type_byte).map_err(ProtocolError::InvalidMessageType)?;
 
-    // Parse payload
     let payload = &frame[1..];
     Message::deserialize_with_type(msg_type, payload)
 }
 
-/// Write a message to a writer.
-pub fn write_message<W: Write>(writer: &mut W, msg: &Message) -> Result<(), ProtocolError> {
+pub async fn write_message<W: tokio::io::AsyncWrite + Unpin>(
+    writer: &mut W,
+    msg: &Message,
+) -> Result<(), ProtocolError> {
     let frame = encode_message(msg);
-    writer.write_all(&frame)?;
-    writer.flush()?;
+    writer
+        .write_all(&frame)
+        .await
+        .map_err(|e| ProtocolError::Io(e))?;
+    writer.flush().await.map_err(|e| ProtocolError::Io(e))?;
     Ok(())
 }
 

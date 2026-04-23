@@ -60,7 +60,7 @@ impl IntegrationTest for DiffTest {
 
         config.ast_diff = true;
         config.find_unused_definitions = true;
-        let interner = Interner::default();
+        let interner = Arc::new(Interner::default());
         let config = Arc::new(config);
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 

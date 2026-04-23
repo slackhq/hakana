@@ -30,7 +30,7 @@ impl IntegrationTest for ReferencesTest {
             1,
             ctx.logger,
             ctx.build_checksum,
-            hakana_str::Interner::default(),
+            Arc::new(hakana_str::Interner::default()),
             ctx.previous_scan_data,
             ctx.previous_analysis_result,
             None,

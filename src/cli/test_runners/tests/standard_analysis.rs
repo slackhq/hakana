@@ -32,7 +32,7 @@ impl IntegrationTest for StandardAnalysisTest {
             stub_dirs.push(cwd.clone() + "/third-party/xhp-lib/src");
         }
 
-        let interner = Interner::default();
+        let interner = Arc::new(Interner::default());
 
         let result = hakana_orchestrator::scan_and_analyze(
             stub_dirs,

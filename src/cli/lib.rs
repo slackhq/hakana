@@ -8,6 +8,7 @@ use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::issue::IssueKind;
 use hakana_language_server::server_client::ServerConnection;
 use hakana_logger::{Logger, Verbosity};
+use hakana_protocol::ClientSocket;
 use hakana_str::Interner;
 use indexmap::IndexMap;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -37,7 +38,7 @@ macro_rules! tty_println {
     };
 }
 
-pub fn init(
+pub async fn init(
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     migration_hooks: Vec<Box<dyn CustomHook>>,
     codegen_hooks: Vec<Box<dyn CustomHook>>,
@@ -699,7 +700,8 @@ pub fn init(
                 logger,
                 header,
                 &mut had_error,
-            );
+            )
+            .await;
         }
         Some(("security-check", sub_matches)) => {
             do_security_check(
@@ -849,7 +851,8 @@ pub fn init(
                 logger,
                 header,
                 analysis_hooks,
-            );
+            )
+            .await;
         }
         Some(("cyclomatic-complexity", sub_matches)) => {
             do_cyclomatic_complexity(
@@ -916,7 +919,7 @@ fn do_fix(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,
@@ -1017,7 +1020,7 @@ fn do_remove_unused_fixmes(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,
@@ -1094,7 +1097,7 @@ fn do_add_fixmes(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,
@@ -1186,7 +1189,7 @@ fn do_migrate(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,
@@ -1259,7 +1262,7 @@ fn do_migration_candidates(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,
@@ -1342,7 +1345,7 @@ fn do_codegen(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,
@@ -1478,7 +1481,7 @@ fn do_find_paths(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,
@@ -1548,7 +1551,7 @@ fn do_security_check(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,
@@ -1581,7 +1584,7 @@ fn do_security_check(
     }
 }
 
-fn do_analysis(
+async fn do_analysis(
     sub_matches: &clap::ArgMatches,
     all_custom_issues: FxHashSet<String>,
     root_dir: &str,
@@ -1594,7 +1597,7 @@ fn do_analysis(
     header: &str,
     had_error: &mut bool,
 ) {
-    use hakana_protocol::{ClientSocket, GetIssuesRequest, Message, SocketPath};
+    use hakana_protocol::{GetIssuesRequest, Message, SocketPath};
     use std::io::{self, Write};
     use std::time::Duration;
 
@@ -1611,6 +1614,7 @@ fn do_analysis(
         // --with-server: spawn server if not running
         if !socket_path.server_exists() {
             ServerConnection::connect_or_spawn(project_root, None)
+                .await
                 .inspect_err(|e| {
                     println!(
                         "Failed to spawn server: {}. Falling back to standalone analysis.",
@@ -1642,6 +1646,7 @@ fn do_analysis(
             filter: filter.clone(),
             find_unused_expressions,
             find_unused_definitions,
+            block_until_next_analysis: false,
         });
 
         // Poll for results, showing progress bar if analysis is in progress
@@ -1658,7 +1663,7 @@ fn do_analysis(
         };
 
         loop {
-            let mut client = match ClientSocket::connect(&socket_path) {
+            let mut client = match ClientSocket::connect(&socket_path).await {
                 Ok(c) => c,
                 Err(e) => {
                     pb.finish_and_clear();
@@ -1667,7 +1672,7 @@ fn do_analysis(
                 }
             };
 
-            match client.request(&request) {
+            match client.request(&request).await {
                 Ok(Message::GetIssuesResult(result)) => {
                     if result.analysis_complete {
                         pb.finish_and_clear();
@@ -1805,7 +1810,7 @@ fn do_analysis(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,
@@ -2620,7 +2625,7 @@ fn do_lint(
     }
 }
 
-fn do_server(
+async fn do_server(
     sub_matches: &clap::ArgMatches,
     root_dir: &str,
     threads: u8,
@@ -2628,7 +2633,7 @@ fn do_server(
     header: &str,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
 ) {
-    use hakana_protocol::{ClientSocket, Message, ShutdownRequest, SocketPath, StatusRequest};
+    use hakana_protocol::{Message, ShutdownRequest, SocketPath, StatusRequest};
     use hakana_server::{Server, ServerConfig};
 
     let socket_path = SocketPath::for_project(Path::new(root_dir));
@@ -2640,9 +2645,9 @@ fn do_server(
             return;
         }
 
-        match ClientSocket::connect(&socket_path) {
+        match ClientSocket::connect(&socket_path).await {
             Ok(mut client) => {
-                let response = client.request(&Message::Status(StatusRequest));
+                let response = client.request(&Message::Status(StatusRequest)).await;
                 match response {
                     Ok(Message::StatusResult(status)) => {
                         println!("Server Status:");
@@ -2671,8 +2676,8 @@ fn do_server(
             return;
         }
 
-        match ClientSocket::connect(&socket_path) {
-            Ok(mut client) => match client.send(&Message::Shutdown(ShutdownRequest)) {
+        match ClientSocket::connect(&socket_path).await {
+            Ok(mut client) => match client.send(&Message::Shutdown(ShutdownRequest)).await {
                 Ok(_) => println!("Shutdown signal sent"),
                 Err(e) => println!("Error sending shutdown: {}", e),
             },
@@ -2704,7 +2709,7 @@ fn do_server(
         Ok(mut server) => {
             tty_println!("Starting hakana server...");
             tty_println!("Socket: {}", server.socket_path().path().display());
-            if let Err(e) = server.run() {
+            if let Err(e) = server.run().await {
                 println!("Server error: {}", e);
                 exit(1);
             }
@@ -2771,7 +2776,7 @@ fn do_cyclomatic_complexity(
         threads,
         Arc::new(logger),
         header,
-        interner,
+        Arc::new(interner),
         None,
         None,
         None,

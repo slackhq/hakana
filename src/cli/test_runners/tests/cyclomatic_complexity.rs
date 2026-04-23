@@ -28,7 +28,7 @@ impl IntegrationTest for CyclomaticComplexityTest {
 
         let stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
-        let interner = Interner::default();
+        let interner = Arc::new(Interner::default());
 
         let result = hakana_orchestrator::scan_and_analyze(
             stub_dirs,

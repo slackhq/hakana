@@ -1,32 +1,29 @@
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
 
 use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::code_location::HPos;
-#[cfg(target_arch = "wasm32")]
-use hakana_orchestrator::SuccessfulScanData;
 use hakana_orchestrator::file::FileStatus;
-#[cfg(not(target_arch = "wasm32"))]
-use hakana_orchestrator::{SuccessfulScanData, scan_and_analyze_async};
+use hakana_orchestrator::{SuccessfulScanData, scan_and_analyze};
 use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
-use tokio::sync::{Mutex, RwLock};
-use tokio::time::sleep;
+use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
-#[cfg(not(target_arch = "wasm32"))]
+use crate::server_backend::ServerBasedBackend;
+
+pub mod server_backend;
 pub mod server_client;
 
 #[derive(Debug)]
 pub struct Backend {
-    client: Client,
+    client: Arc<Client>,
     analysis_config: Arc<Config>,
     starter_interner: Arc<Interner>,
     previous_scan_data: RwLock<Option<SuccessfulScanData>>,
@@ -34,15 +31,12 @@ pub struct Backend {
     all_diagnostics: RwLock<Option<FxHashMap<Url, Vec<Diagnostic>>>>,
     file_changes: RwLock<Option<FxHashMap<String, FileStatus>>>,
     files_with_errors: RwLock<FxHashSet<Url>>,
-    /// Connection to the hakana server (used when server mode is enabled)
-    #[cfg(not(target_arch = "wasm32"))]
-    server_connection: Option<Mutex<server_client::ServerConnection>>,
 }
 
 impl Backend {
     pub fn new(client: Client, analysis_config: Config, starter_interner: Interner) -> Self {
         Self {
-            client,
+            client: Arc::new(client),
             analysis_config: Arc::new(analysis_config),
             starter_interner: Arc::new(starter_interner),
             previous_scan_data: RwLock::new(None),
@@ -50,29 +44,6 @@ impl Backend {
             all_diagnostics: RwLock::new(None),
             file_changes: RwLock::new(None),
             files_with_errors: RwLock::new(FxHashSet::default()),
-            #[cfg(not(target_arch = "wasm32"))]
-            server_connection: None,
-        }
-    }
-
-    /// Create a Backend with a server connection.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn with_server_connection(
-        client: Client,
-        analysis_config: Config,
-        starter_interner: Interner,
-        server_connection: Option<Mutex<server_client::ServerConnection>>,
-    ) -> Self {
-        Self {
-            client,
-            analysis_config: Arc::new(analysis_config),
-            starter_interner: Arc::new(starter_interner),
-            previous_scan_data: RwLock::new(None),
-            previous_analysis_result: RwLock::new(None),
-            all_diagnostics: RwLock::new(None),
-            file_changes: RwLock::new(None),
-            files_with_errors: RwLock::new(FxHashSet::default()),
-            server_connection,
         }
     }
 
@@ -97,8 +68,6 @@ impl Backend {
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
-        self.do_analysis().await;
-
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
@@ -118,6 +87,8 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _: InitializedParams) {
+        self.do_analysis().await;
+
         let registration = Registration {
             id: "watch-hack-files".to_string(),
             method: "workspace/didChangeWatchedFiles".to_string(),
@@ -237,14 +208,6 @@ impl LanguageServer for Backend {
         let uri = params.text_document_position_params.text_document.uri;
         let file_path = uri.path().to_string();
 
-        // If we have a server connection, forward the request to the server
-        #[cfg(not(target_arch = "wasm32"))]
-        if let Some(ref server_conn) = self.server_connection {
-            return self
-                .goto_definition_via_server(server_conn, &file_path, position)
-                .await;
-        }
-
         let scan_data_guard = self.previous_scan_data.read().await;
         let analysis_result_guard = self.previous_analysis_result.read().await;
         if let Some(scan_data) = scan_data_guard.as_ref() {
@@ -324,245 +287,7 @@ fn pos_to_offset(def_pos: HPos, interner: &Interner) -> Option<GotoDefinitionRes
 }
 
 impl Backend {
-    #[cfg(not(target_arch = "wasm32"))]
     async fn do_analysis(&self) {
-        // If we have a server connection, use it instead of local analysis
-        if let Some(ref server_conn) = self.server_connection {
-            self.do_analysis_via_server(server_conn).await;
-            return;
-        }
-
-        // Fall back to local analysis (original behavior)
-        self.do_local_analysis().await;
-    }
-
-    /// Perform analysis by querying the hakana server.
-    #[cfg(not(target_arch = "wasm32"))]
-    async fn do_analysis_via_server(&self, server_conn: &Mutex<server_client::ServerConnection>) {
-        let mut all_diagnostics_guard = self.all_diagnostics.write().await;
-
-        // First, forward any pending file changes to the server
-        let file_changes = {
-            let mut file_changes_guard = self.file_changes.write().await;
-            file_changes_guard.take()
-        };
-
-        if let Some(changes) = file_changes {
-            if !changes.is_empty() {
-                self.client
-                    .log_message(
-                        MessageType::INFO,
-                        format!("Forwarding {} file change(s) to server", changes.len()),
-                    )
-                    .await;
-
-                let mut conn = server_conn.lock().await;
-                if let Err(e) = conn.notify_file_changes(changes) {
-                    self.client
-                        .log_message(
-                            MessageType::ERROR,
-                            format!("Failed to notify server of file changes: {}", e),
-                        )
-                        .await;
-                }
-            }
-        }
-
-        self.client
-            .log_message(MessageType::INFO, "Fetching issues from server")
-            .await;
-
-        // Get issues from the server
-        let result = {
-            let mut conn = server_conn.lock().await;
-            conn.get_issues(None, true, true)
-        };
-
-        match result {
-            Ok(response) => {
-                if !response.analysis_complete {
-                    self.client
-                        .log_message(
-                            MessageType::INFO,
-                            format!(
-                                "Server analysis in progress: {} ({}%)",
-                                response.phase, response.progress_percent
-                            ),
-                        )
-                        .await;
-                    // Don't update diagnostics while analysis is in progress
-                    return;
-                }
-
-                let mut all_diagnostics = FxHashMap::default();
-
-                for issue in response.issues {
-                    let file_path =
-                        format!("{}/{}", self.analysis_config.root_dir, issue.file_path);
-
-                    let diagnostic = Diagnostic::new(
-                        Range {
-                            start: Position {
-                                line: issue.start_line - 1,
-                                character: issue.start_column as u32 - 1,
-                            },
-                            end: Position {
-                                line: issue.end_line - 1,
-                                character: issue.end_column as u32 - 1,
-                            },
-                        },
-                        Some(DiagnosticSeverity::ERROR),
-                        Some(NumberOrString::String(issue.kind)),
-                        Some("Hakana".to_string()),
-                        issue.description,
-                        None,
-                        None,
-                    );
-
-                    match Url::from_file_path(&file_path) {
-                        Ok(url) => {
-                            all_diagnostics
-                                .entry(url)
-                                .or_insert_with(Vec::new)
-                                .push(diagnostic);
-                        }
-                        Err(_) => {
-                            self.client
-                                .log_message(
-                                    MessageType::ERROR,
-                                    format!("Failure to get url from file {}", file_path),
-                                )
-                                .await;
-                        }
-                    }
-                }
-
-                self.client
-                    .log_message(
-                        MessageType::INFO,
-                        format!(
-                            "Received {} file(s) with issues from server",
-                            all_diagnostics.len()
-                        ),
-                    )
-                    .await;
-
-                *all_diagnostics_guard = Some(all_diagnostics);
-            }
-            Err(e) => {
-                self.client
-                    .log_message(
-                        MessageType::ERROR,
-                        format!("Failed to get issues from server: {}", e),
-                    )
-                    .await;
-            }
-        }
-    }
-
-    /// Perform goto-definition via the hakana server.
-    #[cfg(not(target_arch = "wasm32"))]
-    async fn goto_definition_via_server(
-        &self,
-        server_conn: &Mutex<server_client::ServerConnection>,
-        file_path: &str,
-        position: Position,
-    ) -> Result<Option<GotoDefinitionResponse>> {
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!(
-                    "Forwarding goto-definition to server: {}:{}:{}",
-                    file_path,
-                    position.line + 1,
-                    position.character + 1
-                ),
-            )
-            .await;
-
-        // Convert absolute path to relative path for the server
-        let relative_path = if file_path.starts_with(&self.analysis_config.root_dir) {
-            file_path
-                .strip_prefix(&self.analysis_config.root_dir)
-                .and_then(|p| p.strip_prefix('/'))
-                .unwrap_or(file_path)
-                .to_string()
-        } else {
-            file_path.to_string()
-        };
-
-        let result = {
-            let mut conn = server_conn.lock().await;
-            conn.goto_definition(
-                relative_path,
-                position.line + 1, // LSP is 0-indexed, server expects 1-indexed
-                position.character + 1,
-            )
-        };
-
-        match result {
-            Ok(response) => {
-                if response.found {
-                    if let (
-                        Some(def_file_path),
-                        Some(start_line),
-                        Some(start_column),
-                        Some(end_line),
-                        Some(end_column),
-                    ) = (
-                        response.file_path,
-                        response.start_line,
-                        response.start_column,
-                        response.end_line,
-                        response.end_column,
-                    ) {
-                        self.client
-                            .log_message(
-                                MessageType::INFO,
-                                format!(
-                                    "Definition found: {}:{}:{}",
-                                    def_file_path, start_line, start_column
-                                ),
-                            )
-                            .await;
-
-                        if let Ok(def_uri) = Url::from_file_path(&def_file_path) {
-                            return Ok(Some(GotoDefinitionResponse::Scalar(Location {
-                                uri: def_uri,
-                                range: Range {
-                                    start: Position {
-                                        line: start_line - 1, // Convert back to 0-indexed for LSP
-                                        character: (start_column - 1) as u32,
-                                    },
-                                    end: Position {
-                                        line: end_line - 1,
-                                        character: (end_column - 1) as u32,
-                                    },
-                                },
-                            })));
-                        }
-                    }
-                }
-                self.client
-                    .log_message(MessageType::INFO, "Definition not found")
-                    .await;
-                Ok(None)
-            }
-            Err(e) => {
-                self.client
-                    .log_message(
-                        MessageType::ERROR,
-                        format!("Failed to get definition from server: {}", e),
-                    )
-                    .await;
-                Ok(None)
-            }
-        }
-    }
-
-    /// Perform local analysis (original behavior when no server is connected).
-    #[cfg(not(target_arch = "wasm32"))]
-    async fn do_local_analysis(&self) {
         let mut previous_scan_data_guard = self.previous_scan_data.write().await;
         let mut previous_analysis_result_guard = self.previous_analysis_result.write().await;
         let mut all_diagnostics_guard = self.all_diagnostics.write().await;
@@ -582,97 +307,111 @@ impl Backend {
             )
             .await;
 
-        sleep(Duration::from_millis(10)).await;
+        let analysis_config = self.analysis_config.clone();
+        let interner = self.starter_interner.clone();
+        let client = self.client.clone();
 
-        let result = scan_and_analyze_async(
-            Vec::new(),
-            None,
-            None,
-            self.analysis_config.clone(),
-            8,
-            Some(&self.client),
-            "",
-            self.starter_interner.clone(),
-            successful_scan_data,
-            analysis_result,
-            file_changes,
-            None::<fn(hakana_orchestrator::AnalysisProgress)>,
-            None,
-            None,
-            None,
-        )
-        .await;
+        let (log_tx, mut log_rx) = tokio::sync::mpsc::channel(1);
 
-        *file_changes_guard = None;
+        println!("analysiseee");
 
-        match result {
-            Ok((analysis_result, successful_scan_data)) => {
-                let mut all_diagnostics = FxHashMap::default();
+        let mut task_result = tokio::task::spawn_blocking(move || {
+            use hakana_logger::Logger;
 
-                for (file, emitted_issues) in analysis_result.get_all_issues(
-                    &successful_scan_data.interner,
-                    &self.analysis_config.root_dir,
-                    false,
-                ) {
-                    let mut diagnostics = vec![];
-                    for emitted_issue in emitted_issues {
-                        diagnostics.push(Diagnostic::new(
-                            Range {
-                                start: Position {
-                                    line: emitted_issue.pos.start_line - 1,
-                                    character: emitted_issue.pos.start_column as u32 - 1,
-                                },
-                                end: Position {
-                                    line: emitted_issue.pos.end_line - 1,
-                                    character: emitted_issue.pos.end_column as u32 - 1,
-                                },
-                            },
-                            Some(DiagnosticSeverity::ERROR),
-                            Some(NumberOrString::String(emitted_issue.kind.to_string())),
-                            Some("Hakana".to_string()),
-                            emitted_issue.description.clone(),
-                            None,
-                            None,
-                        ));
-                    }
+            scan_and_analyze(
+                Vec::new(),
+                None,
+                None,
+                analysis_config,
+                None,
+                8,
+                Arc::new(Logger::Channel(log_tx)),
+                "",
+                interner,
+                successful_scan_data,
+                analysis_result,
+                file_changes,
+                || {},
+            )
+        });
 
-                    match Url::from_file_path(&file) {
-                        Ok(url) => {
-                            all_diagnostics.insert(url, diagnostics);
+        loop {
+            tokio::select! {
+                Some(log_message) = log_rx.recv() => {
+                    client
+                        .log_message(MessageType::INFO, log_message)
+                        .await;
+                },
+                Ok(result) = (&mut task_result) => {
+                    match result {
+                        Ok((analysis_result, successful_scan_data)) => {
+                            let mut all_diagnostics = FxHashMap::default();
+
+                            for (file, emitted_issues) in analysis_result.get_all_issues(
+                                &successful_scan_data.interner,
+                                &self.analysis_config.root_dir,
+                                false,
+                            ) {
+                                let mut diagnostics = vec![];
+                                for emitted_issue in emitted_issues {
+                                    diagnostics.push(Diagnostic::new(
+                                        Range {
+                                            start: Position {
+                                                line: emitted_issue.pos.start_line - 1,
+                                                character: emitted_issue.pos.start_column as u32 - 1,
+                                            },
+                                            end: Position {
+                                                line: emitted_issue.pos.end_line - 1,
+                                                character: emitted_issue.pos.end_column as u32 - 1,
+                                            },
+                                        },
+                                        Some(DiagnosticSeverity::ERROR),
+                                        Some(NumberOrString::String(emitted_issue.kind.to_string())),
+                                        Some("Hakana".to_string()),
+                                        emitted_issue.description.clone(),
+                                        None,
+                                        None,
+                                    ));
+                                }
+
+                                match Url::from_file_path(&file) {
+                                    Ok(url) => {
+                                        all_diagnostics.insert(url, diagnostics);
+                                    }
+                                    Err(_) => {
+                                        self.client
+                                            .log_message(
+                                                MessageType::ERROR,
+                                                format!("Failure to get url from file {}", file),
+                                            )
+                                            .await;
+                                    }
+                                }
+                            }
+
+                            *all_diagnostics_guard = Some(all_diagnostics);
+                            *previous_scan_data_guard = Some(successful_scan_data);
+                            *previous_analysis_result_guard = Some(analysis_result);
                         }
-                        Err(_) => {
+                        Err(error) => {
+                            *previous_scan_data_guard = None;
+                            *previous_analysis_result_guard = None;
+                            *all_diagnostics_guard = None;
+
                             self.client
                                 .log_message(
                                     MessageType::ERROR,
-                                    format!("Failure to get url from file {}", file),
+                                    format!("Analysis failed with error {}", error),
                                 )
                                 .await;
                         }
                     }
+                    break;
                 }
-
-                *all_diagnostics_guard = Some(all_diagnostics);
-                *previous_scan_data_guard = Some(successful_scan_data);
-                *previous_analysis_result_guard = Some(analysis_result);
-            }
-            Err(error) => {
-                *previous_scan_data_guard = None;
-                *previous_analysis_result_guard = None;
-                *all_diagnostics_guard = None;
-
-                self.client
-                    .log_message(
-                        MessageType::ERROR,
-                        format!("Analysis failed with error {}", error),
-                    )
-                    .await;
             }
         }
-    }
 
-    #[cfg(target_arch = "wasm32")]
-    async fn do_analysis(&self) {
-        // WASM version doesn't support async analysis
+        *file_changes_guard = None;
     }
 
     async fn emit_issues(&self) {
@@ -758,7 +497,6 @@ pub async fn serve<Reader, Writer>(
 }
 
 /// Serve the language server with custom plugins.
-#[cfg(not(target_arch = "wasm32"))]
 pub async fn serve_with_plugins<Reader, Writer>(
     reader: Reader,
     writer: Writer,
@@ -804,76 +542,33 @@ pub async fn serve_with_plugins<Reader, Writer>(
 
     // Try to connect to an existing hakana server and use it for analysis. or start one.
     // Fall back to local analysis if we can't start the server.
-    let server_connection = match server_client::ServerConnection::connect_or_spawn(&cwd_path, None)
-    {
-        Ok(conn) => {
-            stderr
-                .write_all_buf(&mut Cursor::new(b"Connected to hakana server\n"))
-                .await
-                .ok();
-            Some(Mutex::new(conn))
-        }
-        Err(e) => {
-            stderr
-                .write_all_buf(&mut Cursor::new(format!(
-                    "Error starting hakana server: {} . Using local analysis.\n",
-                    e
-                )))
-                .await
-                .ok();
-            None
-        }
-    };
+    let server_connection =
+        match server_client::ServerConnection::connect_or_spawn(&cwd_path, None).await {
+            Ok(conn) => {
+                stderr
+                    .write_all_buf(&mut Cursor::new(b"Connected to hakana server\n"))
+                    .await
+                    .ok();
+                Some(conn)
+            }
+            Err(e) => {
+                stderr
+                    .write_all_buf(&mut Cursor::new(format!(
+                        "Error starting hakana server: {} . Using local analysis.\n",
+                        e
+                    )))
+                    .await
+                    .ok();
+                None
+            }
+        };
 
-    let (service, socket) = LspService::new(|client| {
-        Backend::with_server_connection(client, config, interner, server_connection)
-    });
-
-    Server::new(reader, writer, socket).serve(service).await;
-}
-
-/// WASM version
-#[cfg(target_arch = "wasm32")]
-pub async fn serve_with_plugins<Reader, Writer>(
-    reader: Reader,
-    writer: Writer,
-    current_dir: std::io::Result<PathBuf>,
-    _plugins: Vec<Box<dyn CustomHook>>,
-) where
-    Reader: AsyncRead + Unpin,
-    Writer: AsyncWrite,
-{
-    let mut stderr = tokio::io::stderr();
-
-    let cwd = if let Ok(current_dir) = current_dir {
-        if let Some(str) = current_dir.to_str() {
-            str.to_string()
-        } else {
-            stderr
-                .write_all_buf(&mut Cursor::new(b"Passed current directory is malformed"))
-                .await
-                .ok();
-            return;
-        }
-    } else {
-        stderr
-            .write_all_buf(&mut Cursor::new(
-                b"Current working directory could not be determined",
-            ))
-            .await
-            .ok();
+    if let Some(server_conn) = server_connection {
+        let (service, socket) =
+            LspService::new(|client| ServerBasedBackend::new(client, config, server_conn));
+        Server::new(reader, writer, socket).serve(service).await;
         return;
-    };
-
-    let mut interner = Interner::default();
-
-    let config = match get_config(vec![], &cwd, &mut interner) {
-        Ok(config) => config,
-        Err(msg) => {
-            stderr.write_all_buf(&mut Cursor::new(msg)).await.ok();
-            return;
-        }
-    };
+    }
 
     let (service, socket) = LspService::new(|client| Backend::new(client, config, interner));
 

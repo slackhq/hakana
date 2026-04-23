@@ -4,7 +4,8 @@ use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let build_timestamp = env!("VERGEN_BUILD_TIMESTAMP");
     let header = "\nCommit:    ".to_string()
         + &env!("VERGEN_GIT_SHA")[0..7]
@@ -18,5 +19,6 @@ fn main() {
         header.as_str(),
         &TestRunner(Box::new(CoreHooksProvider {})),
         vec![],
-    );
+    )
+    .await;
 }

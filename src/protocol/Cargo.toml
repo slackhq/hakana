@@ -1,12 +1,16 @@
 [package]
 name = "hakana-protocol"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 hakana-code-info = { path = "../code_info" }
 hakana-orchestrator = { path = "../orchestrator" }
 rustc-hash = "1.1.0"
+tokio = { version = "1.28", features = ["net", "io-util"] }
+
+[dev-dependencies]
+tokio = { version = "1.28", features = ["rt", "macros", "time"] }
 
 [lib]
 path = "lib.rs"

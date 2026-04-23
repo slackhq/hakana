@@ -26,10 +26,6 @@ use std::fs;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-#[cfg(not(target_arch = "wasm32"))]
-use tower_lsp::Client;
-#[cfg(not(target_arch = "wasm32"))]
-use tower_lsp::lsp_types::MessageType;
 use unused_symbols::find_unused_definitions;
 
 mod analyzer;
@@ -78,245 +74,6 @@ impl Default for SuccessfulScanData {
 
 use std::sync::atomic::AtomicU32;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn scan_and_analyze_async<P>(
-    stubs_dirs: Vec<String>,
-    filter: Option<String>,
-    ignored_paths: Option<FxHashSet<String>>,
-    config: Arc<Config>,
-    threads: u8,
-    lsp_client: Option<&Client>,
-    header: &str,
-    interner: Arc<Interner>,
-    previous_scan_data: Option<SuccessfulScanData>,
-    previous_analysis_result: Option<AnalysisResult>,
-    language_server_changes: Option<FxHashMap<String, FileStatus>>,
-    mut progress_callback: Option<P>,
-    files_scanned: Option<Arc<AtomicU32>>,
-    total_files_to_scan: Option<Arc<AtomicU32>>,
-    files_analyzed: Option<Arc<AtomicU32>>,
-) -> io::Result<(AnalysisResult, SuccessfulScanData)>
-where
-    P: FnMut(AnalysisProgress),
-{
-    let mut all_scanned_dirs = stubs_dirs.clone();
-    all_scanned_dirs.push(config.root_dir.clone());
-
-    if let Some(client) = lsp_client {
-        client
-            .log_message(MessageType::INFO, "Scanning files")
-            .await;
-    }
-
-    if let Some(ref mut cb) = progress_callback {
-        cb(AnalysisProgress {
-            phase: "Scanning".to_string(),
-            files_analyzed: 0,
-            total_files: 0,
-        });
-    }
-
-    tokio::time::sleep(Duration::from_millis(10)).await;
-
-    let ScanFilesResult {
-        mut codebase,
-        mut interner,
-        resolved_names,
-        codebase_diff,
-        file_system,
-        mut files_to_analyze,
-        invalid_files,
-    } = scan_files(
-        &all_scanned_dirs,
-        None,
-        &config,
-        threads,
-        Arc::new(Logger::DevNull),
-        header,
-        &interner,
-        previous_scan_data,
-        language_server_changes,
-        files_scanned,
-        total_files_to_scan,
-    )?;
-
-    let total_files = codebase.files.len() as u32;
-    if let Some(ref mut cb) = progress_callback {
-        cb(AnalysisProgress {
-            phase: "Scanning complete".to_string(),
-            files_analyzed: 0,
-            total_files,
-        });
-    }
-
-    let mut cached_analysis = if config.ast_diff {
-        mark_safe_symbols_from_diff(
-            &Arc::new(Logger::DevNull),
-            codebase_diff,
-            &codebase,
-            &mut interner,
-            invalid_files,
-            &mut files_to_analyze,
-            &None,
-            &None,
-            previous_analysis_result,
-            config.max_changes_allowed,
-        )
-    } else {
-        CachedAnalysis::default()
-    };
-
-    if let Some(client) = lsp_client {
-        client
-            .log_message(MessageType::INFO, "Calculating symbol inheritance")
-            .await;
-    }
-
-    if let Some(ref mut cb) = progress_callback {
-        cb(AnalysisProgress {
-            phase: "Calculating inheritance".to_string(),
-            files_analyzed: 0,
-            total_files,
-        });
-    }
-
-    tokio::time::sleep(Duration::from_millis(10)).await;
-
-    populate_codebase(
-        &mut codebase,
-        &interner,
-        &mut cached_analysis.symbol_references,
-        cached_analysis.safe_symbols,
-        cached_analysis.safe_symbol_members,
-        &config,
-    );
-
-    for hook in &config.hooks {
-        hook.after_populate(&codebase, &interner, &config);
-    }
-
-    // Check for duplicate definitions and skip analysis if found
-    if codebase.has_duplicates() {
-        if let Some(client) = lsp_client {
-            client
-                .log_message(
-                    MessageType::ERROR,
-                    "ERROR: Duplicate definitions found in codebase. Skipping analysis.",
-                )
-                .await;
-        }
-
-        let duplicate_issues = emit_duplicate_definition_issues(&codebase, &interner);
-
-        let (analysis_result, arc_scan_data) = get_analysis_ready(
-            &config,
-            codebase,
-            interner,
-            file_system,
-            resolved_names,
-            cached_analysis.symbol_references,
-            cached_analysis.existing_issues,
-            cached_analysis.definition_locations,
-        );
-
-        // Add duplicate issues to the result
-        {
-            let mut result = analysis_result.lock().unwrap();
-            for (file_path, issues) in duplicate_issues {
-                result
-                    .emitted_issues
-                    .entry(file_path)
-                    .or_default()
-                    .extend(issues);
-            }
-            result.has_invalid_hack_files = true;
-        }
-
-        let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
-        let analysis_result = (*analysis_result.lock().unwrap()).clone();
-        return Ok((analysis_result, scan_data));
-    }
-
-    let (analysis_result, arc_scan_data) = get_analysis_ready(
-        &config,
-        codebase,
-        interner,
-        file_system,
-        resolved_names,
-        cached_analysis.symbol_references,
-        cached_analysis.existing_issues,
-        cached_analysis.definition_locations,
-    );
-
-    let files_to_analyze_count = files_to_analyze.len() as u32;
-
-    if let Some(client) = lsp_client {
-        client
-            .log_message(
-                MessageType::INFO,
-                &format!("Analyzing {} files", files_to_analyze_count),
-            )
-            .await;
-    }
-
-    if let Some(ref mut cb) = progress_callback {
-        cb(AnalysisProgress {
-            phase: "Analyzing".to_string(),
-            files_analyzed: 0,
-            total_files: files_to_analyze_count,
-        });
-    }
-
-    tokio::time::sleep(Duration::from_millis(10)).await;
-
-    analyze_files(
-        files_to_analyze,
-        arc_scan_data.clone(),
-        config.clone(),
-        &analysis_result,
-        filter,
-        &ignored_paths,
-        threads,
-        Arc::new(Logger::DevNull),
-        &mut Duration::default(),
-        files_analyzed,
-    )?;
-
-    let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
-
-    let mut scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
-
-    add_invalid_files(&scan_data, &mut analysis_result);
-
-    if config.find_unused_definitions {
-        if let Some(ref mut cb) = progress_callback {
-            cb(AnalysisProgress {
-                phase: "Finding unused definitions".to_string(),
-                files_analyzed: files_to_analyze_count,
-                total_files: files_to_analyze_count,
-            });
-        }
-        find_unused_definitions(
-            &mut analysis_result,
-            &config,
-            &mut scan_data.codebase,
-            &scan_data.interner,
-            &ignored_paths,
-            &mut scan_data.file_system,
-        );
-    }
-
-    if let Some(ref mut cb) = progress_callback {
-        cb(AnalysisProgress {
-            phase: "Complete".to_string(),
-            files_analyzed: files_to_analyze_count,
-            total_files: files_to_analyze_count,
-        });
-    }
-
-    Ok((analysis_result, scan_data))
-}
-
 pub fn scan_and_analyze<F: FnOnce()>(
     stubs_dirs: Vec<String>,
     filter: Option<String>,
@@ -326,11 +83,49 @@ pub fn scan_and_analyze<F: FnOnce()>(
     threads: u8,
     logger: Arc<Logger>,
     header: &str,
-    interner: Interner,
+    interner: Arc<Interner>,
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
     chaos_monkey: F,
+) -> io::Result<(AnalysisResult, SuccessfulScanData)> {
+    scan_and_analyze_with_progress(
+        stubs_dirs,
+        filter,
+        ignored_paths,
+        config,
+        cache_dir,
+        threads,
+        logger,
+        header,
+        interner,
+        previous_scan_data,
+        previous_analysis_result,
+        language_server_changes,
+        chaos_monkey,
+        None,
+        None,
+        None,
+    )
+}
+
+pub fn scan_and_analyze_with_progress<F: FnOnce()>(
+    stubs_dirs: Vec<String>,
+    filter: Option<String>,
+    ignored_paths: Option<FxHashSet<String>>,
+    config: Arc<Config>,
+    cache_dir: Option<&String>,
+    threads: u8,
+    logger: Arc<Logger>,
+    header: &str,
+    interner: Arc<Interner>,
+    previous_scan_data: Option<SuccessfulScanData>,
+    previous_analysis_result: Option<AnalysisResult>,
+    language_server_changes: Option<FxHashMap<String, FileStatus>>,
+    chaos_monkey: F,
+    files_scanned: Option<Arc<AtomicU32>>,
+    total_files_to_scan: Option<Arc<AtomicU32>>,
+    files_analyzed: Option<Arc<AtomicU32>>,
 ) -> io::Result<(AnalysisResult, SuccessfulScanData)> {
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
@@ -354,11 +149,11 @@ pub fn scan_and_analyze<F: FnOnce()>(
         threads,
         logger.clone(),
         header,
-        &Arc::new(interner),
+        &interner,
         previous_scan_data,
         language_server_changes,
-        None,
-        None,
+        files_scanned,
+        total_files_to_scan,
     )?;
 
     let file_discovery_and_scanning_elapsed = file_discovery_and_scanning_now.elapsed();
@@ -487,7 +282,7 @@ pub fn scan_and_analyze<F: FnOnce()>(
         threads,
         logger.clone(),
         &mut pure_file_analysis_time,
-        None,
+        files_analyzed,
     )?;
 
     if logger.can_log_timing() {

@@ -1,14 +1,15 @@
 //! Server state management.
 
+use std::sync::Arc;
+
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_orchestrator::SuccessfulScanData;
+use hakana_orchestrator::file::FileStatus;
+use rustc_hash::FxHashMap;
 
 /// Warm state maintained by the server.
 pub struct ServerState {
-    /// Cached scan data from last successful scan.
-    pub scan_data: Option<SuccessfulScanData>,
-    /// Cached analysis result.
-    pub analysis_result: Option<AnalysisResult>,
+    pub analysis_data: Option<Arc<(AnalysisResult, SuccessfulScanData)>>,
     /// Whether server is shutting down.
     shutting_down: bool,
     /// Whether an analysis is currently running.
@@ -21,19 +22,21 @@ pub struct ServerState {
     files_analyzed: u32,
     /// Total files to analyze.
     total_files: u32,
+    /// Pending file changes.
+    pub pending_changes: FxHashMap<String, FileStatus>,
 }
 
 impl ServerState {
     pub fn new() -> Self {
         Self {
-            scan_data: None,
-            analysis_result: None,
+            analysis_data: None,
             shutting_down: false,
             analysis_in_progress: false,
             pending_requests: 0,
             phase: "Initializing".to_string(),
             files_analyzed: 0,
             total_files: 0,
+            pending_changes: FxHashMap::default(),
         }
     }
 
@@ -98,26 +101,25 @@ impl ServerState {
     }
 
     /// Update scan data and analysis result.
-    pub fn update_state(&mut self, scan_data: SuccessfulScanData, analysis_result: AnalysisResult) {
-        self.total_files = scan_data.codebase.files.len() as u32;
-        self.files_analyzed = self.total_files;
-        self.scan_data = Some(scan_data);
-        self.analysis_result = Some(analysis_result);
+    pub fn update_state(&mut self, result: Arc<(AnalysisResult, SuccessfulScanData)>) {
+        self.analysis_data = Some(result);
     }
 
     /// Get files count if available.
     pub fn files_count(&self) -> u32 {
-        self.scan_data
+        self.analysis_data
             .as_ref()
-            .map(|d| d.codebase.files.len() as u32)
+            .map(&Arc::as_ref)
+            .map(|(_, d)| d.codebase.files.len() as u32)
             .unwrap_or(0)
     }
 
     /// Get symbols count if available.
     pub fn symbols_count(&self) -> u32 {
-        self.scan_data
+        self.analysis_data
             .as_ref()
-            .map(|d| {
+            .map(&Arc::as_ref)
+            .map(|(_, d)| {
                 d.codebase.classlike_infos.len() as u32 + d.codebase.functionlike_infos.len() as u32
             })
             .unwrap_or(0)
@@ -125,12 +127,18 @@ impl ServerState {
 
     /// Get scan data reference.
     pub fn scan_data(&self) -> Option<&SuccessfulScanData> {
-        self.scan_data.as_ref()
+        self.analysis_data
+            .as_ref()
+            .map(&Arc::as_ref)
+            .map(|(_, d)| d)
     }
 
     /// Get analysis result reference.
     pub fn analysis_result(&self) -> Option<&AnalysisResult> {
-        self.analysis_result.as_ref()
+        self.analysis_data
+            .as_ref()
+            .map(&Arc::as_ref)
+            .map(|(r, _)| r)
     }
 }
 
