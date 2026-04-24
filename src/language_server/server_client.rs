@@ -243,6 +243,7 @@ impl ServerConnection {
             find_unused_expressions,
             find_unused_definitions,
             block_until_next_analysis,
+            send_progress_report: false,
         });
 
         match socket.request(&request).await {

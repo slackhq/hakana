@@ -236,6 +236,8 @@ pub struct GetIssuesRequest {
     pub find_unused_definitions: bool,
     /// Whether to wait until the next analysis run.
     pub block_until_next_analysis: bool,
+    /// Whether to send progress reports before the analysis is complete.
+    pub send_progress_report: bool,
 }
 
 /// Response with current issues.
@@ -245,14 +247,16 @@ pub struct GetIssuesResponse {
     pub analysis_complete: bool,
     /// Issues found during analysis (may be partial if analysis_complete is false).
     pub issues: Vec<ProtocolIssue>,
+    /// Number of files scanned so far.
+    pub files_scanned: u32,
+    /// Total number of files to scan (0 if unknown).
+    pub total_files_to_scan: u32,
     /// Number of files analyzed so far.
     pub files_analyzed: u32,
     /// Total number of files to analyze (0 if unknown).
-    pub total_files: u32,
+    pub total_files_to_analyze: u32,
     /// Current analysis phase description.
     pub phase: String,
-    /// Progress percentage (0-100).
-    pub progress_percent: u8,
 }
 
 /// Request for server status.

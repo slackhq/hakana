@@ -163,6 +163,7 @@ async fn test_server_client_get_issues() {
         find_unused_expressions: false,
         find_unused_definitions: false,
         block_until_next_analysis: false,
+        send_progress_report: false,
     });
 
     let response = client

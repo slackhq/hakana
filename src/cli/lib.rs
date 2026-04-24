@@ -1647,6 +1647,7 @@ async fn do_analysis(
             find_unused_expressions,
             find_unused_definitions,
             block_until_next_analysis: false,
+            send_progress_report: true,
         });
 
         // Poll for results, showing progress bar if analysis is in progress
@@ -1698,15 +1699,25 @@ async fn do_analysis(
                         return;
                     } else {
                         // Update progress bar
-                        pb.set_length(result.total_files.max(1) as u64);
-                        pb.set_position(result.files_analyzed as u64);
-                        pb.set_message(format!(
-                            "{} ({}/{} files)",
-                            result.phase, result.files_analyzed, result.total_files
-                        ));
+                        let is_analyzing = result.files_analyzed > 0;
+                        if is_analyzing {
+                            pb.set_length(result.total_files_to_analyze.max(1) as u64);
+                            pb.set_position(result.files_analyzed as u64);
+                            pb.set_message(format!(
+                                "{} ({}/{} files)",
+                                result.phase, result.files_analyzed, result.total_files_to_analyze
+                            ));
+                        } else {
+                            pb.set_length(result.total_files_to_scan.max(1) as u64);
+                            pb.set_position(result.files_scanned as u64);
+                            pb.set_message(format!(
+                                "{} ({}/{} files)",
+                                result.phase, result.files_scanned, result.total_files_to_scan
+                            ));
+                        }
 
                         // Wait a bit before polling again (100ms for responsive UI)
-                        std::thread::sleep(Duration::from_millis(100));
+                        tokio::time::sleep(Duration::from_millis(100)).await;
                     }
                 }
                 Ok(Message::Error(err)) => {

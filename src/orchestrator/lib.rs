@@ -24,6 +24,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use scanner::{ScanFilesResult, scan_files};
 use std::fs;
 use std::io::{self, Write};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use unused_symbols::find_unused_definitions;
@@ -72,7 +73,12 @@ impl Default for SuccessfulScanData {
     }
 }
 
-use std::sync::atomic::AtomicU32;
+pub struct AnalysisProgress {
+    pub files_scanned: Arc<AtomicU32>,
+    pub total_files_to_scan: Arc<AtomicU32>,
+    pub files_analyzed: Arc<AtomicU32>,
+    pub total_files_to_analyze: Arc<AtomicU32>,
+}
 
 pub fn scan_and_analyze<F: FnOnce()>(
     stubs_dirs: Vec<String>,
@@ -104,8 +110,6 @@ pub fn scan_and_analyze<F: FnOnce()>(
         language_server_changes,
         chaos_monkey,
         None,
-        None,
-        None,
     )
 }
 
@@ -123,14 +127,18 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
     previous_analysis_result: Option<AnalysisResult>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
     chaos_monkey: F,
-    files_scanned: Option<Arc<AtomicU32>>,
-    total_files_to_scan: Option<Arc<AtomicU32>>,
-    files_analyzed: Option<Arc<AtomicU32>>,
+    analysis_progress: Option<AnalysisProgress>,
 ) -> io::Result<(AnalysisResult, SuccessfulScanData)> {
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
 
     let file_discovery_and_scanning_now = Instant::now();
+
+    let files_scanned = analysis_progress.as_ref().map(|p| p.files_scanned.clone());
+    let total_files_to_scan = analysis_progress
+        .as_ref()
+        .map(|p| p.total_files_to_scan.clone());
+    let files_analyzed = analysis_progress.as_ref().map(|p| p.files_analyzed.clone());
 
     logger.log_sync("Scanning files");
 
@@ -267,6 +275,12 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
     );
 
     logger.log_sync(&format!("Analyzing {} files", files_to_analyze.len()));
+    if let Some(total_files_to_analyze) = analysis_progress
+        .as_ref()
+        .map(|p| p.total_files_to_analyze.clone())
+    {
+        total_files_to_analyze.store(files_to_analyze.len() as u32, Ordering::Relaxed);
+    }
 
     let mut pure_file_analysis_time = Duration::default();
 
@@ -482,17 +496,6 @@ fn emit_duplicate_definition_issues(
     }
 
     issues
-}
-
-/// Progress information passed to the progress callback.
-#[derive(Debug, Clone)]
-pub struct AnalysisProgress {
-    /// Current phase name.
-    pub phase: String,
-    /// Number of files analyzed so far (only meaningful during "Analyzing" phase).
-    pub files_analyzed: u32,
-    /// Total number of files to analyze.
-    pub total_files: u32,
 }
 
 fn get_analysis_ready(
