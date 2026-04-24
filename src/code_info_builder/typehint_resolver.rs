@@ -510,6 +510,9 @@ pub fn get_type_from_hint(
     let base = match hint {
         Hint_::Happly(id, extra_info) => {
             let applied_type = &id.1;
+            let applied_type_str = applied_type
+                .strip_prefix('\\')
+                .unwrap_or(applied_type.as_str());
 
             if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
                 if let Some((_, type_name)) = type_context
@@ -521,7 +524,7 @@ pub fn get_type_from_hint(
                 }
             }
 
-            match applied_type.as_str() {
+            match applied_type_str {
                 "int" => TAtomic::TInt,
                 "string" => TAtomic::TString,
                 "arraykey" => TAtomic::TArraykey { from_any: false },
@@ -664,7 +667,7 @@ pub fn get_type_from_hint(
                 }
                 "resource" => TAtomic::TResource,
                 "_" => TAtomic::TPlaceholder,
-                "HH\\FIXME\\MISSING_RETURN_TYPE" | "\\HH\\FIXME\\MISSING_RETURN_TYPE" => {
+                "HH\\FIXME\\MISSING_RETURN_TYPE" => {
                     return None;
                 }
                 _ => get_reference_type(
