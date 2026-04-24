@@ -9,8 +9,8 @@ use hakana_analyzer::config::Config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_logger::Logger;
-use hakana_orchestrator::SuccessfulScanData;
 use hakana_orchestrator::file::FileStatus;
+use hakana_orchestrator::{AnalysisProgress, SuccessfulScanData};
 use hakana_protocol::{
     ClientConnection, ErrorCode, ErrorResponse, Message, ServerSocket, SocketPath,
 };
@@ -18,6 +18,7 @@ use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 
@@ -212,11 +213,26 @@ impl Server {
         let logger = self.logger.clone();
         let previous_analysis_data = state.analysis_data.take();
 
+        let files_scanned = state.files_scanned.clone();
+        let total_files_to_scan = state.total_files_to_scan.clone();
+
+        let files_analyzed = state.files_analyzed.clone();
+        let total_files_to_analyze = state.total_files_to_analyze.clone();
+
         let tx = self.analysis_tx.clone();
 
         tokio::task::spawn_blocking(move || {
-            let result =
-                run_analysis(&config, &logger, previous_analysis_data, changes).map(&Arc::new);
+            let result = run_analysis(
+                &config,
+                &logger,
+                previous_analysis_data,
+                changes,
+                files_scanned,
+                total_files_to_scan,
+                files_analyzed,
+                total_files_to_analyze,
+            )
+            .map(&Arc::new);
             let _ = tx.send(result);
         });
     }
@@ -360,6 +376,10 @@ fn run_analysis(
     logger: &Arc<Logger>,
     previous_analysis_data: Option<Arc<(AnalysisResult, SuccessfulScanData)>>,
     changes: Option<FxHashMap<String, FileStatus>>,
+    files_scanned: Arc<AtomicU32>,
+    total_files_to_scan: Arc<AtomicU32>,
+    files_analyzed: Arc<AtomicU32>,
+    total_files_to_analyze: Arc<AtomicU32>,
 ) -> Result<(AnalysisResult, SuccessfulScanData), String> {
     let all_custom_issues: FxHashSet<String> = config
         .plugins
@@ -398,7 +418,19 @@ fn run_analysis(
         .map(|d| (Some(d.1.clone()), Some(d.0.clone())))
         .unwrap_or((None, None));
 
-    hakana_orchestrator::scan_and_analyze(
+    files_scanned.store(0, std::sync::atomic::Ordering::Relaxed);
+    total_files_to_scan.store(0, std::sync::atomic::Ordering::Relaxed);
+    files_analyzed.store(0, std::sync::atomic::Ordering::Relaxed);
+    total_files_to_analyze.store(0, std::sync::atomic::Ordering::Relaxed);
+
+    let progress = AnalysisProgress {
+        files_scanned,
+        total_files_to_scan,
+        files_analyzed,
+        total_files_to_analyze,
+    };
+
+    hakana_orchestrator::scan_and_analyze_with_progress(
         Vec::new(),
         None,
         None,
@@ -412,6 +444,7 @@ fn run_analysis(
         previous_analysis_result,
         changes,
         || {},
+        Some(progress),
     )
     .map_err(|e| e.to_string())
 }

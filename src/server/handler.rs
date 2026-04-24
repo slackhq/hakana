@@ -270,12 +270,31 @@ impl RequestHandler {
         req: hakana_protocol::GetIssuesRequest,
     ) -> Message {
         if !req.block_until_next_analysis {
-            let state = self.state.lock().unwrap();
-            let analysis_complete = !state.is_analysis_in_progress();
+            let analysis_result = {
+                let state = self.state.lock().unwrap();
+                state
+                    .analysis_data
+                    .as_ref()
+                    .filter(|_| !state.is_analysis_in_progress())
+                    .map(|r| r.clone())
+            };
 
-            if analysis_complete && let Some(analysis_result) = &state.analysis_data {
-                return self.create_get_issues_response(req, analysis_result);
+            if let Some(analysis_result) = analysis_result {
+                return self.create_get_issues_response(req, &analysis_result);
             }
+        }
+
+        if req.send_progress_report {
+            let state = self.state.lock().unwrap();
+            return Message::GetIssuesResult(GetIssuesResponse {
+                analysis_complete: false,
+                issues: vec![],
+                files_scanned: state.files_scanned(),
+                total_files_to_scan: state.total_files_to_scan(),
+                files_analyzed: state.files_analyzed(),
+                total_files_to_analyze: state.total_files_to_analyze(),
+                phase: state.phase().to_string(),
+            });
         }
 
         if let Ok(result) = analysis_rx.recv().await
@@ -286,10 +305,11 @@ impl RequestHandler {
         Message::GetIssuesResult(GetIssuesResponse {
             analysis_complete: false,
             issues: vec![],
+            files_scanned: 0,
+            total_files_to_scan: 0,
             files_analyzed: 0,
-            total_files: 0,
+            total_files_to_analyze: 0,
             phase: "Complete".to_string(),
-            progress_percent: 100,
         })
     }
 
@@ -318,13 +338,16 @@ impl RequestHandler {
         self.logger
             .log_sync(&format!("Returning {} issues", issues.len()));
 
+        let state = self.state.lock().unwrap();
+
         return Message::GetIssuesResult(GetIssuesResponse {
             analysis_complete: true,
             issues,
-            files_analyzed: 0,
-            total_files: 0,
+            files_scanned: state.files_scanned(),
+            total_files_to_scan: state.total_files_to_scan(),
+            files_analyzed: state.files_analyzed(),
+            total_files_to_analyze: state.total_files_to_analyze(),
             phase: "Complete".to_string(),
-            progress_percent: 100,
         });
     }
 

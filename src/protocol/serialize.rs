@@ -672,6 +672,7 @@ impl Serialize for GetIssuesRequest {
         write_bool(buf, self.find_unused_expressions);
         write_bool(buf, self.find_unused_definitions);
         write_bool(buf, self.block_until_next_analysis);
+        write_bool(buf, self.send_progress_report);
     }
 }
 
@@ -681,12 +682,14 @@ impl Deserialize for GetIssuesRequest {
         let (find_unused_expressions, rest) = read_bool(rest)?;
         let (find_unused_definitions, rest) = read_bool(rest)?;
         let (block_until_next_analysis, rest) = read_bool(rest)?;
+        let (send_progress_report, rest) = read_bool(rest)?;
         Ok((
             Self {
                 filter,
                 find_unused_expressions,
                 find_unused_definitions,
                 block_until_next_analysis,
+                send_progress_report,
             },
             rest,
         ))
@@ -702,10 +705,11 @@ impl Serialize for GetIssuesResponse {
         for issue in &self.issues {
             issue.serialize(buf);
         }
+        write_u32(buf, self.files_scanned);
+        write_u32(buf, self.total_files_to_scan);
         write_u32(buf, self.files_analyzed);
-        write_u32(buf, self.total_files);
+        write_u32(buf, self.total_files_to_analyze);
         write_string(buf, &self.phase);
-        write_u8(buf, self.progress_percent);
     }
 }
 
@@ -719,18 +723,20 @@ impl Deserialize for GetIssuesResponse {
             issues.push(issue);
             rest = r;
         }
+        let (files_scanned, rest) = read_u32(rest)?;
+        let (total_files_to_scan, rest) = read_u32(rest)?;
         let (files_analyzed, rest) = read_u32(rest)?;
-        let (total_files, rest) = read_u32(rest)?;
+        let (total_files_to_analyze, rest) = read_u32(rest)?;
         let (phase, rest) = read_string(rest)?;
-        let (progress_percent, rest) = read_u8(rest)?;
         Ok((
             Self {
                 analysis_complete,
                 issues,
+                files_scanned,
+                total_files_to_scan,
                 files_analyzed,
-                total_files,
+                total_files_to_analyze,
                 phase,
-                progress_percent,
             },
             rest,
         ))

@@ -50,10 +50,7 @@ impl ServerBasedBackend {
                     client
                         .log_message(
                             MessageType::INFO,
-                            format!(
-                                "Server analysis in progress: {} ({}%)",
-                                response.phase, response.progress_percent
-                            ),
+                            format!("Server analysis in progress: {}", response.phase),
                         )
                         .await;
                     // Don't update diagnostics while analysis is in progress

@@ -1,6 +1,7 @@
 //! Server state management.
 
 use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
 
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_orchestrator::SuccessfulScanData;
@@ -18,10 +19,14 @@ pub struct ServerState {
     pending_requests: u32,
     /// Current analysis phase description.
     phase: String,
+    /// Files scanned so far (during analysis).
+    pub files_scanned: Arc<AtomicU32>,
+    /// Total files to scan.
+    pub total_files_to_scan: Arc<AtomicU32>,
     /// Files analyzed so far (during analysis).
-    files_analyzed: u32,
+    pub files_analyzed: Arc<AtomicU32>,
     /// Total files to analyze.
-    total_files: u32,
+    pub total_files_to_analyze: Arc<AtomicU32>,
     /// Pending file changes.
     pub pending_changes: FxHashMap<String, FileStatus>,
 }
@@ -34,8 +39,10 @@ impl ServerState {
             analysis_in_progress: false,
             pending_requests: 0,
             phase: "Initializing".to_string(),
-            files_analyzed: 0,
-            total_files: 0,
+            files_scanned: Arc::new(0.into()),
+            total_files_to_scan: Arc::new(0.into()),
+            files_analyzed: Arc::new(0.into()),
+            total_files_to_analyze: Arc::new(0.into()),
             pending_changes: FxHashMap::default(),
         }
     }
@@ -75,29 +82,24 @@ impl ServerState {
         self.phase = phase;
     }
 
-    /// Get files analyzed count.
+    pub fn files_scanned(&self) -> u32 {
+        self.files_scanned
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn total_files_to_scan(&self) -> u32 {
+        self.total_files_to_scan
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     pub fn files_analyzed(&self) -> u32 {
         self.files_analyzed
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
-    /// Get total files count.
-    pub fn total_files(&self) -> u32 {
-        self.total_files
-    }
-
-    /// Get progress percentage.
-    pub fn progress_percent(&self) -> u8 {
-        if self.total_files == 0 {
-            0
-        } else {
-            ((self.files_analyzed as f64 / self.total_files as f64) * 100.0) as u8
-        }
-    }
-
-    /// Set progress counters during analysis.
-    pub fn set_progress(&mut self, files_analyzed: u32, total_files: u32) {
-        self.files_analyzed = files_analyzed;
-        self.total_files = total_files;
+    pub fn total_files_to_analyze(&self) -> u32 {
+        self.total_files_to_analyze
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Update scan data and analysis result.
