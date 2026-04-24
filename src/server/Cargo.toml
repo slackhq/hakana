@@ -16,6 +16,7 @@ tokio = { version = "1.28", features = ["rt-multi-thread", "sync", "time"] }
 
 [dev-dependencies]
 hakana-protocol = { path = "../protocol" }
+tempfile = "3"
 tokio = { version = "1.28", features = ["rt", "macros", "time"] }
 
 [lib]
