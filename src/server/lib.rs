@@ -29,6 +29,7 @@ pub struct ServerConfig {
     pub config_path: Option<String>,
     pub plugins: Vec<Arc<dyn CustomHook>>,
     pub header: String,
+    pub chaos_monkey: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl ServerConfig {
@@ -39,6 +40,7 @@ impl ServerConfig {
             config_path: None,
             plugins: Vec::new(),
             header: String::new(),
+            chaos_monkey: None,
         }
     }
 }
@@ -443,8 +445,126 @@ fn run_analysis(
         previous_scan_data,
         previous_analysis_result,
         changes,
-        || {},
+        || {
+            if let Some(f) = &config.chaos_monkey {
+                f();
+            }
+        },
         Some(progress),
     )
     .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use hakana_logger::Logger;
+    use hakana_protocol::{ClientSocket, GetIssuesRequest, Message};
+    use std::{
+        path::{Path, PathBuf},
+        sync::{Arc, atomic::AtomicBool},
+    };
+    use tokio::fs;
+
+    use crate::{Server, ServerConfig, watchman};
+
+    #[tokio::test]
+    async fn handles_file_changes_during_analysis() -> std::io::Result<()> {
+        let tmp = tempfile::Builder::new()
+            .prefix("hakana-test")
+            .tempdir()
+            .expect("failed to create temp dir");
+        let hack_file = tmp.path().join("index.hack");
+        let config_path = tmp.path().join("hakana.json");
+        fs::write(hack_file.clone(), "function main(): void {}")
+            .await
+            .expect("failed to create test file");
+        fs::write(config_path.clone(), "{}")
+            .await
+            .expect("failed to create test file");
+
+        eprintln!("{:?}", hack_file);
+
+        let did_mutate = AtomicBool::new(false);
+
+        let server_config = ServerConfig {
+            root_dir: tmp.path().to_str().unwrap().to_string(),
+            threads: 2,
+            config_path: Some(config_path.to_str().unwrap().to_string()),
+            plugins: vec![],
+            header: "".to_string(),
+            chaos_monkey: Some(Arc::new(move || {
+                // Simulate a file change between the first scan and first analysis
+                if !did_mutate.load(std::sync::atomic::Ordering::Relaxed) {
+                    eprintln!("editing file before analysis");
+                    did_mutate.store(true, std::sync::atomic::Ordering::Relaxed);
+                    std::fs::write(hack_file.clone(), "function foo(): void {}")
+                        .expect("failed to mutate file before analysis");
+                }
+            })),
+        };
+
+        let watchman_clock = watchman::get_clock(Path::new(&server_config.root_dir)).await?;
+        let mut watchman_handle = watchman::start_subscription(
+            PathBuf::from(&server_config.root_dir),
+            vec![],
+            watchman_clock,
+            server_config.config_path.as_ref().map(&PathBuf::from),
+        );
+
+        let mut server = Server::new(
+            server_config,
+            Arc::new(Logger::CommandLine(hakana_logger::Verbosity::Debugging)),
+        )
+        .expect("failed to create server");
+
+        let socket_path = server.socket_path().clone();
+        let shutdown_tx = server.shutdown_tx.clone();
+
+        let server_task =
+            tokio::spawn(async move { server.run().await.expect("failed to run server") });
+
+        // Wait for Watchman to send a notification (which should also have notified the server)
+        watchman_handle.recv().await;
+
+        let mut client = ClientSocket::connect(&socket_path)
+            .await
+            .expect("failed to connect");
+
+        let request = Message::GetIssues(GetIssuesRequest {
+            filter: None,
+            find_unused_expressions: false,
+            find_unused_definitions: false,
+            block_until_next_analysis: false,
+            send_progress_report: false,
+        });
+
+        let response = client
+            .request(&request)
+            .await
+            .expect("Failed to send request");
+
+        if let Message::GetIssuesResult(result) = response {
+            eprintln!("{:?}", result.issues);
+            assert!(
+                result.analysis_complete,
+                "Analysis should be complete after server is ready"
+            );
+            assert_eq!(0, result.issues.len(), "there should be no issues reported");
+            assert_eq!(
+                1, result.files_analyzed,
+                "one file should have been analyzed"
+            )
+        } else {
+            panic!("Expected GetIssuesResult, got {:?}", response);
+        }
+
+        shutdown_tx
+            .send(true)
+            .await
+            .expect("failed to shutdown server");
+
+        server_task.await.expect("failed to join server task");
+
+        Ok(())
+    }
 }
