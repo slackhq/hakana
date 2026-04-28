@@ -636,6 +636,13 @@ pub async fn init(
                 Logger::DevNull
             }
         }
+        Some(("server", sub_matches)) => {
+            if sub_matches.is_present("debug") {
+                Logger::CommandLine(Verbosity::Debugging)
+            } else {
+                Logger::CommandLine(Verbosity::Simple)
+            }
+        }
         Some((_, sub_matches)) => {
             if sub_matches.is_present("debug") {
                 Logger::CommandLine(Verbosity::Debugging)
@@ -2714,6 +2721,7 @@ async fn do_server(
         config_path: Some(config_path),
         plugins,
         header: header.to_string(),
+        chaos_monkey: None,
     };
 
     match Server::new(server_config, Arc::new(logger)) {

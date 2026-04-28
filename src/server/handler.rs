@@ -1,22 +1,18 @@
 //! Request handlers for the hakana server.
 
 use crate::{ServerConfig, ServerState};
-use hakana_analyzer::config::Config;
-use hakana_code_info::analysis_result::{self, AnalysisResult};
-use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
+use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_logger::Logger;
 use hakana_orchestrator::SuccessfulScanData;
 use hakana_orchestrator::file::FileStatus;
 use hakana_protocol::{
-    AckResponse, AnalyzeRequest, AnalyzeResponse, ErrorCode, ErrorResponse, FileChange,
+    AckResponse,
     FindReferencesRequest, FindReferencesResponse, FindSymbolReferencesRequest,
     FindSymbolReferencesResponse, GotoDefinitionRequest, GotoDefinitionResponse, Message,
-    ProtocolIssue, ReferenceLocation, SecurityCheckRequest, SecurityCheckResponse, StatusResponse,
+    ProtocolIssue, ReferenceLocation, StatusResponse,
 };
-use hakana_protocol::{FileChangeStatus, GetIssuesResponse};
-use hakana_str::Interner;
-use rustc_hash::{FxHashMap, FxHashSet};
-use std::path::Path;
+use hakana_protocol::GetIssuesResponse;
+use rustc_hash::FxHashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::mpsc::Sender;

@@ -98,11 +98,8 @@ impl ServerConnection {
         );
 
         let log_path = std::env::temp_dir().join("hakana-server.log");
-        let log_file = std::fs::File::create(&log_path).ok();
-        let log_file2 = std::fs::OpenOptions::new()
-            .append(true)
-            .open(&log_path)
-            .ok();
+        let stdout = std::fs::File::create(&log_path)?;
+        let stderr = stdout.try_clone()?;
 
         eprintln!("Server log file: {}", log_path.display());
 
@@ -112,8 +109,8 @@ impl ServerConnection {
             .arg(project_root)
             .current_dir(project_root)
             .stdin(Stdio::null())
-            .stdout(log_file.map(Stdio::from).unwrap_or(Stdio::null()))
-            .stderr(log_file2.map(Stdio::from).unwrap_or(Stdio::null()))
+            .stdout(Stdio::from(stdout))
+            .stderr(Stdio::from(stderr))
             .spawn()
             .map_err(|e| {
                 io::Error::new(
