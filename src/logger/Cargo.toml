@@ -7,4 +7,7 @@ edition = "2024"
 path = "lib.rs"
 
 [dependencies]
+anyhow = "1"
+log = "0.4"
+log4rs = "1"
 tokio = { version = "1.26.0", features = ["sync"] }

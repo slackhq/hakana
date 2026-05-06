@@ -313,10 +313,8 @@ impl Backend {
 
         let (log_tx, mut log_rx) = tokio::sync::mpsc::channel(1);
 
-        println!("analysiseee");
-
         let mut task_result = tokio::task::spawn_blocking(move || {
-            use hakana_logger::Logger;
+            hakana_logger::init_channel_logger(log_tx, log::LevelFilter::Info);
 
             scan_and_analyze(
                 Vec::new(),
@@ -325,7 +323,7 @@ impl Backend {
                 analysis_config,
                 None,
                 8,
-                Arc::new(Logger::Channel(log_tx)),
+                false,
                 "",
                 interner,
                 successful_scan_data,

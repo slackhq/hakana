@@ -9,9 +9,9 @@ use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::file_info::ParserError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
-use hakana_logger::Logger;
 use hakana_str::{Interner, StrId};
 use indicatif::{ProgressBar, ProgressStyle};
+use log::debug;
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -29,7 +29,7 @@ pub fn analyze_files(
     filter: Option<String>,
     ignored_paths: &Option<FxHashSet<String>>,
     threads: u8,
-    logger: Arc<Logger>,
+    show_progress: bool,
     file_analysis_time: &mut Duration,
     files_processed: Option<Arc<AtomicU32>>,
 ) -> io::Result<()> {
@@ -63,7 +63,7 @@ pub fn analyze_files(
             .push(str_path);
     }
 
-    let bar = if logger.show_progress() {
+    let bar = if show_progress {
         let pb = ProgressBar::new(total_file_count);
         let sty = ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
         pb.set_style(sty);
@@ -92,8 +92,6 @@ pub fn analyze_files(
         let files_processed_counter = files_processed_counter.clone();
         let bar = bar.clone();
 
-        let logger = logger.clone();
-
         let arc_file_analysis_time = arc_file_analysis_time.clone();
 
         let handle = std::thread::spawn(move || {
@@ -119,7 +117,6 @@ pub fn analyze_files(
                         &analysis_config,
                         &mut new_analysis_result,
                         resolved_names,
-                        &logger,
                     );
                 }
 
@@ -161,9 +158,8 @@ fn analyze_file(
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<u32, StrId>,
-    logger: &Logger,
 ) -> Duration {
-    logger.log_debug_sync(&format!("Analyzing {}", &str_path));
+    debug!("Analyzing {}", &str_path);
 
     if let Ok(metadata) = fs::metadata(str_path) {
         let updated_time = metadata

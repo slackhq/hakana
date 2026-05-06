@@ -22,8 +22,7 @@ impl IntegrationTest for CodeTransformTest {
         let mut analysis_config = default_config_for_test(&ctx.dir, ctx.hooks_provider);
         augment_with_local_config(&ctx.dir, &mut analysis_config);
 
-        ctx.logger
-            .log_debug_sync(&format!("running test {}", ctx.dir));
+        log::debug!("running test {}", ctx.dir);
 
         let config = Arc::new(analysis_config);
 
@@ -49,7 +48,7 @@ impl IntegrationTest for CodeTransformTest {
                 None
             },
             1,
-            ctx.logger,
+            false,
             ctx.build_checksum,
             interner,
             ctx.previous_scan_data,

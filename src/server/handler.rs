@@ -2,16 +2,15 @@
 
 use crate::{ServerConfig, ServerState};
 use hakana_code_info::analysis_result::AnalysisResult;
-use hakana_logger::Logger;
 use hakana_orchestrator::SuccessfulScanData;
 use hakana_orchestrator::file::FileStatus;
+use hakana_protocol::GetIssuesResponse;
 use hakana_protocol::{
-    AckResponse,
-    FindReferencesRequest, FindReferencesResponse, FindSymbolReferencesRequest,
+    AckResponse, FindReferencesRequest, FindReferencesResponse, FindSymbolReferencesRequest,
     FindSymbolReferencesResponse, GotoDefinitionRequest, GotoDefinitionResponse, Message,
     ProtocolIssue, ReferenceLocation, StatusResponse,
 };
-use hakana_protocol::GetIssuesResponse;
+use log::info;
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -21,7 +20,6 @@ use tokio::sync::mpsc::Sender;
 pub struct RequestHandler {
     config: Arc<ServerConfig>,
     state: Arc<Mutex<ServerState>>,
-    logger: Arc<Logger>,
     shutdown_tx: Sender<bool>,
     start_time: Instant,
 }
@@ -30,14 +28,12 @@ impl RequestHandler {
     pub fn new(
         config: Arc<ServerConfig>,
         state: Arc<Mutex<ServerState>>,
-        logger: Arc<Logger>,
         shutdown_tx: Sender<bool>,
         start_time: Instant,
     ) -> Self {
         Self {
             config,
             state,
-            logger,
             shutdown_tx,
             start_time,
         }
@@ -250,10 +246,9 @@ impl RequestHandler {
 
     /// Handle shutdown request.
     pub async fn handle_shutdown(&self) -> Message {
-        self.logger.log_sync("Shutdown requested");
+        info!("Shutdown requested");
         if let Err(e) = self.shutdown_tx.send(true).await {
-            let msg = format!("error requesting shutdown: {}", e);
-            self.logger.log_sync(msg.as_str());
+            info!("error requesting shutdown: {}", e);
         }
         Message::Ack(AckResponse)
     }
@@ -331,8 +326,7 @@ impl RequestHandler {
             }
         }
 
-        self.logger
-            .log_sync(&format!("Returning {} issues", issues.len()));
+        info!("Returning {} issues", issues.len());
 
         let state = self.state.lock().unwrap();
 
@@ -351,10 +345,10 @@ impl RequestHandler {
         use hakana_protocol::FileChangeStatus;
 
         let change_count = changes.len();
-        self.logger.log_sync(&format!(
+        info!(
             "Received {} file change notification(s) from client",
             change_count
-        ));
+        );
 
         let mut state = self.state.lock().unwrap();
 
@@ -367,10 +361,7 @@ impl RequestHandler {
             state.pending_changes.insert(change.path, status);
         }
 
-        self.logger.log_sync(&format!(
-            "Total pending changes: {}",
-            state.pending_changes.len()
-        ));
+        info!("Total pending changes: {}", state.pending_changes.len());
 
         Message::Ack(AckResponse)
     }

@@ -62,6 +62,8 @@ pub fn parse_args() -> McpConfig {
 
 /// Run the MCP server with the given plugins and header.
 pub async fn run(plugins: Vec<Box<dyn CustomHook>>, header: String) {
+    hakana_logger::init_stderr_logger(log::LevelFilter::Info);
+
     let config = parse_args();
 
     // Convert hooks to Arc for reuse

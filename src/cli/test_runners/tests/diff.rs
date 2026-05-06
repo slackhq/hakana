@@ -24,8 +24,7 @@ impl IntegrationTest for DiffTest {
     fn run(&self, ctx: TestContext) -> TestResult {
         let cwd = &ctx.cwd;
 
-        ctx.logger
-            .log_debug_sync(&format!("running test {}", ctx.dir));
+        log::debug!("running test {}", ctx.dir);
 
         if let Some(cache_dir) = ctx.cache_dir {
             fs::remove_dir_all(cache_dir).unwrap();
@@ -81,7 +80,7 @@ impl IntegrationTest for DiffTest {
                 config.clone(),
                 None,
                 1,
-                ctx.logger.clone(),
+                false,
                 ctx.build_checksum,
                 interner.clone(),
                 previous_scan_data,

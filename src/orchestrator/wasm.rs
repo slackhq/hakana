@@ -11,7 +11,6 @@ use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::file_info::ParserError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
-use hakana_logger::Logger;
 use hakana_str::{Interner, StrId, ThreadedInterner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Mutex};
@@ -77,7 +76,6 @@ pub fn scan_and_analyze_single_file(
         let issues = find_tainted_data(
             &analysis_result.program_dataflow_graph,
             &analysis_config,
-            &Logger::DevNull,
             &interner,
         );
 
@@ -104,8 +102,6 @@ pub fn get_single_file_codebase(
 
     let mut file_system = VirtualFileSystem::default();
 
-    let silent_logger = Logger::DevNull;
-
     // add HHVM libs
     for file in HhiAsset::iter() {
         let interned_file_path = FilePath(threaded_interner.intern(file.to_string()));
@@ -122,7 +118,6 @@ pub fn get_single_file_codebase(
             empty_name_context.clone(),
             false,
             false,
-            &silent_logger,
         )
         .unwrap();
     }
@@ -143,7 +138,6 @@ pub fn get_single_file_codebase(
             empty_name_context.clone(),
             false,
             false,
-            &silent_logger,
         )
         .unwrap();
     }
@@ -163,7 +157,6 @@ pub fn get_single_file_codebase(
             empty_name_context.clone(),
             false,
             false,
-            &silent_logger,
         )
         .unwrap();
     }

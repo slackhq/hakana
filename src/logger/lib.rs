@@ -1,82 +1,92 @@
+use log::LevelFilter;
+use log4rs::Config;
+use log4rs::append::Append;
+use log4rs::config::{Appender, Root};
+use log4rs::encode::Encode;
+use log4rs::encode::pattern::PatternEncoder;
+use log4rs::encode::writer::simple::SimpleWriter;
 use tokio::sync::mpsc::Sender;
 
-pub enum Logger {
-    DevNull,
-    CommandLine(Verbosity),
-    Channel(tokio::sync::mpsc::Sender<String>),
+pub use log;
+pub use log4rs;
+
+pub fn init_stdout_logger(level: LevelFilter) {
+    let stdout = log4rs::append::console::ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{m}{n}")))
+        .build();
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .build(Root::builder().appender("stdout").build(level))
+        .unwrap();
+
+    log4rs::init_config(config).ok();
 }
 
-impl Logger {
-    fn try_send(tx: &Sender<String>, message: &str) {
-        if let Err(e) = tx.blocking_send(message.to_string()) {
-            eprintln!("error reporting event {}", e);
-        }
-    }
+pub fn init_file_logger(path: &str, level: LevelFilter) {
+    let file = log4rs::append::file::FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(
+            "{d(%Y-%m-%dT%H:%M:%S)} [{l}] {m}{n}",
+        )))
+        .build(path)
+        .unwrap();
 
-    pub async fn log(&self, message: &str) {
-        match self {
-            Logger::DevNull => {}
-            Logger::CommandLine(_) => {
-                println!("{}", message);
-            }
-            Logger::Channel(tx) => Logger::try_send(tx, message),
-        }
-    }
+    let config = Config::builder()
+        .appender(Appender::builder().build("file", Box::new(file)))
+        .build(Root::builder().appender("file").build(level))
+        .unwrap();
 
-    pub fn log_sync(&self, message: &str) {
-        match self {
-            Logger::DevNull => {}
-            Logger::CommandLine(_) => {
-                println!("{}", message);
-            }
-            Logger::Channel(tx) => Logger::try_send(tx, message),
-        }
-    }
+    log4rs::init_config(config).ok();
+}
 
-    pub async fn log_debug(&self, message: &str) {
-        match self {
-            Logger::DevNull | Logger::Channel(_) => {}
-            Logger::CommandLine(verbosity) => {
-                if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-                    println!("{}", message);
-                }
-            }
-        }
-    }
+pub fn init_stderr_logger(level: LevelFilter) {
+    let stderr = log4rs::append::console::ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{m}{n}")))
+        .target(log4rs::append::console::Target::Stderr)
+        .build();
 
-    pub fn log_debug_sync(&self, message: &str) {
-        if let Logger::CommandLine(verbosity) = self {
-            if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-                println!("{}", message);
-            }
-        }
-    }
+    let config = Config::builder()
+        .appender(Appender::builder().build("stderr", Box::new(stderr)))
+        .build(Root::builder().appender("stderr").build(level))
+        .unwrap();
 
-    pub fn can_log_timing(&self) -> bool {
-        match self {
-            Logger::DevNull | Logger::Channel(_) => false,
-            Logger::CommandLine(verbosity) => {
-                matches!(verbosity, Verbosity::Debugging | Verbosity::Timing)
-            }
-        }
-    }
+    log4rs::init_config(config).ok();
+}
 
-    pub fn get_verbosity(&self) -> Verbosity {
-        match self {
-            Logger::DevNull | Logger::Channel(_) => Verbosity::Simple,
-            Logger::CommandLine(verbosity) => *verbosity,
-        }
-    }
+pub fn init_channel_logger(tx: Sender<String>, level: LevelFilter) {
+    let appender = ChannelAppender::new(tx);
 
-    pub fn show_progress(&self) -> bool {
-        matches!(self, Logger::CommandLine(Verbosity::Simple))
+    let config = Config::builder()
+        .appender(Appender::builder().build("channel", Box::new(appender)))
+        .build(Root::builder().appender("channel").build(level))
+        .unwrap();
+
+    log4rs::init_config(config).ok();
+}
+
+#[derive(Debug)]
+pub struct ChannelAppender {
+    tx: Sender<String>,
+    encoder: PatternEncoder,
+}
+
+impl ChannelAppender {
+    pub fn new(tx: Sender<String>) -> Self {
+        Self {
+            tx,
+            encoder: PatternEncoder::new("{m}"),
+        }
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum Verbosity {
-    Simple,
-    Timing,
-    Debugging,
-    DebuggingByLine,
+impl Append for ChannelAppender {
+    fn append(&self, record: &log::Record) -> anyhow::Result<()> {
+        let mut buf = Vec::new();
+        self.encoder.encode(&mut SimpleWriter(&mut buf), record)?;
+        let message = String::from_utf8_lossy(&buf).to_string();
+        let _ = self.tx.blocking_send(message);
+        Ok(())
+    }
+
+    fn flush(&self) {}
 }
