@@ -311,7 +311,7 @@ impl Backend {
         let interner = self.starter_interner.clone();
         let client = self.client.clone();
 
-        let (log_tx, mut log_rx) = tokio::sync::mpsc::channel(1);
+        let (log_tx, mut log_rx) = tokio::sync::mpsc::channel(64);
 
         let mut task_result = tokio::task::spawn_blocking(move || {
             hakana_logger::init_channel_logger(log_tx, log::LevelFilter::Info);

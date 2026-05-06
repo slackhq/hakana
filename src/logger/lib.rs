@@ -97,7 +97,7 @@ impl Append for ChannelAppender {
         let mut buf = Vec::new();
         self.encoder.encode(&mut SimpleWriter(&mut buf), record)?;
         let message = String::from_utf8_lossy(&buf).to_string();
-        let _ = self.tx.blocking_send(message);
+        let _ = self.tx.try_send(message);
         Ok(())
     }
 
