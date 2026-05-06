@@ -24,11 +24,24 @@ pub fn init_stdout_logger(level: LevelFilter) {
 }
 
 pub fn init_file_logger(path: &str, level: LevelFilter) {
-    let file = log4rs::append::file::FileAppender::builder()
+    use log4rs::append::rolling_file::RollingFileAppender;
+    use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
+    use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
+    use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
+
+    let roller = FixedWindowRoller::builder()
+        .build(&format!("{}.{{}}.gz", path), 2)
+        .unwrap();
+
+    let trigger = SizeTrigger::new(128 * 1024 * 1024);
+
+    let policy = CompoundPolicy::new(Box::new(trigger), Box::new(roller));
+
+    let file = RollingFileAppender::builder()
         .encoder(Box::new(PatternEncoder::new(
             "{d(%Y-%m-%dT%H:%M:%S)} [{l}] {m}{n}",
         )))
-        .build(path)
+        .build(path, Box::new(policy))
         .unwrap();
 
     let config = Config::builder()

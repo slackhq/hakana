@@ -9,5 +9,5 @@ path = "lib.rs"
 [dependencies]
 anyhow = "1"
 log = "0.4"
-log4rs = "1"
+log4rs = { version = "1", features = ["gzip"] }
 tokio = { version = "1.26.0", features = ["sync"] }
