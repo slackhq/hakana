@@ -29,12 +29,12 @@ use hakana_code_info::codebase_info::symbols::SymbolKind;
 use hakana_code_info::diff::CodebaseDiff;
 use hakana_code_info::file_info::FileInfo;
 use hakana_code_info::file_info::ParserError;
-use hakana_logger::Logger;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use hakana_str::ThreadedInterner;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
+use log::{debug, info};
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
@@ -54,7 +54,7 @@ pub fn scan_files(
     cache_dir: Option<&String>,
     config: &Arc<Config>,
     threads: u8,
-    logger: Arc<Logger>,
+    show_progress: bool,
     build_checksum: &str,
     starter_interner: &Arc<Interner>,
     starter_data: Option<SuccessfulScanData>,
@@ -62,7 +62,7 @@ pub fn scan_files(
     files_scanned: Option<Arc<AtomicU32>>,
     total_files_to_scan: Option<Arc<AtomicU32>>,
 ) -> io::Result<ScanFilesResult> {
-    logger.log_debug_sync(&format!("{:#?}", scan_dirs));
+    debug!("{:#?}", scan_dirs);
 
     let mut files_to_scan = vec![];
 
@@ -126,9 +126,7 @@ pub fn scan_files(
     let load_from_cache_now = Instant::now();
 
     if let Some(symbols_path) = &symbols_path {
-        if let Some(cached_interner) =
-            load_cached_interner(symbols_path, use_codebase_cache, &logger)
-        {
+        if let Some(cached_interner) = load_cached_interner(symbols_path, use_codebase_cache) {
             interner = cached_interner;
         }
     }
@@ -149,7 +147,6 @@ pub fn scan_files(
         get_filesystem(
             &mut files_to_scan,
             &mut interner,
-            &logger,
             scan_dirs,
             &existing_file_system,
             config,
@@ -161,12 +158,7 @@ pub fn scan_files(
 
     let file_discovery_elapsed = file_discovery_now.elapsed();
 
-    if logger.can_log_timing() {
-        logger.log_sync(&format!(
-            "File discovery took {:.2?}",
-            file_discovery_elapsed
-        ));
-    }
+    debug!("File discovery took {:.2?}", file_discovery_elapsed);
 
     let file_statuses =
         file_system.get_file_statuses(&files_to_scan, &interner, &existing_file_system);
@@ -180,9 +172,7 @@ pub fn scan_files(
     // this needs to come after we've loaded interned strings
     if !has_starter {
         if let Some(codebase_path) = &codebase_path {
-            if let Some(cache_codebase) =
-                load_cached_codebase(codebase_path, use_codebase_cache, &logger)
-            {
+            if let Some(cache_codebase) = load_cached_codebase(codebase_path, use_codebase_cache) {
                 codebase = cache_codebase;
             }
         }
@@ -190,7 +180,7 @@ pub fn scan_files(
 
     if let Some(aast_names_path) = &aast_names_path {
         if let Some(cached_resolved_names) =
-            load_cached_aast_names(aast_names_path, use_codebase_cache, &logger)
+            load_cached_aast_names(aast_names_path, use_codebase_cache)
         {
             resolved_names = cached_resolved_names
         };
@@ -198,12 +188,10 @@ pub fn scan_files(
 
     let load_from_cache_elapsed = load_from_cache_now.elapsed();
 
-    if logger.can_log_timing() {
-        logger.log_sync(&format!(
-            "Loading serialised codebase information from cache took {:.2?}",
-            load_from_cache_elapsed
-        ));
-    }
+    debug!(
+        "Loading serialised codebase information from cache took {:.2?}",
+        load_from_cache_elapsed
+    );
 
     invalidate_changed_codebase_elements(&mut codebase, &changed_files);
 
@@ -267,7 +255,7 @@ pub fn scan_files(
             total_counter.store(files_to_scan.len() as u32, Ordering::Relaxed);
         }
 
-        let bar = if logger.show_progress() {
+        let bar = if show_progress {
             let pb = ProgressBar::new(files_to_scan.len() as u64);
             let sty =
                 ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
@@ -321,7 +309,6 @@ pub fn scan_files(
             let resolved_names = resolved_names.clone();
 
             let config = config.clone();
-            let logger = logger.clone();
             let invalid_files = invalid_files.clone();
 
             let handle = std::thread::spawn(move || {
@@ -347,7 +334,6 @@ pub fn scan_files(
                         empty_name_context.clone(),
                         analyze_map.contains(&str_path),
                         !config.test_files.iter().any(|p| p.matches(&str_path)),
-                        &logger.clone(),
                     ) {
                         Ok(scanner_result) => {
                             local_resolved_names.insert(*file_path, scanner_result);
@@ -399,12 +385,7 @@ pub fn scan_files(
 
         let file_scanning_elapsed = file_scanning_now.elapsed();
 
-        if logger.can_log_timing() {
-            logger.log_sync(&format!(
-                "Scanning files took {:.2?}",
-                file_scanning_elapsed
-            ));
-        }
+        debug!("Scanning files took {:.2?}", file_scanning_elapsed);
     }
 
     let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
@@ -459,7 +440,6 @@ pub fn scan_files(
 pub fn get_filesystem(
     files_to_scan: &mut Vec<String>,
     interner: &mut Interner,
-    logger: &Logger,
     scan_dirs: &Vec<String>,
     existing_file_system: &Option<VirtualFileSystem>,
     config: &Arc<Config>,
@@ -473,10 +453,10 @@ pub fn get_filesystem(
         add_builtins_to_scan(files_to_scan, interner, &mut file_system);
     }
 
-    logger.log_sync("Looking for Hack files");
+    info!("Looking for Hack files");
 
     for scan_dir in scan_dirs {
-        logger.log_debug_sync(&format!(" - in {}", scan_dir));
+        debug!(" - in {}", scan_dir);
 
         files_to_scan.extend(file_system.find_files_in_dir(
             scan_dir,
@@ -524,9 +504,8 @@ pub(crate) fn scan_file(
     empty_name_context: NameContext<'_>,
     user_defined: bool,
     is_production_code: bool,
-    logger: &Logger,
 ) -> Result<FxHashMap<u32, StrId>, ParserError> {
-    logger.log_debug_sync(&format!("scanning {}", str_path));
+    debug!("scanning {}", str_path);
 
     let aast = get_aast_for_path(file_path, str_path);
 

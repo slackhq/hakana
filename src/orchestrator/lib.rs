@@ -13,9 +13,9 @@ use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::file_info::ParserError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
-use hakana_logger::Logger;
 use hakana_str::{Interner, StrId};
 use indicatif::ProgressBar;
+use log::{debug, info};
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
 use populator::populate_codebase;
@@ -87,7 +87,7 @@ pub fn scan_and_analyze<F: FnOnce()>(
     config: Arc<Config>,
     cache_dir: Option<&String>,
     threads: u8,
-    logger: Arc<Logger>,
+    show_progress: bool,
     header: &str,
     interner: Arc<Interner>,
     previous_scan_data: Option<SuccessfulScanData>,
@@ -102,7 +102,7 @@ pub fn scan_and_analyze<F: FnOnce()>(
         config,
         cache_dir,
         threads,
-        logger,
+        show_progress,
         header,
         interner,
         previous_scan_data,
@@ -120,7 +120,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
     config: Arc<Config>,
     cache_dir: Option<&String>,
     threads: u8,
-    logger: Arc<Logger>,
+    show_progress: bool,
     header: &str,
     interner: Arc<Interner>,
     previous_scan_data: Option<SuccessfulScanData>,
@@ -140,7 +140,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         .map(|p| p.total_files_to_scan.clone());
     let files_analyzed = analysis_progress.as_ref().map(|p| p.files_analyzed.clone());
 
-    logger.log_sync("Scanning files");
+    info!("Scanning files");
 
     let ScanFilesResult {
         mut codebase,
@@ -155,7 +155,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         cache_dir,
         &config,
         threads,
-        logger.clone(),
+        show_progress,
         header,
         &interner,
         previous_scan_data,
@@ -166,12 +166,10 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
 
     let file_discovery_and_scanning_elapsed = file_discovery_and_scanning_now.elapsed();
 
-    if logger.can_log_timing() {
-        logger.log_sync(&format!(
-            "File discovery & scanning took {:.2?}",
-            file_discovery_and_scanning_elapsed
-        ));
-    }
+    debug!(
+        "File discovery & scanning took {:.2?}",
+        file_discovery_and_scanning_elapsed
+    );
 
     if let Some(cache_dir) = cache_dir {
         let timestamp_path = format!("{}/buildinfo", cache_dir);
@@ -187,7 +185,6 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
 
     let mut cached_analysis = if config.ast_diff {
         mark_safe_symbols_from_diff(
-            &logger,
             codebase_diff,
             &codebase,
             &mut interner,
@@ -202,7 +199,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         CachedAnalysis::default()
     };
 
-    logger.log_sync("Calculating symbol inheritance");
+    info!("Calculating symbol inheritance");
 
     let populating_now = Instant::now();
 
@@ -221,16 +218,11 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
 
     let populating_elapsed = populating_now.elapsed();
 
-    if logger.can_log_timing() {
-        logger.log_sync(&format!(
-            "Populating codebase took {:.2?}",
-            populating_elapsed
-        ));
-    }
+    debug!("Populating codebase took {:.2?}", populating_elapsed);
 
     // Check for duplicate definitions and skip analysis if found
     if codebase.has_duplicates() {
-        logger.log_sync("ERROR: Duplicate definitions found in codebase. Skipping analysis.");
+        info!("ERROR: Duplicate definitions found in codebase. Skipping analysis.");
 
         let duplicate_issues = emit_duplicate_definition_issues(&codebase, &interner);
 
@@ -274,7 +266,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         cached_analysis.definition_locations,
     );
 
-    logger.log_sync(&format!("Analyzing {} files", files_to_analyze.len()));
+    info!("Analyzing {} files", files_to_analyze.len());
     if let Some(total_files_to_analyze) = analysis_progress
         .as_ref()
         .map(|p| p.total_files_to_analyze.clone())
@@ -294,17 +286,15 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         filter,
         &ignored_paths,
         threads,
-        logger.clone(),
+        show_progress,
         &mut pure_file_analysis_time,
         files_analyzed,
     )?;
 
-    if logger.can_log_timing() {
-        logger.log_sync(&format!(
-            "File analysis took {:.2?} (excluding re-parsing)",
-            pure_file_analysis_time
-        ));
-    }
+    debug!(
+        "File analysis took {:.2?} (excluding re-parsing)",
+        pure_file_analysis_time
+    );
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
 
@@ -332,13 +322,11 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
             WholeProgramKind::Taint => find_tainted_data(
                 &analysis_result.program_dataflow_graph,
                 &config,
-                &logger,
                 &scan_data.interner,
             ),
             WholeProgramKind::Query => find_connections(
                 &analysis_result.program_dataflow_graph,
                 &config,
-                &logger,
                 &scan_data.interner,
             ),
         };

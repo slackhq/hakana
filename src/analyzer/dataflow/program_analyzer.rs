@@ -2,11 +2,10 @@ use hakana_code_info::code_location::FilePath;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
-use hakana_logger::Logger;
-use hakana_logger::Verbosity;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use itertools::Itertools;
+use log::{Level, info, log_enabled};
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::rc::Rc;
@@ -24,7 +23,6 @@ use hakana_code_info::taint::{SinkType, get_sinks_for_sources};
 pub fn find_tainted_data(
     graph: &DataFlowGraph,
     config: &Config,
-    logger: &Logger,
     interner: &Interner,
 ) -> Vec<Issue> {
     let mut new_issues = vec![];
@@ -35,46 +33,16 @@ pub fn find_tainted_data(
         .map(|v| Rc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    logger.log_sync("Security analysis: detecting paths");
-    logger.log_sync(&format!(" - initial sources count: {}", sources.len()));
-    logger.log_sync(&format!(" - initial sinks count:   {}", graph.sinks.len()));
+    info!("Security analysis: detecting paths");
+    info!(" - initial sources count: {}", sources.len());
+    info!(" - initial sinks count:   {}", graph.sinks.len());
 
-    // println!("{:#?}", graph);
-
-    // for (sink_id, _) in &graph.sinks {
-    //     println!("sink: {}", sink_id.to_string(interner));
-    // }
-
-    // for (from_id, to) in &graph.forward_edges {
-    //     for (to_id, path) in to {
-    //         println!(
-    //             "{} --{}--> {}",
-    //             from_id.to_string(interner),
-    //             path.kind,
-    //             to_id.to_string(interner)
-    //         );
-    //     }
-    // }
-
-    find_paths_to_sinks(
-        sources,
-        graph,
-        config,
-        logger,
-        &mut new_issues,
-        true,
-        interner,
-    );
+    find_paths_to_sinks(sources, graph, config, &mut new_issues, true, interner);
 
     new_issues
 }
 
-pub fn find_connections(
-    graph: &DataFlowGraph,
-    config: &Config,
-    logger: &Logger,
-    interner: &Interner,
-) -> Vec<Issue> {
+pub fn find_connections(graph: &DataFlowGraph, config: &Config, interner: &Interner) -> Vec<Issue> {
     let mut new_issues = vec![];
 
     let sources = graph
@@ -84,37 +52,17 @@ pub fn find_connections(
         .map(|(_, v)| Rc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    logger.log_sync(&format!(" - initial sources count: {}", sources.len()));
+    info!(" - initial sources count: {}", sources.len());
 
-    // for (from_id, to) in &graph.forward_edges {
-    //     for (to_id, _) in to {
-    //         println!(
-    //             "{} -> {}",
-    //             from_id.to_string(interner),
-    //             to_id.to_string(interner)
-    //         );
-    //     }
-    // }
-
-    find_paths_to_sinks(
-        sources,
-        graph,
-        config,
-        logger,
-        &mut new_issues,
-        false,
-        interner,
-    );
+    find_paths_to_sinks(sources, graph, config, &mut new_issues, false, interner);
 
     new_issues
 }
 
-#[inline]
 fn find_paths_to_sinks(
     mut sources: Vec<Rc<TaintedNode>>,
     graph: &DataFlowGraph,
     config: &Config,
-    logger: &Logger,
     new_issues: &mut Vec<Issue>,
     match_sinks: bool,
     interner: &Interner,
@@ -128,10 +76,7 @@ fn find_paths_to_sinks(
     if !match_sinks || !graph.sinks.is_empty() {
         for i in 0..config.security_config.max_depth {
             if !sources.is_empty() {
-                let now = if matches!(
-                    logger.get_verbosity(),
-                    Verbosity::Debugging | Verbosity::Timing
-                ) {
+                let now = if log_enabled!(Level::Debug) {
                     Some(Instant::now())
                 } else {
                     None
@@ -142,10 +87,7 @@ fn find_paths_to_sinks(
                 let mut file_nodes = FxHashMap::default();
 
                 for source in sources {
-                    let inow = if matches!(
-                        logger.get_verbosity(),
-                        Verbosity::Debugging | Verbosity::Timing
-                    ) {
+                    let inow = if log_enabled!(Level::Debug) {
                         Some(Instant::now())
                     } else {
                         None
@@ -174,16 +116,16 @@ fn find_paths_to_sinks(
                     if let Some(inow) = inow {
                         let ielapsed = inow.elapsed();
                         if ielapsed.as_millis() > 100 {
-                            logger.log_sync(&format!(
+                            info!(
                                 "    - took {:.2?} to generate from {}",
                                 ielapsed,
                                 source_id.to_string(interner)
-                            ));
+                            );
                         }
                     }
                 }
 
-                logger.log_sync(&format!(
+                info!(
                     " - generated {} new destinations from {} sources{}",
                     new_sources.len(),
                     actual_source_count,
@@ -193,18 +135,18 @@ fn find_paths_to_sinks(
                     } else {
                         "".to_string()
                     }
-                ));
+                );
 
                 let top_files = file_nodes.iter().sorted_by(|a, b| b.1.cmp(a.1)).take(5);
 
                 for top_file in top_files {
                     if *top_file.1 > 10000 {
-                        logger.log_sync(&format!(
+                        info!(
                             "   - {} in {}:{}",
                             top_file.1,
                             top_file.0.0.get_relative_path(interner, &config.root_dir),
                             top_file.0.1,
-                        ));
+                        );
                     }
                 }
 

@@ -1,5 +1,4 @@
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_logger::Logger;
 use hakana_orchestrator::SuccessfulScanData;
 use hakana_orchestrator::wasm::get_single_file_codebase;
 use rand::SeedableRng;
@@ -12,7 +11,6 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::Path;
-use std::sync::Arc;
 use std::time::Duration;
 
 use super::integration_test::{TestContext, select_test_type};
@@ -28,7 +26,7 @@ impl TestRunner {
     pub fn run_test(
         &self,
         test_or_test_dir: String,
-        logger: Arc<Logger>,
+        _show_progress: bool,
         use_cache: bool,
         reuse_codebase: bool,
         had_error: &mut bool,
@@ -105,7 +103,6 @@ impl TestRunner {
                 let ctx = TestContext {
                     dir: test_folder,
                     cwd,
-                    logger: logger.clone(),
                     cache_dir: cache_dir.as_ref().filter(|_| use_cache),
                     build_checksum,
                     previous_scan_data,

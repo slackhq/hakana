@@ -9,7 +9,7 @@ hakana-orchestrator = { path = "../orchestrator" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
-hakana-logger = { path = "../logger" }
+log = "0.4"
 rustc-hash = "1.1.0"
 watchman_client = "0.9"
 tokio = { version = "1.28", features = ["rt-multi-thread", "sync", "time"] }

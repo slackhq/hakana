@@ -4,7 +4,6 @@ use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::diff::CodebaseDiff;
 use hakana_code_info::issue::Issue;
 use hakana_code_info::symbol_references::SymbolReferences;
-use hakana_logger::Logger;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
@@ -23,7 +22,6 @@ pub(crate) struct CachedAnalysis {
 }
 
 pub(crate) fn mark_safe_symbols_from_diff(
-    logger: &Logger,
     codebase_diff: CodebaseDiff,
     codebase: &CodebaseInfo,
     interner: &mut Interner,
@@ -43,20 +41,19 @@ pub(crate) fn mark_safe_symbols_from_diff(
             )
         } else if let (Some(issues_path), Some(references_path)) = (issues_path, references_path) {
             let existing_references = if let Some(existing_references) =
-                load_cached_existing_references(references_path, true, logger)
+                load_cached_existing_references(references_path, true)
             {
                 existing_references
             } else {
                 return CachedAnalysis::default();
             };
 
-            let existing_issues = if let Some(existing_issues) =
-                load_cached_existing_issues(issues_path, true, logger)
-            {
-                existing_issues
-            } else {
-                return CachedAnalysis::default();
-            };
+            let existing_issues =
+                if let Some(existing_issues) = load_cached_existing_issues(issues_path, true) {
+                    existing_issues
+                } else {
+                    return CachedAnalysis::default();
+                };
 
             (existing_references, existing_issues, FxHashMap::default())
         } else {

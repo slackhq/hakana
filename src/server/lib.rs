@@ -8,13 +8,13 @@ pub use state::ServerState;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
-use hakana_logger::Logger;
 use hakana_orchestrator::file::FileStatus;
 use hakana_orchestrator::{AnalysisProgress, SuccessfulScanData};
 use hakana_protocol::{
     ClientConnection, ErrorCode, ErrorResponse, Message, ServerSocket, SocketPath,
 };
 use hakana_str::Interner;
+use log::info;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -53,7 +53,6 @@ pub struct Server {
     config: Arc<ServerConfig>,
     socket: ServerSocket,
     state: Arc<Mutex<ServerState>>,
-    logger: Arc<Logger>,
     start_time: Instant,
     watchman_handle: Option<watchman::WatchmanHandle>,
     config_changed: bool,
@@ -66,7 +65,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(config: ServerConfig, logger: Arc<Logger>) -> io::Result<Self> {
+    pub fn new(config: ServerConfig) -> io::Result<Self> {
         if let Err(e) = watchman::check_available() {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
@@ -88,10 +87,10 @@ impl Server {
 
         let socket = ServerSocket::bind(socket_path)?;
 
-        logger.log_sync(&format!(
+        info!(
             "Server listening on: {}",
             socket.socket_path().path().display()
-        ));
+        );
 
         let (analysis_tx, analysis_rx) = tokio::sync::broadcast::channel(8);
         let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
@@ -100,7 +99,6 @@ impl Server {
             config: Arc::new(config),
             socket,
             state: Arc::new(Mutex::new(ServerState::new())),
-            logger,
             start_time: Instant::now(),
             watchman_handle: None,
             config_changed: false,
@@ -118,15 +116,14 @@ impl Server {
     pub async fn run(&mut self) -> io::Result<()> {
         let ignore_files = self.load_ignore_files();
 
-        self.logger.log_sync("Getting watchman clock...");
+        info!("Getting watchman clock...");
         let watchman_clock = watchman::get_clock(Path::new(&self.config.root_dir)).await?;
-        self.logger
-            .log_sync(&format!("Watchman clock: {:?}", watchman_clock));
+        info!("Watchman clock: {:?}", watchman_clock);
 
-        self.logger.log_sync(&format!(
+        info!(
             "Starting watchman subscription for: {}",
             self.config.root_dir
-        ));
+        );
         let config_path = self.config.config_path.as_ref().map(PathBuf::from);
         let handle = watchman::start_subscription(
             PathBuf::from(&self.config.root_dir),
@@ -140,7 +137,7 @@ impl Server {
     }
 
     async fn main_loop(&mut self) -> io::Result<()> {
-        self.logger.log_sync("Performing initial analysis...");
+        info!("Performing initial analysis...");
 
         {
             let mut state = self.state.lock().unwrap();
@@ -160,8 +157,7 @@ impl Server {
                         state.pending_changes.clear();
                         state.set_analysis_in_progress(true);
                         state.set_phase("Reloading config".to_string());
-                        self.logger
-                            .log_sync("Config file changed, performing full re-analysis...");
+                        info!("Config file changed, performing full re-analysis...");
                         state.analysis_data = None;
                         self.spawn_analysis(&mut state, None);
                     } else if !state.pending_changes.is_empty() {
@@ -169,8 +165,7 @@ impl Server {
                         let change_count = changes.len();
                         state.set_analysis_in_progress(true);
                         state.set_phase("Analyzing changes".to_string());
-                        self.logger
-                            .log_sync(&format!("Re-analyzing {} changed files...", change_count));
+                        info!("Re-analyzing {} changed files...", change_count);
                         self.spawn_analysis(&mut state, Some(changes));
                     }
                 }
@@ -183,7 +178,7 @@ impl Server {
                             self.handle_connection(conn);
                         }
                         Err(e) => {
-                            self.logger.log_sync(&format!("Accept error: {}", e));
+                            info!("Accept error: {}", e);
                         }
                     }
                 }
@@ -199,7 +194,7 @@ impl Server {
                     self.handle_analysis_result(result);
                 }
                 _ = self.shutdown_rx.recv() => {
-                    self.logger.log_sync("Server shutting down...");
+                    info!("Server shutting down...");
                     return Ok(());
                 }
             }
@@ -212,7 +207,6 @@ impl Server {
         changes: Option<FxHashMap<String, FileStatus>>,
     ) {
         let config = self.config.clone();
-        let logger = self.logger.clone();
         let previous_analysis_data = state.analysis_data.take();
 
         let files_scanned = state.files_scanned.clone();
@@ -226,7 +220,6 @@ impl Server {
         tokio::task::spawn_blocking(move || {
             let result = run_analysis(
                 &config,
-                &logger,
                 previous_analysis_data,
                 changes,
                 files_scanned,
@@ -255,15 +248,14 @@ impl Server {
                     .values()
                     .map(|v| v.len())
                     .sum();
-                self.logger
-                    .log_sync(&format!("Analysis complete: {} issues", issue_count));
+                info!("Analysis complete: {} issues", issue_count);
                 state.update_state(result.clone());
             }
             Ok(Err(e)) => {
-                self.logger.log_sync(&format!("Analysis failed: {}", e));
+                info!("Analysis failed: {}", e);
             }
             Err(_) => {
-                self.logger.log_sync("Analysis task was cancelled");
+                info!("Analysis task was cancelled");
             }
         }
         state.set_analysis_in_progress(false);
@@ -273,8 +265,7 @@ impl Server {
     fn handle_watchman_event(&mut self, event: watchman::WatchmanEvent) {
         match event {
             watchman::WatchmanEvent::ConfigChanged => {
-                self.logger
-                    .log_sync("Config file changed, scheduling full re-analysis");
+                info!("Config file changed, scheduling full re-analysis");
                 self.config_changed = true;
                 let mut state = self.state.lock().unwrap();
                 state.pending_changes.clear();
@@ -284,11 +275,11 @@ impl Server {
                     let mut state = self.state.lock().unwrap();
                     let change_count = changes.len();
                     state.pending_changes.extend(changes);
-                    self.logger.log_sync(&format!(
+                    info!(
                         "Received {} file change(s) from watchman ({} pending)",
                         change_count,
                         state.pending_changes.len()
-                    ));
+                    );
                 }
             }
         }
@@ -307,10 +298,10 @@ impl Server {
                         .map(|v| format!("{}/{}", self.config.root_dir, v))
                         .collect();
                     if !ignore_files.is_empty() {
-                        self.logger.log_sync(&format!(
+                        info!(
                             "Watchman will ignore {} path pattern(s)",
                             ignore_files.len()
-                        ));
+                        );
                     }
                     return ignore_files;
                 }
@@ -320,11 +311,9 @@ impl Server {
     }
 
     fn handle_connection(&self, mut conn: ClientConnection) {
-        let logger = self.logger.clone();
         let handler = RequestHandler::new(
             self.config.clone(),
             self.state.clone(),
-            self.logger.clone(),
             self.shutdown_tx.clone(),
             self.start_time,
         );
@@ -335,12 +324,12 @@ impl Server {
                 let msg = match conn.read_message().await {
                     Ok(msg) => msg,
                     Err(e) => {
-                        logger.log_sync(&format!("Read error: {}", e));
+                        info!("Read error: {}", e);
                         return;
                     }
                 };
 
-                logger.log_sync(&format!("Received: {:?}", msg.message_type()));
+                info!("Received: {:?}", msg.message_type());
 
                 let response = match msg {
                     Message::GetIssues(req) => {
@@ -360,14 +349,14 @@ impl Server {
                     }),
                 };
 
-                logger.log_sync(&format!("Sending response: {:?}", response.message_type()));
+                info!("Sending response: {:?}", response.message_type());
 
                 if let Err(e) = conn.write_message(&response).await {
-                    logger.log_sync(&format!("Write error: {}", e));
+                    info!("Write error: {}", e);
                     return;
                 }
 
-                logger.log_sync("Response sent successfully");
+                info!("Response sent successfully");
             }
         });
     }
@@ -375,7 +364,6 @@ impl Server {
 
 fn run_analysis(
     config: &ServerConfig,
-    logger: &Arc<Logger>,
     previous_analysis_data: Option<Arc<(AnalysisResult, SuccessfulScanData)>>,
     changes: Option<FxHashMap<String, FileStatus>>,
     files_scanned: Arc<AtomicU32>,
@@ -402,18 +390,18 @@ fn run_analysis(
     if let Some(config_path) = &config.config_path {
         let path = Path::new(config_path);
         if path.exists() {
-            logger.log_sync(&format!("Loading config from: {}", config_path));
+            info!("Loading config from: {}", config_path);
             let _ = analysis_config.update_from_file(&config.root_dir, path, &mut interner);
             if let Some(ref allowed) = analysis_config.allowed_issues {
-                logger.log_sync(&format!("Allowed issues: {} types", allowed.len()));
+                info!("Allowed issues: {} types", allowed.len());
             } else {
-                logger.log_sync("No allowed_issues filter (all issues enabled)");
+                info!("No allowed_issues filter (all issues enabled)");
             }
         } else {
-            logger.log_sync(&format!("Config file not found: {}", config_path));
+            info!("Config file not found: {}", config_path);
         }
     } else {
-        logger.log_sync("No config path specified");
+        info!("No config path specified");
     }
 
     let (previous_scan_data, previous_analysis_result) = previous_analysis_data
@@ -439,7 +427,7 @@ fn run_analysis(
         Arc::new(analysis_config),
         None,
         config.threads,
-        logger.clone(),
+        false,
         &config.header,
         Arc::new(interner),
         previous_scan_data,
@@ -457,7 +445,6 @@ fn run_analysis(
 
 #[cfg(test)]
 mod tests {
-    use hakana_logger::Logger;
     use hakana_protocol::{ClientSocket, GetIssuesRequest, Message};
     use std::{
         path::{Path, PathBuf},
@@ -511,11 +498,7 @@ mod tests {
             server_config.config_path.as_ref().map(&PathBuf::from),
         );
 
-        let mut server = Server::new(
-            server_config,
-            Arc::new(Logger::CommandLine(hakana_logger::Verbosity::Debugging)),
-        )
-        .expect("failed to create server");
+        let mut server = Server::new(server_config).expect("failed to create server");
 
         let socket_path = server.socket_path().clone();
         let shutdown_tx = server.shutdown_tx.clone();

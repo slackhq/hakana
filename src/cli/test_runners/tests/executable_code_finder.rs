@@ -20,7 +20,7 @@ impl IntegrationTest for ExecutableCodeFinderTest {
 
         let config = Arc::new(analysis_config);
 
-        match executable_finder::scan_files(&vec![ctx.dir.clone()], None, &config, 1, ctx.logger) {
+        match executable_finder::scan_files(&vec![ctx.dir.clone()], None, &config, 1, false) {
             Ok(test_output) => {
                 let expected_output_path = ctx.dir.clone() + "/output.txt";
                 let expected_output = if Path::new(&expected_output_path).exists() {

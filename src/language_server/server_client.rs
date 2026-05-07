@@ -67,7 +67,7 @@ impl ServerConnection {
             return Ok(socket);
         }
 
-        eprintln!("Server connection failed, attempting to respawn...");
+        log::info!("Server connection failed, attempting to respawn...");
 
         let mut server_process =
             Self::spawn_server(&self.project_root, self.hakana_binary.as_deref())?;
@@ -91,7 +91,7 @@ impl ServerConnection {
             Self::find_hakana_binary()?
         };
 
-        eprintln!(
+        log::info!(
             "Spawning hakana server: {} server --root {}",
             binary.display(),
             project_root.display()
@@ -101,7 +101,7 @@ impl ServerConnection {
         let stdout = std::fs::File::create(&log_path)?;
         let stderr = stdout.try_clone()?;
 
-        eprintln!("Server log file: {}", log_path.display());
+        log::info!("Server log file: {}", log_path.display());
 
         let child = Command::new(&binary)
             .arg("server")
@@ -172,7 +172,7 @@ impl ServerConnection {
                     let log_path = std::env::temp_dir().join("hakana-server.log");
                     let log_contents = std::fs::read_to_string(&log_path)
                         .unwrap_or_else(|_| "<no log available>".to_string());
-                    eprintln!("Server log contents:\n{}", log_contents);
+                    log::info!("Server log contents:\n{}", log_contents);
                     return Err(io::Error::new(
                         io::ErrorKind::Other,
                         format!(

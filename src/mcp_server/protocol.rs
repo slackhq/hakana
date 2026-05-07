@@ -109,10 +109,10 @@ impl McpServer {
         }
 
         if !self.socket_path.server_exists() {
-            eprintln!("Spawning hakana server...");
+            log::info!("Spawning hakana server...");
             self.spawn_server()?;
 
-            eprintln!("Waiting for server to start...");
+            log::info!("Waiting for server to start...");
             let start = Instant::now();
             let timeout = Duration::from_secs(300);
 
@@ -125,7 +125,7 @@ impl McpServer {
                 }
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
-            eprintln!("Server socket appeared, waiting for analysis to complete...");
+            log::info!("Server socket appeared, waiting for analysis to complete...");
         }
 
         self.wait_for_server_ready().await?;
@@ -148,7 +148,7 @@ impl McpServer {
             .clone()
             .unwrap_or_else(|| format!("{}/hakana.json", self.root_dir));
 
-        eprintln!(
+        log::info!(
             "Spawning: {} server --root {}",
             hakana_exe.display(),
             self.root_dir
@@ -187,9 +187,10 @@ impl McpServer {
                     client.request(&Message::Status(StatusRequest)).await
             {
                 if status.ready && !status.analysis_in_progress {
-                    eprintln!(
+                    log::info!(
                         "\nServer analysis complete: {} files, {} symbols",
-                        status.files_count, status.symbols_count
+                        status.files_count,
+                        status.symbols_count
                     );
                     return Ok(());
                 }
@@ -535,7 +536,7 @@ pub async fn run_mcp_server(
 
     run_mcp_server_io(&mut server, stdin, &mut stdout).await?;
 
-    eprintln!("Hakana MCP server shutting down");
+    log::info!("Hakana MCP server shutting down");
     Ok(())
 }
 

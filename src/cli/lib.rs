@@ -7,12 +7,12 @@ use hakana_code_info::analysis_result::{
 use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::issue::IssueKind;
 use hakana_language_server::server_client::ServerConnection;
-use hakana_logger::{Logger, Verbosity};
 use hakana_protocol::ClientSocket;
 use hakana_str::Interner;
 use indexmap::IndexMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use line_break_map::LineBreakMap;
+use log::LevelFilter;
 use rand::Rng;
 use rustc_hash::FxHashSet;
 use serde_json::json;
@@ -628,37 +628,46 @@ pub async fn init(
         _ => 8,
     };
 
-    let logger = match matches.subcommand() {
+    let show_progress = match matches.subcommand() {
         Some(("test", sub_matches)) => {
             if sub_matches.is_present("debug") {
-                Logger::CommandLine(Verbosity::Debugging)
+                hakana_logger::init_stdout_logger(LevelFilter::Debug);
             } else {
-                Logger::DevNull
+                hakana_logger::init_stdout_logger(LevelFilter::Off);
             }
+            false
         }
         Some(("server", sub_matches)) => {
-            if sub_matches.is_present("debug") {
-                Logger::CommandLine(Verbosity::Debugging)
+            let level = if sub_matches.is_present("debug") {
+                LevelFilter::Debug
             } else {
-                Logger::CommandLine(Verbosity::Simple)
-            }
+                LevelFilter::Info
+            };
+            hakana_logger::init_file_logger("/tmp/hakana-server.log", level);
+            false
         }
         Some((_, sub_matches)) => {
             if sub_matches.is_present("debug") {
-                Logger::CommandLine(Verbosity::Debugging)
+                hakana_logger::init_stdout_logger(LevelFilter::Debug);
+                false
             } else if sub_matches.is_present("show-timing") {
-                Logger::CommandLine(Verbosity::Timing)
+                hakana_logger::init_stdout_logger(LevelFilter::Debug);
+                false
             } else if stdout_is_tty {
-                Logger::CommandLine(Verbosity::Simple)
+                hakana_logger::init_stdout_logger(LevelFilter::Info);
+                true
             } else {
-                Logger::DevNull
+                hakana_logger::init_stdout_logger(LevelFilter::Off);
+                false
             }
         }
         _ => {
             if stdout_is_tty {
-                Logger::CommandLine(Verbosity::Simple)
+                hakana_logger::init_stdout_logger(LevelFilter::Info);
+                true
             } else {
-                Logger::DevNull
+                hakana_logger::init_stdout_logger(LevelFilter::Off);
+                false
             }
         }
     };
@@ -704,7 +713,7 @@ pub async fn init(
                 &cwd,
                 cache_dir,
                 threads,
-                logger,
+                show_progress,
                 header,
                 &mut had_error,
             )
@@ -718,7 +727,7 @@ pub async fn init(
                 sub_matches,
                 analysis_hooks,
                 threads,
-                logger,
+                show_progress,
                 header,
                 &mut had_error,
             );
@@ -731,7 +740,7 @@ pub async fn init(
                 sub_matches,
                 analysis_hooks,
                 threads,
-                logger,
+                show_progress,
                 header,
                 &mut had_error,
             );
@@ -745,7 +754,7 @@ pub async fn init(
                 config_path,
                 &cwd,
                 threads,
-                logger,
+                show_progress,
                 header,
             );
         }
@@ -758,7 +767,7 @@ pub async fn init(
                 config_path,
                 &cwd,
                 threads,
-                logger,
+                show_progress,
                 header,
             );
         }
@@ -772,7 +781,7 @@ pub async fn init(
                 config_path,
                 &cwd,
                 threads,
-                logger,
+                show_progress,
                 header,
             );
         }
@@ -785,7 +794,7 @@ pub async fn init(
                 config_path,
                 &cwd,
                 threads,
-                logger,
+                show_progress,
                 header,
             );
         }
@@ -798,7 +807,7 @@ pub async fn init(
                 config_path,
                 &cwd,
                 threads,
-                logger,
+                show_progress,
                 header,
             );
         }
@@ -811,7 +820,7 @@ pub async fn init(
                 config_path,
                 cwd,
                 threads,
-                logger,
+                show_progress,
                 header,
             );
         }
@@ -835,7 +844,7 @@ pub async fn init(
 
             test_runner.run_test(
                 sub_matches.value_of("TEST").expect("required").to_string(),
-                Arc::new(logger),
+                show_progress,
                 !sub_matches.is_present("no-cache"),
                 sub_matches.is_present("reuse-codebase"),
                 &mut had_error,
@@ -845,21 +854,13 @@ pub async fn init(
             );
         }
         Some(("find-executable", sub_matches)) => {
-            do_find_executable(sub_matches, &root_dir, &cwd, threads, logger);
+            do_find_executable(sub_matches, &root_dir, &cwd, threads, show_progress);
         }
         Some(("lint", sub_matches)) => {
             do_lint(sub_matches, &root_dir, &mut had_error, custom_linters);
         }
         Some(("server", sub_matches)) => {
-            do_server(
-                sub_matches,
-                &root_dir,
-                threads,
-                logger,
-                header,
-                analysis_hooks,
-            )
-            .await;
+            do_server(sub_matches, &root_dir, threads, header, analysis_hooks).await;
         }
         Some(("cyclomatic-complexity", sub_matches)) => {
             do_cyclomatic_complexity(
@@ -869,7 +870,7 @@ pub async fn init(
                 config_path,
                 &cwd,
                 threads,
-                logger,
+                show_progress,
                 header,
                 &mut had_error,
             );
@@ -890,7 +891,7 @@ fn do_fix(
     config_path: Option<&Path>,
     cwd: String,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
 ) {
     let issue_name = sub_matches.value_of("issue").unwrap().to_string();
@@ -924,7 +925,7 @@ fn do_fix(
         Arc::new(config),
         None,
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,
@@ -947,7 +948,7 @@ fn do_find_executable(
     root_dir: &str,
     cwd: &String,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
 ) {
     let output_file = sub_matches.value_of("output").unwrap().to_string();
     let config = config::Config::new(root_dir.to_string(), FxHashSet::default());
@@ -957,7 +958,7 @@ fn do_find_executable(
         None,
         &Arc::new(config),
         threads,
-        Arc::new(logger),
+        show_progress,
     ) {
         Ok(file_infos) => {
             let output_path = if output_file.starts_with('/') {
@@ -993,7 +994,7 @@ fn do_remove_unused_fixmes(
     config_path: Option<&Path>,
     cwd: &String,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
 ) {
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
@@ -1025,7 +1026,7 @@ fn do_remove_unused_fixmes(
         Arc::new(config),
         None,
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,
@@ -1051,7 +1052,7 @@ fn do_add_fixmes(
     config_path: Option<&Path>,
     cwd: &String,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
 ) {
     let filter_issue_strings = sub_matches
@@ -1102,7 +1103,7 @@ fn do_add_fixmes(
         Arc::new(config),
         None,
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,
@@ -1128,7 +1129,7 @@ fn do_migrate(
     config_path: Option<&Path>,
     cwd: &String,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
 ) {
     let migration_name = sub_matches.value_of("migration").unwrap().to_string();
@@ -1194,7 +1195,7 @@ fn do_migrate(
         Arc::new(config),
         None,
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,
@@ -1220,7 +1221,7 @@ fn do_migration_candidates(
     config_path: Option<&Path>,
     cwd: &String,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
 ) {
     let migration_name = sub_matches.value_of("migration").unwrap().to_string();
@@ -1267,7 +1268,7 @@ fn do_migration_candidates(
         config.clone(),
         None,
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,
@@ -1298,7 +1299,7 @@ fn do_codegen(
     config_path: Option<&Path>,
     cwd: &String,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
 ) {
     let codegen_name = sub_matches.value_of("name");
@@ -1350,7 +1351,7 @@ fn do_codegen(
         config.clone(),
         None,
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,
@@ -1450,7 +1451,7 @@ fn do_find_paths(
     sub_matches: &clap::ArgMatches,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
     had_error: &mut bool,
 ) {
@@ -1486,7 +1487,7 @@ fn do_find_paths(
         Arc::new(config),
         None,
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,
@@ -1518,7 +1519,7 @@ fn do_security_check(
     sub_matches: &clap::ArgMatches,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
     had_error: &mut bool,
 ) {
@@ -1556,7 +1557,7 @@ fn do_security_check(
         Arc::new(config),
         None,
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,
@@ -1600,7 +1601,7 @@ async fn do_analysis(
     cwd: &String,
     cache_dir: String,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
     had_error: &mut bool,
 ) {
@@ -1826,7 +1827,7 @@ async fn do_analysis(
             Some(&cache_dir)
         },
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,
@@ -2647,7 +2648,6 @@ async fn do_server(
     sub_matches: &clap::ArgMatches,
     root_dir: &str,
     threads: u8,
-    logger: Logger,
     header: &str,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
 ) {
@@ -2724,7 +2724,7 @@ async fn do_server(
         chaos_monkey: None,
     };
 
-    match Server::new(server_config, Arc::new(logger)) {
+    match Server::new(server_config) {
         Ok(mut server) => {
             tty_println!("Starting hakana server...");
             tty_println!("Socket: {}", server.socket_path().path().display());
@@ -2748,7 +2748,7 @@ fn do_cyclomatic_complexity(
     config_path: Option<&Path>,
     cwd: &String,
     threads: u8,
-    logger: Logger,
+    show_progress: bool,
     header: &str,
     had_error: &mut bool,
 ) {
@@ -2793,7 +2793,7 @@ fn do_cyclomatic_complexity(
         Arc::new(config),
         None,
         threads,
-        Arc::new(logger),
+        show_progress,
         header,
         Arc::new(interner),
         None,

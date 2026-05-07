@@ -1,10 +1,10 @@
 use hakana_analyzer::config::Config;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::file_info::ParserError;
-use hakana_logger::Logger;
 use hakana_orchestrator::scanner::get_filesystem;
 use hakana_str::{Interner, ThreadedInterner};
 use indicatif::{ProgressBar, ProgressStyle};
+use log::debug;
 use oxidized::aast::{Def, Expr_, Stmt_};
 use oxidized::ast::Pos;
 use oxidized::{
@@ -28,9 +28,9 @@ pub fn scan_files(
     cache_dir: Option<&String>,
     config: &Arc<Config>,
     threads: u8,
-    logger: Arc<Logger>,
+    show_progress: bool,
 ) -> Result<Vec<ExecutableLines>, ()> {
-    logger.log_debug_sync(&format!("{:#?}", scan_dirs));
+    debug!("{:#?}", scan_dirs);
 
     let mut files_to_scan = vec![];
     let mut files_to_analyze = vec![];
@@ -40,7 +40,6 @@ pub fn scan_files(
     get_filesystem(
         &mut files_to_scan,
         &mut interner,
-        &logger,
         scan_dirs,
         &existing_file_system,
         config,
@@ -54,7 +53,7 @@ pub fn scan_files(
     if !files_to_scan.is_empty() {
         let file_scanning_now = Instant::now();
 
-        let bar = if logger.show_progress() {
+        let bar = if show_progress {
             let pb = ProgressBar::new(files_to_scan.len() as u64);
             let sty =
                 ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
@@ -87,7 +86,6 @@ pub fn scan_files(
             let interner = interner.clone();
             let bar = bar.clone();
             let files_processed = files_processed.clone();
-            let logger = logger.clone();
             let executable_lines = executable_lines.clone();
             let root_dir = config.root_dir.clone();
 
@@ -95,7 +93,7 @@ pub fn scan_files(
                 let new_interner = ThreadedInterner::new(interner);
 
                 for file_path in &path_group {
-                    let res = scan_file(&new_interner, &root_dir, *file_path, &logger.clone());
+                    let res = scan_file(&new_interner, &root_dir, *file_path);
                     let mut executable_lines = executable_lines.lock().unwrap();
                     if !res.executable_lines.is_empty() {
                         executable_lines.push(res);
@@ -117,12 +115,7 @@ pub fn scan_files(
             bar.finish_and_clear();
         }
 
-        if logger.can_log_timing() {
-            logger.log_sync(&format!(
-                "Scanning files took {:.2?}",
-                file_scanning_now.elapsed()
-            ));
-        }
+        debug!("Scanning files took {:.2?}", file_scanning_now.elapsed());
     }
 
     Ok(Arc::try_unwrap(executable_lines)
@@ -141,12 +134,11 @@ pub(crate) fn scan_file(
     interner: &ThreadedInterner,
     root_dir: &str,
     file_path: FilePath,
-    logger: &Logger,
 ) -> ExecutableLines {
     let interner = interner.parent.lock().unwrap();
     let str_path = interner.lookup(&file_path.0).to_string();
 
-    logger.log_debug_sync(&format!("scanning {}", str_path));
+    debug!("scanning {}", str_path);
     let aast = hakana_orchestrator::get_aast_for_path(file_path, &str_path);
     let aast = match aast {
         Ok(aast) => aast,

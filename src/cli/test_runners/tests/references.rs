@@ -28,7 +28,7 @@ impl IntegrationTest for ReferencesTest {
             config,
             None,
             1,
-            ctx.logger,
+            false,
             ctx.build_checksum,
             Arc::new(hakana_str::Interner::default()),
             ctx.previous_scan_data,

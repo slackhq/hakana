@@ -87,7 +87,7 @@ pub fn start_subscription(
     tokio::spawn(async move {
         if let Err(e) = run_subscription(root_dir, tx, ignore_files, since_clock, config_path).await
         {
-            eprintln!("Watchman subscription error: {}", e);
+            log::error!("Watchman subscription error: {}", e);
         }
     });
 
@@ -101,18 +101,18 @@ async fn run_subscription(
     since_clock: ClockSpec,
     config_path: Option<PathBuf>,
 ) -> Result<(), watchman_client::Error> {
-    eprintln!("Connecting to watchman...");
+    log::info!("Connecting to watchman...");
 
     let watchman = Connector::new().connect().await?;
 
-    eprintln!("Connected to watchman, resolving root...");
+    log::info!("Connected to watchman, resolving root...");
 
     let canonical_path =
         CanonicalPath::canonicalize(&root_dir).map_err(watchman_client::Error::ConnectionError)?;
 
     let resolved = watchman.resolve_root(canonical_path).await?;
 
-    eprintln!(
+    log::info!(
         "Watchman watching: {:?} (watcher: {})",
         resolved.path(),
         resolved.watcher()
@@ -129,7 +129,7 @@ async fn run_subscription(
     });
 
     if let Some(ref rel_path) = config_relative_path {
-        eprintln!("Watching config file: {:?}", rel_path);
+        log::info!("Watching config file: {:?}", rel_path);
     }
 
     let expression = build_expression(&ignore_files, &project_root, config_relative_path.as_ref());
@@ -146,7 +146,7 @@ async fn run_subscription(
         .subscribe::<NameOnly>(&resolved, subscribe_request)
         .await?;
 
-    eprintln!("Watchman subscription created: {}", subscription.name());
+    log::info!("Watchman subscription created: {}", subscription.name());
 
     loop {
         let event = subscription.next().await;
@@ -179,7 +179,7 @@ async fn handle_subscription_event(
 
                     if let Some(config_rel) = config_relative_path {
                         if Path::new(&file_name) == config_rel.as_path() {
-                            eprintln!("Config file changed: {:?}", file_name);
+                            log::info!("Config file changed: {:?}", file_name);
                             config_changed = true;
                             continue;
                         }
@@ -215,36 +215,36 @@ async fn handle_subscription_event(
                 // Config changed triggers full re-analysis, so send it first
                 if config_changed {
                     if tx.send(WatchmanEvent::ConfigChanged).await.is_err() {
-                        eprintln!("Server shut down, stopping watchman subscription");
+                        log::info!("Server shut down, stopping watchman subscription");
                         return false;
                     }
                 }
 
                 if !new_statuses.is_empty() {
-                    eprintln!("Watchman detected {} file change(s)", new_statuses.len());
+                    log::info!("Watchman detected {} file change(s)", new_statuses.len());
                     if tx
                         .send(WatchmanEvent::FileChanges(new_statuses))
                         .await
                         .is_err()
                     {
-                        eprintln!("Server shut down, stopping watchman subscription");
+                        log::info!("Server shut down, stopping watchman subscription");
                         return false;
                     }
                 }
             }
         }
         Ok(SubscriptionData::StateEnter { state_name, .. }) => {
-            eprintln!("Watchman state enter: {}", state_name);
+            log::info!("Watchman state enter: {}", state_name);
         }
         Ok(SubscriptionData::StateLeave { state_name, .. }) => {
-            eprintln!("Watchman state leave: {}", state_name);
+            log::info!("Watchman state leave: {}", state_name);
         }
         Ok(SubscriptionData::Canceled) => {
-            eprintln!("Watchman subscription canceled");
+            log::info!("Watchman subscription canceled");
             return false;
         }
         Err(e) => {
-            eprintln!("Watchman subscription error: {}", e);
+            log::error!("Watchman subscription error: {}", e);
             return false;
         }
     }

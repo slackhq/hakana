@@ -1,5 +1,4 @@
 use hakana_code_info::analysis_result::AnalysisResult;
-use hakana_logger::Logger;
 use hakana_orchestrator::SuccessfulScanData;
 
 use super::test_runner::HooksProvider;
@@ -8,14 +7,12 @@ use crate::test_runners::tests::{
     GotoDefinitionTest, LinterTest, MigrationCandidatesTest, ReferencesTest, SkippedTest,
     StandardAnalysisTest,
 };
-use std::sync::Arc;
 use std::time::Duration;
 
 /// Shared context passed to every [`IntegrationTest`] implementation.
 pub struct TestContext<'a> {
     pub dir: String,
     pub cwd: String,
-    pub logger: Arc<Logger>,
     pub cache_dir: Option<&'a String>,
     pub build_checksum: &'a str,
     pub previous_scan_data: Option<SuccessfulScanData>,

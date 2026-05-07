@@ -40,7 +40,7 @@ impl IntegrationTest for CyclomaticComplexityTest {
             config,
             None,
             1,
-            ctx.logger,
+            false,
             ctx.build_checksum,
             interner,
             None,
