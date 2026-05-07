@@ -22,6 +22,8 @@ use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 
+use crate::watchman::WatchmanHandle;
+
 #[derive(Clone)]
 pub struct ServerConfig {
     pub root_dir: String,
@@ -54,7 +56,6 @@ pub struct Server {
     socket: ServerSocket,
     state: Arc<Mutex<ServerState>>,
     start_time: Instant,
-    watchman_handle: Option<watchman::WatchmanHandle>,
     config_changed: bool,
     analysis_rx:
         tokio::sync::broadcast::Receiver<Result<Arc<(AnalysisResult, SuccessfulScanData)>, String>>,
@@ -100,7 +101,6 @@ impl Server {
             socket,
             state: Arc::new(Mutex::new(ServerState::new())),
             start_time: Instant::now(),
-            watchman_handle: None,
             config_changed: false,
             analysis_rx,
             analysis_tx,
@@ -131,12 +131,11 @@ impl Server {
             watchman_clock,
             config_path,
         );
-        self.watchman_handle = Some(handle);
 
-        self.main_loop().await
+        self.main_loop(handle).await
     }
 
-    async fn main_loop(&mut self) -> io::Result<()> {
+    async fn main_loop(&mut self, mut watchman: WatchmanHandle) -> io::Result<()> {
         info!("Performing initial analysis...");
 
         {
@@ -182,13 +181,12 @@ impl Server {
                         }
                     }
                 }
-                Some(event) = async {
-                    match self.watchman_handle.as_mut() {
-                        Some(handle) => handle.recv().await,
-                        None => std::future::pending().await,
+                watchman_event = watchman.recv() => {
+                    if let Some(event) = watchman_event {
+                        self.handle_watchman_event(event);
+                    } else {
+                        log::error!("watchman subscriber is not active");
                     }
-                } => {
-                    self.handle_watchman_event(event);
                 }
                 result = self.analysis_rx.recv() => {
                     self.handle_analysis_result(result);

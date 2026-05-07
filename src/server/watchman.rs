@@ -214,6 +214,7 @@ async fn handle_subscription_event(
 
                 // Config changed triggers full re-analysis, so send it first
                 if config_changed {
+                    log::info!("Watchman detected config file change, triggering full reanalysis");
                     if tx.send(WatchmanEvent::ConfigChanged).await.is_err() {
                         log::info!("Server shut down, stopping watchman subscription");
                         return false;
@@ -231,6 +232,8 @@ async fn handle_subscription_event(
                         return false;
                     }
                 }
+            } else {
+                log::info!("Received watchman file changes event without files");
             }
         }
         Ok(SubscriptionData::StateEnter { state_name, .. }) => {
