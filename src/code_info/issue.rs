@@ -178,6 +178,32 @@ pub enum IssueKind {
     VariableDefinedOutsideIf,
 }
 
+static AUTOFIXABLE_ISSUES: [IssueKind; 23] = [
+    IssueKind::UnusedClass,
+    IssueKind::UnusedTypeDefinition,
+    IssueKind::UnusedFunction,
+    IssueKind::UnusedInterface,
+    IssueKind::UnusedPrivateProperty,
+    IssueKind::UnusedPrivateMethod,
+    IssueKind::UnusedInheritedMethod,
+    IssueKind::UnusedPublicOrProtectedProperty,
+    IssueKind::UnusedPublicOrProtectedMethod,
+    IssueKind::UnusedXhpAttribute,
+    IssueKind::UnusedTrait,
+    IssueKind::OnlyUsedInTests,
+    IssueKind::EmptyBlock,
+    IssueKind::UnnecessaryShapesIdx,
+    IssueKind::UnusedClosureParameter,
+    IssueKind::UnusedAssignment,
+    IssueKind::UnusedAssignmentStatement,
+    IssueKind::ImplicitStringCast,
+    IssueKind::NoJoinInAsyncFunction,
+    IssueKind::ImplicitAsioJoin,
+    IssueKind::ImpossibleNullTypeComparison,
+    IssueKind::NonBoolCondition,
+    IssueKind::MissingIndirectServiceCallsAttribute,
+];
+
 impl IssueKind {
     pub fn from_str_custom(
         str: &str,
@@ -259,6 +285,10 @@ impl IssueKind {
                 | Self::AwaitVariableDefinedOutsideIf
                 | Self::VariableDefinedOutsideIf
         )
+    }
+
+    pub fn has_autofix(&self) -> bool {
+        AUTOFIXABLE_ISSUES.contains(&self)
     }
 }
 
@@ -359,4 +389,48 @@ pub fn get_issue_from_comment(
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{ffi::OsStr, io, path::PathBuf, str::FromStr};
+
+    use crate::issue::{AUTOFIXABLE_ISSUES, IssueKind};
+
+    #[test]
+    fn autofixable_issues_list_should_reflect_reality() -> io::Result<()> {
+        let autofix_tests = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent() // src
+            .expect("Failed to get parent")
+            .parent() // hakana root
+            .expect("Failed to get source root")
+            .join("tests")
+            .join("fix");
+
+        for entry in std::fs::read_dir(&autofix_tests)? {
+            let path = entry?.path();
+            if path.is_dir() {
+                let name = path
+                    .file_name()
+                    .and_then(&OsStr::to_str)
+                    .expect("failed to get file name");
+                let issue = IssueKind::from_str(name).expect("failed to get issue");
+                assert!(
+                    AUTOFIXABLE_ISSUES.contains(&issue),
+                    "Issue {} is not marked as autofixable",
+                    issue
+                );
+            }
+        }
+
+        for issue in &AUTOFIXABLE_ISSUES {
+            assert!(
+                autofix_tests.join(issue.to_string()).is_dir(),
+                "Issue {} is listed as autofixable but has no tests under tests/fix/ to back up this claim",
+                issue
+            )
+        }
+
+        Ok(())
+    }
 }

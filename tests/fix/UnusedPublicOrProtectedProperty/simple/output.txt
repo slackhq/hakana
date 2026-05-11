@@ -1,0 +1,10 @@
+final class Foo {
+    public int ;
+    public int $used = 1;
+}
+
+<<__EntryPoint>>
+function main(): void {
+    $f = new Foo();
+    echo $f->used;
+}

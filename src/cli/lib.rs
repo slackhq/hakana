@@ -897,6 +897,11 @@ fn do_fix(
     let issue_name = sub_matches.value_of("issue").unwrap().to_string();
     let issue_kind = IssueKind::from_str_custom(&issue_name, &all_custom_issues).unwrap();
 
+    if !matches!(issue_kind, IssueKind::CustomIssue(..)) && !issue_kind.has_autofix() {
+        println!("Issue type {} does not support autofixing", issue_kind);
+        exit(1);
+    }
+
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 
     let mut config = config::Config::new(root_dir.clone(), all_custom_issues);

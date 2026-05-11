@@ -1,0 +1,11 @@
+abstract class Base {
+    public function overridden(): void {}
+}
+
+final class Child extends Base {
+}
+
+<<__EntryPoint>>
+function main(): void {
+    new Child();
+}

@@ -1,0 +1,19 @@
+trait UnusedTrait {
+    public function unused(): void {}
+}
+
+trait UsedTrait {
+    public function used(): void {
+        echo "used";
+    }
+}
+
+final class Foo {
+    use UsedTrait;
+}
+
+<<__EntryPoint>>
+function main(): void {
+    $f = new Foo();
+    $f->used();
+}
