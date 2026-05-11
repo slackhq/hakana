@@ -218,19 +218,30 @@ pub(crate) fn find_unused_definitions(
             }
 
             if !referenced_symbols_and_members.contains(&(*classlike_name, StrId::EMPTY)) {
-                if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, file_path)
+                let issue_kind = match classlike_info.kind {
+                    SymbolKind::Interface => IssueKind::UnusedInterface,
+                    SymbolKind::Trait => IssueKind::UnusedTrait,
+                    _ => IssueKind::UnusedClass,
+                };
+
+                if !config.allow_issue_kind_in_file(&issue_kind, file_path)
                     || classlike_info
                         .suppressed_issues
                         .iter()
-                        .any(|(i, _)| i == &IssueKind::UnusedClass)
+                        .any(|(i, _)| i == &issue_kind)
                 {
                     continue;
                 }
 
                 let mut issue = Issue::new(
-                    IssueKind::UnusedClass,
+                    issue_kind,
                     format!(
-                        "Unused class, interface or enum {}",
+                        "Unused {} {}",
+                        match classlike_info.kind {
+                            SymbolKind::Interface => "interface",
+                            SymbolKind::Trait => "trait",
+                            _ => "class, interface or enum",
+                        },
                         interner.lookup(classlike_name),
                     ),
                     *pos,

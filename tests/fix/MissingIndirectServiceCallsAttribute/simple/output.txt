@@ -1,0 +1,9 @@
+<<\Hakana\CallsService('MyService')>>
+function calls_service(): void {
+    echo "calling service";
+}
+
+<<\Hakana\IndirectlyCallsService('MyService')>>
+function caller(): void {
+    calls_service();
+}

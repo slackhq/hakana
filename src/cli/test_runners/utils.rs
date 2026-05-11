@@ -139,6 +139,7 @@ pub fn default_config_for_test(dir: &str, hooks_provider: &dyn HooksProvider) ->
     };
     analysis_config.find_unused_definitions = if let Ok(dir_issue) = &dir_issue {
         dir_issue.is_unused_definition()
+            || matches!(dir_issue, IssueKind::MissingIndirectServiceCallsAttribute)
     } else {
         dir.to_ascii_lowercase().contains("unused") && !dir.contains("UnusedExpression")
     };

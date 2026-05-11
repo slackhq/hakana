@@ -1,2 +1,2 @@
-ERROR: UnusedClass - input.hack:1:7 - Unused class, interface or enum T
+ERROR: UnusedTrait - input.hack:1:7 - Unused trait T
 ERROR: NonExistentMethod - input.hack:9:5 - Method C::foo does not exist

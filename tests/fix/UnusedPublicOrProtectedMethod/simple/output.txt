@@ -1,0 +1,12 @@
+final class Foo {
+
+    public function used(): void {
+        echo "used";
+    }
+}
+
+<<__EntryPoint>>
+function main(): void {
+    $f = new Foo();
+    $f->used();
+}

@@ -1,0 +1,4 @@
+function foo(): void {
+    $fn = ($_x) ==> 1;
+    echo $fn(42);
+}
