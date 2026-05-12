@@ -5,10 +5,10 @@
 
 use hakana_orchestrator::file::FileStatus;
 use rustc_hash::FxHashMap;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use watchman_client::SubscriptionData;
 use watchman_client::prelude::*;
 
@@ -16,6 +16,7 @@ use watchman_client::prelude::*;
 pub enum WatchmanEvent {
     FileChanges(FxHashMap<String, FileStatus>),
     ConfigChanged,
+    FreshInstance,
 }
 
 pub fn check_available() -> Result<(), String> {
@@ -31,41 +32,6 @@ pub fn check_available() -> Result<(), String> {
     }
 }
 
-/// Get the current watchman clock. Called BEFORE initial analysis
-/// so that any file changes during analysis are captured by the subscription.
-pub async fn get_clock(root_dir: &Path) -> io::Result<ClockSpec> {
-    let watchman = Connector::new().connect().await.map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::ConnectionRefused,
-            format!("Failed to connect to watchman: {}", e),
-        )
-    })?;
-
-    let canonical_path = CanonicalPath::canonicalize(root_dir).map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("Failed to canonicalize path: {}", e),
-        )
-    })?;
-
-    let resolved = watchman.resolve_root(canonical_path).await.map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::Other,
-            format!("Failed to resolve watchman root: {}", e),
-        )
-    })?;
-
-    watchman
-        .clock(&resolved, SyncTimeout::Default)
-        .await
-        .map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("Failed to get watchman clock: {}", e),
-            )
-        })
-}
-
 pub struct WatchmanHandle {
     rx: mpsc::Receiver<WatchmanEvent>,
 }
@@ -76,20 +42,24 @@ impl WatchmanHandle {
     }
 }
 
-pub fn start_subscription(
+pub async fn start_subscription(
     root_dir: PathBuf,
     ignore_files: Vec<String>,
-    since_clock: ClockSpec,
     config_path: Option<PathBuf>,
 ) -> WatchmanHandle {
     let (tx, rx) = mpsc::channel::<WatchmanEvent>(64);
+    let (startup_tx, startup_rx) = oneshot::channel();
 
     tokio::spawn(async move {
-        if let Err(e) = run_subscription(root_dir, tx, ignore_files, since_clock, config_path).await
+        if let Err(e) = run_subscription(root_dir, tx, startup_tx, ignore_files, config_path).await
         {
             log::error!("Watchman subscription error: {}", e);
         }
     });
+
+    startup_rx
+        .await
+        .expect("failed to start watchman subscription");
 
     WatchmanHandle { rx }
 }
@@ -97,8 +67,8 @@ pub fn start_subscription(
 async fn run_subscription(
     root_dir: PathBuf,
     tx: mpsc::Sender<WatchmanEvent>,
+    startup_tx: oneshot::Sender<bool>,
     ignore_files: Vec<String>,
-    since_clock: ClockSpec,
     config_path: Option<PathBuf>,
 ) -> Result<(), watchman_client::Error> {
     log::info!("Connecting to watchman...");
@@ -134,9 +104,8 @@ async fn run_subscription(
 
     let expression = build_expression(&ignore_files, &project_root, config_relative_path.as_ref());
 
-    // Use `since` to only get changes after the clock obtained before initial analysis
     let subscribe_request = SubscribeRequest {
-        since: Some(Clock::Spec(since_clock)),
+        since: None,
         expression: Some(expression),
         defer_vcs: true,
         ..Default::default()
@@ -147,6 +116,10 @@ async fn run_subscription(
         .await?;
 
     log::info!("Watchman subscription created: {}", subscription.name());
+
+    startup_tx
+        .send(true)
+        .expect("failed to send startup notification");
 
     loop {
         let event = subscription.next().await;
@@ -168,6 +141,19 @@ async fn handle_subscription_event(
 ) -> bool {
     match event {
         Ok(SubscriptionData::FilesChanged(result)) => {
+            // `is_fresh_instance` means the set of changed files in the response is the full set of files
+            // matching the subscription query, rather than an incremental changeset.
+            // Trigger a full reanalysis in this case.
+            if result.is_fresh_instance {
+                log::info!("non-incremental watchman notification, triggering full reanalysis");
+                if tx.send(WatchmanEvent::FreshInstance).await.is_err() {
+                    log::info!("Server shut down, stopping watchman subscription");
+                    return false;
+                }
+
+                return true;
+            }
+
             if let Some(files) = result.files {
                 let mut new_statuses = FxHashMap::default();
                 let mut config_changed = false;

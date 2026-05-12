@@ -116,10 +116,6 @@ impl Server {
     pub async fn run(&mut self) -> io::Result<()> {
         let ignore_files = self.load_ignore_files();
 
-        info!("Getting watchman clock...");
-        let watchman_clock = watchman::get_clock(Path::new(&self.config.root_dir)).await?;
-        info!("Watchman clock: {:?}", watchman_clock);
-
         info!(
             "Starting watchman subscription for: {}",
             self.config.root_dir
@@ -128,9 +124,9 @@ impl Server {
         let handle = watchman::start_subscription(
             PathBuf::from(&self.config.root_dir),
             ignore_files,
-            watchman_clock,
             config_path,
-        );
+        )
+        .await;
 
         self.main_loop(handle).await
     }
@@ -262,8 +258,14 @@ impl Server {
 
     fn handle_watchman_event(&mut self, event: watchman::WatchmanEvent) {
         match event {
-            watchman::WatchmanEvent::ConfigChanged => {
-                info!("Config file changed, scheduling full re-analysis");
+            watchman::WatchmanEvent::ConfigChanged | watchman::WatchmanEvent::FreshInstance => {
+                if matches!(event, watchman::WatchmanEvent::ConfigChanged) {
+                    info!("Config file changed, scheduling full re-analysis");
+                } else {
+                    info!(
+                        "Scheduling full re-analysis due to non-incremental watchman notification"
+                    );
+                }
                 self.config_changed = true;
                 let mut state = self.state.lock().unwrap();
                 state.pending_changes.clear();
@@ -445,12 +447,15 @@ fn run_analysis(
 mod tests {
     use hakana_protocol::{ClientSocket, GetIssuesRequest, Message};
     use std::{
-        path::{Path, PathBuf},
+        path::PathBuf,
         sync::{Arc, atomic::AtomicBool},
     };
     use tokio::fs;
 
-    use crate::{Server, ServerConfig, watchman};
+    use crate::{
+        Server, ServerConfig,
+        watchman::{self, WatchmanEvent},
+    };
 
     #[tokio::test]
     async fn handles_file_changes_during_analysis() -> std::io::Result<()> {
@@ -488,13 +493,12 @@ mod tests {
             })),
         };
 
-        let watchman_clock = watchman::get_clock(Path::new(&server_config.root_dir)).await?;
         let mut watchman_handle = watchman::start_subscription(
             PathBuf::from(&server_config.root_dir),
             vec![],
-            watchman_clock,
             server_config.config_path.as_ref().map(&PathBuf::from),
-        );
+        )
+        .await;
 
         let mut server = Server::new(server_config).expect("failed to create server");
 
@@ -504,8 +508,12 @@ mod tests {
         let server_task =
             tokio::spawn(async move { server.run().await.expect("failed to run server") });
 
-        // Wait for Watchman to send a notification (which should also have notified the server)
-        watchman_handle.recv().await;
+        // Wait for Watchman to send an incremental notification (which should also have notified the server)
+        while let Some(event) = watchman_handle.recv().await {
+            if matches!(event, WatchmanEvent::FileChanges(..)) {
+                break;
+            }
+        }
 
         let mut client = ClientSocket::connect(&socket_path)
             .await
