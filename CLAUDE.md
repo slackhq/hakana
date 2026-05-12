@@ -14,7 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `cargo fmt` - Run before committing
 
 ### Testing
-- `cargo run --release --bin=hakana test --reuse-codebase tests` - Run all tests (recommended)
+- `cargo test --workspace --release` - Run Rust unit tests
+- `cargo run --release --bin=hakana test --reuse-codebase tests` - Run all integration tests (recommended)
 - `cargo run --bin hakana test <path-to-test-dir>` - Run individual test directory
 - Test directories are organized under `tests/` with subdirectories for different test types
 - **IMPORTANT**: Unused variable analysis only runs for tests in `tests/unused/` directory
