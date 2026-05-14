@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fs::{self, File};
 use std::io::{IsTerminal, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::sync::Arc;
 use test_runners::test_runner::TestRunner;
@@ -122,9 +122,9 @@ pub async fn init(
                             .help("Show which functions we lead to mixed types"),
                     )
                     .arg(
-                        arg!(--"show-symbol-map")
+                        arg!(--"print-symbol-usages")
                             .required(false)
-                            .help("Output a map of all symbols"),
+                            .help("Output a JSON map of symbol definitions and usages"),
                     )
                     .arg(
                         arg!(--"debug")
@@ -1762,7 +1762,7 @@ async fn do_analysis(
     let mut find_unused_expressions = sub_matches.is_present("find-unused-expressions");
     let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
     let show_mixed_function_counts = sub_matches.is_present("show-mixed-function-counts");
-    let show_symbol_map = sub_matches.is_present("show-symbol-map");
+    let print_symbol_usages = sub_matches.is_present("print-symbol-usages");
     let ignore_mixed_issues = sub_matches.is_present("ignore-mixed-issues");
     let show_issue_stats = sub_matches.is_present("show-issue-stats");
     let do_ast_diff = sub_matches.is_present("diff");
@@ -1842,6 +1842,116 @@ async fn do_analysis(
     );
 
     if let Ok((analysis_result, successful_run_data)) = result {
+        if print_symbol_usages {
+            let interner = &successful_run_data.interner;
+            let codebase = &successful_run_data.codebase;
+
+            let mut symbol_definitions: BTreeMap<String, String> = BTreeMap::new();
+            let mut file_references: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+            for (symbol_id, file_paths) in &codebase.classlike_infos_defs {
+                let symbol_name = interner.lookup(symbol_id).to_string();
+                if let Some(file_path) = file_paths.first() {
+                    symbol_definitions.insert(
+                        symbol_name,
+                        file_path.get_relative_path(interner, &root_dir),
+                    );
+                }
+            }
+
+            for ((class_or_function_id, member_id), file_paths) in &codebase.functionlike_infos_defs
+            {
+                let symbol_name = if *member_id == hakana_str::StrId::EMPTY {
+                    interner.lookup(class_or_function_id).to_string()
+                } else {
+                    format!(
+                        "{}::{}",
+                        interner.lookup(class_or_function_id),
+                        interner.lookup(member_id)
+                    )
+                };
+                if let Some(file_path) = file_paths.first() {
+                    symbol_definitions.insert(
+                        symbol_name,
+                        file_path.get_relative_path(interner, &root_dir),
+                    );
+                }
+            }
+
+            for (symbol_id, file_paths) in &codebase.type_definitions_defs {
+                let symbol_name = interner.lookup(symbol_id).to_string();
+                if let Some(file_path) = file_paths.first() {
+                    symbol_definitions.insert(
+                        symbol_name,
+                        file_path.get_relative_path(interner, &root_dir),
+                    );
+                }
+            }
+
+            for (symbol_id, file_paths) in &codebase.constant_infos_defs {
+                let symbol_name = interner.lookup(symbol_id).to_string();
+                if let Some(file_path) = file_paths.first() {
+                    symbol_definitions.insert(
+                        symbol_name,
+                        file_path.get_relative_path(interner, &root_dir),
+                    );
+                }
+            }
+
+            for ((referencing_symbol, referencing_member), referenced_set) in analysis_result
+                .symbol_references
+                .symbol_references_to_symbols
+                .iter()
+                .chain(
+                    analysis_result
+                        .symbol_references
+                        .symbol_references_to_symbols_in_signature
+                        .iter(),
+                )
+            {
+                let referencing_name = if *referencing_member == hakana_str::StrId::EMPTY {
+                    interner.lookup(referencing_symbol).to_string()
+                } else {
+                    format!(
+                        "{}::{}",
+                        interner.lookup(referencing_symbol),
+                        interner.lookup(referencing_member)
+                    )
+                };
+
+                let file_path = symbol_definitions.get(&referencing_name).cloned();
+                if let Some(file_path) = file_path {
+                    let refs = file_references.entry(file_path).or_default();
+                    for (ref_symbol, ref_member) in referenced_set {
+                        let ref_name = if *ref_member == hakana_str::StrId::EMPTY {
+                            interner.lookup(ref_symbol).to_string()
+                        } else {
+                            format!(
+                                "{}::{}",
+                                interner.lookup(ref_symbol),
+                                interner.lookup(ref_member)
+                            )
+                        };
+                        if !refs.contains(&ref_name) {
+                            refs.push(ref_name);
+                        }
+                    }
+                }
+            }
+
+            for refs in file_references.values_mut() {
+                refs.sort();
+            }
+
+            let output = json!({
+                "symbol_definitions": symbol_definitions,
+                "file_references": file_references,
+            });
+
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+            return;
+        }
+
         for (file_path, issues) in
             analysis_result.get_all_issues(&successful_run_data.interner, &root_dir, true)
         {
@@ -1875,10 +1985,6 @@ async fn do_analysis(
             for (issue, count) in issues_by_kind {
                 println!("{}\t{}", issue.to_string(), count);
             }
-        }
-
-        if show_symbol_map {
-            println!("{:#?}", analysis_result.symbol_references);
         }
 
         if show_mixed_function_counts {
