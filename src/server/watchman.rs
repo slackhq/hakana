@@ -5,6 +5,7 @@
 
 use hakana_orchestrator::file::FileStatus;
 use rustc_hash::FxHashMap;
+use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tokio::sync::mpsc;
@@ -51,9 +52,20 @@ pub async fn start_subscription(
     let (startup_tx, startup_rx) = oneshot::channel();
 
     tokio::spawn(async move {
-        if let Err(e) = run_subscription(root_dir, tx, startup_tx, ignore_files, config_path).await
+        let mut startup_tx = Some(startup_tx);
+        let mut last_clock = None;
+
+        while let Err(e) = run_subscription(
+            &root_dir,
+            &tx,
+            &mut startup_tx,
+            &mut last_clock,
+            &ignore_files,
+            &config_path,
+        )
+        .await
         {
-            log::error!("Watchman subscription error: {}", e);
+            log::error!("watchman subscriber error: {}. Trying to reconnect...", e);
         }
     });
 
@@ -64,13 +76,17 @@ pub async fn start_subscription(
     WatchmanHandle { rx }
 }
 
+/// Connect to watchman and establish a subscription on the given root.
+/// Returns `Ok` if the subscriber should terminate, `Err` to indicate
+/// a reconnect should be attempted.
 async fn run_subscription(
-    root_dir: PathBuf,
-    tx: mpsc::Sender<WatchmanEvent>,
-    startup_tx: oneshot::Sender<bool>,
-    ignore_files: Vec<String>,
-    config_path: Option<PathBuf>,
-) -> Result<(), watchman_client::Error> {
+    root_dir: &Path,
+    tx: &mpsc::Sender<WatchmanEvent>,
+    startup_tx: &mut Option<oneshot::Sender<bool>>,
+    last_clock: &mut Option<Clock>,
+    ignore_files: &Vec<String>,
+    config_path: &Option<PathBuf>,
+) -> Result<(), Box<dyn Error>> {
     log::info!("Connecting to watchman...");
 
     let watchman = Connector::new().connect().await?;
@@ -105,53 +121,72 @@ async fn run_subscription(
     let expression = build_expression(&ignore_files, &project_root, config_relative_path.as_ref());
 
     let subscribe_request = SubscribeRequest {
-        since: None,
-        expression: Some(expression),
+        since: last_clock.take(),
+        expression: Some(expression.clone()),
         defer_vcs: true,
         ..Default::default()
     };
 
-    let (mut subscription, _initial_response) = watchman
+    let (mut subscription, initial_response) = watchman
         .subscribe::<NameOnly>(&resolved, subscribe_request)
         .await?;
 
+    *last_clock = Some(initial_response.clock);
+
     log::info!("Watchman subscription created: {}", subscription.name());
 
-    startup_tx
-        .send(true)
-        .expect("failed to send startup notification");
-
-    loop {
-        let event = subscription.next().await;
-        if !handle_subscription_event(&project_root, &config_relative_path, &tx, event).await {
-            break;
-        }
+    // Send startup notification on initial subscription only
+    if let Some(startup_tx) = startup_tx.take() {
+        startup_tx
+            .send(true)
+            .expect("failed to send startup notification");
     }
 
-    Ok(())
+    loop {
+        match handle_subscription_event(
+            &project_root,
+            last_clock,
+            &config_relative_path,
+            &tx,
+            subscription.next().await,
+        )
+        .await
+        {
+            Ok(true) => continue,
+            // The server itself is exiting, so exit the subscriber itself.
+            Ok(false) => return Ok(()),
+            // Try to reconnect on every other error kind.
+            Err(e) => return Err(e),
+        }
+    }
 }
 
 /// Handle a single event from Watchman.
-/// Returns `true` if processing should continue, `false` otherwise.
+/// Returns `Ok(true)` if processing should continue, `Ok(false)` to indicate the subscriber should terminate,
+/// and `Err` to indicate a reconnect should be attempted.
 async fn handle_subscription_event(
     project_root: &Path,
+    last_clock: &mut Option<Clock>,
     config_relative_path: &Option<PathBuf>,
     tx: &mpsc::Sender<WatchmanEvent>,
     event: Result<SubscriptionData<NameOnly>, watchman_client::Error>,
-) -> bool {
+) -> Result<bool, Box<dyn Error>> {
     match event {
         Ok(SubscriptionData::FilesChanged(result)) => {
+            // Keep track of the last watchman clock seen so that we can use it
+            // in reconnect attempts to avoid losing changes.
+            *last_clock = Some(result.clock);
+
             // `is_fresh_instance` means the set of changed files in the response is the full set of files
             // matching the subscription query, rather than an incremental changeset.
             // Trigger a full reanalysis in this case.
             if result.is_fresh_instance {
                 log::info!("non-incremental watchman notification, triggering full reanalysis");
                 if tx.send(WatchmanEvent::FreshInstance).await.is_err() {
-                    log::info!("Server shut down, stopping watchman subscription");
-                    return false;
+                    return Ok(false);
                 }
 
-                return true;
+                return Ok(true);
             }
 
             if let Some(files) = result.files {
@@ -202,8 +237,7 @@ async fn handle_subscription_event(
                 if config_changed {
                     log::info!("Watchman detected config file change, triggering full reanalysis");
                     if tx.send(WatchmanEvent::ConfigChanged).await.is_err() {
-                        log::info!("Server shut down, stopping watchman subscription");
-                        return false;
+                        return Ok(false);
                     }
                 }
 
@@ -214,8 +248,7 @@ async fn handle_subscription_event(
                         .await
                         .is_err()
                     {
-                        log::info!("Server shut down, stopping watchman subscription");
-                        return false;
+                        return Ok(false);
                     }
                 }
             } else {
@@ -228,17 +261,13 @@ async fn handle_subscription_event(
         Ok(SubscriptionData::StateLeave { state_name, .. }) => {
             log::info!("Watchman state leave: {}", state_name);
         }
-        Ok(SubscriptionData::Canceled) => {
-            log::info!("Watchman subscription canceled");
-            return false;
-        }
+        Ok(SubscriptionData::Canceled) => return Err("Watchman subscription canceled".into()),
         Err(e) => {
-            log::error!("Watchman subscription error: {}", e);
-            return false;
+            return Err(e.into());
         }
     }
 
-    true
+    Ok(true)
 }
 
 fn build_expression(
@@ -307,7 +336,7 @@ fn build_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    use std::{fs, io::Error};
     use tempfile::TempDir;
     use watchman_client::pdu::{Clock, ClockSpec, QueryResult};
 
@@ -395,59 +424,95 @@ mod tests {
         assert!(dbg.contains("hakana.json"));
     }
 
-    // ── handle_subscription_event tests ──
+    // ── subscription tests ──
 
     #[tokio::test]
-    async fn handle_hack_file_modified() {
-        let tmp = TempDir::new().unwrap();
-        let hack_file = tmp.path().join("test.hack");
-        fs::write(&hack_file, "content").unwrap();
+    async fn handle_hack_file_modified() -> Result<(), Error> {
+        let tmp = TempDir::new().expect("could not create temp dir");
+        let hack_file = tmp.path().canonicalize()?.join("test.hack");
+        fs::write(&hack_file, "content").expect("could not create test file");
 
-        let (tx, mut rx) = mpsc::channel(16);
-        let event = make_files_changed(vec![make_name_only("test.hack")]);
+        {
+            let mut watchman = start_subscription(tmp.path().to_path_buf(), vec![], None).await;
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
-        assert!(cont);
+            assert!(
+                matches!(
+                    watchman
+                        .recv()
+                        .await
+                        .expect("could not receive watchman event"),
+                    WatchmanEvent::FreshInstance,
+                ),
+                "expected initial notification with is_fresh_instance"
+            );
 
-        match rx.try_recv().unwrap() {
-            WatchmanEvent::FileChanges(changes) => {
-                let key = hack_file.to_string_lossy().to_string();
-                assert!(changes.contains_key(&key));
-                assert!(matches!(changes[&key], FileStatus::Modified(_, _)));
+            fs::write(&hack_file, "new content").expect("could not update file");
+
+            match watchman
+                .recv()
+                .await
+                .expect("could not receive watchman event")
+            {
+                WatchmanEvent::FileChanges(changes) => {
+                    let key = hack_file.to_string_lossy().to_string();
+                    assert!(changes.contains_key(&key));
+                    assert!(matches!(changes[&key], FileStatus::Modified(_, _)));
+                }
+                _ => panic!("expected FileChanges"),
             }
-            _ => panic!("expected FileChanges"),
         }
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn handle_deleted_hack_file() {
-        let tmp = TempDir::new().unwrap();
-        let (tx, mut rx) = mpsc::channel(16);
-        let event = make_files_changed(vec![make_name_only("removed.hack")]);
+    async fn handle_deleted_hack_file() -> Result<(), Error> {
+        let tmp = TempDir::new().expect("could not create temp dir");
+        let hack_file = tmp.path().canonicalize()?.join("test.hack");
+        fs::write(&hack_file, "content").expect("could not create test file");
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
-        assert!(cont);
+        {
+            let mut watchman = start_subscription(tmp.path().to_path_buf(), vec![], None).await;
 
-        match rx.try_recv().unwrap() {
-            WatchmanEvent::FileChanges(changes) => {
-                let key = tmp
-                    .path()
-                    .join("removed.hack")
-                    .to_string_lossy()
-                    .to_string();
-                assert!(matches!(changes[&key], FileStatus::Deleted));
+            assert!(
+                matches!(
+                    watchman
+                        .recv()
+                        .await
+                        .expect("could not receive watchman event"),
+                    WatchmanEvent::FreshInstance,
+                ),
+                "expected initial notification with is_fresh_instance"
+            );
+
+            fs::remove_file(&hack_file).expect("could not delete file");
+
+            match watchman
+                .recv()
+                .await
+                .expect("could not receive watchman event")
+            {
+                WatchmanEvent::FileChanges(changes) => {
+                    let key = hack_file.to_string_lossy().to_string();
+                    assert!(matches!(changes[&key], FileStatus::Deleted));
+                }
+                _ => panic!("expected FileChanges"),
             }
-            _ => panic!("expected FileChanges"),
         }
+
+        Ok(())
     }
 
     #[tokio::test]
     async fn handle_deleted_non_hack_file_is_deleted_dir() {
         let tmp = TempDir::new().unwrap();
         let (tx, mut rx) = mpsc::channel(16);
+        let mut last_clock = None;
         let event = make_files_changed(vec![make_name_only("somedir")]);
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
+        let cont = handle_subscription_event(tmp.path(), &mut last_clock, &None, &tx, event)
+            .await
+            .unwrap();
         assert!(cont);
 
         match rx.try_recv().unwrap() {
@@ -466,9 +531,12 @@ mod tests {
         fs::write(&txt_file, "hello").unwrap();
 
         let (tx, mut rx) = mpsc::channel(16);
+        let mut last_clock = None;
         let event = make_files_changed(vec![make_name_only("readme.txt")]);
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
+        let cont = handle_subscription_event(tmp.path(), &mut last_clock, &None, &tx, event)
+            .await
+            .unwrap();
         assert!(cont);
         assert!(
             rx.try_recv().is_err(),
@@ -483,68 +551,105 @@ mod tests {
         fs::create_dir(&subdir).unwrap();
 
         let (tx, mut rx) = mpsc::channel(16);
+        let mut last_clock = None;
         let event = make_files_changed(vec![make_name_only("subdir")]);
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
+        let cont = handle_subscription_event(tmp.path(), &mut last_clock, &None, &tx, event)
+            .await
+            .unwrap();
         assert!(cont);
         assert!(rx.try_recv().is_err(), "directories should be skipped");
     }
 
     #[tokio::test]
-    async fn handle_config_change_sends_config_event() {
-        let tmp = TempDir::new().unwrap();
-        let config_file = tmp.path().join("hakana.json");
-        fs::write(&config_file, "{}").unwrap();
+    async fn handle_config_change_sends_config_event() -> Result<(), Error> {
+        let tmp = TempDir::new().expect("could not create temp dir");
+        let config_file = tmp.path().canonicalize()?.join("hakana.json");
+        fs::write(&config_file, "{}").expect("could not create config file");
 
-        let config_rel = Some(PathBuf::from("hakana.json"));
-        let (tx, mut rx) = mpsc::channel(16);
-        let event = make_files_changed(vec![make_name_only("hakana.json")]);
+        {
+            let config_path = Some(config_file.clone());
+            let mut watchman =
+                start_subscription(tmp.path().to_path_buf(), vec![], config_path).await;
 
-        let cont = handle_subscription_event(tmp.path(), &config_rel, &tx, event).await;
-        assert!(cont);
+            assert!(
+                matches!(
+                    watchman
+                        .recv()
+                        .await
+                        .expect("could not receive watchman event"),
+                    WatchmanEvent::FreshInstance,
+                ),
+                "expected initial notification with is_fresh_instance"
+            );
 
-        match rx.try_recv().unwrap() {
-            WatchmanEvent::ConfigChanged => {}
-            _ => panic!("expected ConfigChanged"),
+            fs::write(&config_file, "{\"updated\": true}").expect("could not update config file");
+
+            match watchman
+                .recv()
+                .await
+                .expect("could not receive watchman event")
+            {
+                WatchmanEvent::ConfigChanged => {}
+                _ => panic!("expected ConfigChanged"),
+            }
         }
-        assert!(
-            rx.try_recv().is_err(),
-            "config-only change should not send FileChanges"
-        );
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn handle_config_and_hack_changes_together() {
-        let tmp = TempDir::new().unwrap();
-        let hack_file = tmp.path().join("main.hack");
-        fs::write(&hack_file, "code").unwrap();
+    async fn handle_config_and_hack_changes_together() -> Result<(), Error> {
+        let tmp = TempDir::new().expect("could not create temp dir");
+        let canonical = tmp.path().canonicalize()?;
+        let config_file = canonical.join("hakana.json");
+        let hack_file = canonical.join("main.hack");
+        fs::write(&config_file, "{}").expect("could not create config file");
+        fs::write(&hack_file, "code").expect("could not create hack file");
 
-        let config_rel = Some(PathBuf::from("hakana.json"));
-        let (tx, mut rx) = mpsc::channel(16);
-        let event = make_files_changed(vec![
-            make_name_only("hakana.json"),
-            make_name_only("main.hack"),
-        ]);
+        {
+            let config_path = Some(config_file.clone());
+            let mut watchman =
+                start_subscription(tmp.path().to_path_buf(), vec![], config_path).await;
 
-        let cont = handle_subscription_event(tmp.path(), &config_rel, &tx, event).await;
-        assert!(cont);
+            assert!(
+                matches!(
+                    watchman
+                        .recv()
+                        .await
+                        .expect("could not receive watchman event"),
+                    WatchmanEvent::FreshInstance,
+                ),
+                "expected initial notification with is_fresh_instance"
+            );
 
-        match rx.try_recv().unwrap() {
-            WatchmanEvent::ConfigChanged => {}
-            _ => panic!("expected ConfigChanged first"),
-        }
-        match rx.try_recv().unwrap() {
-            WatchmanEvent::FileChanges(changes) => {
-                assert_eq!(changes.len(), 1);
+            fs::write(&config_file, "{\"updated\": true}").expect("could not update config file");
+            fs::write(&hack_file, "new code").expect("could not update hack file");
+
+            let mut saw_config_changed = false;
+            let mut saw_file_changes = false;
+
+            while !saw_config_changed || !saw_file_changes {
+                match watchman
+                    .recv()
+                    .await
+                    .expect("could not receive watchman event")
+                {
+                    WatchmanEvent::ConfigChanged => saw_config_changed = true,
+                    WatchmanEvent::FileChanges(_) => saw_file_changes = true,
+                    _ => panic!("unexpected event"),
+                }
             }
-            _ => panic!("expected FileChanges second"),
         }
+
+        Ok(())
     }
 
     #[tokio::test]
     async fn handle_no_files_in_result() {
         let tmp = TempDir::new().unwrap();
         let (tx, mut rx) = mpsc::channel(16);
+        let mut last_clock = None;
         let event = Ok(SubscriptionData::FilesChanged(QueryResult {
             version: "test".to_string(),
             is_fresh_instance: false,
@@ -557,44 +662,51 @@ mod tests {
             debug: None,
         }));
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
+        let cont = handle_subscription_event(tmp.path(), &mut last_clock, &None, &tx, event)
+            .await
+            .unwrap();
         assert!(cont);
         assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
-    async fn handle_canceled_returns_false() {
+    async fn handle_canceled_returns_error() {
         let tmp = TempDir::new().unwrap();
         let (tx, _rx) = mpsc::channel(16);
+        let mut last_clock = None;
         let event: Result<SubscriptionData<NameOnly>, _> = Ok(SubscriptionData::Canceled);
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
-        assert!(!cont);
+        let res = handle_subscription_event(tmp.path(), &mut last_clock, &None, &tx, event).await;
+        assert!(res.is_err(), "should return an error");
     }
 
     #[tokio::test]
-    async fn handle_error_returns_false() {
+    async fn handle_error_returns_error() {
         let tmp = TempDir::new().unwrap();
         let (tx, _rx) = mpsc::channel(16);
+        let mut last_clock = None;
         let event: Result<SubscriptionData<NameOnly>, _> =
             Err(watchman_client::Error::WatchmanResponseError {
                 message: "test error".to_string(),
             });
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
-        assert!(!cont);
+        let res = handle_subscription_event(tmp.path(), &mut last_clock, &None, &tx, event).await;
+        assert!(res.is_err(), "should return an error");
     }
 
     #[tokio::test]
     async fn handle_state_enter_continues() {
         let tmp = TempDir::new().unwrap();
         let (tx, _rx) = mpsc::channel(16);
+        let mut last_clock = None;
         let event: Result<SubscriptionData<NameOnly>, _> = Ok(SubscriptionData::StateEnter {
             state_name: "hg.update".to_string(),
             metadata: None,
         });
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
+        let cont = handle_subscription_event(tmp.path(), &mut last_clock, &None, &tx, event)
+            .await
+            .unwrap();
         assert!(cont);
     }
 
@@ -602,12 +714,15 @@ mod tests {
     async fn handle_state_leave_continues() {
         let tmp = TempDir::new().unwrap();
         let (tx, _rx) = mpsc::channel(16);
+        let mut last_clock = None;
         let event: Result<SubscriptionData<NameOnly>, _> = Ok(SubscriptionData::StateLeave {
             state_name: "hg.update".to_string(),
             metadata: None,
         });
 
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
+        let cont = handle_subscription_event(tmp.path(), &mut last_clock, &None, &tx, event)
+            .await
+            .unwrap();
         assert!(cont);
     }
 
@@ -620,8 +735,11 @@ mod tests {
         let (tx, rx) = mpsc::channel(16);
         drop(rx);
 
+        let mut last_clock = None;
         let event = make_files_changed(vec![make_name_only("test.hack")]);
-        let cont = handle_subscription_event(tmp.path(), &None, &tx, event).await;
-        assert!(!cont, "should return false when receiver is dropped");
+        let result = handle_subscription_event(tmp.path(), &mut last_clock, &None, &tx, event)
+            .await
+            .unwrap();
+        assert!(!result, "should return false when receiver is dropped");
     }
 }
