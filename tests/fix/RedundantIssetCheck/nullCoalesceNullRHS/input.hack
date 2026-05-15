@@ -1,0 +1,16 @@
+final class A {
+    public ?string $maybe;
+}
+
+function foo(?string $input, A $a, dict<string, string> $dict, string $foo): bool {
+    // both of these are redundant since the LHS is known
+    $b = $a->maybe ?? null;
+    $c = $input ?? null;
+
+    // not redundant as the key may be absent
+    $d = $dict['foo'] ?? null;
+
+    $e = $foo ?? 'bar';
+
+    return true;
+}
