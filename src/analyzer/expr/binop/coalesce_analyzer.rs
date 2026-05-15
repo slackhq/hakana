@@ -1,11 +1,14 @@
 use std::rc::Rc;
 
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_code_info::analysis_result::Replacement;
+use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use hakana_code_info::var_name::VarName;
@@ -24,12 +27,14 @@ pub(crate) fn analyze<'expr>(
     let mut root_expr = left;
     let mut root_not_left = false;
     let mut has_arrayget_key = false;
+    let mut has_array_access = false;
 
     loop {
         match &root_expr.2 {
             aast::Expr_::ArrayGet(boxed) => {
                 root_expr = &boxed.0;
                 root_not_left = true;
+                has_array_access = true;
 
                 if let Some(dim) = &boxed.1 {
                     if let aast::Expr_::ArrayGet(..)
@@ -53,6 +58,34 @@ pub(crate) fn analyze<'expr>(
             _ => {
                 break;
             }
+        }
+    }
+
+    // Check for tautological `$foo ?? null` checks where the LHS is always known to be defined.
+    // Do this only for the null literal rather than any nullable RHS since implementing the latter logic
+    // would have diminishing returns.
+    if !has_array_access && matches!(right.2, aast::Expr_::Null) {
+        let issue = Issue::new(
+            IssueKind::RedundantIssetCheck,
+            "Unnecessary isset check".to_string(),
+            statements_analyzer.get_hpos(pos),
+            &context.function_context.calling_functionlike_id,
+        );
+
+        if statements_analyzer.should_autofix(context, analysis_data, &issue) {
+            analysis_data.add_replacement(
+                (
+                    left.pos().end_offset() as u32,
+                    right.pos().end_offset() as u32,
+                ),
+                Replacement::Remove,
+            );
+        } else {
+            analysis_data.maybe_add_issue(
+                issue,
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
         }
     }
 

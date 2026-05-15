@@ -1,0 +1,3 @@
+ERROR: RedundantIssetCheck - input.hack:7:10 - Unnecessary isset check
+ERROR: RedundantIssetCheck - input.hack:8:10 - Unnecessary isset check
+ERROR: RedundantIssetCheck - input.hack:13:10 - Unnecessary isset check
