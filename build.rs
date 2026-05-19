@@ -1,7 +1,9 @@
 use anyhow::Result;
-use vergen::{Config, vergen};
+use vergen_git2::{BuildBuilder, Emitter, Git2Builder};
 
-fn main() -> Result<()> {
-    // Generate the default 'cargo:' instruction output
-    vergen(Config::default())
+pub fn main() -> Result<()> {
+    Emitter::default()
+        .add_instructions(&BuildBuilder::all_build()?)?
+        .add_instructions(&Git2Builder::all_git()?)?
+        .emit()
 }
