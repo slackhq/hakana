@@ -31,6 +31,7 @@ pub enum IssueKind {
     FalsableReturnStatement,
     FalseArgument,
     ForLoopInvalidation,
+    FunctionCouldBeMadeAsync,
     ImmutablePropertyWrite,
     ImplicitAsioJoin,
     ImplicitStringCast,

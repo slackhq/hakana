@@ -1,0 +1,3 @@
+ERROR: UnnecessaryAsyncAnnotation - input.hack:1:16 - This function is marked async but has no async behaviour
+ERROR: UnusedClass - input.hack:9:13 - Unused class, interface or enum Child
+ERROR: UnusedFunction - input.hack:17:16 - Unused function caller
