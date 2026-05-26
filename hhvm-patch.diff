@@ -1,8 +1,8 @@
 diff --git a/hphp/hack/src/Cargo.toml b/hphp/hack/src/Cargo.toml
-index 57decf6562c..b860f13348d 100644
+index 3651f4471..516d7dd89 100644
 --- a/hphp/hack/src/Cargo.toml
 +++ b/hphp/hack/src/Cargo.toml
-@@ -109,3 +109,6 @@ members = [
+@@ -110,3 +110,6 @@ members = [
      "utils/test",
      "utils/test/arena_deserializer",
  ]
@@ -10,7 +10,7 @@ index 57decf6562c..b860f13348d 100644
 +[workspace.lints.rust]
 +warnings = "allow"
 diff --git a/hphp/hack/src/arena_collections/lib.rs b/hphp/hack/src/arena_collections/lib.rs
-index b61498ef2a2..536390f62a9 100644
+index b61498ef2..536390f62 100644
 --- a/hphp/hack/src/arena_collections/lib.rs
 +++ b/hphp/hack/src/arena_collections/lib.rs
 @@ -3,6 +3,8 @@
@@ -23,7 +23,7 @@ index b61498ef2a2..536390f62a9 100644
  mod multiset;
  
 diff --git a/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml b/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
-index 7f5bdb0b49c..1efb549993e 100644
+index 7f5bdb0b4..1efb54999 100644
 --- a/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
 +++ b/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
 @@ -18,9 +18,11 @@ crossbeam = "0.8"
@@ -41,7 +41,7 @@ index 7f5bdb0b49c..1efb549993e 100644
 +ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
 \ No newline at end of file
 diff --git a/hphp/hack/src/deps/rust/file_info.rs b/hphp/hack/src/deps/rust/file_info.rs
-index 798aa090a84..2913788f3ed 100644
+index 798aa090a..2913788f3 100644
 --- a/hphp/hack/src/deps/rust/file_info.rs
 +++ b/hphp/hack/src/deps/rust/file_info.rs
 @@ -13,7 +13,7 @@ use no_pos_hash::NoPosHash;
@@ -239,7 +239,7 @@ index 798aa090a84..2913788f3ed 100644
  pub struct Diff {
      pub removed_funs: s_set::SSet,
 diff --git a/hphp/hack/src/deps/rust/file_info/Cargo.toml b/hphp/hack/src/deps/rust/file_info/Cargo.toml
-index 82d5c03f0e5..5d19d5a6fb4 100644
+index ff3600d58..5e6aaa5f6 100644
 --- a/hphp/hack/src/deps/rust/file_info/Cargo.toml
 +++ b/hphp/hack/src/deps/rust/file_info/Cargo.toml
 @@ -17,11 +17,13 @@ eq_modulo_pos = { version = "0.0.0", path = "../../../utils/eq_modulo_pos" }
@@ -250,17 +250,16 @@ index 82d5c03f0e5..5d19d5a6fb4 100644
  parser_core_types = { version = "0.0.0", path = "../../../parser/cargo/core_types" }
  rc_pos = { version = "0.0.0", path = "../../../utils/rust/pos" }
  relative_path = { version = "0.0.0", path = "../../../utils/rust/relative_path" }
--rusqlite = { version = "0.36.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
+-rusqlite = { version = "0.37.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
  serde = { version = "1.0.219", features = ["derive", "rc"] }
- thiserror = "2.0.12"
+ thiserror = "2.0.18"
  typing_deps_hash = { version = "0.0.0", path = "../../cargo/typing_deps_hash" }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-+rusqlite = { version = "0.36.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
++rusqlite = { version = "0.37.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
 +ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
-\ No newline at end of file
 diff --git a/hphp/hack/src/deps/rust/file_info_lib.rs b/hphp/hack/src/deps/rust/file_info_lib.rs
-index ab6789911ec..4ce9b155a3e 100644
+index ab6789911..4ce9b155a 100644
 --- a/hphp/hack/src/deps/rust/file_info_lib.rs
 +++ b/hphp/hack/src/deps/rust/file_info_lib.rs
 @@ -15,10 +15,13 @@ mod s_set {
@@ -311,7 +310,7 @@ index ab6789911ec..4ce9b155a3e 100644
      fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
          Ok(rusqlite::types::ToSqlOutput::from(*self as i64))
 diff --git a/hphp/hack/src/hackc/utils/string_utils.rs b/hphp/hack/src/hackc/utils/string_utils.rs
-index ef6f2da38f7..36a114359ba 100644
+index ef6f2da38..36a114359 100644
 --- a/hphp/hack/src/hackc/utils/string_utils.rs
 +++ b/hphp/hack/src/hackc/utils/string_utils.rs
 @@ -249,6 +249,7 @@ pub mod integer {
@@ -336,22 +335,21 @@ index ef6f2da38f7..36a114359ba 100644
          let f = f.into();
          // or_else should not happen, but just in case it does fall back
 diff --git a/hphp/hack/src/naming/names_rust/Cargo.toml b/hphp/hack/src/naming/names_rust/Cargo.toml
-index eeaf509460e..bbe89d02681 100644
+index c679d4363..dcfd91815 100644
 --- a/hphp/hack/src/naming/names_rust/Cargo.toml
 +++ b/hphp/hack/src/naming/names_rust/Cargo.toml
 @@ -17,6 +17,8 @@ hh24_types = { version = "0.0.0", path = "../../utils/hh24_types" }
  oxidized = { version = "0.0.0", path = "../../oxidized" }
- rand = { version = "0.8", features = ["small_rng"] }
+ rand = { version = "0.9", features = ["small_rng"] }
  relative_path = { version = "0.0.0", path = "../../utils/rust/relative_path" }
--rusqlite = { version = "0.36.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
+-rusqlite = { version = "0.37.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
  serde = { version = "1.0.219", features = ["derive", "rc"] }
  typing_deps_hash = { version = "0.0.0", path = "../../deps/cargo/typing_deps_hash" }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-+rusqlite = { version = "0.36.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
-\ No newline at end of file
++rusqlite = { version = "0.37.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
 diff --git a/hphp/hack/src/naming/names_rust/datatypes.rs b/hphp/hack/src/naming/names_rust/datatypes.rs
-index 91106097aa3..930dfa897c5 100644
+index 91106097a..930dfa897 100644
 --- a/hphp/hack/src/naming/names_rust/datatypes.rs
 +++ b/hphp/hack/src/naming/names_rust/datatypes.rs
 @@ -11,9 +11,13 @@ use oxidized::file_info::Mode;
@@ -377,7 +375,7 @@ index 91106097aa3..930dfa897c5 100644
      fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
          Ok(rusqlite::types::ToSqlOutput::from(self.0.get() as i64))
 diff --git a/hphp/hack/src/naming/names_rust/naming_sqlite.rs b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
-index 3097a7abedb..bf587c78b96 100644
+index a9a786169..33c77815e 100644
 --- a/hphp/hack/src/naming/names_rust/naming_sqlite.rs
 +++ b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
 @@ -12,8 +12,11 @@ use hh24_types::ToplevelCanonSymbolHash;
@@ -393,7 +391,7 @@ index 3097a7abedb..bf587c78b96 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/naming/naming_special_names.rs b/hphp/hack/src/naming/naming_special_names.rs
-index 48ba41b56cb..27e5e806145 100644
+index c47fc8287..ecf1fc315 100644
 --- a/hphp/hack/src/naming/naming_special_names.rs
 +++ b/hphp/hack/src/naming/naming_special_names.rs
 @@ -7,6 +7,8 @@
@@ -406,10 +404,10 @@ index 48ba41b56cb..27e5e806145 100644
  pub mod classes {
      pub const PARENT: &str = "parent";
 diff --git a/hphp/hack/src/oxidized/gen/edenfs_watcher_types.rs b/hphp/hack/src/oxidized/gen/edenfs_watcher_types.rs
-index 6d98f428154..fa6f53efecd 100644
+index a3d225c74..00d6b14d1 100644
 --- a/hphp/hack/src/oxidized/gen/edenfs_watcher_types.rs
 +++ b/hphp/hack/src/oxidized/gen/edenfs_watcher_types.rs
-@@ -169,15 +169,14 @@ pub struct StandaloneGetChangesSinceTelemetry {
+@@ -168,15 +168,14 @@ pub struct StandaloneGetChangesSinceTelemetry {
      Deserialize,
      Eq,
      EqModuloPos,
@@ -427,7 +425,7 @@ index 6d98f428154..fa6f53efecd 100644
  pub struct Settings {
      pub root: std::path::PathBuf,
 diff --git a/hphp/hack/src/oxidized/gen/warnings_saved_state.rs b/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
-index ce9968a8413..6451672f7d2 100644
+index ce9968a84..6451672f7 100644
 --- a/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
 +++ b/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
 @@ -13,7 +13,7 @@ pub use error_hash_set::*;
@@ -440,10 +438,10 @@ index ce9968a8413..6451672f7d2 100644
 +pub type ErrorHash = u64;
  
  pub type Path = String;
-diff --git a/hphp/hack/src/oxidized/manual/user_error_impl.rs b/hphp/hack/src/oxidized/manual/user_error_impl.rs
-index ee2ade73136..845d0eb004e 100644
---- a/hphp/hack/src/oxidized/manual/user_error_impl.rs
-+++ b/hphp/hack/src/oxidized/manual/user_error_impl.rs
+diff --git a/hphp/hack/src/oxidized/manual/user_diagnostic_impl.rs b/hphp/hack/src/oxidized/manual/user_diagnostic_impl.rs
+index 4840c1397..bdcc80761 100644
+--- a/hphp/hack/src/oxidized/manual/user_diagnostic_impl.rs
++++ b/hphp/hack/src/oxidized/manual/user_diagnostic_impl.rs
 @@ -8,7 +8,7 @@ use std::hash::Hash;
  
  use ansi_term::Color;
@@ -463,7 +461,7 @@ index ee2ade73136..845d0eb004e 100644
  }
  
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index a7469c3062e..71900aac7af 100644
+index 8797ef2c1..4e8300d75 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
 @@ -5,7 +5,7 @@
@@ -500,7 +498,7 @@ index a7469c3062e..71900aac7af 100644
          Ok(pr)
      }
  
-@@ -169,7 +169,7 @@ impl<'src> AastParser {
+@@ -170,7 +170,7 @@ impl<'src> AastParser {
          tree: PositionedSyntaxTree<'src, 'arena>,
          default_experimental_features: HashSet<experimental_features::FeatureName>,
      ) -> Result<ParserResult> {
@@ -509,7 +507,7 @@ index a7469c3062e..71900aac7af 100644
          match language {
              Language::Hack => {}
              _ => return Err(Error::NotAHackFile()),
-@@ -241,7 +241,7 @@ impl<'src> AastParser {
+@@ -242,7 +242,7 @@ impl<'src> AastParser {
          );
          stack_limit::reset();
          let aast = lower(&mut lowerer_env, tree.root());
@@ -518,7 +516,7 @@ index a7469c3062e..71900aac7af 100644
          let lower_peak = stack_limit::peak() as u64;
          let mut aast = if env.elaborate_namespaces {
              namespaces::toplevel_elaborator::elaborate_toplevel_defs(ns, aast)
-@@ -260,12 +260,12 @@ impl<'src> AastParser {
+@@ -261,12 +261,12 @@ impl<'src> AastParser {
              syntax_errors.extend(expression_tree_check::check_splices(&aast));
              syntax_errors.extend(coeffects_check::check_program(&aast, env.mode));
          }
@@ -533,7 +531,7 @@ index a7469c3062e..71900aac7af 100644
  
          Ok(ParserResult {
              file_mode: mode,
-@@ -277,9 +277,9 @@ impl<'src> AastParser {
+@@ -278,9 +278,9 @@ impl<'src> AastParser {
              lint_errors,
              profile: ParserProfile {
                  lower_peak,
@@ -546,7 +544,7 @@ index a7469c3062e..71900aac7af 100644
                  error_peak,
                  arena_bytes: arena.allocated_bytes() as u64,
                  ..Default::default()
-@@ -354,7 +354,7 @@ impl<'src> AastParser {
+@@ -356,7 +356,7 @@ impl<'src> AastParser {
                      disable_hh_ignore_error: env.parser_options.disable_hh_ignore_error,
                      allowed_decl_fixme_codes: &env.parser_options.allowed_decl_fixme_codes,
                  };
@@ -556,7 +554,7 @@ index a7469c3062e..71900aac7af 100644
              Ok(Default::default())
          }
 diff --git a/hphp/hack/src/parser/core/lexer.rs b/hphp/hack/src/parser/core/lexer.rs
-index 60912cf167c..36817ccc15c 100644
+index 741a06c60..b886761cd 100644
 --- a/hphp/hack/src/parser/core/lexer.rs
 +++ b/hphp/hack/src/parser/core/lexer.rs
 @@ -256,7 +256,11 @@ where
@@ -585,7 +583,7 @@ index 60912cf167c..36817ccc15c 100644
                      }
                      _ => {
 diff --git a/hphp/hack/src/parser/core/lib.rs b/hphp/hack/src/parser/core/lib.rs
-index 28f6dd565f6..1cceff6e7c0 100644
+index 28f6dd565..1cceff6e7 100644
 --- a/hphp/hack/src/parser/core/lib.rs
 +++ b/hphp/hack/src/parser/core/lib.rs
 @@ -4,6 +4,8 @@
@@ -598,10 +596,10 @@ index 28f6dd565f6..1cceff6e7c0 100644
  pub use operator;
  pub use operator::*;
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index 77a13a242f7..56dc941af9d 100644
+index becc4e823..055be99b7 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3646,12 +3646,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3723,12 +3723,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);
@@ -616,7 +614,7 @@ index 77a13a242f7..56dc941af9d 100644
                  && !(markup_suffix.is_missing())
              {
 diff --git a/hphp/hack/src/parser/lowerer/scour_comment.rs b/hphp/hack/src/parser/lowerer/scour_comment.rs
-index e417df3af7f..b41df07e55e 100644
+index e417df3af..b41df07e5 100644
 --- a/hphp/hack/src/parser/lowerer/scour_comment.rs
 +++ b/hphp/hack/src/parser/lowerer/scour_comment.rs
 @@ -17,6 +17,7 @@ use parser_core_types::syntax_by_ref::syntax_variant_generated::SyntaxVariant::*
@@ -667,7 +665,7 @@ index e417df3af7f..b41df07e55e 100644
                              Ignore => {
                                  acc.add_to_ignores(line, code, p);
 diff --git a/hphp/hack/src/parser/smart_constructors.rs b/hphp/hack/src/parser/smart_constructors.rs
-index 4c773badd23..f3ec193beac 100644
+index 4c773badd..f3ec193be 100644
 --- a/hphp/hack/src/parser/smart_constructors.rs
 +++ b/hphp/hack/src/parser/smart_constructors.rs
 @@ -4,6 +4,8 @@
@@ -680,7 +678,7 @@ index 4c773badd23..f3ec193beac 100644
  pub mod smart_constructors_wrappers;
  
 diff --git a/hphp/hack/src/parser/source_text.rs b/hphp/hack/src/parser/source_text.rs
-index 0a925108745..2b8775d466e 100644
+index 0a9251087..2b8775d46 100644
 --- a/hphp/hack/src/parser/source_text.rs
 +++ b/hphp/hack/src/parser/source_text.rs
 @@ -98,6 +98,7 @@ impl<'a> SourceText<'a> {
@@ -700,20 +698,20 @@ index 0a925108745..2b8775d466e 100644
      fn from_ocamlrep(value: ocamlrep::Value<'_>) -> Result<Self, ocamlrep::FromError> {
          let block = ocamlrep::from::expect_tuple(value, 4)?;
 diff --git a/hphp/hack/src/utils/arena_deserializer/Cargo.toml b/hphp/hack/src/utils/arena_deserializer/Cargo.toml
-index c21d0f17a62..cd5681883c9 100644
+index 99fd98719..cefcfb4db 100644
 --- a/hphp/hack/src/utils/arena_deserializer/Cargo.toml
 +++ b/hphp/hack/src/utils/arena_deserializer/Cargo.toml
 @@ -13,5 +13,7 @@ path = "lib.rs"
  [dependencies]
  bstr = { version = "1.10.0", features = ["serde", "std", "unicode"] }
- bumpalo = { version = "3.14.0", features = ["allocator_api", "collections"] }
+ bumpalo = { version = "3.20.2", features = ["allocator_api", "collections"] }
 -ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
  serde = { version = "1.0.219", features = ["derive", "rc"] }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 +ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
 diff --git a/hphp/hack/src/utils/arena_deserializer/impls.rs b/hphp/hack/src/utils/arena_deserializer/impls.rs
-index c6c4bb0b251..5509aa2f715 100644
+index c6c4bb0b2..5509aa2f7 100644
 --- a/hphp/hack/src/utils/arena_deserializer/impls.rs
 +++ b/hphp/hack/src/utils/arena_deserializer/impls.rs
 @@ -8,7 +8,7 @@ use std::marker::PhantomData;
@@ -735,18 +733,18 @@ index c6c4bb0b251..5509aa2f715 100644
  impl<'arena> DeserializeInArena<'arena> for &'arena str {
      fn deserialize_in_arena<D>(arena: &'arena Bump, deserializer: D) -> Result<Self, D::Error>
 diff --git a/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml b/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
-index 718b1545ddc..44cdea14fad 100644
+index a57b26426..12286280f 100644
 --- a/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
 +++ b/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
 @@ -16,4 +16,6 @@ bstr = { version = "1.10.0", features = ["serde", "std", "unicode"] }
  eq_modulo_pos_derive = { version = "0.0.0", path = "../eq_modulo_pos_derive" }
  hcons = { version = "0.0.0", path = "../../hcons" }
- indexmap = { version = "2.9.0", features = ["arbitrary", "rayon", "serde"] }
+ indexmap = { version = "2.13.0", features = ["arbitrary", "rayon", "serde"] }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
  ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
 diff --git a/hphp/hack/src/utils/eq_modulo_pos/eq_modulo_pos.rs b/hphp/hack/src/utils/eq_modulo_pos/eq_modulo_pos.rs
-index bbcfb3854e5..fc8165ca9bf 100644
+index bbcfb3854..fc8165ca9 100644
 --- a/hphp/hack/src/utils/eq_modulo_pos/eq_modulo_pos.rs
 +++ b/hphp/hack/src/utils/eq_modulo_pos/eq_modulo_pos.rs
 @@ -7,7 +7,6 @@ use std::rc::Rc;
@@ -766,23 +764,23 @@ index bbcfb3854e5..fc8165ca9bf 100644
  
  macro_rules! impl_deref {
 diff --git a/hphp/hack/src/utils/hh24_types/Cargo.toml b/hphp/hack/src/utils/hh24_types/Cargo.toml
-index a946cb97854..5520fdf379d 100644
+index 0b2756399..ede958b5e 100644
 --- a/hphp/hack/src/utils/hh24_types/Cargo.toml
 +++ b/hphp/hack/src/utils/hh24_types/Cargo.toml
 @@ -16,8 +16,10 @@ derive_more = { version = "1.0.0", features = ["full"] }
  file_info = { version = "0.0.0", path = "../../deps/rust/file_info" }
  hh_hash = { version = "0.0.0", path = "../hh_hash" }
  relative_path = { version = "0.0.0", path = "../rust/relative_path" }
--rusqlite = { version = "0.36.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
+-rusqlite = { version = "0.37.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
  serde = { version = "1.0.219", features = ["derive", "rc"] }
  serde_json = { version = "1.0.140", features = ["alloc", "float_roundtrip", "raw_value", "unbounded_depth"] }
- thiserror = "2.0.12"
+ thiserror = "2.0.18"
  typing_deps_hash = { version = "0.0.0", path = "../../deps/cargo/typing_deps_hash" }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-+rusqlite = { version = "0.36.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
++rusqlite = { version = "0.37.0", features = ["backup", "blob", "bundled", "column_decltype", "functions", "limits", "modern_sqlite", "serde_json"] }
 diff --git a/hphp/hack/src/utils/hh24_types/hh24_types.rs b/hphp/hack/src/utils/hh24_types/hh24_types.rs
-index 0febd35fe7d..4fd8c642cac 100644
+index 0febd35fe..4fd8c642c 100644
 --- a/hphp/hack/src/utils/hh24_types/hh24_types.rs
 +++ b/hphp/hack/src/utils/hh24_types/hh24_types.rs
 @@ -32,12 +32,14 @@ macro_rules! u64_hash_wrapper_impls {
@@ -801,7 +799,7 @@ index 0febd35fe7d..4fd8c642cac 100644
              fn column_result(
                  value: rusqlite::types::ValueRef<'_>,
 diff --git a/hphp/hack/src/utils/no_pos_hash/Cargo.toml b/hphp/hack/src/utils/no_pos_hash/Cargo.toml
-index dd2d6812501..55bf668672d 100644
+index dd2d68125..55bf66867 100644
 --- a/hphp/hack/src/utils/no_pos_hash/Cargo.toml
 +++ b/hphp/hack/src/utils/no_pos_hash/Cargo.toml
 @@ -15,4 +15,6 @@ arena_collections = { version = "0.0.0", path = "../../arena_collections" }
@@ -812,7 +810,7 @@ index dd2d6812501..55bf668672d 100644
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
  ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
 diff --git a/hphp/hack/src/utils/no_pos_hash/no_pos_hash.rs b/hphp/hack/src/utils/no_pos_hash/no_pos_hash.rs
-index 396831e47f5..32693ed0a4b 100644
+index 396831e47..32693ed0a 100644
 --- a/hphp/hack/src/utils/no_pos_hash/no_pos_hash.rs
 +++ b/hphp/hack/src/utils/no_pos_hash/no_pos_hash.rs
 @@ -44,8 +44,6 @@ pub fn position_insensitive_hash<T: NoPosHash>(value: &T) -> u64 {
@@ -833,7 +831,7 @@ index 396831e47f5..32693ed0a4b 100644
  
      macro_rules! impl_with_std_hash_unsized {
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos.rs b/hphp/hack/src/utils/rust/pos/file_pos.rs
-index fff34e9c159..49ae1121f9c 100644
+index fff34e9c1..49ae1121f 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos.rs
 @@ -4,6 +4,6 @@
@@ -846,7 +844,7 @@ index fff34e9c159..49ae1121f9c 100644
 +    fn line_column_beg(&self) -> (u64, u64, u64);
  }
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos_large.rs b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
-index bb92cf38693..0d6066c67e9 100644
+index bb92cf386..0d6066c67 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos_large.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
 @@ -16,13 +16,13 @@ use crate::with_erased_lines::WithErasedLines;
@@ -970,7 +968,7 @@ index bb92cf38693..0d6066c67e9 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos_small.rs b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
-index 0097f1c7f5e..a20bada630b 100644
+index 0097f1c7f..a20bada63 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos_small.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
 @@ -39,23 +39,23 @@ arena_deserializer::impl_deserialize_in_arena!(FilePosSmall);
@@ -1120,7 +1118,7 @@ index 0097f1c7f5e..a20bada630b 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/pos_impl.rs b/hphp/hack/src/utils/rust/pos/pos_impl.rs
-index e5e6dd2d88a..5e63116198c 100644
+index e5e6dd2d8..5e6311619 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_impl.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_impl.rs
 @@ -44,9 +44,37 @@ enum PosImpl {
@@ -1335,7 +1333,7 @@ index e5e6dd2d88a..5e63116198c 100644
  
      #[test]
 diff --git a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
-index b0c24a4c9f5..5e2c65f7532 100644
+index b0c24a4c9..5e2c65f75 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
 @@ -130,83 +130,83 @@ impl PosSpanTiny {
@@ -1495,7 +1493,7 @@ index b0c24a4c9f5..5e2c65f7532 100644
  
          // Though the span fits nicely into 63-bits, the resulting value is > 2^62 -
 diff --git a/hphp/hack/src/utils/rust/relative_path.rs b/hphp/hack/src/utils/rust/relative_path.rs
-index d4123d7822f..5f2cfcb7d97 100644
+index d4123d782..5f2cfcb7d 100644
 --- a/hphp/hack/src/utils/rust/relative_path.rs
 +++ b/hphp/hack/src/utils/rust/relative_path.rs
 @@ -218,6 +218,7 @@ impl<'de> Deserialize<'de> for RelativePath {
