@@ -1,5 +1,5 @@
 function foo(int $index): void {
-    while ($index++ <= 100) {
-        //
+    while ($index <= 100) {
+        $index++;
     }
 }

@@ -58,25 +58,30 @@ pub fn get_var_id(
                             None
                         }
                     }
+                    aast::ClassId_::CIreified(id) => {
+                        if let Some((codebase, _)) = codebase {
+                            get_id_name(
+                                id,
+                                &this_class_name,
+                                false,
+                                codebase,
+                                &mut false,
+                                resolved_names,
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    aast::ClassId_::CIself => this_class_name,
                     _ => None,
                 };
 
                 if let Some(class_name) = class_name {
-                    return match &boxed.1 {
-                        aast::ClassGetExpr::CGstring(str) => Some(format!(
-                            "{}::{}",
-                            codebase.unwrap().1.lookup(&class_name),
-                            str.1
-                        )),
-                        aast::ClassGetExpr::CGexpr(rhs_expr) => match &rhs_expr.2 {
-                            aast::Expr_::Lvar(rhs_var_expr) => Some(format!(
-                                "{}::${}",
-                                codebase.unwrap().1.lookup(&class_name),
-                                rhs_var_expr.1.1
-                            )),
-                            _ => None,
-                        },
-                    };
+                    return Some(format!(
+                        "{}::{}",
+                        codebase.unwrap().1.lookup(&class_name),
+                        boxed.1.1
+                    ));
                 }
             }
 

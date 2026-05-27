@@ -32,6 +32,7 @@ use hakana_str::{StrId, ThreadedInterner};
 use oxidized::aast;
 use oxidized::aast::Stmt;
 use oxidized::ast;
+use oxidized::ast::SplatKind;
 use oxidized::ast::UserAttribute;
 use oxidized::ast::WhereConstraintHint;
 use oxidized::ast_defs;
@@ -583,8 +584,19 @@ fn get_name_from_expr(
         aast::Expr_::ClassConst(boxed) => {
             let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
 
-            if let aast::ClassId_::CIexpr(lhs_expr) = &class_id.2 {
-                if let aast::Expr_::Id(id) = &lhs_expr.2 {
+            match &class_id.2 {
+                aast::ClassId_::CIexpr(lhs_expr) => {
+                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                        if let Some(class_name) = resolved_names.get(&(id.0.start_offset() as u32))
+                        {
+                            return Some(FunctionLikeIdentifier::Method(
+                                *class_name,
+                                interner.intern(rhs_expr.1.clone()),
+                            ));
+                        }
+                    }
+                }
+                aast::ClassId_::CIreified(id) => {
                     if let Some(class_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
                         return Some(FunctionLikeIdentifier::Method(
                             *class_name,
@@ -592,23 +604,22 @@ fn get_name_from_expr(
                         ));
                     }
                 }
-            } else if let aast::ClassId_::CIself = &class_id.2 {
-                // Handle self::method() using current class context
-                if let Some(class_name) = current_class {
+                aast::ClassId_::CIself => {
+                    // Handle self::method() using current class context
                     return Some(FunctionLikeIdentifier::Method(
-                        class_name,
+                        StrId::SELF,
                         interner.intern(rhs_expr.1.clone()),
                     ));
                 }
-            } else if let aast::ClassId_::CIstatic = &class_id.2 {
-                // Handle static::method() using current class context
-                if let Some(class_name) = current_class {
+                aast::ClassId_::CIstatic => {
+                    // Handle static::method() using current class context
                     return Some(FunctionLikeIdentifier::Method(
-                        class_name,
+                        StrId::STATIC,
                         interner.intern(rhs_expr.1.clone()),
                     ));
                 }
-            }
+                _ => {}
+            };
         }
         aast::Expr_::ObjGet(boxed) => {
             let (obj_expr, member_expr, _nullflavor, _prop_or_method) = &**boxed;
@@ -755,6 +766,9 @@ fn convert_param_nodes(
             }
 
             param.is_variadic = param_node.info == ast::FunParamInfo::ParamVariadic;
+            if let Some(SplatKind::Splat) = param_node.splat {
+                param.is_splat = true;
+            }
             param.is_named = param_node.named.is_some();
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
                 get_type_from_hint(

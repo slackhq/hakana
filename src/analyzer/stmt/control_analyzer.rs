@@ -147,7 +147,7 @@ pub(crate) fn get_control_actions(
                 // check for infinite loop behaviour
                 match &stmt.1 {
                     aast::Stmt_::While(boxed) => {
-                        if let Some(expr_type) = analysis_data.get_expr_type(&boxed.0.1) {
+                        if let Some(expr_type) = analysis_data.get_expr_type(&boxed.0.2.1) {
                             if expr_type.is_always_truthy() {
                                 //infinite while loop that only return don't have an exit path
                                 let loop_only_ends = control_actions
@@ -169,7 +169,7 @@ pub(crate) fn get_control_actions(
                         let mut is_infinite_loop = true;
 
                         if let Some(for_cond) = &boxed.1 {
-                            if let Some(expr_type) = analysis_data.get_expr_type(&for_cond.1) {
+                            if let Some(expr_type) = analysis_data.get_expr_type(&for_cond.2.1) {
                                 if !expr_type.is_always_truthy() {
                                     is_infinite_loop = false
                                 }
@@ -466,7 +466,6 @@ pub(crate) fn get_control_actions(
             aast::Stmt_::Using(_) => {}
             aast::Stmt_::Noop => {}
             aast::Stmt_::Markup(_) => {}
-            aast::Stmt_::DeclareLocal(_) => {}
             aast::Stmt_::Match(_) => {}
         }
     }

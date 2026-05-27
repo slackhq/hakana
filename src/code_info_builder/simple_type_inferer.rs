@@ -38,9 +38,7 @@ pub fn infer(
                     None
                 }
             }
-            _ => {
-                panic!()
-            }
+            _ => None,
         },
         aast::Expr_::FunctionPointer(_) => None,
         aast::Expr_::Shape(shape_fields) => {
@@ -90,6 +88,7 @@ pub fn infer(
                     known_items: Some(entries),
                     type_param: Box::new(get_nothing()),
                     non_empty: true,
+                    variadic_type: None,
                 })),
                 oxidized::ast::VcKind::Keyset => None,
                 _ => panic!(),
@@ -162,6 +161,7 @@ pub fn infer(
                 known_items: Some(entries),
                 type_param: Box::new(get_nothing()),
                 non_empty: true,
+                variadic_type: None,
             }))
         }
         aast::Expr_::Binop(boxed) => {
@@ -226,6 +226,7 @@ pub fn infer(
         }
         aast::Expr_::Yield(..) => todo!(),
         aast::Expr_::Await(..) => todo!(),
+        aast::Expr_::Delay(..) => todo!(),
         aast::Expr_::ReadonlyExpr(..) => todo!(),
         aast::Expr_::List(..) => todo!(),
         aast::Expr_::Cast(_) => todo!(),
@@ -263,9 +264,7 @@ pub fn infer(
                     None
                 }
             }
-            _ => {
-                panic!()
-            }
+            _ => None,
         },
     }
 }

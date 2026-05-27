@@ -363,6 +363,7 @@ fn get_aliased_classes(interner: &mut ThreadedInterner) -> FxHashMap<StrId, StrI
         "HH\\supportdynamic",
         "HH\\Traversable",
         "HH\\typename",
+        "HH\\TypedFormatString",
         "HH\\TypeStructure",
         "HH\\TypeStructureKind",
         "HH\\UNSAFESingletonMemoizeParam",

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hakana_code_info::classlike_info::Variance;
+use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::{EFFECT_WRITE_GLOBALS, GenericParent};
@@ -35,6 +36,63 @@ use oxidized::pos::Pos;
 
 use super::atomic_method_call_analyzer::AtomicMethodCallAnalysisResult;
 
+fn resolve_id(
+    id: &oxidized::ast_defs::Id,
+    pos: &Pos,
+    can_extend: &mut bool,
+    context: &BlockContext,
+    codebase: &CodebaseInfo,
+    statements_analyzer: &StatementsAnalyzer,
+) -> Result<TUnion, AnalysisError> {
+    let name_string = &id.1;
+    Ok(match name_string.as_str() {
+        "self" => {
+            let self_name = &context.function_context.calling_class.unwrap();
+
+            get_named_object(*self_name, None)
+        }
+        "parent" => {
+            let self_name = &context.function_context.calling_class.unwrap();
+
+            let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
+
+            get_named_object(classlike_storage.direct_parent_class.unwrap(), None)
+        }
+        "static" => {
+            let self_name = &context.function_context.calling_class.unwrap();
+
+            let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
+
+            if !classlike_storage.is_final {
+                *can_extend = true;
+            }
+
+            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+                name: *self_name,
+                type_params: None,
+                is_this: !classlike_storage.is_final,
+                remapped_params: false,
+            }))
+        }
+        _ => {
+            let resolved_names = statements_analyzer.file_analyzer.resolved_names;
+
+            let name_string = resolved_names
+                .get(&(id.0.start_offset() as u32))
+                .ok_or_else(|| {
+                    AnalysisError::InternalError(
+                        "Unable to resolve new constructor class name".to_string(),
+                        statements_analyzer.get_hpos(pos),
+                    )
+                })?;
+
+            let type_resolution_context = statements_analyzer.get_type_resolution_context();
+
+            get_named_object(*name_string, Some(type_resolution_context))
+        }
+    })
+}
+
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
@@ -56,56 +114,14 @@ pub(crate) fn analyze(
     let lhs_type = match &expr.0.2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                let name_string = id.1.clone();
-                match name_string.as_str() {
-                    "self" => {
-                        let self_name = &context.function_context.calling_class.unwrap();
-
-                        get_named_object(*self_name, None)
-                    }
-                    "parent" => {
-                        let self_name = &context.function_context.calling_class.unwrap();
-
-                        let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-
-                        get_named_object(classlike_storage.direct_parent_class.unwrap(), None)
-                    }
-                    "static" => {
-                        let self_name = &context.function_context.calling_class.unwrap();
-
-                        let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-
-                        if !classlike_storage.is_final {
-                            can_extend = true;
-                        }
-
-                        wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                            name: *self_name,
-                            type_params: None,
-                            is_this: !classlike_storage.is_final,
-                            remapped_params: false,
-                        }))
-                    }
-                    _ => {
-                        let resolved_names = statements_analyzer.file_analyzer.resolved_names;
-
-                        let name_string = if let Some(resolved_name) =
-                            resolved_names.get(&(id.0.start_offset() as u32))
-                        {
-                            *resolved_name
-                        } else {
-                            return Err(AnalysisError::InternalError(
-                                "Unable to resolve new constructor class name".to_string(),
-                                statements_analyzer.get_hpos(pos),
-                            ));
-                        };
-
-                        let type_resolution_context =
-                            statements_analyzer.get_type_resolution_context();
-
-                        get_named_object(name_string, Some(type_resolution_context))
-                    }
-                }
+                resolve_id(
+                    id,
+                    pos,
+                    &mut can_extend,
+                    context,
+                    codebase,
+                    statements_analyzer,
+                )?
             } else {
                 let was_inside_general_use = context.inside_general_use;
                 context.inside_general_use = true;
@@ -123,8 +139,20 @@ pub(crate) fn analyze(
                     .unwrap_or(get_mixed_any())
             }
         }
+        aast::ClassId_::CIreified(class_id) => resolve_id(
+            class_id,
+            pos,
+            &mut can_extend,
+            context,
+            codebase,
+            statements_analyzer,
+        )?,
+        aast::ClassId_::CIself => {
+            let self_name = &context.function_context.calling_class.unwrap();
+            get_named_object(*self_name, None)
+        }
         _ => {
-            panic!("cannot get here")
+            panic!("got unexpected expression: {:?}", expr.0.2)
         }
     };
 

@@ -31,7 +31,7 @@ pub(crate) fn check_argument_matches(
     functionlike_id: &FunctionLikeIdentifier,
     method_call_info: &Option<MethodCallInfo>,
     function_param: &FunctionLikeParameter,
-    param_type: TUnion,
+    param_type: &TUnion,
     argument_offset: usize,
     arg: &aast::Argument<(), ()>,
     arg_unpacked: bool,

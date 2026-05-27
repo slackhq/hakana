@@ -75,7 +75,7 @@ pub(crate) fn analyze(
                     pos,
                     analysis_data,
                     context,
-                    matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
+                    matches!(nullfetch, ast_defs::OperatorNullFlavor::Nullsafe),
                 ),
                 _ => {
                     expression_call_analyzer::analyze(

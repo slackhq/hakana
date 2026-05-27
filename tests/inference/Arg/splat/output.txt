@@ -1,0 +1,2 @@
+ERROR: PossiblyInvalidArgument - input.hack:25:17 - Argument 2 of splat_fn expects tuple(...Base), possibly different type tuple(Other) provided
+ERROR: PossiblyInvalidArgument - input.hack:37:24 - Argument 2 of splat_multi_fn expects tuple(Other, ...Base), possibly different type tuple(Child1) provided

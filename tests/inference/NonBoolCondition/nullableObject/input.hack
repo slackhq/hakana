@@ -1,5 +1,5 @@
 function some_cond(int $i): bool {
-    return $i++ % 2 === 1;
+    return $i % 2 === 1;
 }
 
 final class C {}

@@ -17,14 +17,14 @@ use hakana_code_info::ttype::{
 use hakana_code_info::var_name::VarName;
 use oxidized::ast;
 use oxidized::{
-    aast::{self, ClassGetExpr, ClassId},
-    ast_defs::Pos,
+    aast::{self, ClassId},
+    ast_defs::{self, Pos},
 };
 use std::rc::Rc;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
+    expr: (&ClassId<(), ()>, &ast_defs::Pstring),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -37,21 +37,20 @@ pub(crate) fn analyze(
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
                 let mut is_static = false;
-                if let Some(id) = get_id_name(
+                get_id_name(
                     id,
                     &context.function_context.calling_class,
                     context.function_context.calling_class_final,
                     codebase,
                     &mut is_static,
                     statements_analyzer.file_analyzer.resolved_names,
-                ) {
-                    id
-                } else {
-                    return Err(AnalysisError::InternalError(
+                )
+                .ok_or_else(|| {
+                    AnalysisError::InternalError(
                         "Unable to resolve static classlike name".to_string(),
                         statements_analyzer.get_hpos(pos),
-                    ));
-                }
+                    )
+                })?
             } else {
                 analyze_variable_static_property_fetch(
                     statements_analyzer,
@@ -63,8 +62,28 @@ pub(crate) fn analyze(
                 return Ok(());
             }
         }
+        aast::ClassId_::CIreified(id) => get_id_name(
+            id,
+            &context.function_context.calling_class,
+            context.function_context.calling_class_final,
+            codebase,
+            &mut false,
+            statements_analyzer.file_analyzer.resolved_names,
+        )
+        .ok_or_else(|| {
+            AnalysisError::InternalError(
+                "Unable to resolve static classlike name".to_string(),
+                statements_analyzer.get_hpos(pos),
+            )
+        })?,
+        aast::ClassId_::CIself => context.function_context.calling_class.ok_or_else(|| {
+            AnalysisError::InternalError(
+                "Unable to resolve static classlike name".to_string(),
+                statements_analyzer.get_hpos(pos),
+            )
+        })?,
         _ => {
-            panic!()
+            panic!("got unexpected expression: {:?}", stmt_class.2);
         }
     };
 
@@ -103,28 +122,7 @@ pub(crate) fn analyze(
         get_named_object(classlike_name, Some(type_resolution_context)),
     );
 
-    let (prop_name, name_pos) = match &stmt_name {
-        aast::ClassGetExpr::CGexpr(stmt_name_expr) => {
-            if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
-                (id.1.clone(), stmt_name_expr.pos())
-            } else if let Some(stmt_name_type) =
-                analysis_data.get_rc_expr_type(stmt_name_expr.pos())
-            {
-                if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
-                    (value.clone(), stmt_name_expr.pos())
-                } else {
-                    return Err(AnalysisError::UserError);
-                }
-            } else {
-                return Err(AnalysisError::UserError);
-            }
-        }
-        aast::ClassGetExpr::CGstring(str) => {
-            let id = &str.1;
-
-            (id[1..].to_string(), &str.0)
-        }
-    };
+    let (prop_name, name_pos) = (stmt_name.1[1..].to_string(), &stmt_name.0);
 
     let var_id = VarName::new(format!(
         "{}::${}",
@@ -283,7 +281,7 @@ pub(crate) fn analyze(
  */
 fn analyze_variable_static_property_fetch(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
+    expr: (&ClassId<(), ()>, &ast_defs::Pstring),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -334,16 +332,7 @@ fn analyze_variable_static_property_fetch(
         }
     };
 
-    let (prop_name, name_pos) = match &expr.1 {
-        aast::ClassGetExpr::CGexpr(stmt_name_expr) => {
-            if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
-                (id.1.clone(), stmt_name_expr.pos())
-            } else {
-                return Ok(());
-            }
-        }
-        aast::ClassGetExpr::CGstring(str) => (str.1[1..].to_string(), &str.0),
-    };
+    let (prop_name, name_pos) = (expr.1.1[1..].to_string(), &expr.1.0);
 
     let prop_name_id = if let Some(id) = statements_analyzer.interner.get(&prop_name) {
         id
@@ -461,7 +450,7 @@ fn analyze_variable_static_property_fetch(
 
 fn analyze_variable_static_property_fetch_fallback(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
+    expr: (&ClassId<(), ()>, &ast_defs::Pstring),
     pos: &Pos,
     stmt_class_type: &hakana_code_info::t_union::TUnion,
     analysis_data: &mut FunctionAnalysisData,
@@ -485,14 +474,14 @@ fn analyze_variable_static_property_fetch_fallback(
         ))),
     );
 
-    let rhs = match &expr.1 {
-        aast::ClassGetExpr::CGexpr(stmt_name_expr) => stmt_name_expr.clone(),
-        aast::ClassGetExpr::CGstring(str) => aast::Expr(
-            (),
-            str.0.clone(),
-            aast::Expr_::Id(Box::new(ast::Id(str.0.clone(), str.1[1..].to_string()))),
-        ),
-    };
+    let rhs = aast::Expr(
+        (),
+        expr.1.0.clone(),
+        aast::Expr_::Id(Box::new(ast::Id(
+            expr.1.0.clone(),
+            expr.1.1[1..].to_string(),
+        ))),
+    );
 
     instance_property_fetch_analyzer::analyze(
         statements_analyzer,

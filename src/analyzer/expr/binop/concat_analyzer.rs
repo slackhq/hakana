@@ -3,7 +3,6 @@ use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
-use bstr::ByteSlice;
 use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TGenericParam;

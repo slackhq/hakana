@@ -533,6 +533,7 @@ fn update_array_assignment_child_type(
                         known_items: known_items.clone(),
                         known_count: None,
                         non_empty: true,
+                        variadic_type: None,
                     }))
                 }
                 TAtomic::TDict(TDict {
@@ -604,6 +605,7 @@ fn update_array_assignment_child_type(
                         )])),
                         known_count: None,
                         non_empty: true,
+                        variadic_type: None,
                     })
                 } else {
                     TAtomic::TVec(TVec {
@@ -611,6 +613,7 @@ fn update_array_assignment_child_type(
                         known_items: None,
                         known_count: None,
                         non_empty: true,
+                        variadic_type: None,
                     })
                 }),
                 TAtomic::TDict(TDict { .. }) => {

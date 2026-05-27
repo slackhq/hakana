@@ -1206,6 +1206,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     type_param: Box::new(param_type),
                     known_count: None,
                     non_empty: false,
+                    variadic_type: None,
                 }));
             }
 

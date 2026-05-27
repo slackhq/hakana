@@ -50,7 +50,8 @@ pub(crate) fn analyze<'expr>(
                     | aast::Expr_::Binop(..)
                     | aast::Expr_::As(..)
                     | aast::Expr_::Pipe(..)
-                    | aast::Expr_::Await(..) = dim.2
+                    | aast::Expr_::Await(..)
+                    | aast::Expr_::Delay(..) = dim.2
                     {
                         has_arrayget_key = true;
                     }
@@ -78,6 +79,7 @@ pub(crate) fn analyze<'expr>(
                 | aast::Expr_::ClassConst(..)
                 | aast::Expr_::Pipe(..)
                 | aast::Expr_::Await(..)
+                | aast::Expr_::Delay(..)
         )
     {
         replacement_left = get_fake_as_var(left, statements_analyzer, analysis_data, context);

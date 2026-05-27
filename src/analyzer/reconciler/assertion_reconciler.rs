@@ -1794,6 +1794,7 @@ fn intersect_vecs(
                     type_param: Box::new(type_param),
                     non_empty: true,
                     known_count: None,
+                    variadic_type: None,
                 }));
             }
 
@@ -1819,6 +1820,7 @@ fn intersect_vecs(
                     type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
+                    variadic_type: None,
                 }));
             }
 
@@ -1844,6 +1846,7 @@ fn intersect_vecs(
                     type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
+                    variadic_type: None,
                 }));
             }
 
@@ -1856,6 +1859,7 @@ fn intersect_vecs(
                     type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
+                    variadic_type: None,
                 }));
             }
 

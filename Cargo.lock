@@ -166,6 +166,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
+dependencies = [
+ "unty",
+]
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -950,7 +959,7 @@ name = "hakana-aast-helper"
 version = "0.1.0"
 dependencies = [
  "aast_parser",
- "bincode",
+ "bincode 1.3.3",
  "hakana-code-info",
  "hakana-str",
  "naming_special_names_rust",
@@ -1142,7 +1151,7 @@ name = "hakana-orchestrator"
 version = "0.1.0"
 dependencies = [
  "aast_parser",
- "bincode",
+ "bincode 1.3.3",
  "chrono",
  "glob",
  "hakana-aast-helper",
@@ -1692,9 +1701,9 @@ dependencies = [
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91632f3b4fb6bd1d72aa3d78f41ffecfcf2b1a6648d8c241dbe7dbfaf4875e15"
+checksum = "133c182a6a2c87864fe97778797e46c7e999672690dc9fa3ee8e241aa4a9c13f"
 dependencies = [
  "cc",
  "pkg-config",
@@ -2148,6 +2157,7 @@ dependencies = [
  "heapless",
  "operator",
  "parser_core_types",
+ "smallvec",
  "smart_constructors",
  "stack_limit",
  "static_assertions",
@@ -2499,9 +2509,9 @@ dependencies = [
 
 [[package]]
 name = "rusqlite"
-version = "0.36.0"
+version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3de23c3319433716cf134eed225fe9986bc24f63bed9be9f20c329029e672dc7"
+checksum = "165ca6e57b20e1351573e3729b958bc62f0e48025386970b6e4d29e7a7e71f3f"
 dependencies = [
  "bitflags 2.11.1",
  "fallible-iterator",
@@ -2552,6 +2562,7 @@ dependencies = [
 name = "rust_aast_parser_types"
 version = "0.0.0"
 dependencies = [
+ "hash",
  "lint_rust",
  "ocamlrep",
  "oxidized",
@@ -2813,6 +2824,11 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+dependencies = [
+ "bincode 2.0.1",
+ "serde",
+ "unty",
+]
 
 [[package]]
 name = "smart_constructors"
@@ -3349,6 +3365,12 @@ name = "unsafe-libyaml"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
+
+[[package]]
+name = "unty"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
 
 [[package]]
 name = "url"

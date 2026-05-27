@@ -232,6 +232,7 @@ fn handle_special_functions(
                                         type_param: Box::new(get_string()),
                                         known_count: None,
                                         non_empty: true,
+                                        variadic_type: None,
                                     }),
                                     TAtomic::TFalse,
                                 ]);
@@ -245,6 +246,7 @@ fn handle_special_functions(
                                         type_param: Box::new(get_string()),
                                         known_count: None,
                                         non_empty: false,
+                                        variadic_type: None,
                                     }),
                                     TAtomic::TFalse,
                                 ]);
@@ -263,9 +265,11 @@ fn handle_special_functions(
                                             type_param: Box::new(get_nothing()),
                                             known_count: None,
                                             non_empty: true,
+                                            variadic_type: None,
                                         }))),
                                         known_count: None,
                                         non_empty: false,
+                                        variadic_type: None,
                                     }),
                                     TAtomic::TFalse,
                                 ]);
@@ -280,6 +284,7 @@ fn handle_special_functions(
                                 type_param: Box::new(get_mixed()),
                                 known_count: None,
                                 non_empty: true,
+                                variadic_type: None,
                             }),
                             TAtomic::TFalse,
                         ]);
@@ -294,6 +299,7 @@ fn handle_special_functions(
                         type_param: Box::new(get_string()),
                         known_count: None,
                         non_empty: true,
+                        variadic_type: None,
                     }),
                     TAtomic::TFalse,
                 ]);
@@ -343,6 +349,7 @@ fn handle_special_functions(
             }))),
             known_count: None,
             non_empty: true,
+            variadic_type: None,
         }))),
         &StrId::STR_REPLACE => {
             // returns string if the second arg is a string

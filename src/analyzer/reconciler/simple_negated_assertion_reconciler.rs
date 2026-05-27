@@ -1528,6 +1528,7 @@ fn reconcile_falsy(
                         known_items: None,
                         non_empty: false,
                         known_count: None,
+                        variadic_type: None,
                     });
                     acceptable_types.push(new_atomic);
                 }
@@ -1699,6 +1700,7 @@ fn reconcile_empty_countable(
                         known_items: None,
                         non_empty: false,
                         known_count: None,
+                        variadic_type: None,
                     });
                     acceptable_types.push(new_atomic);
                 }

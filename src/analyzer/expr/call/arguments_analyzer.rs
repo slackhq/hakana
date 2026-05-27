@@ -30,14 +30,15 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
-use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TVec};
 use hakana_code_info::t_union::{TUnion, populate_union_type};
 use hakana_code_info::ttype::template::{
     self, TemplateBound, TemplateResult, inferred_type_replacer, standin_type_replacer,
 };
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
-    add_optional_union_type, combine_optional_union_types, get_arraykey, get_mixed_any, wrap_atomic,
+    add_optional_union_type, combine_optional_union_types, get_arraykey, get_mixed_any,
+    get_nothing, wrap_atomic,
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
@@ -166,8 +167,6 @@ pub(crate) fn check_arguments_match(
 
     let last_param = functionlike_params.last();
 
-    let mut param_types = BTreeMap::new();
-
     let codebase = statements_analyzer.codebase;
 
     let mut method_call_info = None;
@@ -280,7 +279,9 @@ pub(crate) fn check_arguments_match(
             .cmp(&matches!(b.1.to_expr_ref().2, aast::Expr_::Lfun(..)))
     });
 
-    for (argument_offset, arg) in reordered_args.clone() {
+    let mut param_types = BTreeMap::new();
+
+    for (argument_offset, arg) in &reordered_args {
         let arg_expr = arg.to_expr_ref();
 
         // For named arguments, find the parameter by name instead of position
@@ -292,7 +293,7 @@ pub(crate) fn check_arguments_match(
                 clean_name == arg_name
             })
         } else {
-            functionlike_params.get(argument_offset)
+            functionlike_params.get(*argument_offset)
         };
 
         if param.is_none() {
@@ -362,7 +363,7 @@ pub(crate) fn check_arguments_match(
             codebase,
             statements_analyzer.get_file_path(),
             arg_value_type.clone(),
-            argument_offset,
+            *argument_offset,
             arg_expr.pos(),
             context,
             template_result,
@@ -439,7 +440,7 @@ pub(crate) fn check_arguments_match(
         // Named parameters are checked separately in check_named_arguments()
         let mut min_required_args = 0;
         for (i, param) in function_params.iter().enumerate() {
-            if !param.is_optional && !param.is_variadic && !param.is_named {
+            if param.is_required() {
                 min_required_args = i + 1;
             }
         }
@@ -512,7 +513,7 @@ pub(crate) fn check_arguments_match(
         function_call_pos,
     );
 
-    for (argument_offset, arg) in reordered_args {
+    for (argument_offset, arg) in &reordered_args {
         let arg_expr = arg.to_expr_ref();
 
         // For named arguments, find the parameter by name instead of position
@@ -528,17 +529,13 @@ pub(crate) fn check_arguments_match(
                 // Named argument doesn't match any parameter - skip (already reported in check_named_arguments)
                 continue;
             }
-        } else if let Some(function_param) = function_params.get(argument_offset) {
+        } else if let Some(function_param) = function_params.get(*argument_offset) {
             function_param
         } else {
-            let last_param = function_params.last();
-
-            if let Some(last_param) = last_param {
-                if last_param.is_variadic {
-                    last_param
-                } else {
-                    break;
-                }
+            if let Some(last_param) = function_params.last()
+                && last_param.is_variadic
+            {
+                last_param
             } else {
                 break;
             }
@@ -592,7 +589,7 @@ pub(crate) fn check_arguments_match(
                     function_param,
                     functionlike_id,
                     args,
-                    argument_offset,
+                    *argument_offset,
                     inout_token_pos,
                     arg_expr,
                     class_storage,
@@ -604,15 +601,34 @@ pub(crate) fn check_arguments_match(
             }
         }
 
-        let arg_value_type = analysis_data.get_expr_type(arg_expr.pos());
-
-        let arg_value_type = if let Some(arg_value_type) = arg_value_type {
-            arg_value_type.clone()
-        } else {
+        let Some(mut arg_value_type) = analysis_data.get_expr_type(arg_expr.pos()).cloned() else {
             // todo increment mixed count
-
             continue;
         };
+
+        // A splat parameter is typed as a generic tuple, so zip up all arguments starting from the index of the splat parameter
+        // and compare the type of the resulting tuple with the parameter type tuple.
+        // The typechecker makes sure every function has at most one splat parameter which also has to be the last parameter,
+        // so no further special casing is needed here.
+        if function_param.is_splat {
+            let mut arg_types = BTreeMap::new();
+            let mut i = 0;
+            for arg in args.iter().skip(*argument_offset) {
+                let arg_value_type = analysis_data
+                    .get_expr_type(arg.to_expr_ref().pos())
+                    .cloned()
+                    .unwrap_or_else(&get_mixed_any);
+                arg_types.insert(i as usize, (false, arg_value_type));
+                i += 1;
+            }
+            arg_value_type = TUnion::new(vec![TAtomic::TVec(TVec {
+                type_param: Box::new(get_nothing()),
+                known_count: Some(arg_types.len()),
+                non_empty: !arg_types.is_empty(),
+                known_items: Some(arg_types),
+                variadic_type: None,
+            })]);
+        }
 
         let was_inside_call = context.inside_general_use;
 
@@ -625,8 +641,8 @@ pub(crate) fn check_arguments_match(
             functionlike_id,
             &method_call_info,
             function_param,
-            param_types.remove(&argument_offset).unwrap(),
-            argument_offset,
+            param_types.get(&argument_offset).unwrap(),
+            *argument_offset,
             arg,
             false,
             arg_value_type,
@@ -697,7 +713,7 @@ pub(crate) fn check_arguments_match(
                     functionlike_id,
                     &method_call_info,
                     last_param,
-                    last_param_type.unwrap().clone(),
+                    &last_param_type.unwrap(),
                     args.len(),
                     &aast::Argument::Anormal(unpacked_arg.clone()),
                     true,

@@ -24,7 +24,7 @@ fn calculate_stmt_complexity(stmt: &aast::Stmt<(), ()>) -> u32 {
         }
         aast::Stmt_::While(boxed) => {
             complexity += 1;
-            complexity += count_expr_complexity(&boxed.0);
+            complexity += count_expr_complexity(&boxed.0.2);
             for s in &(boxed.1).0 {
                 complexity += calculate_stmt_complexity(s);
             }
@@ -34,7 +34,7 @@ fn calculate_stmt_complexity(stmt: &aast::Stmt<(), ()>) -> u32 {
             for s in &(boxed.0).0 {
                 complexity += calculate_stmt_complexity(s);
             }
-            complexity += count_expr_complexity(&boxed.1);
+            complexity += count_expr_complexity(&boxed.1.2);
         }
         aast::Stmt_::For(boxed) => {
             complexity += 1;
