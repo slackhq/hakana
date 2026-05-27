@@ -136,25 +136,23 @@ pub(crate) fn analyze(
         &mut 0,
     );
 
-    if let Some(return_expr) = return_expr {
-        if functionlike_storage.is_async {
-            if inferred_return_type
-                .types
-                .iter()
-                .any(|t| matches!(t, TAtomic::TAwaitable { .. }))
-            {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::UnusedAwaitable,
-                        "This awaitable is not awaited in an async context".to_string(),
-                        statements_analyzer.get_hpos(&return_expr.pos()),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-            }
-        }
+    if let Some(return_expr) = return_expr
+        && functionlike_storage.is_async
+        && inferred_return_type
+            .types
+            .iter()
+            .any(|t| matches!(t, TAtomic::TAwaitable { .. }))
+    {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::UnusedAwaitable,
+                "This awaitable is not awaited in an async context".to_string(),
+                statements_analyzer.get_hpos(return_expr.pos()),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
     }
 
     if functionlike_storage.is_async {
@@ -546,34 +544,34 @@ pub(crate) fn handle_inout_at_return(
     interner: &Interner,
 ) {
     for (i, param) in functionlike_storage.params.iter().enumerate() {
-        if param.is_inout {
-            if let Some(context_type) = context.locals.get(interner.lookup(&param.name.0)) {
-                if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {}
-                let new_parent_node =
-                    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-                        DataFlowNode::get_for_method_argument_out(
-                            &context.function_context.calling_functionlike_id.unwrap(),
-                            i,
-                            Some(param.name_location),
-                            None,
-                        )
-                    } else {
-                        DataFlowNode::get_for_unlabelled_sink(param.name_location)
-                    };
+        if param.is_inout
+            && let Some(context_type) = context.locals.get(interner.lookup(&param.name.0))
+        {
+            if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {}
+            let new_parent_node =
+                if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
+                    DataFlowNode::get_for_method_argument_out(
+                        &context.function_context.calling_functionlike_id.unwrap(),
+                        i,
+                        Some(param.name_location),
+                        None,
+                    )
+                } else {
+                    DataFlowNode::get_for_unlabelled_sink(param.name_location)
+                };
 
-                analysis_data
-                    .data_flow_graph
-                    .add_node(new_parent_node.clone());
+            analysis_data
+                .data_flow_graph
+                .add_node(new_parent_node.clone());
 
-                for parent_node in &context_type.parent_nodes {
-                    analysis_data.data_flow_graph.add_path(
-                        &parent_node.id,
-                        &new_parent_node.id,
-                        PathKind::Default,
-                        vec![],
-                        vec![],
-                    );
-                }
+            for parent_node in &context_type.parent_nodes {
+                analysis_data.data_flow_graph.add_path(
+                    &parent_node.id,
+                    &new_parent_node.id,
+                    PathKind::Default,
+                    vec![],
+                    vec![],
+                );
             }
         }
     }
@@ -615,12 +613,11 @@ fn handle_dataflow(
         let codebase = statements_analyzer.codebase;
 
         for at in &inferred_type.types {
-            if let Some(shape_name) = at.get_shape_name() {
-                if let Some(t) = codebase.type_definitions.get(&shape_name) {
-                    if t.shape_field_taints.is_some() {
-                        return;
-                    }
-                }
+            if let Some(shape_name) = at.get_shape_name()
+                && let Some(t) = codebase.type_definitions.get(&shape_name)
+                && t.shape_field_taints.is_some()
+            {
+                return;
             }
         }
 
@@ -651,34 +648,33 @@ fn handle_dataflow(
             vec![],
         );
 
-        if let FunctionLikeIdentifier::Method(classlike_name, method_name) = functionlike_id {
-            if let Some(classlike_info) = codebase.classlike_infos.get(classlike_name) {
-                if *method_name != StrId::CONSTRUCT {
-                    let mut all_parents = classlike_info
-                        .all_parent_classes
-                        .iter()
-                        .collect::<FxHashSet<_>>();
-                    all_parents.extend(classlike_info.all_parent_interfaces.iter());
+        if let FunctionLikeIdentifier::Method(classlike_name, method_name) = functionlike_id
+            && let Some(classlike_info) = codebase.classlike_infos.get(classlike_name)
+            && *method_name != StrId::CONSTRUCT
+        {
+            let mut all_parents = classlike_info
+                .all_parent_classes
+                .iter()
+                .collect::<FxHashSet<_>>();
+            all_parents.extend(classlike_info.all_parent_interfaces.iter());
 
-                    for parent_classlike in all_parents {
-                        if codebase.declaring_method_exists(parent_classlike, method_name) {
-                            let new_sink = DataFlowNode::get_for_method_return(
-                                &FunctionLikeIdentifier::Method(*parent_classlike, *method_name),
-                                None,
-                                None,
-                            );
+            for parent_classlike in all_parents {
+                if codebase.declaring_method_exists(parent_classlike, method_name) {
+                    let new_sink = DataFlowNode::get_for_method_return(
+                        &FunctionLikeIdentifier::Method(*parent_classlike, *method_name),
+                        None,
+                        None,
+                    );
 
-                            data_flow_graph.add_node(new_sink.clone());
+                    data_flow_graph.add_node(new_sink.clone());
 
-                            data_flow_graph.add_path(
-                                &method_node.id,
-                                &new_sink.id,
-                                PathKind::Default,
-                                vec![],
-                                vec![],
-                            );
-                        }
-                    }
+                    data_flow_graph.add_path(
+                        &method_node.id,
+                        &new_sink.id,
+                        PathKind::Default,
+                        vec![],
+                        vec![],
+                    );
                 }
             }
         }

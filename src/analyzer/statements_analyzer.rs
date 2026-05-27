@@ -41,7 +41,7 @@ impl<'a> StatementsAnalyzer<'a> {
             type_resolution_context,
             in_migratable_function: false,
             interner: file_analyzer.interner,
-            codebase: &file_analyzer.codebase,
+            codebase: file_analyzer.codebase,
         }
     }
 
@@ -164,7 +164,7 @@ impl<'a> StatementsAnalyzer<'a> {
         let config = self.get_config();
         if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
             return !context.function_context.is_production(self.codebase)
-                || analysis_data.get_matching_hakana_fixme(&issue).is_none();
+                || analysis_data.get_matching_hakana_fixme(issue).is_none();
         }
 
         false
@@ -173,7 +173,7 @@ impl<'a> StatementsAnalyzer<'a> {
 
 impl ScopeAnalyzer for StatementsAnalyzer<'_> {
     fn get_namespace(&self) -> &Option<String> {
-        return self.file_analyzer.get_namespace();
+        self.file_analyzer.get_namespace()
     }
 
     fn get_file_analyzer(&self) -> &FileAnalyzer<'_> {

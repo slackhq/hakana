@@ -41,6 +41,12 @@ impl Linter for DontDiscardNewExpressionsLinter {
     }
 }
 
+impl Default for DontDiscardNewExpressionsLinter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DontDiscardNewExpressionsLinter {
     pub fn new() -> Self {
         Self

@@ -70,31 +70,31 @@ pub(crate) fn analyze(
 
     expression_analyzer::analyze(statements_analyzer, expr.0, analysis_data, context, true)?;
 
-    if let Some(keyed_array_var_id) = &keyed_array_var_id {
-        if context.has_variable(keyed_array_var_id) {
-            let mut stmt_type = context.locals.remove(keyed_array_var_id.as_str()).unwrap();
+    if let Some(keyed_array_var_id) = &keyed_array_var_id
+        && context.has_variable(keyed_array_var_id)
+    {
+        let mut stmt_type = context.locals.remove(keyed_array_var_id.as_str()).unwrap();
 
-            add_array_fetch_dataflow_rc(
-                statements_analyzer,
-                expr.0,
-                analysis_data,
-                Some(keyed_array_var_id.to_string()),
-                &mut stmt_type,
-                &mut used_key_type,
-            );
+        add_array_fetch_dataflow_rc(
+            statements_analyzer,
+            expr.0,
+            analysis_data,
+            Some(keyed_array_var_id.to_string()),
+            &mut stmt_type,
+            &mut used_key_type,
+        );
 
-            analysis_data.set_rc_expr_type(pos, stmt_type.clone());
+        analysis_data.set_rc_expr_type(pos, stmt_type.clone());
 
-            context
-                .locals
-                .insert(keyed_array_var_id.clone(), stmt_type.clone());
+        context
+            .locals
+            .insert(keyed_array_var_id.clone(), stmt_type.clone());
 
-            if context.inside_unset {
-                unset_array_item(statements_analyzer, expr.0, context);
-            }
-
-            return Ok(());
+        if context.inside_unset {
+            unset_array_item(statements_analyzer, expr.0, context);
         }
+
+        return Ok(());
     }
 
     let stmt_var_type = analysis_data.get_rc_expr_type(expr.0.pos()).cloned();
@@ -175,93 +175,92 @@ pub(crate) fn add_array_fetch_dataflow(
     value_type: &mut TUnion,
     key_type: &mut TUnion,
 ) {
-    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &analysis_data.data_flow_graph.kind {
-        if !value_type.has_taintable_value() {
-            return;
-        }
+    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &analysis_data.data_flow_graph.kind
+        && !value_type.has_taintable_value()
+    {
+        return;
     }
 
     if let Some(stmt_var_type) = analysis_data.expr_types.get(&(
         array_expr_pos.start_offset() as u32,
         array_expr_pos.end_offset() as u32,
-    )) {
-        if !stmt_var_type.parent_nodes.is_empty() {
-            // TODO Add events dispatchers
+    )) && !stmt_var_type.parent_nodes.is_empty()
+    {
+        // TODO Add events dispatchers
 
-            let node_name = if let Some(keyed_array_var_id) = &keyed_array_var_id {
-                keyed_array_var_id.to_string()
+        let node_name = if let Some(keyed_array_var_id) = &keyed_array_var_id {
+            keyed_array_var_id.to_string()
+        } else {
+            "arrayvalue-fetch".to_string()
+        };
+        let new_parent_node = DataFlowNode::get_for_local_string(
+            node_name,
+            statements_analyzer.get_hpos(array_expr_pos),
+        );
+        analysis_data
+            .data_flow_graph
+            .add_node(new_parent_node.clone());
+
+        let key_type_single = if key_type.is_single() {
+            Some(key_type.get_single())
+        } else {
+            None
+        };
+
+        let dim_value = if let Some(key_type_single) = key_type_single {
+            if let TAtomic::TLiteralString { value, .. } = key_type_single {
+                Some(value.clone())
+            } else if let TAtomic::TLiteralInt { value, .. } = key_type_single {
+                Some(value.to_string())
             } else {
-                "arrayvalue-fetch".to_string()
-            };
-            let new_parent_node = DataFlowNode::get_for_local_string(
-                node_name,
+                None
+            }
+        } else {
+            None
+        };
+
+        let mut array_key_node = None;
+
+        if keyed_array_var_id.is_none() && dim_value.is_none() {
+            let fetch_node = DataFlowNode::get_for_local_string(
+                "arraykey-fetch".to_string(),
                 statements_analyzer.get_hpos(array_expr_pos),
             );
+            analysis_data.data_flow_graph.add_node(fetch_node.clone());
+            array_key_node = Some(fetch_node);
             analysis_data
                 .data_flow_graph
                 .add_node(new_parent_node.clone());
+        }
 
-            let key_type_single = if key_type.is_single() {
-                Some(key_type.get_single())
-            } else {
-                None
-            };
-
-            let dim_value = if let Some(key_type_single) = key_type_single {
-                if let TAtomic::TLiteralString { value, .. } = key_type_single {
-                    Some(value.clone())
-                } else if let TAtomic::TLiteralInt { value, .. } = key_type_single {
-                    Some(value.to_string())
+        for parent_node in stmt_var_type.parent_nodes.iter() {
+            analysis_data.data_flow_graph.add_path(
+                &parent_node.id,
+                &new_parent_node.id,
+                if let Some(dim_value) = dim_value.clone() {
+                    PathKind::ArrayFetch(ArrayDataKind::ArrayValue, dim_value.to_string())
                 } else {
-                    None
-                }
-            } else {
-                None
-            };
+                    PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)
+                },
+                vec![],
+                vec![],
+            );
 
-            let mut array_key_node = None;
-
-            if keyed_array_var_id.is_none() && dim_value.is_none() {
-                let fetch_node = DataFlowNode::get_for_local_string(
-                    "arraykey-fetch".to_string(),
-                    statements_analyzer.get_hpos(array_expr_pos),
-                );
-                analysis_data.data_flow_graph.add_node(fetch_node.clone());
-                array_key_node = Some(fetch_node);
-                analysis_data
-                    .data_flow_graph
-                    .add_node(new_parent_node.clone());
-            }
-
-            for parent_node in stmt_var_type.parent_nodes.iter() {
+            if let Some(array_key_node) = array_key_node.clone() {
                 analysis_data.data_flow_graph.add_path(
                     &parent_node.id,
-                    &new_parent_node.id,
-                    if let Some(dim_value) = dim_value.clone() {
-                        PathKind::ArrayFetch(ArrayDataKind::ArrayValue, dim_value.to_string())
-                    } else {
-                        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)
-                    },
+                    &array_key_node.id,
+                    PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey),
                     vec![],
                     vec![],
                 );
-
-                if let Some(array_key_node) = array_key_node.clone() {
-                    analysis_data.data_flow_graph.add_path(
-                        &parent_node.id,
-                        &array_key_node.id,
-                        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey),
-                        vec![],
-                        vec![],
-                    );
-                }
             }
+        }
 
-            value_type.parent_nodes.push(new_parent_node.clone());
+        value_type.parent_nodes.push(new_parent_node.clone());
 
-            if let Some(array_key_node) = &array_key_node {
-                key_type.parent_nodes.push(array_key_node.clone());
-            }
+        if let Some(array_key_node) = &array_key_node {
+            key_type.parent_nodes.push(array_key_node.clone());
         }
     }
 }
@@ -440,21 +439,21 @@ pub(crate) fn get_array_access_type_given_offset(
                 name, type_params, ..
             }) => match *name {
                 StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => {
-                    if let Some(type_params) = type_params {
-                        if type_params.len() > 1 {
-                            if let Some(existing_type) = stmt_type {
-                                stmt_type = Some(add_union_type(
-                                    existing_type,
-                                    &type_params[1],
-                                    codebase,
-                                    false,
-                                ));
-                            } else {
-                                stmt_type = Some(type_params[1].clone());
-                            }
-
-                            has_valid_expected_offset = true;
+                    if let Some(type_params) = type_params
+                        && type_params.len() > 1
+                    {
+                        if let Some(existing_type) = stmt_type {
+                            stmt_type = Some(add_union_type(
+                                existing_type,
+                                &type_params[1],
+                                codebase,
+                                false,
+                            ));
+                        } else {
+                            stmt_type = Some(type_params[1].clone());
                         }
+
+                        has_valid_expected_offset = true;
                     }
                 }
                 StrId::CONTAINER => {
@@ -565,26 +564,25 @@ fn unset_array_item(
     context: &mut BlockContext,
 ) {
     if let Some(expr_var_id) = expression_identifier::get_var_id(
-        &lhs,
+        lhs,
         context.function_context.calling_class,
         statements_analyzer.file_analyzer.resolved_names,
         Some((statements_analyzer.codebase, statements_analyzer.interner)),
-    ) {
-        if let Some(var_type) = context.locals.get_mut(&VarName::new(expr_var_id)) {
-            let mut var_type_inner = (**var_type).clone();
+    ) && let Some(var_type) = context.locals.get_mut(&VarName::new(expr_var_id))
+    {
+        let mut var_type_inner = (**var_type).clone();
 
-            for atomic_type in var_type_inner.types.iter_mut() {
-                if let TAtomic::TDict(TDict { non_empty, .. }) = atomic_type {
-                    *non_empty = false;
-                } else if let TAtomic::TVec(TVec { non_empty, .. })
-                | TAtomic::TKeyset { non_empty, .. } = atomic_type
-                {
-                    *non_empty = false;
-                }
+        for atomic_type in var_type_inner.types.iter_mut() {
+            if let TAtomic::TDict(TDict { non_empty, .. }) = atomic_type {
+                *non_empty = false;
+            } else if let TAtomic::TVec(TVec { non_empty, .. })
+            | TAtomic::TKeyset { non_empty, .. } = atomic_type
+            {
+                *non_empty = false;
             }
-
-            *var_type = Rc::new(var_type_inner);
         }
+
+        *var_type = Rc::new(var_type_inner);
     }
 }
 
@@ -712,12 +710,10 @@ pub(crate) fn handle_array_access_on_dict(
 
     let key_param = if in_assignment || context.inside_isset {
         get_arraykey(false)
+    } else if let Some(params) = &dict.params {
+        (*params.0).clone()
     } else {
-        if let Some(params) = &dict.params {
-            (*params.0).clone()
-        } else {
-            get_nothing()
-        }
+        get_nothing()
     };
 
     let mut union_comparison_result = TypeComparisonResult::new();
@@ -859,45 +855,44 @@ pub(crate) fn handle_array_access_on_dict(
             *has_valid_expected_offset = true;
         }
 
-        return value_param;
+        value_param
     } else {
         // TODO Handle Assignments
         // if (context.inside_assignment && replacement_type) {
 
         // }
-        return if let Some(params) = &dict.params {
-            if let Some(dict_key) = dim_type.get_single_dict_key() {
-                if !in_assignment {
-                    if !allow_possibly_undefined {
-                        // oh no!
-                        analysis_data.maybe_add_issue(
-                            Issue::new(
-                                match &dict_key {
-                                    DictKey::Int(_) => IssueKind::PossiblyUndefinedIntArrayOffset,
-                                    _ => IssueKind::PossiblyUndefinedStringArrayOffset,
-                                },
-                                format!(
-                                    "Fetch on {} using possibly-undefined key {}",
-                                    dict.get_id(Some(statements_analyzer.interner)),
-                                    dict_key.to_string(Some(statements_analyzer.interner))
-                                ),
-                                statements_analyzer.get_hpos(pos),
-                                &context.function_context.calling_functionlike_id,
+        if let Some(params) = &dict.params {
+            if let Some(dict_key) = dim_type.get_single_dict_key()
+                && !in_assignment
+            {
+                if !allow_possibly_undefined {
+                    // oh no!
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            match &dict_key {
+                                DictKey::Int(_) => IssueKind::PossiblyUndefinedIntArrayOffset,
+                                _ => IssueKind::PossiblyUndefinedStringArrayOffset,
+                            },
+                            format!(
+                                "Fetch on {} using possibly-undefined key {}",
+                                dict.get_id(Some(statements_analyzer.interner)),
+                                dict_key.to_string(Some(statements_analyzer.interner))
                             ),
-                            statements_analyzer.get_config(),
-                            statements_analyzer.get_file_path_actual(),
-                        );
-                    } else {
-                        if context.inside_unset {}
-                        *has_possibly_undefined = true;
-                    }
+                            statements_analyzer.get_hpos(pos),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                } else {
+                    *has_possibly_undefined = true;
                 }
             }
 
             (*params.1).clone()
         } else {
             get_nothing()
-        };
+        }
     }
 }
 
@@ -1013,29 +1008,28 @@ pub(crate) fn handle_array_access_on_mixed(
     if let Some(stmt_var_type) = analysis_data
         .expr_types
         .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
+        && !stmt_var_type.parent_nodes.is_empty()
     {
-        if !stmt_var_type.parent_nodes.is_empty() {
-            let new_parent_node = DataFlowNode::get_for_local_string(
-                "mixed-var-array-access".to_string(),
-                statements_analyzer.get_hpos(pos),
-            );
-            analysis_data
-                .data_flow_graph
-                .add_node(new_parent_node.clone());
+        let new_parent_node = DataFlowNode::get_for_local_string(
+            "mixed-var-array-access".to_string(),
+            statements_analyzer.get_hpos(pos),
+        );
+        analysis_data
+            .data_flow_graph
+            .add_node(new_parent_node.clone());
 
-            for parent_node in stmt_var_type.parent_nodes.iter() {
-                analysis_data.data_flow_graph.add_path(
-                    &parent_node.id,
-                    &new_parent_node.id,
-                    PathKind::Default,
-                    vec![],
-                    vec![],
-                );
-            }
-            if let Some(stmt_type) = stmt_type {
-                let mut stmt_type_new = stmt_type.clone();
-                stmt_type_new.parent_nodes = vec![new_parent_node.clone()];
-            }
+        for parent_node in stmt_var_type.parent_nodes.iter() {
+            analysis_data.data_flow_graph.add_path(
+                &parent_node.id,
+                &new_parent_node.id,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
+        }
+        if let Some(stmt_type) = stmt_type {
+            let mut stmt_type_new = stmt_type.clone();
+            stmt_type_new.parent_nodes = vec![new_parent_node.clone()];
         }
     }
 

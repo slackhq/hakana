@@ -109,7 +109,7 @@ impl ServerBasedBackend {
                     )
                     .await;
 
-                return all_diagnostics;
+                all_diagnostics
             }
             Err(e) => {
                 client
@@ -119,7 +119,7 @@ impl ServerBasedBackend {
                     )
                     .await;
 
-                return FxHashMap::default();
+                FxHashMap::default()
             }
         }
     }
@@ -255,8 +255,8 @@ impl LanguageServer for ServerBasedBackend {
 
         match result {
             Ok(response) => {
-                if response.found {
-                    if let (
+                if response.found
+                    && let (
                         Some(def_file_path),
                         Some(start_line),
                         Some(start_column),
@@ -268,32 +268,32 @@ impl LanguageServer for ServerBasedBackend {
                         response.start_column,
                         response.end_line,
                         response.end_column,
-                    ) {
-                        self.client
-                            .log_message(
-                                MessageType::INFO,
-                                format!(
-                                    "Definition found: {}:{}:{}",
-                                    def_file_path, start_line, start_column
-                                ),
-                            )
-                            .await;
+                    )
+                {
+                    self.client
+                        .log_message(
+                            MessageType::INFO,
+                            format!(
+                                "Definition found: {}:{}:{}",
+                                def_file_path, start_line, start_column
+                            ),
+                        )
+                        .await;
 
-                        if let Ok(def_uri) = Url::from_file_path(&def_file_path) {
-                            return Ok(Some(GotoDefinitionResponse::Scalar(Location {
-                                uri: def_uri,
-                                range: Range {
-                                    start: Position {
-                                        line: start_line - 1, // Convert back to 0-indexed for LSP
-                                        character: (start_column - 1) as u32,
-                                    },
-                                    end: Position {
-                                        line: end_line - 1,
-                                        character: (end_column - 1) as u32,
-                                    },
+                    if let Ok(def_uri) = Url::from_file_path(&def_file_path) {
+                        return Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                            uri: def_uri,
+                            range: Range {
+                                start: Position {
+                                    line: start_line - 1, // Convert back to 0-indexed for LSP
+                                    character: (start_column - 1) as u32,
                                 },
-                            })));
-                        }
+                                end: Position {
+                                    line: end_line - 1,
+                                    character: (end_column - 1) as u32,
+                                },
+                            },
+                        })));
                     }
                 }
                 self.client

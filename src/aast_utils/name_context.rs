@@ -391,7 +391,7 @@ fn get_aliased_classes(interner: &mut ThreadedInterner) -> FxHashMap<StrId, StrI
         .into_iter()
         .map(|k| {
             (
-                interner.intern(k.split('\\').last().unwrap().to_string()),
+                interner.intern(k.split('\\').next_back().unwrap().to_string()),
                 interner.intern(k.to_string()),
             )
         })
@@ -452,7 +452,7 @@ fn get_aliased_functions(interner: &mut ThreadedInterner) -> FxHashMap<StrId, St
         .into_iter()
         .map(|k| {
             (
-                interner.intern(k.split('\\').last().unwrap().to_string()),
+                interner.intern(k.split('\\').next_back().unwrap().to_string()),
                 interner.intern(k.to_string()),
             )
         })

@@ -38,24 +38,20 @@ pub(crate) fn reconcile(
 ) -> Option<TUnion> {
     let assertion_type = assertion.get_type();
 
-    if let Some(assertion_type) = assertion_type {
-        match assertion_type {
-            TAtomic::TMixedWithFlags(_, _, _, true) => {
-                return Some(subtract_null(
-                    assertion,
-                    existing_var_type,
-                    key,
-                    !negated,
-                    analysis_data,
-                    statements_analyzer,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                ));
-            }
-
-            _ => {}
-        }
+    if let Some(assertion_type) = assertion_type
+        && let TAtomic::TMixedWithFlags(_, _, _, true) = assertion_type
+    {
+        return Some(subtract_null(
+            assertion,
+            existing_var_type,
+            key,
+            !negated,
+            analysis_data,
+            statements_analyzer,
+            pos,
+            calling_functionlike_id,
+            suppressed_issues,
+        ));
     }
 
     match assertion {
@@ -233,7 +229,7 @@ fn reconcile_truthy(
                     did_remove_type = true;
                     acceptable_types.push(atomic);
                 }
-                TAtomic::TBool { .. } => {
+                TAtomic::TBool => {
                     acceptable_types.push(TAtomic::TTrue);
                 }
                 TAtomic::TVec(TVec { .. }) => {
@@ -314,7 +310,7 @@ fn reconcile_isset(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TNull { .. } = atomic {
+        if let TAtomic::TNull = atomic {
             did_remove_type = true;
         } else if let TAtomic::TMixed = atomic {
             acceptable_types.push(TAtomic::TMixedWithFlags(false, false, false, true));
@@ -329,24 +325,23 @@ fn reconcile_isset(
 
     if !did_remove_type || acceptable_types.is_empty() {
         // every type was removed, this is an impossible assertion
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.interner));
+        if let Some(key) = key
+            && let Some(pos) = pos
+        {
+            let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
+            trigger_issue_for_impossible(
+                analysis_data,
+                statements_analyzer,
+                &old_var_type_string,
+                key,
+                assertion,
+                !did_remove_type,
+                negated,
+                pos,
+                calling_functionlike_id,
+                suppressed_issues,
+            );
         }
 
         if acceptable_types.is_empty() {
@@ -466,26 +461,24 @@ fn reconcile_non_empty_countable(
 
     if !did_remove_type || acceptable_types.is_empty() {
         // every type was removed, this is an impossible assertion
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                if !recursive_check {
-                    let old_var_type_string =
-                        existing_var_type.get_id(Some(statements_analyzer.interner));
+        if let Some(key) = key
+            && let Some(pos) = pos
+            && !recursive_check
+        {
+            let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
-                    trigger_issue_for_impossible(
-                        analysis_data,
-                        statements_analyzer,
-                        &old_var_type_string,
-                        key,
-                        assertion,
-                        !did_remove_type,
-                        negated,
-                        pos,
-                        calling_functionlike_id,
-                        suppressed_issues,
-                    );
-                }
-            }
+            trigger_issue_for_impossible(
+                analysis_data,
+                statements_analyzer,
+                &old_var_type_string,
+                key,
+                assertion,
+                !did_remove_type,
+                negated,
+                pos,
+                calling_functionlike_id,
+                suppressed_issues,
+            );
         }
 
         if acceptable_types.is_empty() {
@@ -571,23 +564,22 @@ fn reconcile_exactly_countable(
 
     if !did_remove_type || existing_var_type.types.is_empty() {
         // every type was removed, this is an impossible assertion
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                if !recursive_check {
-                    trigger_issue_for_impossible(
-                        analysis_data,
-                        statements_analyzer,
-                        &old_var_type_string,
-                        key,
-                        assertion,
-                        !did_remove_type,
-                        negated,
-                        pos,
-                        calling_functionlike_id,
-                        suppressed_issues,
-                    );
-                }
-            }
+        if let Some(key) = key
+            && let Some(pos) = pos
+            && !recursive_check
+        {
+            trigger_issue_for_impossible(
+                analysis_data,
+                statements_analyzer,
+                &old_var_type_string,
+                key,
+                assertion,
+                !did_remove_type,
+                negated,
+                pos,
+                calling_functionlike_id,
+                suppressed_issues,
+            );
         }
 
         if existing_var_type.types.is_empty() {
@@ -627,24 +619,23 @@ fn reconcile_array_access(
 
     if new_var_type.types.is_empty() {
         // every type was removed, this is an impossible assertion
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.interner));
+        if let Some(key) = key
+            && let Some(pos) = pos
+        {
+            let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    false,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
+            trigger_issue_for_impossible(
+                analysis_data,
+                statements_analyzer,
+                &old_var_type_string,
+                key,
+                assertion,
+                false,
+                negated,
+                pos,
+                calling_functionlike_id,
+                suppressed_issues,
+            );
         }
 
         if new_var_type.types.is_empty() {
@@ -674,21 +665,21 @@ fn reconcile_in_array(
         return intersection;
     }
 
-    if let Some(key) = key {
-        if let Some(pos) = pos {
-            trigger_issue_for_impossible(
-                analysis_data,
-                statements_analyzer,
-                &existing_var_type.get_id(Some(statements_analyzer.interner)),
-                key,
-                assertion,
-                true,
-                negated,
-                pos,
-                calling_functionlike_id,
-                suppressed_issues,
-            );
-        }
+    if let Some(key) = key
+        && let Some(pos) = pos
+    {
+        trigger_issue_for_impossible(
+            analysis_data,
+            statements_analyzer,
+            &existing_var_type.get_id(Some(statements_analyzer.interner)),
+            key,
+            assertion,
+            true,
+            negated,
+            pos,
+            calling_functionlike_id,
+            suppressed_issues,
+        );
     }
 
     get_mixed_any()
@@ -851,24 +842,23 @@ fn reconcile_has_array_key(
 
     if !did_remove_type || acceptable_types.is_empty() {
         // every type was removed, this is an impossible assertion
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.interner));
+        if let Some(key) = key
+            && let Some(pos) = pos
+        {
+            let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
+            trigger_issue_for_impossible(
+                analysis_data,
+                statements_analyzer,
+                &old_var_type_string,
+                key,
+                assertion,
+                !did_remove_type,
+                negated,
+                pos,
+                calling_functionlike_id,
+                suppressed_issues,
+            );
         }
 
         if acceptable_types.is_empty() {
@@ -1115,24 +1105,23 @@ fn reconcile_has_nonnull_entry_for_key(
 
     if !did_remove_type || acceptable_types.is_empty() {
         // every type was removed, this is an impossible assertion
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.interner));
+        if let Some(key) = key
+            && let Some(pos) = pos
+        {
+            let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
+            trigger_issue_for_impossible(
+                analysis_data,
+                statements_analyzer,
+                &old_var_type_string,
+                key,
+                assertion,
+                !did_remove_type,
+                negated,
+                pos,
+                calling_functionlike_id,
+                suppressed_issues,
+            );
         }
 
         if acceptable_types.is_empty() {
@@ -1159,26 +1148,24 @@ pub(crate) fn get_acceptable_type(
     suppressed_issues: &FxHashMap<String, usize>,
     mut new_var_type: TUnion,
 ) -> TUnion {
-    if acceptable_types.is_empty() || !did_remove_type {
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                let old_var_type_string =
-                    existing_var_type.get_id(Some(statements_analyzer.interner));
+    if (acceptable_types.is_empty() || !did_remove_type)
+        && let Some(key) = key
+        && let Some(pos) = pos
+    {
+        let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
 
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
-        }
+        trigger_issue_for_impossible(
+            analysis_data,
+            statements_analyzer,
+            &old_var_type_string,
+            key,
+            assertion,
+            !did_remove_type,
+            negated,
+            pos,
+            calling_functionlike_id,
+            suppressed_issues,
+        );
     }
 
     if acceptable_types.is_empty() {

@@ -51,7 +51,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TBool { .. } => {
+            TAtomic::TBool => {
                 return Some(subtract_bool(
                     assertion,
                     existing_var_type,
@@ -65,7 +65,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TNum { .. } => {
+            TAtomic::TNum => {
                 return Some(subtract_num(
                     assertion,
                     existing_var_type,
@@ -79,7 +79,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TFloat { .. } => {
+            TAtomic::TFloat => {
                 return Some(subtract_float(
                     assertion,
                     existing_var_type,
@@ -93,7 +93,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TInt { .. } => {
+            TAtomic::TInt => {
                 return Some(subtract_int(
                     assertion,
                     existing_var_type,
@@ -107,7 +107,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TString { .. } => {
+            TAtomic::TString => {
                 return Some(subtract_string(
                     assertion,
                     existing_var_type,
@@ -183,7 +183,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TNull { .. } => {
+            TAtomic::TNull => {
                 return Some(subtract_null(
                     assertion,
                     existing_var_type,
@@ -209,7 +209,7 @@ pub(crate) fn reconcile(
                     .unwrap_or(get_nothing()),
                 );
             }
-            TAtomic::TFalse { .. } => {
+            TAtomic::TFalse => {
                 return Some(subtract_false(
                     assertion,
                     existing_var_type,
@@ -223,7 +223,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TTrue { .. } => {
+            TAtomic::TTrue => {
                 return Some(subtract_true(
                     assertion,
                     existing_var_type,
@@ -241,7 +241,7 @@ pub(crate) fn reconcile(
         }
     }
 
-    return match assertion {
+    match assertion {
         Assertion::Falsy => Some(reconcile_falsy(
             assertion,
             existing_var_type,
@@ -258,9 +258,7 @@ pub(crate) fn reconcile(
             possibly_undefined,
             key,
         )),
-        Assertion::ArrayKeyDoesNotExist => {
-            return Some(get_nothing());
-        }
+        Assertion::ArrayKeyDoesNotExist => Some(get_nothing()),
         Assertion::DoesNotHaveArrayKey(key_name) => Some(reconcile_no_array_key(
             assertion,
             existing_var_type,
@@ -311,7 +309,7 @@ pub(crate) fn reconcile(
             count,
         )),
         _ => None,
-    };
+    }
 }
 
 fn subtract_object(
@@ -687,10 +685,8 @@ fn subtract_string(
                 acceptable_types.push(atomic);
             }
         } else {
-            if is_equality {
-                if let TAtomic::TTypeAlias { .. } | TAtomic::TEnum { .. } = &atomic {
-                    did_remove_type = true;
-                }
+            if is_equality && let TAtomic::TTypeAlias { .. } | TAtomic::TEnum { .. } = &atomic {
+                did_remove_type = true;
             }
 
             acceptable_types.push(atomic);
@@ -894,7 +890,7 @@ fn subtract_float(
             }
 
             did_remove_type = true;
-        } else if let TAtomic::TFloat { .. } = atomic {
+        } else if let TAtomic::TFloat = atomic {
             did_remove_type = true;
 
             if is_equality {
@@ -989,8 +985,7 @@ fn subtract_num(
             }
 
             did_remove_type = true;
-        } else if let TAtomic::TFloat { .. } | TAtomic::TInt { .. } | TAtomic::TNum { .. } = atomic
-        {
+        } else if let TAtomic::TFloat | TAtomic::TInt | TAtomic::TNum = atomic {
             did_remove_type = true;
 
             if !is_equality {
@@ -999,23 +994,22 @@ fn subtract_num(
         }
     }
 
-    if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
-        }
+    if (existing_var_type.types.is_empty() || !did_remove_type)
+        && let Some(key) = key
+        && let Some(pos) = pos
+    {
+        trigger_issue_for_impossible(
+            analysis_data,
+            statements_analyzer,
+            &old_var_type_string,
+            key,
+            assertion,
+            !did_remove_type,
+            negated,
+            pos,
+            calling_functionlike_id,
+            suppressed_issues,
+        );
     }
 
     if existing_var_type.types.is_empty() {
@@ -1098,23 +1092,22 @@ fn subtract_arraykey(
         }
     }
 
-    if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
-        }
+    if (existing_var_type.types.is_empty() || !did_remove_type)
+        && let Some(key) = key
+        && let Some(pos) = pos
+    {
+        trigger_issue_for_impossible(
+            analysis_data,
+            statements_analyzer,
+            &old_var_type_string,
+            key,
+            assertion,
+            !did_remove_type,
+            negated,
+            pos,
+            calling_functionlike_id,
+            suppressed_issues,
+        );
     }
 
     if existing_var_type.types.is_empty() {
@@ -1188,23 +1181,22 @@ fn subtract_bool(
         }
     }
 
-    if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
-        }
+    if (existing_var_type.types.is_empty() || !did_remove_type)
+        && let Some(key) = key
+        && let Some(pos) = pos
+    {
+        trigger_issue_for_impossible(
+            analysis_data,
+            statements_analyzer,
+            &old_var_type_string,
+            key,
+            assertion,
+            !did_remove_type,
+            negated,
+            pos,
+            calling_functionlike_id,
+            suppressed_issues,
+        );
     }
 
     if existing_var_type.types.is_empty() {
@@ -1348,30 +1340,29 @@ fn subtract_false(
             existing_var_type.remove_type(atomic);
             existing_var_type.types.push(TAtomic::TTrue);
             did_remove_type = true;
-        } else if let TAtomic::TFalse { .. } = atomic {
+        } else if let TAtomic::TFalse = atomic {
             did_remove_type = true;
 
             existing_var_type.remove_type(atomic);
         }
     }
 
-    if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
-        }
+    if (existing_var_type.types.is_empty() || !did_remove_type)
+        && let Some(key) = key
+        && let Some(pos) = pos
+    {
+        trigger_issue_for_impossible(
+            analysis_data,
+            statements_analyzer,
+            &old_var_type_string,
+            key,
+            assertion,
+            !did_remove_type,
+            negated,
+            pos,
+            calling_functionlike_id,
+            suppressed_issues,
+        );
     }
 
     if existing_var_type.types.is_empty() {
@@ -1436,7 +1427,7 @@ fn subtract_true(
                 existing_var_type.types.push(TAtomic::TFalse);
                 did_remove_type = true;
             }
-            TAtomic::TTrue { .. } => {
+            TAtomic::TTrue => {
                 did_remove_type = true;
 
                 existing_var_type.remove_type(atomic);
@@ -1445,23 +1436,22 @@ fn subtract_true(
         }
     }
 
-    if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
-        }
+    if (existing_var_type.types.is_empty() || !did_remove_type)
+        && let Some(key) = key
+        && let Some(pos) = pos
+    {
+        trigger_issue_for_impossible(
+            analysis_data,
+            statements_analyzer,
+            &old_var_type_string,
+            key,
+            assertion,
+            !did_remove_type,
+            negated,
+            pos,
+            calling_functionlike_id,
+            suppressed_issues,
+        );
     }
 
     if existing_var_type.types.is_empty() {
@@ -1519,7 +1509,7 @@ fn reconcile_falsy(
                 TAtomic::TTypeVariable { .. } => {
                     acceptable_types.push(atomic);
                 }
-                TAtomic::TBool { .. } => {
+                TAtomic::TBool => {
                     acceptable_types.push(TAtomic::TFalse);
                 }
                 TAtomic::TVec(TVec { .. }) => {
@@ -1551,7 +1541,7 @@ fn reconcile_falsy(
                 TAtomic::TMixedFromLoopIsset => {
                     acceptable_types.push(TAtomic::TMixedWithFlags(false, false, true, false));
                 }
-                TAtomic::TString { .. } => {
+                TAtomic::TString => {
                     let empty_string = TAtomic::TLiteralString {
                         value: "".to_string(),
                     };
@@ -1561,7 +1551,7 @@ fn reconcile_falsy(
                     acceptable_types.push(empty_string);
                     acceptable_types.push(falsy_string);
                 }
-                TAtomic::TInt { .. } => {
+                TAtomic::TInt => {
                     let zero = TAtomic::TLiteralInt { value: 0 };
                     acceptable_types.push(zero);
                 }
@@ -1601,14 +1591,12 @@ fn reconcile_not_isset(
         return get_nothing();
     }
 
-    if !existing_var_type.is_nullable() {
-        if let Some(key) = key {
-            if !key.contains('[')
-                && (!existing_var_type.is_mixed() || existing_var_type.is_always_truthy())
-            {
-                return get_nothing();
-            }
-        }
+    if !existing_var_type.is_nullable()
+        && let Some(key) = key
+        && !key.contains('[')
+        && (!existing_var_type.is_mixed() || existing_var_type.is_always_truthy())
+    {
+        return get_nothing();
     }
 
     get_null()
@@ -1805,10 +1793,10 @@ fn reconcile_not_exactly_countable(
             } else if !atomic.is_falsy() {
                 did_remove_type = true;
             }
-        } else if let TAtomic::TDict(TDict { .. }) = atomic {
-            if !atomic.is_falsy() {
-                did_remove_type = true;
-            }
+        } else if let TAtomic::TDict(TDict { .. }) = atomic
+            && !atomic.is_falsy()
+        {
+            did_remove_type = true;
         }
 
         acceptable_types.push(atomic);
@@ -1900,8 +1888,8 @@ fn reconcile_no_array_key(
                             known_items.remove(key_name);
                             did_remove_type = true;
                         }
-                    } else if let Some((key_param, _)) = params {
-                        if union_type_comparator::can_expression_types_be_identical(
+                    } else if let Some((key_param, _)) = params
+                        && union_type_comparator::can_expression_types_be_identical(
                             statements_analyzer.codebase,
                             statements_analyzer.get_file_path(),
                             &wrap_atomic(match key_name {
@@ -1916,12 +1904,12 @@ fn reconcile_no_array_key(
                             }),
                             key_param,
                             false,
-                        ) {
-                            did_remove_type = true;
-                        }
+                        )
+                    {
+                        did_remove_type = true;
                     }
-                } else if let Some((key_param, _)) = params {
-                    if union_type_comparator::can_expression_types_be_identical(
+                } else if let Some((key_param, _)) = params
+                    && union_type_comparator::can_expression_types_be_identical(
                         statements_analyzer.codebase,
                         statements_analyzer.get_file_path(),
                         &wrap_atomic(match key_name {
@@ -1936,9 +1924,9 @@ fn reconcile_no_array_key(
                         }),
                         key_param,
                         false,
-                    ) {
-                        did_remove_type = true;
-                    }
+                    )
+                {
+                    did_remove_type = true;
                 }
 
                 acceptable_types.push(atomic);

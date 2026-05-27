@@ -137,26 +137,25 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
                 }
 
                 if let Some(matching_clause_possibilities) = clause_b.possibilities.get(clause_var)
+                    && matching_clause_possibilities.contains_key(&negated_hash)
                 {
-                    if matching_clause_possibilities.contains_key(&negated_hash) {
-                        let mut clause_var_possibilities = matching_clause_possibilities.clone();
+                    let mut clause_var_possibilities = matching_clause_possibilities.clone();
 
-                        clause_var_possibilities.retain(|k, _| k != &negated_hash);
+                    clause_var_possibilities.retain(|k, _| k != &negated_hash);
 
-                        removed_clauses.insert(*clause_b);
+                    removed_clauses.insert(*clause_b);
 
-                        if clause_var_possibilities.is_empty() {
-                            let maybe_updated_clause = clause_b.remove_possibilities(clause_var);
+                    if clause_var_possibilities.is_empty() {
+                        let maybe_updated_clause = clause_b.remove_possibilities(clause_var);
 
-                            if let Some(x) = maybe_updated_clause {
-                                added_clauses.push(x);
-                            }
-                        } else {
-                            let updated_clause = clause_b
-                                .add_possibility(clause_var.clone(), clause_var_possibilities);
-
-                            added_clauses.push(updated_clause);
+                        if let Some(x) = maybe_updated_clause {
+                            added_clauses.push(x);
                         }
+                    } else {
+                        let updated_clause =
+                            clause_b.add_possibility(clause_var.clone(), clause_var_possibilities);
+
+                        added_clauses.push(updated_clause);
                     }
                 }
             }
@@ -318,13 +317,13 @@ pub fn get_truths_from_formula(
                     .or_insert_with(Vec::new)
                     .push(vec![possible_type.clone()]);
 
-                if let Some(creating_conditional_id) = creating_conditional_id {
-                    if creating_conditional_id == clause.creating_conditional_id {
-                        active_truths
-                            .entry(var_name.clone())
-                            .or_insert_with(FxHashSet::default)
-                            .insert(truths.get(var_name).unwrap().len() - 1);
-                    }
+                if let Some(creating_conditional_id) = creating_conditional_id
+                    && creating_conditional_id == clause.creating_conditional_id
+                {
+                    active_truths
+                        .entry(var_name.clone())
+                        .or_insert_with(FxHashSet::default)
+                        .insert(truths.get(var_name).unwrap().len() - 1);
                 }
             } else {
                 if clause.generated {
@@ -341,13 +340,13 @@ pub fn get_truths_from_formula(
                     ],
                 );
 
-                if let Some(creating_conditional_id) = creating_conditional_id {
-                    if creating_conditional_id == clause.creating_conditional_id {
-                        active_truths
-                            .entry(var_name.clone())
-                            .or_insert_with(FxHashSet::default)
-                            .insert(truths.get(var_name).unwrap().len() - 1);
-                    }
+                if let Some(creating_conditional_id) = creating_conditional_id
+                    && creating_conditional_id == clause.creating_conditional_id
+                {
+                    active_truths
+                        .entry(var_name.clone())
+                        .or_insert_with(FxHashSet::default)
+                        .insert(truths.get(var_name).unwrap().len() - 1);
                 }
             }
         }

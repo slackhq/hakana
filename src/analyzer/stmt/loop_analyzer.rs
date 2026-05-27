@@ -500,17 +500,16 @@ pub(crate) fn analyze<'a>(
                 );
             } else if let Some(loop_parent_context_type) =
                 loop_parent_context.locals.get_mut(var_id)
+                && loop_parent_context_type != loop_context_type
             {
-                if loop_parent_context_type != loop_context_type {
-                    *loop_parent_context_type = Rc::new({
-                        let mut first = (**loop_context_type).clone();
-                        extend_dataflow_uniquely(
-                            &mut first.parent_nodes,
-                            loop_parent_context_type.parent_nodes.clone(),
-                        );
-                        first
-                    });
-                }
+                *loop_parent_context_type = Rc::new({
+                    let mut first = (**loop_context_type).clone();
+                    extend_dataflow_uniquely(
+                        &mut first.parent_nodes,
+                        loop_parent_context_type.parent_nodes.clone(),
+                    );
+                    first
+                });
             }
         }
     }

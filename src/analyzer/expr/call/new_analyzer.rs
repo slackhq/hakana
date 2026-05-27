@@ -425,15 +425,7 @@ fn analyze_named_constructor(
             analysis_data,
             &method_id,
             method_storage,
-            (
-                expr.1,
-                &expr
-                    .2
-                    .iter()
-                    .map(|arg_expr| arg_expr.clone())
-                    .collect::<Vec<_>>(),
-                expr.3,
-            ),
+            (expr.1, &expr.2.to_vec(), expr.3),
             None,
             &mut template_result,
             context,
@@ -464,60 +456,58 @@ fn analyze_named_constructor(
                 };
 
                 if param_type.is_placeholder() {
-                    if !storage.template_readonly.contains(template_name) {
-                        if let Some((template_name, map)) =
+                    if !storage.template_readonly.contains(template_name)
+                        && let Some((template_name, map)) =
                             template_result.template_types.get_index(i)
+                    {
+                        let placeholder_name =
+                            format!("`_{}", analysis_data.type_variable_bounds.len());
+
+                        let upper_bound = (*map.iter().next().unwrap().1).clone();
+
+                        let mut placeholder_lower_bounds = vec![];
+
+                        if let Some(bounds) = template_result.lower_bounds.get(template_name)
+                            && let Some(bounds) =
+                                bounds.get(&GenericParent::ClassLike(classlike_name))
                         {
-                            let placeholder_name =
-                                format!("`_{}", analysis_data.type_variable_bounds.len());
-
-                            let upper_bound = (*map.iter().next().unwrap().1).clone();
-
-                            let mut placeholder_lower_bounds = vec![];
-
-                            if let Some(bounds) = template_result.lower_bounds.get(template_name) {
-                                if let Some(bounds) =
-                                    bounds.get(&GenericParent::ClassLike(classlike_name))
-                                {
-                                    for bound in bounds {
-                                        placeholder_lower_bounds.push(bound.clone());
-                                    }
-                                }
+                            for bound in bounds {
+                                placeholder_lower_bounds.push(bound.clone());
                             }
-
-                            analysis_data.type_variable_bounds.insert(
-                                placeholder_name.clone(),
-                                TypeVariableBounds {
-                                    lower_bounds: placeholder_lower_bounds,
-                                    upper_bounds: vec![TemplateBound {
-                                        bound_type: upper_bound,
-                                        appearance_depth: 0,
-                                        arg_offset: None,
-                                        equality_bound_classlike: None,
-                                        pos: Some(statements_analyzer.get_hpos(pos)),
-                                    }],
-                                },
-                            );
-
-                            template_result.lower_bounds.insert(
-                                *template_name,
-                                map.iter()
-                                    .map(|(entity, _)| {
-                                        (
-                                            *entity,
-                                            vec![TemplateBound::new(
-                                                wrap_atomic(TAtomic::TTypeVariable {
-                                                    name: placeholder_name.clone(),
-                                                }),
-                                                0,
-                                                None,
-                                                None,
-                                            )],
-                                        )
-                                    })
-                                    .collect::<FxHashMap<_, _>>(),
-                            );
                         }
+
+                        analysis_data.type_variable_bounds.insert(
+                            placeholder_name.clone(),
+                            TypeVariableBounds {
+                                lower_bounds: placeholder_lower_bounds,
+                                upper_bounds: vec![TemplateBound {
+                                    bound_type: upper_bound,
+                                    appearance_depth: 0,
+                                    arg_offset: None,
+                                    equality_bound_classlike: None,
+                                    pos: Some(statements_analyzer.get_hpos(pos)),
+                                }],
+                            },
+                        );
+
+                        template_result.lower_bounds.insert(
+                            *template_name,
+                            map.iter()
+                                .map(|(entity, _)| {
+                                    (
+                                        *entity,
+                                        vec![TemplateBound::new(
+                                            wrap_atomic(TAtomic::TTypeVariable {
+                                                name: placeholder_name.clone(),
+                                            }),
+                                            0,
+                                            None,
+                                            None,
+                                        )],
+                                    )
+                                })
+                                .collect::<FxHashMap<_, _>>(),
+                        );
                     }
                 } else {
                     populate_union_type(

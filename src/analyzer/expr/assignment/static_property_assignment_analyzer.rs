@@ -213,14 +213,14 @@ pub(crate) fn analyze(
                 &mut union_comparison_result,
             );
 
-            if type_match_found && union_comparison_result.replacement_union_type.is_some() {
-                if let Some(union_type) = union_comparison_result.replacement_union_type {
-                    if let Some(var_id) = var_id.clone() {
-                        context
-                            .locals
-                            .insert(VarName::new(var_id), Rc::new(union_type));
-                    }
-                }
+            if type_match_found
+                && union_comparison_result.replacement_union_type.is_some()
+                && let Some(union_type) = union_comparison_result.replacement_union_type
+                && let Some(var_id) = var_id.clone()
+            {
+                context
+                    .locals
+                    .insert(VarName::new(var_id), Rc::new(union_type));
             }
 
             if !type_match_found && union_comparison_result.type_coerced.is_none() {

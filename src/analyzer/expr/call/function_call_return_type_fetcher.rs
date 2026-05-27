@@ -63,8 +63,8 @@ pub(crate) fn fetch(
         .map(|info| &info.where_constraints)
         .filter(|c| !c.is_empty());
 
-    if let FunctionLikeIdentifier::Function(name) = functionlike_id {
-        if let Some(t) = handle_special_functions(
+    if let FunctionLikeIdentifier::Function(name) = functionlike_id
+        && let Some(t) = handle_special_functions(
             statements_analyzer,
             name,
             expr.2,
@@ -72,9 +72,9 @@ pub(crate) fn fetch(
             codebase,
             analysis_data,
             context,
-        ) {
-            stmt_type = Some(t);
-        }
+        )
+    {
+        stmt_type = Some(t);
     }
 
     // todo support custom return type providers for functions
@@ -621,12 +621,12 @@ fn handle_special_functions(
                     .get_rc_expr_type(args[0].to_expr_ref().pos())
                     .cloned();
 
-                if let Some(file_type) = file_type {
-                    if let Some(literal_value) = file_type.get_single_literal_string_value() {
-                        let path = Path::new(&literal_value);
-                        if let Some(dir) = path.parent() {
-                            return Some(get_literal_string(dir.to_str().unwrap().to_owned()));
-                        }
+                if let Some(file_type) = file_type
+                    && let Some(literal_value) = file_type.get_single_literal_string_value()
+                {
+                    let path = Path::new(&literal_value);
+                    if let Some(dir) = path.parent() {
+                        return Some(get_literal_string(dir.to_str().unwrap().to_owned()));
                     }
                 }
             }
@@ -780,7 +780,7 @@ fn handle_str_format(
     for (i, literal) in literals.iter().enumerate() {
         concat_args.push(literal);
         if let Some(arg) = args.get(i + 1) {
-            concat_args.push(&arg.to_expr_ref());
+            concat_args.push(arg.to_expr_ref());
         } else {
             break;
         }
@@ -844,19 +844,18 @@ fn get_type_structure_type(
 
             if let Some(classlike_info) =
                 statements_analyzer.codebase.classlike_infos.get(&classname)
+                && let Some(type_constant_info) = classlike_info.type_constants.get(&const_name)
             {
-                if let Some(type_constant_info) = classlike_info.type_constants.get(&const_name) {
-                    return Some(wrap_atomic(TAtomic::TTypeAlias {
-                        name: StrId::TYPE_STRUCTURE,
-                        type_params: Some(vec![match type_constant_info {
-                            ClassConstantType::Concrete(actual_type) => actual_type.clone(),
-                            ClassConstantType::Abstract(Some(as_type)) => as_type.clone(),
-                            _ => get_mixed_any(),
-                        }]),
-                        as_type: None,
-                        newtype: true,
-                    }));
-                }
+                return Some(wrap_atomic(TAtomic::TTypeAlias {
+                    name: StrId::TYPE_STRUCTURE,
+                    type_params: Some(vec![match type_constant_info {
+                        ClassConstantType::Concrete(actual_type) => actual_type.clone(),
+                        ClassConstantType::Abstract(Some(as_type)) => as_type.clone(),
+                        _ => get_mixed_any(),
+                    }]),
+                    as_type: None,
+                    newtype: true,
+                }));
             }
         }
     }
@@ -891,10 +890,10 @@ fn add_dataflow(
 
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
-    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        if !context.allow_taints {
-            return stmt_type;
-        }
+    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind
+        && !context.allow_taints
+    {
+        return stmt_type;
     }
 
     let mut stmt_type = stmt_type;
@@ -992,37 +991,37 @@ fn add_dataflow(
     }
 
     for (param_offset, param) in functionlike_storage.params.iter().enumerate() {
-        if param.propagate_taint {
-            if let Some(arg) = expr.2.get(param_offset) {
-                let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
+        if param.propagate_taint
+            && let Some(arg) = expr.2.get(param_offset)
+        {
+            let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
 
-                add_special_param_dataflow(
-                    statements_analyzer,
-                    functionlike_id,
-                    functionlike_storage.specialize_call,
-                    param_offset,
-                    arg_pos,
-                    pos,
-                    &added_removed_taints,
-                    data_flow_graph,
-                    &function_call_node,
-                    PathKind::Default,
-                );
-            }
+            add_special_param_dataflow(
+                statements_analyzer,
+                functionlike_id,
+                functionlike_storage.specialize_call,
+                param_offset,
+                arg_pos,
+                pos,
+                &added_removed_taints,
+                data_flow_graph,
+                &function_call_node,
+                PathKind::Default,
+            );
         }
     }
 
-    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        if !functionlike_storage.taint_source_types.is_empty() {
-            let function_call_node_source = DataFlowNode {
-                id: function_call_node.id.clone(),
-                kind: DataFlowNodeKind::TaintSource {
-                    pos: function_call_node.get_pos(),
-                    types: functionlike_storage.taint_source_types.clone(),
-                },
-            };
-            data_flow_graph.add_node(function_call_node_source);
-        }
+    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind
+        && !functionlike_storage.taint_source_types.is_empty()
+    {
+        let function_call_node_source = DataFlowNode {
+            id: function_call_node.id.clone(),
+            kind: DataFlowNodeKind::TaintSource {
+                pos: function_call_node.get_pos(),
+                types: functionlike_storage.taint_source_types.clone(),
+            },
+        };
+        data_flow_graph.add_node(function_call_node_source);
     }
 
     stmt_type.parent_nodes.push(function_call_node);
@@ -1602,22 +1601,19 @@ fn get_special_argument_nodes(
                 None,
             ),
             StrId::IDX_FN => {
-                if let Some(second_arg) = expr.2.get(1) {
-                    if let aast::Expr_::String(str) = &second_arg.to_expr_ref().2 {
-                        return (
-                            vec![
-                                (
-                                    0,
-                                    PathKind::ArrayFetch(
-                                        ArrayDataKind::ArrayValue,
-                                        str.to_string(),
-                                    ),
-                                ),
-                                (1, PathKind::Aggregate),
-                            ],
-                            None,
-                        );
-                    }
+                if let Some(second_arg) = expr.2.get(1)
+                    && let aast::Expr_::String(str) = &second_arg.to_expr_ref().2
+                {
+                    return (
+                        vec![
+                            (
+                                0,
+                                PathKind::ArrayFetch(ArrayDataKind::ArrayValue, str.to_string()),
+                            ),
+                            (1, PathKind::Aggregate),
+                        ],
+                        None,
+                    );
                 }
                 (
                     vec![

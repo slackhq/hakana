@@ -53,21 +53,21 @@ pub(crate) fn analyze(
         call_pos,
     );
 
-    if let Some(first_arg_type) = analysis_data.get_rc_expr_type(expr.pos()).cloned() {
-        if let Some(value) = first_arg_type.get_single_literal_string_value() {
-            let path = Path::new(&value);
-            if !path.exists() {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::NonExistentFile,
-                        format!("File {} does not exist", value),
-                        statements_analyzer.get_hpos(expr.pos()),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-            }
+    if let Some(first_arg_type) = analysis_data.get_rc_expr_type(expr.pos()).cloned()
+        && let Some(value) = first_arg_type.get_single_literal_string_value()
+    {
+        let path = Path::new(&value);
+        if !path.exists() {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NonExistentFile,
+                    format!("File {} does not exist", value),
+                    statements_analyzer.get_hpos(expr.pos()),
+                    &context.function_context.calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
         }
     }
 

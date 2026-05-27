@@ -82,7 +82,7 @@ pub(crate) fn analyze_concat_nodes(
                 }
             }
 
-            if simple_string != "" {
+            if !simple_string.is_empty() {
                 nonempty_string = true;
             }
 
@@ -99,7 +99,7 @@ pub(crate) fn analyze_concat_nodes(
                     concat_node.pos().start_offset() as u32,
                     concat_node.pos().end_offset() as u32,
                 ))
-                .map(|t| t.clone());
+                .cloned();
 
             if let Some(expr_type) = expr_type {
                 let mut local_nonempty_string = true;
@@ -113,7 +113,7 @@ pub(crate) fn analyze_concat_nodes(
                                 has_query = true;
                             }
 
-                            if value == "" {
+                            if value.is_empty() {
                                 local_nonempty_string = false;
                             }
 
@@ -142,9 +142,8 @@ pub(crate) fn analyze_concat_nodes(
                         TAtomic::TNothing => analysis_data.maybe_add_issue(
                             Issue::new(
                                 IssueKind::NoValue,
-                                format!(
-                                    "Expected string or int in concatenation, nothing type provided"
-                                ),
+                                "Expected string or int in concatenation, nothing type provided"
+                                    .to_string(),
                                 statements_analyzer.get_hpos(concat_node.pos()),
                                 &context.function_context.calling_functionlike_id,
                             ),

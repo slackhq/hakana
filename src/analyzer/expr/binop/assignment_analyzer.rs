@@ -69,21 +69,21 @@ pub(crate) fn analyze(
         Some((statements_analyzer.codebase, statements_analyzer.interner)),
     );
 
-    if statements_analyzer.get_config().add_fixmes {
-        if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
-            if current_stmt_offset.line != expr.0.pos().line() as u32 {
-                current_stmt_offset.line = expr.0.pos().line() as u32;
-            }
+    if statements_analyzer.get_config().add_fixmes
+        && let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset
+    {
+        if current_stmt_offset.line != expr.0.pos().line() as u32 {
+            current_stmt_offset.line = expr.0.pos().line() as u32;
+        }
 
-            if inout_node.is_none() {
-                analysis_data.expr_fixme_positions.insert(
-                    (
-                        expr.0.pos().start_offset() as u32,
-                        expr.0.pos().end_offset() as u32,
-                    ),
-                    *current_stmt_offset,
-                );
-            }
+        if inout_node.is_none() {
+            analysis_data.expr_fixme_positions.insert(
+                (
+                    expr.0.pos().start_offset() as u32,
+                    expr.0.pos().end_offset() as u32,
+                ),
+                *current_stmt_offset,
+            );
         }
     }
 
@@ -180,26 +180,26 @@ pub(crate) fn analyze(
 
     // Track regular assignments (not compound assignments like +=, .=, etc)
     // Also exclude assignments that are part of unary operations (++, --)
-    if let aast::Expr_::Lvar(_) = &assign_var.2 {
-        if binop.is_none() && !context.inside_assignment_op {
-            if let Some(var_id) = &var_id {
-                if context.inside_loop && context.for_loop_init_bounds.0 > 0 {
-                    // do nothing, for loop assignment
-                } else {
-                    analysis_data
-                        .variable_assignments
-                        .entry(var_id.clone())
-                        .or_default()
-                        .insert((
-                            assign_var.pos().start_offset() as u32,
-                            if let Some(e) = expr.2 {
-                                e.pos().end_offset() as u32
-                            } else {
-                                assign_var.pos().end_offset() as u32
-                            },
-                        ));
-                }
-            }
+    if let aast::Expr_::Lvar(_) = &assign_var.2
+        && binop.is_none()
+        && !context.inside_assignment_op
+        && let Some(var_id) = &var_id
+    {
+        if context.inside_loop && context.for_loop_init_bounds.0 > 0 {
+            // do nothing, for loop assignment
+        } else {
+            analysis_data
+                .variable_assignments
+                .entry(var_id.clone())
+                .or_default()
+                .insert((
+                    assign_var.pos().start_offset() as u32,
+                    if let Some(e) = expr.2 {
+                        e.pos().end_offset() as u32
+                    } else {
+                        assign_var.pos().end_offset() as u32
+                    },
+                ));
         }
     }
 
@@ -218,25 +218,25 @@ pub(crate) fn analyze(
     };
 
     if let (Some(var_id), Some(existing_var_type), None) = (&var_id, &existing_var_type, binop) {
-        if context.inside_loop && !context.inside_assignment_op {
-            if let Some(assign_value) = assign_value {
-                if let aast::Expr_::Clone(cloned_expr) = &assign_value.2 {
-                    if let aast::Expr_::Lvar(cloned_var) = &cloned_expr.2 {
-                        if cloned_var.name() == var_id {
-                            let mut origin_node_ids = vec![];
+        if context.inside_loop
+            && !context.inside_assignment_op
+            && let Some(assign_value) = assign_value
+            && let aast::Expr_::Clone(cloned_expr) = &assign_value.2
+            && let aast::Expr_::Lvar(cloned_var) = &cloned_expr.2
+            && cloned_var.name() == var_id
+        {
+            let mut origin_node_ids = vec![];
 
-                            for parent_node in &existing_var_type.parent_nodes {
-                                origin_node_ids.extend(
-                                    analysis_data.data_flow_graph.get_origin_node_ids(
-                                        &parent_node.id,
-                                        &[],
-                                        false,
-                                    ),
-                                );
-                            }
+            for parent_node in &existing_var_type.parent_nodes {
+                origin_node_ids.extend(analysis_data.data_flow_graph.get_origin_node_ids(
+                    &parent_node.id,
+                    &[],
+                    false,
+                ));
+            }
 
-                            if origin_node_ids.len() > 1 {
-                                analysis_data.maybe_add_issue(
+            if origin_node_ids.len() > 1 {
+                analysis_data.maybe_add_issue(
                                     Issue::new(
                                         IssueKind::CloneInsideLoop,
                                         format!("Overwriting an object {} outside the loop with a clone likely not intended", var_id),
@@ -246,10 +246,6 @@ pub(crate) fn analyze(
                                     statements_analyzer.get_config(),
                                     statements_analyzer.get_file_path_actual(),
                                 )
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -268,13 +264,11 @@ pub(crate) fn analyze(
                 ));
             }
 
-            if let Some(assign_value) = assign_value {
-                if let aast::Expr_::Clone(cloned_expr) = &assign_value.2 {
-                    if let aast::Expr_::Lvar(cloned_var) = &cloned_expr.2 {
-                        if cloned_var.name() == var_id {}
-                    }
-                }
-            }
+            if let Some(assign_value) = assign_value
+                && let aast::Expr_::Clone(cloned_expr) = &assign_value.2
+                && let aast::Expr_::Lvar(cloned_var) = &cloned_expr.2
+                && cloned_var.name() == var_id
+            {}
 
             origin_node_ids.retain(|id| {
                 if let Some(node) = analysis_data.data_flow_graph.get_node(id) {
@@ -538,7 +532,7 @@ fn analyze_list_assignment(
 
         analyze(
             statements_analyzer,
-            (&assign_var_item, None, None),
+            (assign_var_item, None, None),
             assign_var_item.pos(),
             Some(&value_type),
             analysis_data,
@@ -681,24 +675,23 @@ fn analyze_assignment_to_variable(
         }
     }
 
-    if assign_value_type.is_bool() {
-        if let Some(source_expr) = source_expr {
-            if matches!(source_expr.2, aast::Expr_::Binop(..)) {
-                handle_assignment_with_boolean_logic(
-                    var_expr,
-                    source_expr,
-                    statements_analyzer,
-                    context,
-                    analysis_data,
-                    &var_id,
-                );
-            }
-        }
+    if assign_value_type.is_bool()
+        && let Some(source_expr) = source_expr
+        && matches!(source_expr.2, aast::Expr_::Binop(..))
+    {
+        handle_assignment_with_boolean_logic(
+            var_expr,
+            source_expr,
+            statements_analyzer,
+            context,
+            analysis_data,
+            &var_id,
+        );
     }
 
     context
         .locals
-        .insert(VarName::new(var_id.to_string()), Rc::new(assign_value_type));
+        .insert(VarName::new(&var_id), Rc::new(assign_value_type));
 }
 
 fn handle_assignment_with_boolean_logic(
@@ -781,7 +774,7 @@ pub(crate) fn analyze_inout_param(
 ) -> Result<(), AnalysisError> {
     analyze(
         statements_analyzer,
-        (&expr, None, None),
+        (expr, None, None),
         expr.pos(),
         Some(inout_type),
         analysis_data,

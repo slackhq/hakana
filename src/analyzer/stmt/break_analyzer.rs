@@ -55,7 +55,7 @@ pub(crate) fn analyze(
             for (var_id, var_type) in &context.locals {
                 if !loop_scope.parent_context_vars.contains_key(var_id) {
                     loop_scope.possibly_defined_loop_parent_vars.insert(
-                        VarName::new(var_id.to_string()),
+                        VarName::new(var_id),
                         combine_optional_union_types(
                             Some(var_type),
                             loop_scope.possibly_defined_loop_parent_vars.get(var_id),
@@ -85,26 +85,22 @@ pub(crate) fn analyze(
 
     let case_scope = analysis_data.case_scopes.last_mut();
 
-    if let Some(case_scope) = case_scope {
-        if leaving_switch {
-            let mut new_break_vars = case_scope
-                .break_vars
-                .clone()
-                .unwrap_or(FxHashMap::default());
+    if let Some(case_scope) = case_scope
+        && leaving_switch
+    {
+        let mut new_break_vars = case_scope
+            .break_vars
+            .clone()
+            .unwrap_or(FxHashMap::default());
 
-            for (var_id, var_type) in &context.locals {
-                new_break_vars.insert(
-                    var_id.clone(),
-                    combine_optional_union_types(
-                        Some(var_type),
-                        new_break_vars.get(var_id),
-                        codebase,
-                    ),
-                );
-            }
-
-            case_scope.break_vars = Some(new_break_vars);
+        for (var_id, var_type) in &context.locals {
+            new_break_vars.insert(
+                var_id.clone(),
+                combine_optional_union_types(Some(var_type), new_break_vars.get(var_id), codebase),
+            );
         }
+
+        case_scope.break_vars = Some(new_break_vars);
     }
 
     context.has_returned = true;

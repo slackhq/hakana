@@ -270,12 +270,12 @@ fn populate_functionlike_storage(
 
     storage.is_populated = true;
 
-    if !storage.user_defined && !storage.is_closure {
-        if let ReferenceSource::Symbol(true, function_id) = reference_source {
-            if let Some(banned_message) = config.banned_builtin_functions.get(function_id) {
-                storage.banned_function_message = Some(*banned_message);
-            }
-        }
+    if !storage.user_defined
+        && !storage.is_closure
+        && let ReferenceSource::Symbol(true, function_id) = reference_source
+        && let Some(banned_message) = config.banned_builtin_functions.get(function_id)
+    {
+        storage.banned_function_message = Some(*banned_message);
     }
 
     for attribute_info in &storage.attributes {
@@ -470,10 +470,10 @@ fn populate_classlike_storage(
                 .functionlike_infos
                 .get_mut(&(storage.name, *method_name))
                 .unwrap();
-            if let Some(method_storage) = &functionlike_storage.method_info {
-                if !method_storage.is_static {
-                    functionlike_storage.specialize_call = true;
-                }
+            if let Some(method_storage) = &functionlike_storage.method_info
+                && !method_storage.is_static
+            {
+                functionlike_storage.specialize_call = true;
             }
         }
     }
@@ -786,18 +786,17 @@ fn inherit_methods_from_parent(
 
         // A trait method may override an existing method inherited from a parent class
         // (but thankfully not from an earlier trait as that's a type error)
-        if storage.declaring_method_ids.contains_key(method_name) {
-            if !matches!(parent_storage.kind, SymbolKind::Trait)
+        if storage.declaring_method_ids.contains_key(method_name)
+            && (!matches!(parent_storage.kind, SymbolKind::Trait)
                 || codebase
                     .classlike_infos
                     .get(declaring_class)
                     .map(|declaring_classlike_storage| {
                         !matches!(declaring_classlike_storage.kind, SymbolKind::Trait)
                     })
-                    .unwrap_or(true)
-            {
-                continue;
-            }
+                    .unwrap_or(true))
+        {
+            continue;
         }
 
         storage
@@ -829,15 +828,14 @@ fn inherit_properties_from_parent(storage: &mut ClassLikeInfo, parent_storage: &
             continue;
         }
 
-        if !matches!(parent_storage.kind, SymbolKind::Trait) {
-            if let Some(parent_property_storage) = parent_storage.properties.get(property_name) {
-                if matches!(
-                    parent_property_storage.visibility,
-                    MemberVisibility::Private
-                ) {
-                    continue;
-                }
-            }
+        if !matches!(parent_storage.kind, SymbolKind::Trait)
+            && let Some(parent_property_storage) = parent_storage.properties.get(property_name)
+            && matches!(
+                parent_property_storage.visibility,
+                MemberVisibility::Private
+            )
+        {
+            continue;
         }
 
         let is_trait = matches!(storage.kind, SymbolKind::Trait);
@@ -861,15 +859,14 @@ fn inherit_properties_from_parent(storage: &mut ClassLikeInfo, parent_storage: &
             continue;
         }
 
-        if !matches!(parent_storage.kind, SymbolKind::Trait) {
-            if let Some(parent_property_storage) = parent_storage.properties.get(property_name) {
-                if matches!(
-                    parent_property_storage.visibility,
-                    MemberVisibility::Private
-                ) {
-                    continue;
-                }
-            }
+        if !matches!(parent_storage.kind, SymbolKind::Trait)
+            && let Some(parent_property_storage) = parent_storage.properties.get(property_name)
+            && matches!(
+                parent_property_storage.visibility,
+                MemberVisibility::Private
+            )
+        {
+            continue;
         }
 
         storage
@@ -880,13 +877,13 @@ fn inherit_properties_from_parent(storage: &mut ClassLikeInfo, parent_storage: &
     // register inheritance
     for (property_name, inheritable_classlike) in &parent_storage.inheritable_property_ids {
         if !matches!(parent_storage.kind, SymbolKind::Trait) {
-            if let Some(parent_property_storage) = parent_storage.properties.get(property_name) {
-                if matches!(
+            if let Some(parent_property_storage) = parent_storage.properties.get(property_name)
+                && matches!(
                     parent_property_storage.visibility,
                     MemberVisibility::Private
-                ) {
-                    continue;
-                }
+                )
+            {
+                continue;
             }
 
             storage
@@ -906,14 +903,10 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
     if !parent_storage.template_types.is_empty() {
         // Only initialize if not already populated from a more specific source
         // (e.g., from a subclass that already resolved the type params through traits)
-        if !storage
+        storage
             .template_extended_params
-            .contains_key(&parent_storage.name)
-        {
-            storage
-                .template_extended_params
-                .insert(parent_storage.name, IndexMap::new());
-        }
+            .entry(parent_storage.name)
+            .or_insert_with(IndexMap::new);
 
         if let Some(parent_offsets) = storage.template_extended_offsets.get(&parent_storage.name) {
             for (i, extended_type) in parent_offsets.iter().enumerate() {
@@ -977,13 +970,11 @@ fn extend_type(
             param_name,
             ..
         }) = &atomic_type
+            && let Some(ex) = template_extended_params.get(defining_entity)
+            && let Some(referenced_type) = ex.get(param_name)
         {
-            if let Some(ex) = template_extended_params.get(defining_entity) {
-                if let Some(referenced_type) = ex.get(param_name) {
-                    extended_types.extend(referenced_type.types.clone());
-                    continue;
-                }
-            }
+            extended_types.extend(referenced_type.types.clone());
+            continue;
         }
 
         extended_types.push(atomic_type);

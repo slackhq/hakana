@@ -156,7 +156,7 @@ pub fn handle(
             let mut found = false;
             for linter in registry.all() {
                 if let Some(hhast_name) = linter.hhast_name() {
-                    let short_name = hhast_name.split('\\').last().unwrap_or(hhast_name);
+                    let short_name = hhast_name.split('\\').next_back().unwrap_or(hhast_name);
                     if linter_name == hhast_name
                         || linter_name == short_name
                         || linter_name == linter.name()
@@ -274,7 +274,7 @@ pub fn handle(
 
     for (i, path) in files_to_lint.into_iter().enumerate() {
         let group = i % group_size;
-        path_groups.entry(group).or_insert_with(Vec::new).push(path);
+        path_groups.entry(group).or_default().push(path);
     }
 
     let mut handles = vec![];
@@ -391,15 +391,15 @@ pub fn handle(
                                                     file_op.path.clone()
                                                 };
 
-                                                if let Some(parent_dir) = target_path.parent() {
-                                                    if let Err(e) = fs::create_dir_all(parent_dir) {
-                                                        lint_output.lock().unwrap().push(format!(
-                                                            "Error creating directory {}: {}",
-                                                            parent_dir.display(),
-                                                            e
-                                                        ));
-                                                        continue;
-                                                    }
+                                                if let Some(parent_dir) = target_path.parent()
+                                                    && let Err(e) = fs::create_dir_all(parent_dir)
+                                                {
+                                                    lint_output.lock().unwrap().push(format!(
+                                                        "Error creating directory {}: {}",
+                                                        parent_dir.display(),
+                                                        e
+                                                    ));
+                                                    continue;
                                                 }
 
                                                 match fs::write(&target_path, content) {
@@ -629,16 +629,12 @@ fn parse_codeowners_files(root_dir: &str) -> (Vec<glob::Pattern>, FxHashSet<Stri
                 } else {
                     exact_files.insert(format!("/{}", pattern));
                 }
-            } else {
-                if pattern.starts_with('/') {
-                    if let Ok(compiled) = glob::Pattern::new(&format!("{}/**", pattern)) {
-                        codeowner_patterns.push(compiled);
-                    }
-                } else {
-                    if let Ok(compiled) = glob::Pattern::new(&format!("**/{pattern}/**")) {
-                        codeowner_patterns.push(compiled);
-                    }
+            } else if pattern.starts_with('/') {
+                if let Ok(compiled) = glob::Pattern::new(&format!("{}/**", pattern)) {
+                    codeowner_patterns.push(compiled);
                 }
+            } else if let Ok(compiled) = glob::Pattern::new(&format!("**/{pattern}/**")) {
+                codeowner_patterns.push(compiled);
             }
         }
     }

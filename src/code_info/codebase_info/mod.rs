@@ -244,7 +244,7 @@ impl CodebaseInfo {
                 }]))
             } else if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
                 if matches!(classlike_storage.kind, SymbolKind::EnumClass) {
-                    return constant_storage.provided_type.clone();
+                    constant_storage.provided_type.clone()
                 } else if let Some(provided_type) = &constant_storage.provided_type {
                     if provided_type.types.iter().all(|v| v.is_boring_scalar()) && !is_this {
                         if let Some(inferred_type) = &constant_storage.inferred_type {
@@ -408,17 +408,17 @@ impl CodebaseInfo {
     pub fn get_symbol_pos(&self, classlike_name: &StrId, member_name: &StrId) -> Option<HPos> {
         let classlike_info = self.classlike_infos.get(classlike_name);
 
-        if *member_name == StrId::EMPTY {
-            if let Some(classlike_info) = classlike_info {
-                return Some(classlike_info.name_location);
-            }
+        if *member_name == StrId::EMPTY
+            && let Some(classlike_info) = classlike_info
+        {
+            return Some(classlike_info.name_location);
         }
 
         if let Some(classlike_info) = classlike_info {
-            if let Some(property_info) = classlike_info.properties.get(member_name) {
-                if let Some(property_pos) = property_info.pos {
-                    return Some(property_pos);
-                }
+            if let Some(property_info) = classlike_info.properties.get(member_name)
+                && let Some(property_pos) = property_info.pos
+            {
+                return Some(property_pos);
             }
 
             if let Some(constant_info) = classlike_info.constants.get(member_name) {
@@ -432,13 +432,13 @@ impl CodebaseInfo {
             .functionlike_infos
             .get(&(*classlike_name, *member_name));
 
-        if let Some(functionlike_info) = functionlike_info {
-            if let Some(name_pos) = functionlike_info.name_location {
-                return Some(name_pos);
-            }
+        if let Some(functionlike_info) = functionlike_info
+            && let Some(name_pos) = functionlike_info.name_location
+        {
+            return Some(name_pos);
         }
 
-        return None;
+        None
     }
 
     pub fn get_functionlike(
@@ -488,9 +488,7 @@ impl CodebaseInfo {
             if !defs.contains(&file_path) {
                 defs.push(file_path);
             }
-            if !self.classlike_infos.contains_key(&name) {
-                self.classlike_infos.insert(name, info);
-            }
+            self.classlike_infos.entry(name).or_insert(info);
         }
 
         // Track functionlike definitions and detect duplicates (only top-level functions)
@@ -504,9 +502,7 @@ impl CodebaseInfo {
                 if !defs.contains(&file_path) {
                     defs.push(file_path);
                 }
-                if !self.functionlike_infos.contains_key(&key) {
-                    self.functionlike_infos.insert(key, info);
-                }
+                self.functionlike_infos.entry(key).or_insert(info);
             } else {
                 self.functionlike_infos.insert(key, info);
             }
@@ -520,9 +516,7 @@ impl CodebaseInfo {
             if !defs.contains(&file_path) {
                 defs.push(file_path);
             }
-            if !self.type_definitions.contains_key(&name) {
-                self.type_definitions.insert(name, info);
-            }
+            self.type_definitions.entry(name).or_insert(info);
         }
 
         // Track constant definitions and detect duplicates
@@ -533,9 +527,7 @@ impl CodebaseInfo {
             if !defs.contains(&file_path) {
                 defs.push(file_path);
             }
-            if !self.constant_infos.contains_key(&name) {
-                self.constant_infos.insert(name, info);
-            }
+            self.constant_infos.entry(name).or_insert(info);
         }
 
         self.symbols.all.extend(other.symbols.all);
@@ -559,10 +551,7 @@ impl CodebaseInfo {
 
         let is_duplicate = self.classlike_infos.contains_key(&name);
 
-        let defs = self
-            .classlike_infos_defs
-            .entry(name)
-            .or_insert_with(Vec::new);
+        let defs = self.classlike_infos_defs.entry(name).or_default();
         // Only add if this file_path isn't already tracked
         if !defs.contains(&file_path) {
             defs.push(file_path);
@@ -587,10 +576,7 @@ impl CodebaseInfo {
         // Only track top-level functions (where second part is StrId::EMPTY)
         if key.1 == StrId::EMPTY {
             let file_path = info.def_location.file_path;
-            let defs = self
-                .functionlike_infos_defs
-                .entry(key)
-                .or_insert_with(Vec::new);
+            let defs = self.functionlike_infos_defs.entry(key).or_default();
             // Only add if this file_path isn't already tracked
             if !defs.contains(&file_path) {
                 defs.push(file_path);
@@ -608,42 +594,36 @@ impl CodebaseInfo {
     /// Insert a type definition, tracking the definition location for duplicate detection.
     pub fn insert_type_definition(&mut self, name: StrId, info: TypeDefinitionInfo) -> bool {
         let file_path = info.location.file_path;
-        let defs = self
-            .type_definitions_defs
-            .entry(name)
-            .or_insert_with(Vec::new);
+        let defs = self.type_definitions_defs.entry(name).or_default();
         // Only add if this file_path isn't already tracked
         if !defs.contains(&file_path) {
             defs.push(file_path);
         }
 
-        if self.type_definitions.contains_key(&name) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.type_definitions.entry(name) {
+            e.insert(info);
+            true
+        } else {
             // Duplicate - don't insert
             false
-        } else {
-            self.type_definitions.insert(name, info);
-            true
         }
     }
 
     /// Insert a constant info, tracking the definition location for duplicate detection.
     pub fn insert_constant_info(&mut self, name: StrId, info: ConstantInfo) -> bool {
         let file_path = info.pos.file_path;
-        let defs = self
-            .constant_infos_defs
-            .entry(name)
-            .or_insert_with(Vec::new);
+        let defs = self.constant_infos_defs.entry(name).or_default();
         // Only add if this file_path isn't already tracked
         if !defs.contains(&file_path) {
             defs.push(file_path);
         }
 
-        if self.constant_infos.contains_key(&name) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.constant_infos.entry(name) {
+            e.insert(info);
+            true
+        } else {
             // Duplicate - don't insert
             false
-        } else {
-            self.constant_infos.insert(name, info);
-            true
         }
     }
 }

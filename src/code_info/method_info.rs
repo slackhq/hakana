@@ -38,21 +38,17 @@ impl MethodInfo {
         function_context: &FunctionContext,
         codebase: &CodebaseInfo,
     ) -> bool {
-        if self.is_final {
-            if let Some(FunctionLikeIdentifier::Method(calling_class, calling_method_name)) =
+        if self.is_final
+            && let Some(FunctionLikeIdentifier::Method(calling_class, calling_method_name)) =
                 function_context.calling_functionlike_id
-            {
-                if let Some(classlike_info) = codebase.classlike_infos.get(&calling_class) {
-                    if !classlike_info
-                        .overridden_method_ids
-                        .contains_key(&calling_method_name)
-                    {
-                        return true;
-                    }
-                }
-            }
+            && let Some(classlike_info) = codebase.classlike_infos.get(&calling_class)
+            && !classlike_info
+                .overridden_method_ids
+                .contains_key(&calling_method_name)
+        {
+            return true;
         }
 
-        return false;
+        false
     }
 }

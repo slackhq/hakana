@@ -86,13 +86,13 @@ pub(crate) fn analyze(
         None
     };
 
-    if stmt.2.is_none() {
-        if let Some(switch_var_type) = analysis_data.get_rc_expr_type(&stmt.0.1) {
-            if !switch_var_type.is_any()
-                && !switch_var_type.is_nothing()
-                && !switch_var_type.all_literals()
-            {
-                analysis_data.maybe_add_issue(
+    if stmt.2.is_none()
+        && let Some(switch_var_type) = analysis_data.get_rc_expr_type(&stmt.0.1)
+        && !switch_var_type.is_any()
+        && !switch_var_type.is_nothing()
+        && !switch_var_type.all_literals()
+    {
+        analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonEnumSwitchValue,
                         format!(
@@ -105,8 +105,6 @@ pub(crate) fn analyze(
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
                 );
-            }
-        }
     }
 
     let original_context = context.clone();
@@ -188,8 +186,7 @@ pub(crate) fn analyze(
             let case_cond_type = TUnion::new(
                 case_cond_types
                     .iter()
-                    .map(|t| t.unwrap().types.clone())
-                    .flatten()
+                    .flat_map(|t| t.unwrap().types.clone())
                     .collect::<Vec<_>>(),
             );
             let assertion = Assertion::NotInArray(case_cond_type);

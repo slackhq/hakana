@@ -73,6 +73,12 @@ impl Linter for NoWhitespaceAtEndOfLineLinter {
     }
 }
 
+impl Default for NoWhitespaceAtEndOfLineLinter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NoWhitespaceAtEndOfLineLinter {
     pub fn new() -> Self {
         Self

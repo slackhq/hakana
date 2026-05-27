@@ -58,26 +58,24 @@ pub fn is_contained_by(
 
     while let Some(input_type_part) = input_atomic_types.pop() {
         match input_type_part {
-            TAtomic::TNull { .. } => {
+            TAtomic::TNull => {
                 if comparison_config.ignore_null {
                     continue;
                 }
             }
-            TAtomic::TFalse { .. } => {
+            TAtomic::TFalse => {
                 if comparison_config.ignore_false {
                     continue;
                 }
             }
             TAtomic::TTypeVariable { name } => {
-                if container_type.is_single() {
-                    if let TAtomic::TTypeVariable {
+                if container_type.is_single()
+                    && let TAtomic::TTypeVariable {
                         name: container_name,
                     } = container_type.get_single()
-                    {
-                        if container_name == name {
-                            continue;
-                        }
-                    }
+                    && container_name == name
+                {
+                    continue;
                 }
                 union_comparison_result.type_variable_upper_bounds.push((
                     name.clone(),
@@ -105,30 +103,29 @@ pub fn is_contained_by(
             comparison_config,
             union_comparison_result,
             &container_atomic_types,
-        ) {
-            if !atomic_union_check_result.type_match_found {
-                if atomic_union_check_result.some_type_coerced {
-                    union_comparison_result.type_coerced = Some(true);
-                }
-
-                if atomic_union_check_result.some_type_coerced_from_nested_mixed {
-                    union_comparison_result.type_coerced_from_nested_mixed = Some(true);
-
-                    if input_type.from_template_default
-                        || atomic_union_check_result
-                            .all_type_coerced_from_as_mixed
-                            .unwrap_or(false)
-                    {
-                        union_comparison_result.type_coerced_from_as_mixed = Some(true);
-                    }
-                }
-
-                if atomic_union_check_result.some_type_coerced_from_nested_any {
-                    union_comparison_result.type_coerced_from_nested_any = Some(true);
-                }
-
-                return false;
+        ) && !atomic_union_check_result.type_match_found
+        {
+            if atomic_union_check_result.some_type_coerced {
+                union_comparison_result.type_coerced = Some(true);
             }
+
+            if atomic_union_check_result.some_type_coerced_from_nested_mixed {
+                union_comparison_result.type_coerced_from_nested_mixed = Some(true);
+
+                if input_type.from_template_default
+                    || atomic_union_check_result
+                        .all_type_coerced_from_as_mixed
+                        .unwrap_or(false)
+                {
+                    union_comparison_result.type_coerced_from_as_mixed = Some(true);
+                }
+            }
+
+            if atomic_union_check_result.some_type_coerced_from_nested_any {
+                union_comparison_result.type_coerced_from_nested_any = Some(true);
+            }
+
+            return false;
         }
     }
 
@@ -153,10 +150,10 @@ fn check_atomic_contained_by_union(
         }
 
         for container_atomic_type in container_atomic_types {
-            if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = container_atomic_type {
-                if as_type.is_arraykey() {
-                    return None;
-                }
+            if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = container_atomic_type
+                && as_type.is_arraykey()
+            {
+                return None;
             }
         }
     }
@@ -219,8 +216,8 @@ fn check_atomic_contained_by_atomic(
     container_type_part: &&TAtomic,
 ) -> Option<bool> {
     if comparison_config.ignore_false
-        && matches!(container_type_part, TAtomic::TFalse { .. })
-        && !matches!(input_type_part, TAtomic::TFalse { .. })
+        && matches!(container_type_part, TAtomic::TFalse)
+        && !matches!(input_type_part, TAtomic::TFalse)
     {
         return None;
     }
@@ -376,11 +373,11 @@ pub(crate) fn can_be_contained_by(
     }
 
     for container_type_part in &container_type.types {
-        if matches!(container_type_part, TAtomic::TNull { .. }) && ignore_null {
+        if matches!(container_type_part, TAtomic::TNull) && ignore_null {
             continue;
         }
 
-        if matches!(container_type_part, TAtomic::TFalse { .. }) && ignore_false {
+        if matches!(container_type_part, TAtomic::TFalse) && ignore_false {
             continue;
         }
 

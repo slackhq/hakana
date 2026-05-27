@@ -75,7 +75,7 @@ impl<'a> FileAnalyzer<'a> {
             self.namespace_name = namespace_declaration.map(|(id, _)| id.1.to_string());
 
             let statements_analyzer =
-                StatementsAnalyzer::new(&self, &type_resolution_context, &comments);
+                StatementsAnalyzer::new(self, &type_resolution_context, &comments);
 
             if namespace_declaration.is_some() {
                 let (_, statements) = namespace_declaration.unwrap();
@@ -103,7 +103,7 @@ impl<'a> FileAnalyzer<'a> {
                 )?;
             }
 
-            if namespace_declaration.map_or(false, |(_, statements)| !statements.is_empty()) {
+            if namespace_declaration.is_some_and(|(_, statements)| !statements.is_empty()) {
                 self.namespace_name = None;
             }
         }

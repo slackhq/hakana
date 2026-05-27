@@ -55,7 +55,7 @@ impl<'ast> Visitor<'ast> for Scanner {
             aast::Expr_::Call(boxed) => {
                 for arg_expr in &boxed.args {
                     if let Argument::Ainout(_, arg_expr) = arg_expr {
-                        let arg_var_id = expression_identifier::get_root_var_id(&arg_expr);
+                        let arg_var_id = expression_identifier::get_root_var_id(arg_expr);
 
                         if let Some(arg_var_id) = &arg_var_id {
                             if self.first_var_id.is_none() {

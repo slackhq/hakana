@@ -295,46 +295,45 @@ fn handle_attribute_spread(
                 name: spread_xhp_class,
                 ..
             }) = expr_type_atomic
+                && let Some(spread_class_info) = codebase.classlike_infos.get(spread_xhp_class)
             {
-                if let Some(spread_class_info) = codebase.classlike_infos.get(spread_xhp_class) {
-                    let all_attributes = spread_class_info
-                        .properties
-                        .iter()
-                        .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { .. }));
+                let all_attributes = spread_class_info
+                    .properties
+                    .iter()
+                    .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { .. }));
 
-                    for spread_attribute in all_attributes {
-                        atomic_property_fetch_analyzer::analyze(
-                            statements_analyzer,
-                            (xhp_expr, xhp_expr),
-                            xhp_expr.pos(),
+                for spread_attribute in all_attributes {
+                    atomic_property_fetch_analyzer::analyze(
+                        statements_analyzer,
+                        (xhp_expr, xhp_expr),
+                        xhp_expr.pos(),
+                        analysis_data,
+                        context,
+                        false,
+                        expr_type_atomic.clone(),
+                        statements_analyzer.interner.lookup(spread_attribute.0),
+                        &None,
+                    )?;
+
+                    used_attributes.insert(*spread_attribute.0);
+
+                    if let Some(property_fetch_type) = analysis_data
+                        .expr_types
+                        .get(&(
+                            xhp_expr.pos().start_offset() as u32,
+                            xhp_expr.pos().end_offset() as u32,
+                        ))
+                        .cloned()
+                    {
+                        add_all_dataflow(
                             analysis_data,
-                            context,
-                            false,
-                            expr_type_atomic.clone(),
+                            statements_analyzer,
+                            (*element_name, *spread_attribute.0),
+                            xhp_expr.pos(),
+                            xhp_expr.pos(),
+                            property_fetch_type,
                             statements_analyzer.interner.lookup(spread_attribute.0),
-                            &None,
-                        )?;
-
-                        used_attributes.insert(*spread_attribute.0);
-
-                        if let Some(property_fetch_type) = analysis_data
-                            .expr_types
-                            .get(&(
-                                xhp_expr.pos().start_offset() as u32,
-                                xhp_expr.pos().end_offset() as u32,
-                            ))
-                            .cloned()
-                        {
-                            add_all_dataflow(
-                                analysis_data,
-                                statements_analyzer,
-                                (*element_name, *spread_attribute.0),
-                                xhp_expr.pos(),
-                                xhp_expr.pos(),
-                                property_fetch_type,
-                                statements_analyzer.interner.lookup(spread_attribute.0),
-                            );
-                        }
+                        );
                     }
                 }
             }
@@ -381,28 +380,27 @@ fn analyze_xhp_attribute_assignment(
     let attribute_name_pos = &attribute_info.name.0;
     let codebase = statements_analyzer.codebase;
 
-    if let Some(classlike_info) = codebase.classlike_infos.get(element_name) {
-        if attribute_name != StrId::DATA_ATTRIBUTE
-            && attribute_name != StrId::ARIA_ATTRIBUTE
-            && !classlike_info
-                .appearing_property_ids
-                .contains_key(&attribute_name)
-        {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::NonExistentXhpAttribute,
-                    format!(
-                        "XHP attribute {} is not defined on {}",
-                        statements_analyzer.interner.lookup(&attribute_name),
-                        statements_analyzer.interner.lookup(element_name)
-                    ),
-                    statements_analyzer.get_hpos(attribute_name_pos),
-                    &context.function_context.calling_functionlike_id,
+    if let Some(classlike_info) = codebase.classlike_infos.get(element_name)
+        && attribute_name != StrId::DATA_ATTRIBUTE
+        && attribute_name != StrId::ARIA_ATTRIBUTE
+        && !classlike_info
+            .appearing_property_ids
+            .contains_key(&attribute_name)
+    {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentXhpAttribute,
+                format!(
+                    "XHP attribute {} is not defined on {}",
+                    statements_analyzer.interner.lookup(&attribute_name),
+                    statements_analyzer.interner.lookup(element_name)
                 ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-        }
+                statements_analyzer.get_hpos(attribute_name_pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
     }
 
     let attribute_value_pos = attribute_info.expr.pos();

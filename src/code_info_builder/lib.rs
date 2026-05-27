@@ -209,7 +209,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 let transformed_type = transform_shape_type_constant(
                     full_type,
                     &shape_type_constant.map,
-                    &self.codebase,
+                    self.codebase,
                 );
 
                 if let Some(type_storage) = self
@@ -460,32 +460,31 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             let attribute_param_type =
                 simple_type_inferer::infer(attribute_param_expr, self.resolved_names, false);
 
-            if let Some(atomic_param_attribute) = attribute_param_type {
-                if let TAtomic::TDict(TDict {
+            if let Some(atomic_param_attribute) = attribute_param_type
+                && let TAtomic::TDict(TDict {
                     known_items: Some(attribute_known_items),
                     ..
                 }) = atomic_param_attribute
-                {
-                    for (name, (_, item_type)) in attribute_known_items {
-                        let mut source_types = vec![];
+            {
+                for (name, (_, item_type)) in attribute_known_items {
+                    let mut source_types = vec![];
 
-                        if let Some(str) = item_type.get_single_literal_string_value() {
-                            if let Some(source_type) = string_to_source_types(str) {
-                                source_types.push(source_type);
-                            }
-                        }
-
-                        shape_sources.insert(
-                            name.clone(),
-                            (
-                                HPos::new(
-                                    shape_source_attribute.name.pos(),
-                                    self.file_source.file_path,
-                                ),
-                                source_types,
-                            ),
-                        );
+                    if let Some(str) = item_type.get_single_literal_string_value()
+                        && let Some(source_type) = string_to_source_types(str)
+                    {
+                        source_types.push(source_type);
                     }
+
+                    shape_sources.insert(
+                        name.clone(),
+                        (
+                            HPos::new(
+                                shape_source_attribute.name.pos(),
+                                self.file_source.file_path,
+                            ),
+                            source_types,
+                        ),
+                    );
                 }
             }
 
@@ -521,18 +520,17 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 let attribute_param_type =
                     simple_type_inferer::infer(attribute_param_expr, self.resolved_names, false);
 
-                if let Some(atomic_param_attribute) = attribute_param_type {
-                    if let TAtomic::TDict(TDict {
+                if let Some(atomic_param_attribute) = attribute_param_type
+                    && let TAtomic::TDict(TDict {
                         known_items: Some(attribute_known_items),
                         ..
                     }) = atomic_param_attribute
-                    {
-                        for (name, (_, item_type)) in attribute_known_items {
-                            if let (DictKey::String(key_str), Some(value)) =
-                                (name, item_type.get_single_literal_string_value())
-                            {
-                                type_map.insert(key_str, value);
-                            }
+                {
+                    for (name, (_, item_type)) in attribute_known_items {
+                        if let (DictKey::String(key_str), Some(value)) =
+                            (name, item_type.get_single_literal_string_value())
+                        {
+                            type_map.insert(key_str, value);
                         }
                     }
                 }
@@ -759,12 +757,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 }
             }
             aast::Expr_::Call(boxed) => {
-                if let aast::Expr_::Id(boxed_id) = &boxed.func.2 {
-                    if let Some(&StrId::ASIO_JOIN) =
+                if let aast::Expr_::Id(boxed_id) = &boxed.func.2
+                    && let Some(&StrId::ASIO_JOIN) =
                         self.resolved_names.get(&(boxed_id.0.start_offset() as u32))
-                    {
-                        c.has_asio_join = true;
-                    }
+                {
+                    c.has_asio_join = true;
                 }
             }
             _ => (),
@@ -907,10 +904,10 @@ impl<'a> Scanner<'a> {
 
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
 
-        if !self.user_defined {
-            if let Some(name) = name {
-                fix_function_return_type(name, &mut functionlike_storage);
-            }
+        if !self.user_defined
+            && let Some(name) = name
+        {
+            fix_function_return_type(name, &mut functionlike_storage);
         }
 
         functionlike_storage
@@ -1000,7 +997,7 @@ fn transform_shape_type_constant(
             for (key, (_, value_type)) in items {
                 // For each value in the dict, we need to resolve it
                 let transformed_value_type = if value_type.types.len() == 1 {
-                    let atomic = value_type.types.iter().next().unwrap();
+                    let atomic = value_type.types.first().unwrap();
 
                     // If it's a TMemberReference (enum constant), resolve it
                     if let TAtomic::TMemberReference {

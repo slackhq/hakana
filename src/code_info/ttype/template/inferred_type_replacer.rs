@@ -248,30 +248,26 @@ fn replace_template_param(
                     }
                 };
 
-                if let Some(classlike_info) = codebase.classlike_infos.get(classlike_name) {
-                    if let Some(param_map) =
+                if let Some(classlike_info) = codebase.classlike_infos.get(classlike_name)
+                    && let Some(param_map) =
                         classlike_info.template_extended_params.get(classlike_name)
+                    && let Some(param_inner) = param_map.get(key)
+                {
+                    let template_name =
+                        if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) =
+                            param_inner.get_single()
+                        {
+                            param_name
+                        } else {
+                            panic!()
+                        };
+                    if let Some(bounds_map) = inferred_lower_bounds.get(template_name)
+                        && let Some(bounds) = bounds_map.get(map_defining_entity)
                     {
-                        if let Some(param_inner) = param_map.get(key) {
-                            let template_name = if let TAtomic::TGenericParam(TGenericParam {
-                                param_name,
-                                ..
-                            }) = param_inner.get_single()
-                            {
-                                param_name
-                            } else {
-                                panic!()
-                            };
-                            if let Some(bounds_map) = inferred_lower_bounds.get(template_name) {
-                                if let Some(bounds) = bounds_map.get(map_defining_entity) {
-                                    template_type = Some(
-                                        standin_type_replacer::get_most_specific_type_from_bounds(
-                                            bounds, codebase,
-                                        ),
-                                    );
-                                }
-                            }
-                        }
+                        template_type =
+                            Some(standin_type_replacer::get_most_specific_type_from_bounds(
+                                bounds, codebase,
+                            ));
                     }
                 }
             }
@@ -292,7 +288,7 @@ fn replace_atomic(
             ref mut known_items,
             ..
         }) => {
-            *type_param = Box::new(replace(type_param, template_result, codebase));
+            **type_param = replace(type_param, template_result, codebase);
 
             if let Some(known_items) = known_items {
                 for (_, t) in known_items.values_mut() {
@@ -306,8 +302,8 @@ fn replace_atomic(
             ..
         }) => {
             if let Some(params) = params {
-                params.0 = Box::new(replace(&params.0, template_result, codebase));
-                params.1 = Box::new(replace(&params.1, template_result, codebase));
+                *params.0 = replace(&params.0, template_result, codebase);
+                *params.1 = replace(&params.1, template_result, codebase);
             }
 
             if let Some(known_items) = known_items {
@@ -319,7 +315,7 @@ fn replace_atomic(
         TAtomic::TKeyset {
             ref mut type_param, ..
         } => {
-            *type_param = Box::new(replace(type_param, template_result, codebase));
+            **type_param = replace(type_param, template_result, codebase);
         }
         TAtomic::TNamedObject(TNamedObject {
             type_params: Some(ref mut type_params),
@@ -330,12 +326,12 @@ fn replace_atomic(
             }
         }
         TAtomic::TAwaitable { ref mut value, .. } => {
-            *value = Box::new(replace(value, template_result, codebase));
+            **value = replace(value, template_result, codebase);
         }
         TAtomic::TClosure(ref mut closure) => {
             for param in closure.params.iter_mut() {
                 if let Some(ref mut t) = param.signature_type {
-                    *t = Box::new(replace(t, template_result, codebase));
+                    **t = replace(t, template_result, codebase);
                 }
             }
 

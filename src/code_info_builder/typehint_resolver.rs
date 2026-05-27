@@ -171,15 +171,13 @@ fn get_classname_type_from_hint(
                     as_type: Box::new(as_type.get_single_owned()),
                 }
             }
+        } else if is_class_ptr {
+            TAtomic::TClassPtr {
+                as_type: Box::new(as_type),
+            }
         } else {
-            if is_class_ptr {
-                TAtomic::TClassPtr {
-                    as_type: Box::new(as_type),
-                }
-            } else {
-                TAtomic::TClassname {
-                    as_type: Box::new(as_type),
-                }
+            TAtomic::TClassname {
+                as_type: Box::new(as_type),
             }
         }
     } else {
@@ -534,14 +532,13 @@ pub fn get_type_from_hint(
                 .strip_prefix('\\')
                 .unwrap_or(applied_type.as_str());
 
-            if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
-                if let Some((_, type_name)) = type_context
+            if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32))
+                && let Some((_, type_name)) = type_context
                     .template_supers
                     .iter()
                     .find(|(id, _)| id == resolved_name)
-                {
-                    return Some(type_name.clone());
-                }
+            {
+                return Some(type_name.clone());
             }
 
             match applied_type_str {

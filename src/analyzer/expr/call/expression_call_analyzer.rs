@@ -67,12 +67,11 @@ pub(crate) fn analyze(
 
             let mut effects = closure.effects;
 
-            if let Some(existing_storage) = existing_storage {
-                if existing_storage.has_throw {
-                    if let Some(ref mut effects) = effects {
-                        *effects |= EFFECT_CAN_THROW;
-                    }
-                }
+            if let Some(existing_storage) = existing_storage
+                && existing_storage.has_throw
+                && let Some(ref mut effects) = effects
+            {
+                *effects |= EFFECT_CAN_THROW;
             }
 
             lambda_storage.effects = FnEffect::from_u8(&effects);

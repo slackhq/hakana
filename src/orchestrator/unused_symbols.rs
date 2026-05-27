@@ -64,7 +64,7 @@ pub(crate) fn find_unused_definitions(
         return;
     }
 
-    check_enum_exclusivity(analysis_result, codebase, interner, &config);
+    check_enum_exclusivity(analysis_result, codebase, interner, config);
 
     let referenced_symbols_and_members = analysis_result.symbol_references.back_references();
     let mut test_symbols = codebase
@@ -370,10 +370,10 @@ pub(crate) fn find_unused_definitions(
                             && matches!(method_storage.visibility, MemberVisibility::Private)
                         {
                             let stmt_pos = &functionlike_storage.def_location;
-                            if let Some(name_pos) = &functionlike_storage.name_location {
-                                if stmt_pos.end_line - name_pos.start_line <= 1 {
-                                    continue;
-                                }
+                            if let Some(name_pos) = &functionlike_storage.name_location
+                                && stmt_pos.end_line - name_pos.start_line <= 1
+                            {
+                                continue;
                             }
                         }
 
@@ -522,10 +522,10 @@ pub(crate) fn find_unused_definitions(
                     if !referenced_symbols_and_members.contains(&pair)
                         && !referenced_overridden_class_members.contains(&pair)
                     {
-                        if let Some(suppressed_issues) = &property_storage.suppressed_issues {
-                            if suppressed_issues.contains_key(&IssueKind::UnusedPrivateProperty) {
-                                continue;
-                            }
+                        if let Some(suppressed_issues) = &property_storage.suppressed_issues
+                            && suppressed_issues.contains_key(&IssueKind::UnusedPrivateProperty)
+                        {
+                            continue;
                         }
 
                         let issue =
@@ -676,7 +676,7 @@ fn add_service_calls_attributes(
     // Get all services that are referenced in CallsService and IndirectlyCallsService attributes
     let mut all_services = FxHashSet::default();
 
-    for (_, functionlike_info) in &codebase.functionlike_infos {
+    for functionlike_info in codebase.functionlike_infos.values() {
         for service in &functionlike_info.service_calls {
             all_services.insert(service.clone());
         }
@@ -712,8 +712,8 @@ fn add_service_calls_attributes(
                 let back_refs = back_refs
                     .iter()
                     .filter(|k| {
-                        !all_service_callers.contains(&k)
-                            && match codebase.functionlike_infos.get(&k) {
+                        !all_service_callers.contains(k)
+                            && match codebase.functionlike_infos.get(k) {
                                 Some(functionlike_info) => {
                                     functionlike_info.is_production_code
                                         && !functionlike_info.generated
@@ -721,7 +721,7 @@ fn add_service_calls_attributes(
                                 None => false,
                             }
                     })
-                    .map(|k| *k)
+                    .copied()
                     .collect::<FxHashSet<_>>();
                 next_new_caller_ids.extend(back_refs.clone());
                 all_service_callers.extend(back_refs);
@@ -840,15 +840,15 @@ fn is_method_referenced_somewhere_else(
         &codebase.symbols,
         &codebase.all_classlike_descendants,
     ) {
-        if let Some(trait_user_classlike_info) = codebase.classlike_infos.get(&trait_user) {
-            if has_upstream_method_call(
+        if let Some(trait_user_classlike_info) = codebase.classlike_infos.get(&trait_user)
+            && has_upstream_method_call(
                 trait_user_classlike_info,
                 method_name_ptr,
                 referenced_symbols_and_members,
                 codebase,
-            ) {
-                return true;
-            }
+            )
+        {
+            return true;
         }
     }
 
@@ -887,16 +887,16 @@ fn get_trait_users(
 ) -> FxHashSet<StrId> {
     let mut base_set = FxHashSet::default();
 
-    if let Some(SymbolKind::Trait) = symbols.all.get(classlike_name) {
-        if let Some(trait_users) = all_classlike_descendants.get(classlike_name) {
-            base_set.extend(trait_users);
-            for classlike_descendant in trait_users {
-                base_set.extend(get_trait_users(
-                    classlike_descendant,
-                    symbols,
-                    all_classlike_descendants,
-                ));
-            }
+    if let Some(SymbolKind::Trait) = symbols.all.get(classlike_name)
+        && let Some(trait_users) = all_classlike_descendants.get(classlike_name)
+    {
+        base_set.extend(trait_users);
+        for classlike_descendant in trait_users {
+            base_set.extend(get_trait_users(
+                classlike_descendant,
+                symbols,
+                all_classlike_descendants,
+            ));
         }
     }
 
@@ -932,34 +932,28 @@ fn check_enum_exclusivity(
                     if let hakana_code_info::t_atomic::TAtomic::TEnum {
                         name: enum_name, ..
                     } = atomic_type
+                        && let Some(enum_info) = codebase.classlike_infos.get(enum_name)
+                        && matches!(
+                            enum_info.kind,
+                            hakana_code_info::codebase_info::symbols::SymbolKind::Enum
+                        )
                     {
-                        if let Some(enum_info) = codebase.classlike_infos.get(enum_name) {
-                            if matches!(
-                                enum_info.kind,
-                                hakana_code_info::codebase_info::symbols::SymbolKind::Enum
-                            ) {
-                                // Check if the constant allows non-exclusive enum values
-                                if const_info.allow_non_exclusive_enum_values {
-                                    // This constant explicitly allows non-exclusive values, skip checks
-                                    continue;
-                                }
-
-                                if const_info
-                                    .suppressed_issues
-                                    .iter()
-                                    .any(|(issue, _)| issue == &IssueKind::ExclusiveEnumValueReused)
-                                {
-                                    continue;
-                                }
-
-                                // Track this for exclusivity checking (we already know it has the exclusive attribute)
-                                abstract_enum_constants.insert((
-                                    *enum_name,
-                                    *class_name,
-                                    *const_name,
-                                ));
-                            }
+                        // Check if the constant allows non-exclusive enum values
+                        if const_info.allow_non_exclusive_enum_values {
+                            // This constant explicitly allows non-exclusive values, skip checks
+                            continue;
                         }
+
+                        if const_info
+                            .suppressed_issues
+                            .iter()
+                            .any(|(issue, _)| issue == &IssueKind::ExclusiveEnumValueReused)
+                        {
+                            continue;
+                        }
+
+                        // Track this for exclusivity checking (we already know it has the exclusive attribute)
+                        abstract_enum_constants.insert((*enum_name, *class_name, *const_name));
                     }
                 }
             }
@@ -997,20 +991,18 @@ fn check_enum_exclusivity(
                     continue;
                 }
 
-                if let Some(inferred_type) = &const_info.inferred_type {
-                    if let hakana_code_info::t_atomic::TAtomic::TEnumLiteralCase {
+                if let Some(inferred_type) = &const_info.inferred_type
+                    && let hakana_code_info::t_atomic::TAtomic::TEnumLiteralCase {
                         enum_name: literal_enum_name,
                         member_name,
                         ..
                     } = inferred_type
-                    {
-                        if *literal_enum_name == enum_name {
-                            implementations
-                                .entry(*member_name)
-                                .or_default()
-                                .push((*class_name, const_info.pos));
-                        }
-                    }
+                    && *literal_enum_name == enum_name
+                {
+                    implementations
+                        .entry(*member_name)
+                        .or_default()
+                        .push((*class_name, const_info.pos));
                 }
             }
         }

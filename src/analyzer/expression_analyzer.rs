@@ -52,26 +52,26 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     is_sub_expression: bool,
 ) -> Result<(), AnalysisError> {
-    if statements_analyzer.get_config().add_fixmes {
-        if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
-            if current_stmt_offset.line != expr.1.line() as u32 {
-                if !matches!(expr.2, aast::Expr_::Xml(..)) {
-                    *current_stmt_offset = StmtStart {
-                        offset: expr.1.start_offset() as u32,
-                        line: expr.1.line() as u32,
-                        column: expr.1.to_raw_span().start.column() as u16,
-                        add_newline: true,
-                    };
-                } else {
-                    current_stmt_offset.line = expr.1.line() as u32;
-                }
+    if statements_analyzer.get_config().add_fixmes
+        && let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset
+    {
+        if current_stmt_offset.line != expr.1.line() as u32 {
+            if !matches!(expr.2, aast::Expr_::Xml(..)) {
+                *current_stmt_offset = StmtStart {
+                    offset: expr.1.start_offset() as u32,
+                    line: expr.1.line() as u32,
+                    column: expr.1.to_raw_span().start.column() as u16,
+                    add_newline: true,
+                };
+            } else {
+                current_stmt_offset.line = expr.1.line() as u32;
             }
-
-            analysis_data.expr_fixme_positions.insert(
-                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
-                *current_stmt_offset,
-            );
         }
+
+        analysis_data.expr_fixme_positions.insert(
+            (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
+            *current_stmt_offset,
+        );
     }
 
     match &expr.2 {
@@ -133,25 +133,24 @@ pub(crate) fn analyze(
             if statements_analyzer
                 .get_config()
                 .collect_goto_definition_locations
-            {
-                if let Some(hint_type) = hakana_reflector::typehint_resolver::get_type_from_hint(
+                && let Some(hint_type) = hakana_reflector::typehint_resolver::get_type_from_hint(
                     &hint.1,
                     context.function_context.calling_class,
                     statements_analyzer.get_type_resolution_context(),
                     statements_analyzer.file_analyzer.resolved_names,
                     *statements_analyzer.get_file_path(),
                     hint.0.start_offset() as u32,
-                ) {
-                    for t in &hint_type.types {
-                        if let TAtomic::TReference { name, .. }
-                        | TAtomic::TNamedObject(TNamedObject { name, .. })
-                        | TAtomic::TTypeAlias { name, .. } = t
-                        {
-                            analysis_data.definition_locations.insert(
-                                (hint.0.start_offset() as u32, hint.0.end_offset() as u32),
-                                (*name, StrId::EMPTY),
-                            );
-                        }
+                )
+            {
+                for t in &hint_type.types {
+                    if let TAtomic::TReference { name, .. }
+                    | TAtomic::TNamedObject(TNamedObject { name, .. })
+                    | TAtomic::TTypeAlias { name, .. } = t
+                    {
+                        analysis_data.definition_locations.insert(
+                            (hint.0.start_offset() as u32, hint.0.end_offset() as u32),
+                            (*name, StrId::EMPTY),
+                        );
                     }
                 }
             }
@@ -200,7 +199,7 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-                keyed_array_var_id.map(|t| VarName::new(t)),
+                keyed_array_var_id.map(VarName::new),
             )?;
         }
         aast::Expr_::Eif(boxed) => {
@@ -942,22 +941,22 @@ pub(crate) fn add_decision_dataflow(
         }
     }
 
-    if let Some(rhs_expr) = rhs_expr {
-        if let Some(rhs_type) = analysis_data.expr_types.get(&(
+    if let Some(rhs_expr) = rhs_expr
+        && let Some(rhs_type) = analysis_data.expr_types.get(&(
             rhs_expr.1.start_offset() as u32,
             rhs_expr.1.end_offset() as u32,
-        )) {
-            cond_type.parent_nodes.push(decision_node.clone());
+        ))
+    {
+        cond_type.parent_nodes.push(decision_node.clone());
 
-            for old_parent_node in &rhs_type.parent_nodes {
-                analysis_data.data_flow_graph.add_path(
-                    &old_parent_node.id,
-                    &decision_node.id,
-                    PathKind::Default,
-                    vec![],
-                    vec![],
-                );
-            }
+        for old_parent_node in &rhs_type.parent_nodes {
+            analysis_data.data_flow_graph.add_path(
+                &old_parent_node.id,
+                &decision_node.id,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
         }
     }
     analysis_data.expr_types.insert(

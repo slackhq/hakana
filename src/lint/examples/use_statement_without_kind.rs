@@ -83,12 +83,12 @@ impl Linter for UseStatementWithoutKindLinter {
             );
 
             // Only add autofix if we can determine the kind unambiguously
-            if ctx.allow_auto_fix {
-                if let Some(kind) = suggested_kind {
-                    let mut fix = EditSet::new();
-                    fix.add(Edit::insert(use_stmt.insert_pos, format!("{} ", kind)));
-                    error = error.with_fix(fix);
-                }
+            if ctx.allow_auto_fix
+                && let Some(kind) = suggested_kind
+            {
+                let mut fix = EditSet::new();
+                fix.add(Edit::insert(use_stmt.insert_pos, format!("{} ", kind)));
+                error = error.with_fix(fix);
             }
 
             errors.push(error);
@@ -99,6 +99,12 @@ impl Linter for UseStatementWithoutKindLinter {
 
     fn supports_auto_fix(&self) -> bool {
         true
+    }
+}
+
+impl Default for UseStatementWithoutKindLinter {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -170,23 +176,20 @@ impl<'a> SyntaxVisitor<'a> for UseStatementCollector<'a> {
                     // Collect all clause names
                     if let SyntaxVariant::SyntaxList(clauses) = &group_use.clauses.children {
                         for clause_node in clauses.iter() {
-                            if let SyntaxVariant::ListItem(item) = &clause_node.children {
-                                if let SyntaxVariant::NamespaceUseClause(clause) =
+                            if let SyntaxVariant::ListItem(item) = &clause_node.children
+                                && let SyntaxVariant::NamespaceUseClause(clause) =
                                     &item.item.children
+                            {
+                                // Check if this individual clause has a kind
+                                if !has_kind_keyword(&clause.clause_kind)
+                                    && let Some(clause_name) = extract_name(self.ctx, &clause.name)
                                 {
-                                    // Check if this individual clause has a kind
-                                    if !has_kind_keyword(&clause.clause_kind) {
-                                        if let Some(clause_name) =
-                                            extract_name(self.ctx, &clause.name)
-                                        {
-                                            let full_name = if prefix.is_empty() {
-                                                clause_name
-                                            } else {
-                                                format!("{}\\{}", prefix, clause_name)
-                                            };
-                                            names.push(full_name);
-                                        }
-                                    }
+                                    let full_name = if prefix.is_empty() {
+                                        clause_name
+                                    } else {
+                                        format!("{}\\{}", prefix, clause_name)
+                                    };
+                                    names.push(full_name);
                                 }
                             }
                         }
@@ -348,7 +351,7 @@ fn extract_qualified_namespace<'a>(
 fn get_short_name(full_name: &str) -> String {
     full_name
         .split('\\')
-        .last()
+        .next_back()
         .unwrap_or(full_name)
         .to_string()
 }

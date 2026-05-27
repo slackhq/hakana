@@ -16,7 +16,7 @@ pub enum ClauseKey {
 impl Display for ClauseKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ClauseKey::Name(var_name) => write!(f, "{}", var_name.to_string()),
+            ClauseKey::Name(var_name) => write!(f, "{}", var_name),
             ClauseKey::Range(start, end) => write!(f, "{}-{}", start, end),
         }
     }

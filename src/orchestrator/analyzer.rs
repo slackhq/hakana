@@ -169,34 +169,33 @@ fn analyze_file(
             .unwrap()
             .as_micros() as u64;
 
-        if let Some((file_hash, last_updated_time)) = last_hash_and_time {
-            if updated_time != *last_updated_time
-                && get_file_contents_hash(&str_path).unwrap_or(0) != *file_hash
-            {
-                analysis_result.has_invalid_hack_files = true;
-                analysis_result
-                    .changed_during_analysis_files
-                    .insert(file_path);
-                analysis_result.emitted_issues.insert(
-                    file_path,
-                    vec![Issue::new(
-                        IssueKind::InvalidHackFile,
-                        "File changed during analysis".to_string(),
-                        HPos {
-                            file_path,
-                            start_offset: 0,
-                            end_offset: 0,
-                            start_line: 0,
-                            end_line: 0,
-                            start_column: 0,
-                            end_column: 0,
-                        },
-                        &None,
-                    )],
-                );
+        if let Some((file_hash, last_updated_time)) = last_hash_and_time
+            && updated_time != *last_updated_time
+            && get_file_contents_hash(str_path).unwrap_or(0) != *file_hash
+        {
+            analysis_result.has_invalid_hack_files = true;
+            analysis_result
+                .changed_during_analysis_files
+                .insert(file_path);
+            analysis_result.emitted_issues.insert(
+                file_path,
+                vec![Issue::new(
+                    IssueKind::InvalidHackFile,
+                    "File changed during analysis".to_string(),
+                    HPos {
+                        file_path,
+                        start_offset: 0,
+                        end_offset: 0,
+                        start_line: 0,
+                        end_line: 0,
+                        start_column: 0,
+                        end_column: 0,
+                    },
+                    &None,
+                )],
+            );
 
-                return Duration::default();
-            }
+            return Duration::default();
         }
     }
 

@@ -239,8 +239,8 @@ pub(crate) fn check_arguments_match(
     for arg in args {
         let was_inside_call = context.inside_general_use;
 
-        if functionlike_id != &FunctionLikeIdentifier::Method(StrId::SHAPES, StrId::PUT) {
-            if matches!(functionlike_info.effects, FnEffect::Some(_))
+        if functionlike_id != &FunctionLikeIdentifier::Method(StrId::SHAPES, StrId::PUT)
+            && (matches!(functionlike_info.effects, FnEffect::Some(_))
                 || matches!(functionlike_info.effects, FnEffect::Arg(_))
                 || functionlike_info.has_throw
                 || functionlike_info.user_defined
@@ -248,10 +248,9 @@ pub(crate) fn check_arguments_match(
                 || matches!(
                     functionlike_id,
                     FunctionLikeIdentifier::Function(StrId::ASIO_JOIN)
-                )
-            {
-                context.inside_general_use = true;
-            }
+                ))
+        {
+            context.inside_general_use = true;
         }
 
         let arg_expr = arg.to_expr_ref();
@@ -296,12 +295,11 @@ pub(crate) fn check_arguments_match(
             functionlike_params.get(*argument_offset)
         };
 
-        if param.is_none() {
-            if let Some(last_param) = last_param {
-                if last_param.is_variadic {
-                    param = Some(last_param);
-                }
-            }
+        if param.is_none()
+            && let Some(last_param) = last_param
+            && last_param.is_variadic
+        {
+            param = Some(last_param);
         }
 
         let mut param_type = get_param_type(
@@ -481,21 +479,19 @@ pub(crate) fn check_arguments_match(
 
         while i < i_max {
             let function_param = &function_params[i];
-            if let Some(default_type) = &function_param.default_type {
-                if let Some(param_type) = &function_param.signature_type {
-                    if param_type.has_template() {
-                        let default_type =
-                            if let DefaultType::NormalData(default_union) = &default_type {
-                                wrap_atomic(default_union.clone())
-                            } else {
-                                // todo handle unresolved constants
-                                get_mixed_any()
-                            };
+            if let Some(default_type) = &function_param.default_type
+                && let Some(param_type) = &function_param.signature_type
+                && param_type.has_template()
+            {
+                let default_type = if let DefaultType::NormalData(default_union) = &default_type {
+                    wrap_atomic(default_union.clone())
+                } else {
+                    // todo handle unresolved constants
+                    get_mixed_any()
+                };
 
-                        if default_type.has_literal_value() {
-                            // todo check templated default arg matches
-                        }
-                    }
+                if default_type.has_literal_value() {
+                    // todo check templated default arg matches
                 }
             }
             i += 1;
@@ -531,14 +527,12 @@ pub(crate) fn check_arguments_match(
             }
         } else if let Some(function_param) = function_params.get(*argument_offset) {
             function_param
+        } else if let Some(last_param) = function_params.last()
+            && last_param.is_variadic
+        {
+            last_param
         } else {
-            if let Some(last_param) = function_params.last()
-                && last_param.is_variadic
-            {
-                last_param
-            } else {
-                break;
-            }
+            break;
         };
 
         if function_param.is_inout {
@@ -558,29 +552,29 @@ pub(crate) fn check_arguments_match(
                     continue;
                 };
 
-                if statements_analyzer.get_config().add_fixmes {
-                    if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
-                        if current_stmt_offset.line != arg.as_ainout().unwrap().0.line() as u32 {
-                            if !matches!(arg_expr.2, aast::Expr_::Xml(..)) {
-                                *current_stmt_offset = StmtStart {
-                                    offset: inout_token_pos.start_offset() as u32,
-                                    line: inout_token_pos.line() as u32,
-                                    column: inout_token_pos.to_raw_span().start.column() as u16,
-                                    add_newline: true,
-                                };
-                            } else {
-                                current_stmt_offset.line = inout_token_pos.line() as u32;
-                            }
+                if statements_analyzer.get_config().add_fixmes
+                    && let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset
+                {
+                    if current_stmt_offset.line != arg.as_ainout().unwrap().0.line() as u32 {
+                        if !matches!(arg_expr.2, aast::Expr_::Xml(..)) {
+                            *current_stmt_offset = StmtStart {
+                                offset: inout_token_pos.start_offset() as u32,
+                                line: inout_token_pos.line() as u32,
+                                column: inout_token_pos.to_raw_span().start.column() as u16,
+                                add_newline: true,
+                            };
+                        } else {
+                            current_stmt_offset.line = inout_token_pos.line() as u32;
                         }
-
-                        analysis_data.expr_fixme_positions.insert(
-                            (
-                                inout_token_pos.start_offset() as u32,
-                                arg_expr.1.end_offset() as u32,
-                            ),
-                            *current_stmt_offset,
-                        );
                     }
+
+                    analysis_data.expr_fixme_positions.insert(
+                        (
+                            inout_token_pos.start_offset() as u32,
+                            arg_expr.1.end_offset() as u32,
+                        ),
+                        *current_stmt_offset,
+                    );
                 }
 
                 handle_possibly_matching_inout_param(
@@ -658,77 +652,75 @@ pub(crate) fn check_arguments_match(
             context.inside_general_use = false;
         }
 
-        if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-            if let Some(removed_taints) = &function_param.removed_taints_when_returning_true {
-                if let Some(expr_var_id) = expression_identifier::get_var_id(
-                    arg_expr,
-                    None,
-                    statements_analyzer.file_analyzer.resolved_names,
-                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
-                ) {
-                    analysis_data.if_true_assertions.insert(
-                        (
-                            function_call_pos.start_offset() as u32,
-                            function_call_pos.end_offset() as u32,
-                        ),
-                        FxHashMap::from_iter([(
-                            "hakana taints".to_string(),
-                            vec![Assertion::RemoveTaints(
-                                VarId(statements_analyzer.interner.get(&expr_var_id).unwrap()),
-                                if removed_taints.is_empty() {
-                                    SinkType::user_controllable_taints()
-                                } else {
-                                    removed_taints.clone()
-                                },
-                            )],
-                        )]),
-                    );
-                }
-            }
+        if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind
+            && let Some(removed_taints) = &function_param.removed_taints_when_returning_true
+            && let Some(expr_var_id) = expression_identifier::get_var_id(
+                arg_expr,
+                None,
+                statements_analyzer.file_analyzer.resolved_names,
+                Some((statements_analyzer.codebase, statements_analyzer.interner)),
+            )
+        {
+            analysis_data.if_true_assertions.insert(
+                (
+                    function_call_pos.start_offset() as u32,
+                    function_call_pos.end_offset() as u32,
+                ),
+                FxHashMap::from_iter([(
+                    "hakana taints".to_string(),
+                    vec![Assertion::RemoveTaints(
+                        VarId(statements_analyzer.interner.get(&expr_var_id).unwrap()),
+                        if removed_taints.is_empty() {
+                            SinkType::user_controllable_taints()
+                        } else {
+                            removed_taints.clone()
+                        },
+                    )],
+                )]),
+            );
         }
     }
 
     // analyze unpacked arg
-    if let Some(unpacked_arg) = unpacked_arg {
-        if let Some(last_param) = function_params.last() {
-            if last_param.is_variadic {
-                let arg_value_type = analysis_data.get_expr_type(unpacked_arg.pos());
+    if let Some(unpacked_arg) = unpacked_arg
+        && let Some(last_param) = function_params.last()
+        && last_param.is_variadic
+    {
+        let arg_value_type = analysis_data.get_expr_type(unpacked_arg.pos());
 
-                let arg_value_type = if let Some(arg_value_type) = arg_value_type {
-                    arg_value_type.clone()
-                } else {
-                    // todo increment mixed count
+        let arg_value_type = if let Some(arg_value_type) = arg_value_type {
+            arg_value_type.clone()
+        } else {
+            // todo increment mixed count
 
-                    get_mixed_any()
-                };
+            get_mixed_any()
+        };
 
-                let was_inside_call = context.inside_general_use;
+        let was_inside_call = context.inside_general_use;
 
-                if matches!(functionlike_info.effects, FnEffect::Some(_)) {
-                    context.inside_general_use = true;
-                }
-
-                argument_analyzer::check_argument_matches(
-                    statements_analyzer,
-                    functionlike_id,
-                    &method_call_info,
-                    last_param,
-                    &last_param_type.unwrap(),
-                    args.len(),
-                    &aast::Argument::Anormal(unpacked_arg.clone()),
-                    true,
-                    arg_value_type,
-                    context,
-                    analysis_data,
-                    functionlike_info.ignore_taint_path,
-                    functionlike_info.specialize_call,
-                    function_call_pos,
-                    function_name_pos,
-                );
-
-                context.inside_general_use = was_inside_call;
-            }
+        if matches!(functionlike_info.effects, FnEffect::Some(_)) {
+            context.inside_general_use = true;
         }
+
+        argument_analyzer::check_argument_matches(
+            statements_analyzer,
+            functionlike_id,
+            &method_call_info,
+            last_param,
+            &last_param_type.unwrap(),
+            args.len(),
+            &aast::Argument::Anormal(unpacked_arg.clone()),
+            true,
+            arg_value_type,
+            context,
+            analysis_data,
+            functionlike_info.ignore_taint_path,
+            functionlike_info.specialize_call,
+            function_call_pos,
+            function_name_pos,
+        );
+
+        context.inside_general_use = was_inside_call;
     }
 
     // for (_, map) in &template_result.lower_bounds {
@@ -821,17 +813,15 @@ fn adjust_param_type(
                 as_type,
                 ..
             }) = template_type
-            {
-                if (if let Some(bounds_by_param) = template_result.lower_bounds.get(&param_name) {
+                && (if let Some(bounds_by_param) = template_result.lower_bounds.get(&param_name) {
                     bounds_by_param.get(&defining_entity)
                 } else {
                     None
                 })
                 .is_none()
-                {
-                    let bound_type = if let Some(bounds_by_param) =
-                        template_result.upper_bounds.get(&param_name)
-                    {
+            {
+                let bound_type =
+                    if let Some(bounds_by_param) = template_result.upper_bounds.get(&param_name) {
                         if let Some(upper_bound) = bounds_by_param.get(&defining_entity) {
                             upper_bound.bound_type.clone()
                         } else {
@@ -841,15 +831,14 @@ fn adjust_param_type(
                         (*as_type).clone()
                     };
 
-                    template_result
-                        .upper_bounds
-                        .entry(param_name)
-                        .or_insert_with(FxHashMap::default)
-                        .insert(
-                            defining_entity,
-                            TemplateBound::new(bound_type, 0, None, None),
-                        );
-                }
+                template_result
+                    .upper_bounds
+                    .entry(param_name)
+                    .or_insert_with(FxHashMap::default)
+                    .insert(
+                        defining_entity,
+                        TemplateBound::new(bound_type, 0, None, None),
+                    );
             }
         }
     }
@@ -874,11 +863,7 @@ fn get_param_type(
                 &statements_analyzer.file_analyzer.file_source.file_path,
                 &mut param_type,
                 &TypeExpansionOptions {
-                    self_class: if let Some(classlike_storage) = class_storage {
-                        Some(classlike_storage.name)
-                    } else {
-                        None
-                    },
+                    self_class: class_storage.map(|classlike_storage| classlike_storage.name),
                     static_class_type: if let Some(calling_class_storage) =
                         calling_classlike_storage
                     {
@@ -1008,12 +993,11 @@ fn handle_closure_arg(
             }
         }
 
-        if matches!(
+        if (matches!(
             analysis_data.data_flow_graph.kind,
             GraphKind::WholeProgram(_)
-        ) || !statements_analyzer.get_config().in_migration
-        {
-            if let FunctionLikeIdentifier::Function(
+        ) || !statements_analyzer.get_config().in_migration)
+            && let FunctionLikeIdentifier::Function(
                 StrId::LIB_VEC_MAP
                 | StrId::LIB_DICT_MAP
                 | StrId::LIB_KEYSET_MAP
@@ -1035,20 +1019,17 @@ fn handle_closure_arg(
                 | StrId::LIB_DICT_FROM_KEYS
                 | StrId::LIB_DICT_FROM_KEYS_ASYNC,
             ) = functionlike_id
-            {
-                if param_offset == 0 {
-                    if let Some(ref mut signature_type) = param_storage.signature_type {
-                        add_array_fetch_dataflow(
-                            statements_analyzer,
-                            &args[0].to_expr_ref().1,
-                            analysis_data,
-                            None,
-                            signature_type,
-                            &mut get_arraykey(false),
-                        );
-                    }
-                }
-            }
+            && param_offset == 0
+            && let Some(ref mut signature_type) = param_storage.signature_type
+        {
+            add_array_fetch_dataflow(
+                statements_analyzer,
+                &args[0].to_expr_ref().1,
+                analysis_data,
+                None,
+                signature_type,
+                &mut get_arraykey(false),
+            );
         }
     }
 
@@ -1227,12 +1208,11 @@ fn handle_possibly_matching_inout_param(
             None,
             StandinOpts {
                 calling_class: context.function_context.calling_class,
-                calling_function: if let Some(m) = &context.function_context.calling_functionlike_id
-                {
-                    Some(*m)
-                } else {
-                    None
-                },
+                calling_function: context
+                    .function_context
+                    .calling_functionlike_id
+                    .as_ref()
+                    .map(|m| *m),
                 ..Default::default()
             },
         );
@@ -1249,11 +1229,7 @@ fn handle_possibly_matching_inout_param(
         &statements_analyzer.file_analyzer.file_source.file_path,
         &mut inout_type,
         &TypeExpansionOptions {
-            self_class: if let Some(classlike_storage) = classlike_storage {
-                Some(classlike_storage.name)
-            } else {
-                None
-            },
+            self_class: classlike_storage.map(|classlike_storage| classlike_storage.name),
             static_class_type: if let Some(calling_class_storage) = calling_classlike_storage {
                 StaticClassType::Name(calling_class_storage.name)
             } else {
@@ -1398,11 +1374,9 @@ fn refine_template_result_for_functionlike(
         analysis_data,
         file_path,
         classlike_storage,
-        if let Some(method_call_info) = method_call_info {
-            Some(method_call_info.self_fq_classlike_name)
-        } else {
-            None
-        },
+        method_call_info
+            .as_ref()
+            .map(|method_call_info| method_call_info.self_fq_classlike_name),
         calling_classlike_storage,
         &functionlike_storage.template_types,
         class_template_params,
@@ -1625,19 +1599,21 @@ fn check_named_arguments(
 
     // Check for missing required named parameters
     for (param_name, (_idx, param)) in &param_names {
-        if param.is_named && !param.is_optional && !param.is_variadic {
-            if !provided_named_params.contains_key(param_name.as_str()) {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::MissingRequiredNamedArgument,
-                        format!("Missing required named argument: {}", param_name),
-                        statements_analyzer.get_hpos(function_call_pos),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-            }
+        if param.is_named
+            && !param.is_optional
+            && !param.is_variadic
+            && !provided_named_params.contains_key(param_name.as_str())
+        {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::MissingRequiredNamedArgument,
+                    format!("Missing required named argument: {}", param_name),
+                    statements_analyzer.get_hpos(function_call_pos),
+                    &context.function_context.calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
         }
     }
 }

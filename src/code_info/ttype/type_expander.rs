@@ -207,8 +207,6 @@ fn expand_atomic(
                 );
             }
         }
-
-        return;
     } else if let TAtomic::TKeyset { type_param, .. } = return_type_part {
         expand_union(
             codebase,
@@ -219,8 +217,6 @@ fn expand_atomic(
             data_flow_graph,
             cost,
         );
-
-        return;
     } else if let TAtomic::TAwaitable { value } = return_type_part {
         expand_union(
             codebase,
@@ -231,8 +227,6 @@ fn expand_atomic(
             data_flow_graph,
             cost,
         );
-
-        return;
     } else if let TAtomic::TNamedObject(TNamedObject {
         name,
         type_params,
@@ -254,21 +248,18 @@ fn expand_atomic(
             if options.function_is_final {
                 *is_this = false;
             }
-        } else if *is_this {
-            if let StaticClassType::Object(obj) = options.static_class_type {
-                if let TAtomic::TNamedObject(TNamedObject {
-                    name: new_this_name,
-                    ..
-                }) = obj
-                {
-                    if codebase.class_extends_or_implements(new_this_name, name) {
-                        *skip_key = true;
-                        new_return_type_parts.push(obj.clone());
-                        return;
-                    }
-                }
-            };
-        }
+        } else if *is_this
+            && let StaticClassType::Object(obj) = options.static_class_type
+            && let TAtomic::TNamedObject(TNamedObject {
+                name: new_this_name,
+                ..
+            }) = obj
+            && codebase.class_extends_or_implements(new_this_name, name)
+        {
+            *skip_key = true;
+            new_return_type_parts.push(obj.clone());
+            return;
+        };
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
@@ -283,8 +274,6 @@ fn expand_atomic(
                 );
             }
         }
-
-        return;
     } else if let TAtomic::TClosure(closure) = return_type_part {
         if let Some(ref mut return_type) = closure.return_type {
             expand_union(
@@ -319,10 +308,8 @@ fn expand_atomic(
     {
         if let Some(where_constraints) = options.where_constraints {
             for (_, constraint_type) in where_constraints.iter().filter(|(k, _)| k == param_name) {
-                *as_type = Box::new(
-                    intersect_union_types_simple(as_type, constraint_type, codebase)
-                        .unwrap_or(get_nothing()),
-                );
+                **as_type = intersect_union_types_simple(as_type, constraint_type, codebase)
+                    .unwrap_or(get_nothing());
             }
         }
         expand_union(
@@ -334,8 +321,6 @@ fn expand_atomic(
             data_flow_graph,
             cost,
         );
-
-        return;
     } else if let TAtomic::TClassname { as_type, .. }
     | TAtomic::TTypename { as_type, .. }
     | TAtomic::TClassPtr { as_type } = return_type_part
@@ -355,10 +340,8 @@ fn expand_atomic(
         );
 
         if !atomic_return_type_parts.is_empty() {
-            *as_type = Box::new(atomic_return_type_parts.remove(0));
+            **as_type = atomic_return_type_parts.remove(0);
         }
-
-        return;
     } else if let &mut TAtomic::TEnumLiteralCase {
         ref enum_name,
         ref mut as_type,
@@ -401,8 +384,6 @@ fn expand_atomic(
                 *underlying_type = Some(Arc::new(underlying_type_union.get_single_owned()));
             }
         }
-
-        return;
     } else if let &mut TAtomic::TMemberReference {
         ref classlike_name,
         ref member_name,
@@ -453,8 +434,6 @@ fn expand_atomic(
                 new_return_type_parts.push(TAtomic::TMixed);
             }
         }
-
-        return;
     } else if let TAtomic::TTypeAlias {
         name: type_name,
         type_params,
@@ -523,61 +502,60 @@ fn expand_atomic(
                 .types
                 .into_iter()
                 .map(|mut v| {
-                    if type_params.is_none() {
-                        if let TAtomic::TDict(TDict {
+                    if type_params.is_none()
+                        && let TAtomic::TDict(TDict {
                             is_shape: true,
                             ref mut shape_name,
                             ..
                         }) = v
+                    {
+                        if let (Some(shape_field_taints), Some(interner)) =
+                            (&type_definition.shape_field_taints, interner)
                         {
-                            if let (Some(shape_field_taints), Some(interner)) =
-                                (&type_definition.shape_field_taints, interner)
-                            {
-                                let shape_node =
-                                    DataFlowNode::get_for_type(type_name, type_definition.location);
+                            let shape_node =
+                                DataFlowNode::get_for_type(type_name, type_definition.location);
 
-                                for (field_name, taints) in shape_field_taints {
-                                    let field_name_str = field_name.to_string(Some(interner));
+                            for (field_name, taints) in shape_field_taints {
+                                let field_name_str = field_name.to_string(Some(interner));
 
-                                    let field_node = DataFlowNode {
-                                        id: DataFlowNodeId::ShapeFieldAccess(
-                                            *type_name,
-                                            field_name_str,
-                                        ),
-                                        kind: DataFlowNodeKind::TaintSource {
-                                            pos: Some(taints.0),
-                                            types: taints.1.clone(),
+                                let field_node = DataFlowNode {
+                                    id: DataFlowNodeId::ShapeFieldAccess(
+                                        *type_name,
+                                        field_name_str,
+                                    ),
+                                    kind: DataFlowNodeKind::TaintSource {
+                                        pos: Some(taints.0),
+                                        types: taints.1.clone(),
+                                    },
+                                };
+
+                                data_flow_graph.add_path(
+                                    &field_node.id,
+                                    &shape_node.id,
+                                    PathKind::ArrayAssignment(
+                                        ArrayDataKind::ArrayValue,
+                                        match field_name {
+                                            DictKey::Int(i) => i.to_string(),
+                                            DictKey::String(k) => k.clone(),
+                                            DictKey::Enum(_, _) => todo!(),
                                         },
-                                    };
+                                    ),
+                                    vec![],
+                                    vec![],
+                                );
 
-                                    data_flow_graph.add_path(
-                                        &field_node.id,
-                                        &shape_node.id,
-                                        PathKind::ArrayAssignment(
-                                            ArrayDataKind::ArrayValue,
-                                            match field_name {
-                                                DictKey::Int(i) => i.to_string(),
-                                                DictKey::String(k) => k.clone(),
-                                                DictKey::Enum(_, _) => todo!(),
-                                            },
-                                        ),
-                                        vec![],
-                                        vec![],
-                                    );
-
-                                    data_flow_graph.add_node(field_node);
-                                }
-
-                                extra_data_flow_nodes.push(shape_node.clone());
-
-                                data_flow_graph.add_node(shape_node);
+                                data_flow_graph.add_node(field_node);
                             }
 
-                            if !options.force_alias_expansion {
-                                *shape_name = Some((*type_name, None));
-                            }
-                        };
-                    }
+                            extra_data_flow_nodes.push(shape_node.clone());
+
+                            data_flow_graph.add_node(shape_node);
+                        }
+
+                        if !options.force_alias_expansion {
+                            *shape_name = Some((*type_name, None));
+                        }
+                    };
                     v
                 })
                 .collect::<Vec<_>>();
@@ -638,8 +616,6 @@ fn expand_atomic(
                 );
             }
         }
-
-        return;
     } else if let TAtomic::TClassTypeConstant {
         class_type,
         member_name,
@@ -661,7 +637,7 @@ fn expand_atomic(
         );
 
         if !atomic_return_type_parts.is_empty() {
-            *class_type = Box::new(atomic_return_type_parts.remove(0));
+            **class_type = atomic_return_type_parts.remove(0);
         }
 
         // Collect class names to check - either a single class or all classes in an intersection
@@ -734,19 +710,19 @@ fn expand_atomic(
         let mut found_any = false;
 
         for check_class in &classes_to_check {
-            if let Some(classlike_storage) = codebase.classlike_infos.get(*check_class) {
-                if let Some(type_const) = classlike_storage.type_constants.get(member_name) {
-                    found_any = true;
-                    match type_const {
-                        ClassConstantType::Concrete(type_) => {
-                            resolved_types.push(type_.clone());
-                        }
-                        ClassConstantType::Abstract(Some(type_)) => {
-                            resolved_types.push(type_.clone());
-                        }
-                        ClassConstantType::Abstract(None) => {
-                            // Abstract with no constraint - don't add anything specific
-                        }
+            if let Some(classlike_storage) = codebase.classlike_infos.get(*check_class)
+                && let Some(type_const) = classlike_storage.type_constants.get(member_name)
+            {
+                found_any = true;
+                match type_const {
+                    ClassConstantType::Concrete(type_) => {
+                        resolved_types.push(type_.clone());
+                    }
+                    ClassConstantType::Abstract(Some(type_)) => {
+                        resolved_types.push(type_.clone());
+                    }
+                    ClassConstantType::Abstract(None) => {
+                        // Abstract with no constraint - don't add anything specific
                     }
                 }
             }
@@ -822,12 +798,10 @@ fn expand_atomic(
                         ref mut shape_name,
                         ..
                     }) = v
+                        && !options.force_alias_expansion
+                        && let Some(class_name) = first_class_name
                     {
-                        if !options.force_alias_expansion {
-                            if let Some(class_name) = first_class_name {
-                                *shape_name = Some((*class_name, Some(*member_name)));
-                            }
-                        }
+                        *shape_name = Some((*class_name, Some(*member_name)));
                     };
                     v
                 }));
@@ -843,7 +817,7 @@ fn expand_atomic(
                     cost,
                 );
 
-                *as_type = Box::new(resolved_type);
+                **as_type = resolved_type;
             }
         }
     } else if let TAtomic::TClosureAlias { id, .. } = &return_type_part {
@@ -852,7 +826,6 @@ fn expand_atomic(
         {
             *skip_key = true;
             new_return_type_parts.push(value);
-            return;
         }
     } else if let TAtomic::TObjectIntersection { types } = return_type_part {
         // Expand each type within the intersection
@@ -876,7 +849,6 @@ fn expand_atomic(
                 *intersection_type = inner_new_parts.remove(0);
             }
         }
-        return;
     }
 }
 

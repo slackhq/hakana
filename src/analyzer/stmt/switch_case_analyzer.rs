@@ -184,7 +184,7 @@ pub(crate) fn analyze_case(
 
     let case_stmts = leftover_statements;
 
-    if (case_stmts.is_empty() || &case_stmts.last().unwrap().1 == &aast::Stmt_::Fallthrough)
+    if (case_stmts.is_empty() || case_stmts.last().unwrap().1 == aast::Stmt_::Fallthrough)
         && !is_last
     {
         // this is safe for non-defaults, and defaults are always last
@@ -303,16 +303,16 @@ pub(crate) fn analyze_case(
         }
     }
 
-    if !case_clauses_for_negation.is_empty() {
-        if let Some(case_equality_expr) = &case_equality_expr {
-            extend_switch_negated_clauses(
-                analysis_data,
-                switch_scope,
-                &assertion_context,
-                case_clauses_for_negation,
-                case_equality_expr,
-            );
-        }
+    if !case_clauses_for_negation.is_empty()
+        && let Some(case_equality_expr) = &case_equality_expr
+    {
+        extend_switch_negated_clauses(
+            analysis_data,
+            switch_scope,
+            &assertion_context,
+            case_clauses_for_negation,
+            case_equality_expr,
+        );
     }
 
     analysis_data.case_scopes.push(CaseScope::new());
@@ -544,7 +544,7 @@ fn expand_case_equality_from_leftovers(
         })),
     ));
 
-    return Some(aast::Expr(
+    Some(aast::Expr(
         (),
         case_or_default_equality_expr.pos().clone(),
         aast::Expr_::Binop(Box::new(Binop {
@@ -552,7 +552,7 @@ fn expand_case_equality_from_leftovers(
             lhs: leftover_case_equality_expr.clone(),
             rhs: case_or_default_equality_expr.clone(),
         })),
-    ));
+    ))
 }
 
 pub(crate) fn handle_non_returning_case(
@@ -566,24 +566,23 @@ pub(crate) fn handle_non_returning_case(
     original_context: &BlockContext,
     switch_scope: &mut SwitchScope,
 ) -> Result<(), AnalysisError> {
-    if is_default_case {
-        if let Some(switch_type) = case_context.locals.get(switch_var_id) {
-            if switch_type.is_nothing() {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::UselessDefaultCase,
-                        "All possible case statements have been met, default is impossible here"
-                            .to_string(),
-                        statements_analyzer.get_hpos(case_pos),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
+    if is_default_case
+        && let Some(switch_type) = case_context.locals.get(switch_var_id)
+        && switch_type.is_nothing()
+    {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::UselessDefaultCase,
+                "All possible case statements have been met, default is impossible here"
+                    .to_string(),
+                statements_analyzer.get_hpos(case_pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
 
-                return Ok(());
-            }
-        }
+        return Ok(());
     }
 
     let codebase = statements_analyzer.codebase;

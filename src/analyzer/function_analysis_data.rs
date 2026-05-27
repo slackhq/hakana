@@ -243,10 +243,10 @@ impl FunctionAnalysisData {
     fn can_output_issue(&mut self, issue: &Issue) -> bool {
         *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;
 
-        if let Some(issue_filter) = &self.issue_filter {
-            if !issue_filter.contains(&issue.kind) {
-                return false;
-            }
+        if let Some(issue_filter) = &self.issue_filter
+            && !issue_filter.contains(&issue.kind)
+        {
+            return false;
         }
         true
     }
@@ -288,10 +288,10 @@ impl FunctionAnalysisData {
                     fixme_pos.start_offset() as u32,
                     fixme_pos.end_offset() as u32,
                 );
-                if let Some(offset) = self.previously_used_fixme_positions.get(&fixme_offsets) {
-                    if *offset != (issue_start_offset, issue_end_offset) {
-                        continue;
-                    }
+                if let Some(offset) = self.previously_used_fixme_positions.get(&fixme_offsets)
+                    && *offset != (issue_start_offset, issue_end_offset)
+                {
+                    continue;
                 }
 
                 if matches!(

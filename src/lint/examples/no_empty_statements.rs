@@ -46,6 +46,12 @@ impl Linter for NoEmptyStatementsLinter {
     }
 }
 
+impl Default for NoEmptyStatementsLinter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NoEmptyStatementsLinter {
     pub fn new() -> Self {
         Self
@@ -62,38 +68,38 @@ impl<'a> NoEmptyStatementsVisitor<'a> {
     /// Handle empty statement that is the body of a control flow statement
     /// Replaces ; with {}
     fn handle_control_flow_empty_body(&mut self, body: &'a PositionedSyntax<'a>) {
-        if let SyntaxVariant::ExpressionStatement(stmt) = &body.children {
-            if matches!(&stmt.expression.children, SyntaxVariant::Missing) {
-                let (start, _) = self.ctx.node_full_range(body);
+        if let SyntaxVariant::ExpressionStatement(stmt) = &body.children
+            && matches!(&stmt.expression.children, SyntaxVariant::Missing)
+        {
+            let (start, _) = self.ctx.node_full_range(body);
 
-                // Mark this statement as handled so we don't process it again
-                self.handled_statements.insert(start);
+            // Mark this statement as handled so we don't process it again
+            self.handled_statements.insert(start);
 
-                // Get error range from the semicolon (including trivia)
-                let (error_start, error_end) = self.ctx.node_full_range(&stmt.semicolon);
+            // Get error range from the semicolon (including trivia)
+            let (error_start, error_end) = self.ctx.node_full_range(&stmt.semicolon);
 
-                let mut error = LintError::new(
-                    Severity::Warning,
-                    "This statement is empty",
-                    error_start,
-                    error_end,
-                    "no-empty-statements",
-                );
+            let mut error = LintError::new(
+                Severity::Warning,
+                "This statement is empty",
+                error_start,
+                error_end,
+                "no-empty-statements",
+            );
 
-                // Add auto-fix to replace with empty compound statement {}
-                if self.ctx.allow_auto_fix {
-                    // Get the semicolon token
-                    if let Some(token) = stmt.semicolon.get_token() {
-                        let mut fix = EditSet::new();
-                        // Replace just the semicolon with {}, preserving leading whitespace
-                        let (token_start, token_end) = self.ctx.token_range(token);
-                        fix.add(Edit::new(token_start, token_end, "{}"));
-                        error = error.with_fix(fix);
-                    }
+            // Add auto-fix to replace with empty compound statement {}
+            if self.ctx.allow_auto_fix {
+                // Get the semicolon token
+                if let Some(token) = stmt.semicolon.get_token() {
+                    let mut fix = EditSet::new();
+                    // Replace just the semicolon with {}, preserving leading whitespace
+                    let (token_start, token_end) = self.ctx.token_range(token);
+                    fix.add(Edit::new(token_start, token_end, "{}"));
+                    error = error.with_fix(fix);
                 }
-
-                self.errors.push(error);
             }
+
+            self.errors.push(error);
         }
     }
 

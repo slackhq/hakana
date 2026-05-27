@@ -139,13 +139,11 @@ pub fn is_contained_by(
         name: container_name,
         ..
     } = container_type_part
-    {
-        if let TAtomic::TLiteralClassname {
+        && let TAtomic::TLiteralClassname {
             name: input_name, ..
         } = input_type_part
-        {
-            return input_name == container_name;
-        }
+    {
+        return input_name == container_name;
     }
 
     if let TAtomic::TLiteralString {
@@ -175,13 +173,11 @@ pub fn is_contained_by(
         value: container_value,
         ..
     } = container_type_part
-    {
-        if let TAtomic::TLiteralInt {
+        && let TAtomic::TLiteralInt {
             value: input_value, ..
         } = input_type_part
-        {
-            return input_value == container_value;
-        }
+    {
+        return input_value == container_value;
     }
 
     if let TAtomic::TEnum {
@@ -267,10 +263,10 @@ pub fn is_contained_by(
             ..
         },
     ) = (input_type_part, container_type_part)
+        && enum_1_name == enum_2_name
+        && enum_1_member_name == enum_2_member_name
     {
-        if enum_1_name == enum_2_name && enum_1_member_name == enum_2_member_name {
-            return true;
-        }
+        return true;
     }
 
     // handles newtypes (hopefully)
@@ -356,15 +352,15 @@ pub fn is_contained_by(
         return true;
     }
 
-    if let TAtomic::TArraykey { from_any } = input_type_part {
-        if container_type_part.is_int() || container_type_part.is_string() {
-            atomic_comparison_result.type_coerced = Some(true);
-            if *from_any {
-                atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
-                atomic_comparison_result.type_coerced_from_nested_any = Some(true);
-            }
-            return false;
+    if let TAtomic::TArraykey { from_any } = input_type_part
+        && (container_type_part.is_int() || container_type_part.is_string())
+    {
+        atomic_comparison_result.type_coerced = Some(true);
+        if *from_any {
+            atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
+            atomic_comparison_result.type_coerced_from_nested_any = Some(true);
         }
+        return false;
     }
 
     if matches!(container_type_part, TAtomic::TScalar) && input_type_part.is_some_scalar() {
@@ -575,10 +571,9 @@ pub fn is_contained_by(
                     if let TAtomic::TTypeAlias {
                         name: alias_name, ..
                     } = &**container_name
+                        && alias_name == input_name
                     {
-                        if alias_name == input_name {
-                            return true;
-                        }
+                        return true;
                     }
 
                     typedef_info.actual_type.clone().get_single_owned()
@@ -663,10 +658,10 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TGenericTypename { .. } = input_type_part {
-        if let TAtomic::TString = container_type_part {
-            return true;
-        }
+    if let TAtomic::TGenericTypename { .. } = input_type_part
+        && let TAtomic::TString = container_type_part
+    {
+        return true;
     }
 
     // classname<Foo> into Bar::class
@@ -685,33 +680,31 @@ pub fn is_contained_by(
         as_type: input_name,
         ..
     } = input_type_part
-    {
-        if let TAtomic::TLiteralClassname {
+        && let TAtomic::TLiteralClassname {
             name: container_name,
             ..
         }
         | TAtomic::TLiteralClassPtr {
             name: container_name,
         } = container_type_part
-        {
-            if atomic_type_comparator::is_contained_by(
-                codebase,
-                file_path,
-                &TAtomic::TNamedObject(TNamedObject {
-                    name: *container_name,
-                    type_params: None,
-                    is_this: false,
-                    remapped_params: false,
-                }),
-                input_name,
-                inside_assertion,
-                atomic_comparison_result,
-            ) {
-                atomic_comparison_result.type_coerced = Some(true);
-            }
-
-            return false;
+    {
+        if atomic_type_comparator::is_contained_by(
+            codebase,
+            file_path,
+            &TAtomic::TNamedObject(TNamedObject {
+                name: *container_name,
+                type_params: None,
+                is_this: false,
+                remapped_params: false,
+            }),
+            input_name,
+            inside_assertion,
+            atomic_comparison_result,
+        ) {
+            atomic_comparison_result.type_coerced = Some(true);
         }
+
+        return false;
     }
 
     false

@@ -295,11 +295,11 @@ impl BlockContext {
 
             for key in c.possibilities.keys() {
                 for changed_var_id in changed_var_ids {
-                    if let ClauseKey::Name(var_name) = key {
-                        if changed_var_id == var_name || var_has_root(&var_name, changed_var_id) {
-                            rejected_clauses.push(c.clone());
-                            continue 'outer;
-                        }
+                    if let ClauseKey::Name(var_name) = key
+                        && (changed_var_id == var_name || var_has_root(var_name, changed_var_id))
+                    {
+                        rejected_clauses.push(c.clone());
+                        continue 'outer;
                     }
                 }
             }
@@ -324,11 +324,11 @@ impl BlockContext {
             }
 
             for key in c.possibilities.keys() {
-                if let ClauseKey::Name(var_name) = key {
-                    if changed_var_ids.contains(var_name) {
-                        rejected_clauses.push(c.clone());
-                        continue 'outer;
-                    }
+                if let ClauseKey::Name(var_name) = key
+                    && changed_var_ids.contains(var_name)
+                {
+                    rejected_clauses.push(c.clone());
+                    continue 'outer;
                 }
             }
 
@@ -351,10 +351,10 @@ impl BlockContext {
 
         'outer: for clause in clauses {
             for var_id in clause.possibilities.keys() {
-                if let ClauseKey::Name(var_name) = var_id {
-                    if var_has_root(var_name, remove_var_id) {
-                        break 'outer;
-                    }
+                if let ClauseKey::Name(var_name) = var_id
+                    && var_has_root(var_name, remove_var_id)
+                {
+                    break 'outer;
                 }
             }
 
@@ -367,48 +367,47 @@ impl BlockContext {
             }
         }
 
-        if let Some(statements_analyzer) = statements_analyzer {
-            if let Some(new_type) = new_type {
-                if !new_type.is_mixed() {
-                    let clause_key = ClauseKey::Name(VarName::new(remove_var_id.to_string()));
+        if let Some(statements_analyzer) = statements_analyzer
+            && let Some(new_type) = new_type
+            && !new_type.is_mixed()
+        {
+            let clause_key = ClauseKey::Name(VarName::new(remove_var_id));
 
-                    for clause in other_clauses {
-                        let mut type_changed = false;
+            for clause in other_clauses {
+                let mut type_changed = false;
 
-                        // if the clause contains any possibilities that would be altered
-                        // by the new type
-                        for (_, assertion) in clause.possibilities.get(&clause_key).unwrap() {
-                            // if we're negating a type, we generally don't need the clause anymore
-                            if assertion.has_negation() {
-                                type_changed = true;
-                                break;
-                            }
-
-                            let result_type = assertion_reconciler::reconcile(
-                                assertion,
-                                Some(&new_type.clone()),
-                                false,
-                                None,
-                                statements_analyzer,
-                                analysis_data,
-                                false,
-                                None,
-                                &None,
-                                false,
-                                false,
-                                &FxHashMap::default(),
-                            );
-
-                            if result_type != *new_type {
-                                type_changed = true;
-                                break;
-                            }
-                        }
-
-                        if !type_changed {
-                            clauses_to_keep.push(clause.clone());
-                        }
+                // if the clause contains any possibilities that would be altered
+                // by the new type
+                for (_, assertion) in clause.possibilities.get(&clause_key).unwrap() {
+                    // if we're negating a type, we generally don't need the clause anymore
+                    if assertion.has_negation() {
+                        type_changed = true;
+                        break;
                     }
+
+                    let result_type = assertion_reconciler::reconcile(
+                        assertion,
+                        Some(&new_type.clone()),
+                        false,
+                        None,
+                        statements_analyzer,
+                        analysis_data,
+                        false,
+                        None,
+                        &None,
+                        false,
+                        false,
+                        &FxHashMap::default(),
+                    );
+
+                    if result_type != *new_type {
+                        type_changed = true;
+                        break;
+                    }
+                }
+
+                if !type_changed {
+                    clauses_to_keep.push(clause.clone());
                 }
             }
         }
@@ -431,7 +430,7 @@ impl BlockContext {
             analysis_data,
         );
         self.parent_conflicting_clause_vars
-            .insert(VarName::new(remove_var_id.to_string()));
+            .insert(VarName::new(remove_var_id));
     }
 
     pub(crate) fn remove_descendants(
@@ -483,10 +482,10 @@ impl BlockContext {
             let mut retain_clause = true;
 
             for var_id in clause.possibilities.keys() {
-                if let ClauseKey::Name(var_id) = var_id {
-                    if var_id.contains("->") || var_id.contains("::") {
-                        retain_clause = false;
-                    }
+                if let ClauseKey::Name(var_id) = var_id
+                    && (var_id.contains("->") || var_id.contains("::"))
+                {
+                    retain_clause = false;
                 }
             }
 
@@ -495,8 +494,7 @@ impl BlockContext {
     }
 
     pub(crate) fn has_variable(&mut self, var_name: &str) -> bool {
-        self.cond_referenced_var_ids
-            .insert(VarName::new(var_name.to_string()));
+        self.cond_referenced_var_ids.insert(VarName::new(var_name));
 
         self.locals.contains_key(var_name)
     }
@@ -505,17 +503,16 @@ impl BlockContext {
 fn should_keep_clause(clause: &Rc<Clause>, remove_var_id: &str, new_type: Option<&TUnion>) -> bool {
     clause
         .possibilities
-        .get(&ClauseKey::Name(VarName::new(remove_var_id.to_string())))
-        .map_or(true, |possibilities| {
+        .get(&ClauseKey::Name(VarName::new(remove_var_id)))
+        .is_none_or(|possibilities| {
             if possibilities.len() == 1 {
                 let assertion = possibilities.values().next().unwrap();
 
-                if let Assertion::IsType(assertion_type) = assertion {
-                    if let Some(new_type) = new_type {
-                        if new_type.is_single() {
-                            return new_type.get_single() == assertion_type;
-                        }
-                    }
+                if let Assertion::IsType(assertion_type) = assertion
+                    && let Some(new_type) = new_type
+                    && new_type.is_single()
+                {
+                    return new_type.get_single() == assertion_type;
                 }
             }
 

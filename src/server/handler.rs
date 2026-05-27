@@ -112,21 +112,20 @@ impl RequestHandler {
                 }
             }
 
-            if let Some((classlike_name, member_name)) = best_match {
-                if let Some(pos) = scan_data
+            if let Some((classlike_name, member_name)) = best_match
+                && let Some(pos) = scan_data
                     .codebase
                     .get_symbol_pos(classlike_name, member_name)
-                {
-                    let def_file_path = scan_data.interner.lookup(&pos.file_path.0);
-                    return Message::GotoDefinitionResult(GotoDefinitionResponse {
-                        found: true,
-                        file_path: Some(def_file_path.to_string()),
-                        start_line: Some(pos.start_line),
-                        start_column: Some(pos.start_column),
-                        end_line: Some(pos.end_line),
-                        end_column: Some(pos.end_column),
-                    });
-                }
+            {
+                let def_file_path = scan_data.interner.lookup(&pos.file_path.0);
+                return Message::GotoDefinitionResult(GotoDefinitionResponse {
+                    found: true,
+                    file_path: Some(def_file_path.to_string()),
+                    start_line: Some(pos.start_line),
+                    start_column: Some(pos.start_column),
+                    end_line: Some(pos.end_line),
+                    end_column: Some(pos.end_column),
+                });
             }
         }
 
@@ -267,7 +266,7 @@ impl RequestHandler {
                     .analysis_data
                     .as_ref()
                     .filter(|_| !state.is_analysis_in_progress())
-                    .map(|r| r.clone())
+                    .cloned()
             };
 
             if let Some(analysis_result) = analysis_result {
@@ -315,10 +314,10 @@ impl RequestHandler {
             let file_path_str =
                 file_path.get_relative_path(&scan_data.interner, &self.config.root_dir);
 
-            if let Some(ref filter) = req.filter {
-                if !file_path_str.starts_with(filter) {
-                    continue;
-                }
+            if let Some(ref filter) = req.filter
+                && !file_path_str.starts_with(filter)
+            {
+                continue;
             }
 
             for issue in file_issues {
@@ -330,7 +329,7 @@ impl RequestHandler {
 
         let state = self.state.lock().unwrap();
 
-        return Message::GetIssuesResult(GetIssuesResponse {
+        Message::GetIssuesResult(GetIssuesResponse {
             analysis_complete: true,
             issues,
             files_scanned: state.files_scanned(),
@@ -338,7 +337,7 @@ impl RequestHandler {
             files_analyzed: state.files_analyzed(),
             total_files_to_analyze: state.total_files_to_analyze(),
             phase: "Complete".to_string(),
-        });
+        })
     }
 
     pub fn handle_file_changed(&self, changes: Vec<hakana_protocol::FileChange>) -> Message {

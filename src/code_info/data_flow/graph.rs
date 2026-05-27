@@ -56,19 +56,19 @@ impl DataFlowGraph {
     pub fn add_node(&mut self, node: DataFlowNode) {
         match &node.kind {
             DataFlowNodeKind::Vertex { is_specialized, .. } => {
-                if let GraphKind::WholeProgram(_) = &self.kind {
-                    if *is_specialized {
-                        let (unspecialized_id, specialization_key) = node.id.unspecialize();
-                        self.specializations
-                            .entry(unspecialized_id.clone())
-                            .or_default()
-                            .insert(specialization_key);
+                if let GraphKind::WholeProgram(_) = &self.kind
+                    && *is_specialized
+                {
+                    let (unspecialized_id, specialization_key) = node.id.unspecialize();
+                    self.specializations
+                        .entry(unspecialized_id.clone())
+                        .or_default()
+                        .insert(specialization_key);
 
-                        self.specialized_calls
-                            .entry(specialization_key)
-                            .or_default()
-                            .insert(unspecialized_id.clone());
-                    }
+                    self.specialized_calls
+                        .entry(specialization_key)
+                        .or_default()
+                        .insert(unspecialized_id.clone());
                 }
 
                 self.vertices.insert(node.id.clone(), node);
@@ -215,11 +215,11 @@ impl DataFlowGraph {
 
                 visited_child_ids.insert(child_node_id.clone());
 
-                if var_ids_only {
-                    if let DataFlowNodeId::Var(..) | DataFlowNodeId::Param(..) = child_node_id {
-                        origin_nodes.push(child_node_id);
-                        continue;
-                    }
+                if var_ids_only
+                    && let DataFlowNodeId::Var(..) | DataFlowNodeId::Param(..) = child_node_id
+                {
+                    origin_nodes.push(child_node_id);
+                    continue;
                 }
 
                 let mut new_parent_nodes = FxHashSet::default();
@@ -227,12 +227,11 @@ impl DataFlowGraph {
 
                 if let Some(backward_edges) = self.backward_edges.get(&child_node_id) {
                     for from_id in backward_edges {
-                        if let Some(forward_flows) = self.forward_edges.get(from_id) {
-                            if let Some(path) = forward_flows.get(&child_node_id) {
-                                if ignore_paths.contains(&path.kind) {
-                                    break;
-                                }
-                            }
+                        if let Some(forward_flows) = self.forward_edges.get(from_id)
+                            && let Some(path) = forward_flows.get(&child_node_id)
+                            && ignore_paths.contains(&path.kind)
+                        {
+                            break;
                         }
 
                         if self.vertices.contains_key(from_id) || self.sources.contains_key(from_id)
@@ -354,7 +353,8 @@ impl DataFlowGraph {
         for parent_node in &stmt_var_type.parent_nodes {
             origin_node_ids.extend(self.get_origin_node_ids(&parent_node.id, &[], false));
         }
-        let has_param_source = origin_node_ids.iter().any(|id| {
+
+        origin_node_ids.iter().any(|id| {
             let node = &self.get_node(id).unwrap();
             match &node.kind {
                 DataFlowNodeKind::VariableUseSource { kind, .. } => {
@@ -365,7 +365,6 @@ impl DataFlowGraph {
                 }
                 _ => false,
             }
-        });
-        has_param_source
+        })
     }
 }

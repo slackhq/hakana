@@ -324,16 +324,16 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 remapped_params: false,
             }));
 
-            if let GraphKind::WholeProgram(_) = &analysis_result.program_dataflow_graph.kind {
-                if classlike_storage.specialize_instance {
-                    let new_call_node = DataFlowNode::get_for_this_before_method(
-                        &MethodIdentifier(classlike_storage.name, method_name),
-                        functionlike_storage.return_type_location,
-                        None,
-                    );
+            if let GraphKind::WholeProgram(_) = &analysis_result.program_dataflow_graph.kind
+                && classlike_storage.specialize_instance
+            {
+                let new_call_node = DataFlowNode::get_for_this_before_method(
+                    &MethodIdentifier(classlike_storage.name, method_name),
+                    functionlike_storage.return_type_location,
+                    None,
+                );
 
-                    this_type.parent_nodes = vec![new_call_node];
-                }
+                this_type.parent_nodes = vec![new_call_node];
             }
 
             context
@@ -490,7 +490,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             &statements_analyzer.file_analyzer.file_source,
-            &statements_analyzer.comments,
+            statements_analyzer.comments,
             &self.get_config().all_custom_issues,
             if let Some(parent_analysis_data) = &parent_analysis_data {
                 parent_analysis_data.current_stmt_offset
@@ -552,54 +552,53 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             return Err(AnalysisError::InternalError(error, pos));
         }
 
-        if let Some(name_location) = functionlike_storage.name_location {
-            if cost > 50_000 {
+        if let Some(name_location) = functionlike_storage.name_location
+            && cost > 50_000
+        {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::LargeTypeExpansion,
+                    format!("Very large param types used — {cost} elements loaded"),
+                    name_location,
+                    &context.function_context.calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+
+        if let Some(calling_class) = &context.function_context.calling_class
+            && let Some(classlike_storage) = self
+                .file_analyzer
+                .codebase
+                .classlike_infos
+                .get(calling_class)
+        {
+            cost = 0;
+
+            if let Err(error) = self.add_properties_to_context(
+                classlike_storage,
+                &mut analysis_data,
+                functionlike_storage,
+                &mut context,
+                &mut cost,
+            ) {
+                return Err(AnalysisError::InternalError(error.0, error.1));
+            }
+
+            if let Some(name_location) = functionlike_storage.name_location
+                && cost > 50_000
+            {
                 analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::LargeTypeExpansion,
-                        format!("Very large param types used — {cost} elements loaded"),
+                        format!("Very large property types used — {cost} elements loaded"),
                         name_location,
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
                 );
-            }
-        }
-
-        if let Some(calling_class) = &context.function_context.calling_class {
-            if let Some(classlike_storage) = self
-                .file_analyzer
-                .codebase
-                .classlike_infos
-                .get(calling_class)
-            {
-                cost = 0;
-
-                if let Err(error) = self.add_properties_to_context(
-                    classlike_storage,
-                    &mut analysis_data,
-                    functionlike_storage,
-                    &mut context,
-                    &mut cost,
-                ) {
-                    return Err(AnalysisError::InternalError(error.0, error.1));
-                }
-
-                if let Some(name_location) = functionlike_storage.name_location {
-                    if cost > 50_000 {
-                        analysis_data.maybe_add_issue(
-                            Issue::new(
-                                IssueKind::LargeTypeExpansion,
-                                format!("Very large property types used — {cost} elements loaded"),
-                                name_location,
-                                &context.function_context.calling_functionlike_id,
-                            ),
-                            statements_analyzer.get_config(),
-                            statements_analyzer.get_file_path_actual(),
-                        );
-                    }
-                }
             }
         }
 
@@ -639,38 +638,36 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             );
         }
 
-        if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-            if let Some(method_storage) = &functionlike_storage.method_info {
-                if !method_storage.is_static {
-                    if let Some(this_type) = context.locals.get("$this") {
-                        let new_call_node = DataFlowNode::get_for_this_after_method(
-                            &MethodIdentifier(
-                                context.function_context.calling_class.unwrap(),
-                                match functionlike_id {
-                                    FunctionLikeIdentifier::Method(_, method_name) => method_name,
-                                    _ => {
-                                        panic!()
-                                    }
-                                },
-                            ),
-                            functionlike_storage.name_location,
-                            None,
-                        );
-
-                        for parent_node in &this_type.parent_nodes {
-                            analysis_data.data_flow_graph.add_path(
-                                &parent_node.id,
-                                &new_call_node.id,
-                                PathKind::Default,
-                                vec![],
-                                vec![],
-                            );
+        if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind
+            && let Some(method_storage) = &functionlike_storage.method_info
+            && !method_storage.is_static
+            && let Some(this_type) = context.locals.get("$this")
+        {
+            let new_call_node = DataFlowNode::get_for_this_after_method(
+                &MethodIdentifier(
+                    context.function_context.calling_class.unwrap(),
+                    match functionlike_id {
+                        FunctionLikeIdentifier::Method(_, method_name) => method_name,
+                        _ => {
+                            panic!()
                         }
+                    },
+                ),
+                functionlike_storage.name_location,
+                None,
+            );
 
-                        analysis_data.data_flow_graph.add_node(new_call_node);
-                    }
-                }
+            for parent_node in &this_type.parent_nodes {
+                analysis_data.data_flow_graph.add_path(
+                    &parent_node.id,
+                    &new_call_node.id,
+                    PathKind::Default,
+                    vec![],
+                    vec![],
+                );
             }
+
+            analysis_data.data_flow_graph.add_node(new_call_node);
         }
 
         let config = statements_analyzer.get_config();
@@ -733,34 +730,32 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if !analysis_data.has_await
                 && functionlike_storage.is_async
                 && functionlike_storage.is_production_code
-            {
-                if functionlike_storage
+                && functionlike_storage
                     .is_simple_fn(&context.function_context, statements_analyzer.codebase)
-                    && !functionlike_storage
-                        .suppressed_issues
-                        .iter()
-                        .any(|(i, _)| i == &IssueKind::UnnecessaryAsyncAnnotation)
-                {
-                    let mut issue = Issue::new(
-                        IssueKind::UnnecessaryAsyncAnnotation,
-                        format!("This function is marked async but has no async behaviour"),
-                        functionlike_storage
-                            .name_location
-                            .unwrap_or(functionlike_storage.def_location),
-                        &context.function_context.calling_functionlike_id,
-                    );
-                    issue.insertion_start = Some(StmtStart {
-                        offset: functionlike_storage.def_location.start_offset,
-                        line: functionlike_storage.def_location.start_line,
-                        column: functionlike_storage.def_location.start_column - 1,
-                        add_newline: true,
-                    });
-                    analysis_data.maybe_add_issue(
-                        issue,
-                        statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual(),
-                    );
-                }
+                && !functionlike_storage
+                    .suppressed_issues
+                    .iter()
+                    .any(|(i, _)| i == &IssueKind::UnnecessaryAsyncAnnotation)
+            {
+                let mut issue = Issue::new(
+                    IssueKind::UnnecessaryAsyncAnnotation,
+                    "This function is marked async but has no async behaviour".to_string(),
+                    functionlike_storage
+                        .name_location
+                        .unwrap_or(functionlike_storage.def_location),
+                    &context.function_context.calling_functionlike_id,
+                );
+                issue.insertion_start = Some(StmtStart {
+                    offset: functionlike_storage.def_location.start_offset,
+                    line: functionlike_storage.def_location.start_line,
+                    column: functionlike_storage.def_location.start_column - 1,
+                    add_newline: true,
+                });
+                analysis_data.maybe_add_issue(
+                    issue,
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
             }
 
             if config.remove_fixmes {
@@ -821,19 +816,19 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 &mut cost,
             );
 
-            if let Some(name_location) = functionlike_storage.name_location {
-                if cost > 50_000 {
-                    analysis_data.maybe_add_issue(
-                        Issue::new(
-                            IssueKind::LargeTypeExpansion,
-                            format!("Very large return type used — {cost} elements loaded"),
-                            name_location,
-                            &context.function_context.calling_functionlike_id,
-                        ),
-                        statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual(),
-                    );
-                }
+            if let Some(name_location) = functionlike_storage.name_location
+                && cost > 50_000
+            {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::LargeTypeExpansion,
+                        format!("Very large return type used — {cost} elements loaded"),
+                        name_location,
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
             }
 
             let config = statements_analyzer.get_config();
@@ -1527,10 +1522,9 @@ fn report_unused_expressions(
             } => {
                 if let DataFlowNodeId::Var(var_id, ..) | DataFlowNodeId::Param(var_id, ..) =
                     &node.id
+                    && interner.lookup(&var_id.0).starts_with("$_")
                 {
-                    if interner.lookup(&var_id.0).starts_with("$_") {
-                        continue;
-                    }
+                    continue;
                 }
 
                 if kind == &VariableSourceKind::Default {
@@ -1564,10 +1558,9 @@ fn report_unused_expressions(
             } => {
                 if let DataFlowNodeId::Var(var_id, ..) | DataFlowNodeId::Param(var_id, ..) =
                     &node.id
+                    && interner.lookup(&var_id.0).starts_with("$_")
                 {
-                    if interner.lookup(&var_id.0).starts_with("$_") {
-                        continue;
-                    }
+                    continue;
                 }
 
                 match &kind {

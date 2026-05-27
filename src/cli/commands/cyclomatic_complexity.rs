@@ -112,7 +112,7 @@ pub fn handle(
 
     if let Ok((analysis_result, successful_run_data)) = result {
         let mut results = analysis_result.cyclomatic_complexity;
-        results.sort_by(|a, b| b.cmp(&successful_run_data.interner, &a));
+        results.sort_by(|a, b| b.cmp(&successful_run_data.interner, a));
 
         let total_functions = successful_run_data.codebase.functionlike_infos.len();
 

@@ -21,7 +21,7 @@ impl FunctionComplexity {
         FunctionComplexity {
             file_path: functionlike_info.def_location.file_path.0,
             line: functionlike_info.def_location.start_line,
-            name: functionlike_id.clone(),
+            name: *functionlike_id,
             complexity,
         }
     }

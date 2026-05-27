@@ -108,14 +108,15 @@ pub fn parse_capture_groups(pattern: &str) -> Vec<CaptureGroup> {
 
                     if next == 'P' {
                         // Python-style named group (?P<name>...)
-                        if i + 3 < len && chars[i + 3] == '<' {
-                            if let Some(name) = extract_name(&chars, i + 4, '>') {
-                                groups.push(CaptureGroup {
-                                    index: group_index,
-                                    name: Some(name),
-                                });
-                                group_index += 1;
-                            }
+                        if i + 3 < len
+                            && chars[i + 3] == '<'
+                            && let Some(name) = extract_name(&chars, i + 4, '>')
+                        {
+                            groups.push(CaptureGroup {
+                                index: group_index,
+                                name: Some(name),
+                            });
+                            group_index += 1;
                         }
                         i += 1;
                         continue;

@@ -176,28 +176,23 @@ impl<'ast> Visitor<'ast> for Scanner {
                         match &ns_def {
                             Def::Fun(boxed) => {
                                 self.visit_block(c, &boxed.fun.body.fb_ast)?;
-                                ()
                             }
                             Def::Class(boxed) => {
                                 for method in &boxed.methods {
                                     self.visit_block(c, &method.body.fb_ast)?;
                                 }
-                                ()
                             }
                             _ => (),
                         }
                     }
-                    ()
                 }
                 Def::Fun(boxed) => {
                     self.visit_block(c, &boxed.fun.body.fb_ast)?;
-                    ()
                 }
                 Def::Class(boxed) => {
                     for method in &boxed.methods {
                         self.visit_block(c, &method.body.fb_ast)?;
                     }
-                    ()
                 }
                 _ => (),
             }
@@ -241,7 +236,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 boxed.2.recurse(c, self)
             }
             Stmt_::Block(boxed) => boxed.recurse(c, self),
-            Stmt_::Expr(boxed) => self.visit_expr(c, &boxed),
+            Stmt_::Expr(boxed) => self.visit_expr(c, boxed),
             Stmt_::Try(boxed) => self.visit_block(c, &boxed.0),
             Stmt_::Concurrent(boxed) => {
                 push_start(&p.0, c); // The line where concurrent block is declared is coverable
@@ -255,7 +250,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 }
                 match **boxed {
                     None => Ok(()),
-                    Some(ref expr) => self.visit_expr(c, &expr),
+                    Some(ref expr) => self.visit_expr(c, expr),
                 }
             }
             _ => {
@@ -390,7 +385,7 @@ fn push_end(p: &Pos, res: &mut BTreeSet<u64>) {
 fn is_single_line(p: &Pos) -> bool {
     let start = p.to_raw_span().start.line();
     let end = p.to_raw_span().end.line();
-    return start == end;
+    start == end
 }
 
 // Given an ordered set of ints representing individual executable lines,
@@ -402,7 +397,7 @@ fn to_ranges(lines: BTreeSet<u64>) -> Vec<String> {
     let mut i = 0;
     while let Some(start) = sorted.get(i) {
         i += 1;
-        out.push(make_range(&sorted, &start, &mut i));
+        out.push(make_range(&sorted, start, &mut i));
     }
     out
 }

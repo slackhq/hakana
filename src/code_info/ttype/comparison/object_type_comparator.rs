@@ -75,19 +75,15 @@ fn is_intersection_shallowly_contained_by(
                     GenericParent::ClassLike(input_defining_class),
                     GenericParent::ClassLike(container_defining_class),
                 ) => {
-                    if input_defining_class != container_defining_class {
-                        if let Some(input_class_storage) =
+                    if input_defining_class != container_defining_class
+                        && let Some(input_class_storage) =
                             codebase.classlike_infos.get(input_defining_class)
-                        {
-                            if let Some(defining_entity_params) = &input_class_storage
-                                .template_extended_params
-                                .get(container_defining_class)
-                            {
-                                if defining_entity_params.get(container_param_name).is_some() {
-                                    return true;
-                                }
-                            }
-                        }
+                        && let Some(defining_entity_params) = &input_class_storage
+                            .template_extended_params
+                            .get(container_defining_class)
+                        && defining_entity_params.get(container_param_name).is_some()
+                    {
+                        return true;
                     }
                 }
                 (GenericParent::ClassLike(_), _) | (_, GenericParent::ClassLike(_)) => {

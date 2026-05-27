@@ -287,23 +287,23 @@ pub(crate) fn add_branch_dataflow(
         .expr_types
         .get(&(cond.1.start_offset() as u32, cond.1.end_offset() as u32));
 
-    if let Some(conditional_type) = conditional_type {
-        if !conditional_type.parent_nodes.is_empty() {
-            let branch_node =
-                DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(cond.pos()));
+    if let Some(conditional_type) = conditional_type
+        && !conditional_type.parent_nodes.is_empty()
+    {
+        let branch_node =
+            DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(cond.pos()));
 
-            for parent_node in &conditional_type.parent_nodes {
-                analysis_data.data_flow_graph.add_path(
-                    &parent_node.id,
-                    &branch_node.id,
-                    PathKind::Default,
-                    vec![],
-                    vec![],
-                );
-            }
-
-            analysis_data.data_flow_graph.add_node(branch_node);
+        for parent_node in &conditional_type.parent_nodes {
+            analysis_data.data_flow_graph.add_path(
+                &parent_node.id,
+                &branch_node.id,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
         }
+
+        analysis_data.data_flow_graph.add_node(branch_node);
     }
 }
 

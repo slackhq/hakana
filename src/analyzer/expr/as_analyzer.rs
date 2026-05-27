@@ -41,8 +41,8 @@ pub(crate) fn analyze<'expr>(
         match root_expr.2 {
             aast::Expr_::ArrayGet(boxed) => {
                 root_expr = boxed.0;
-                if let Some(dim) = &boxed.1 {
-                    if let aast::Expr_::ArrayGet(..)
+                if let Some(dim) = &boxed.1
+                    && let aast::Expr_::ArrayGet(..)
                     | aast::Expr_::ClassConst(..)
                     | aast::Expr_::Call(..)
                     | aast::Expr_::Cast(..)
@@ -52,9 +52,8 @@ pub(crate) fn analyze<'expr>(
                     | aast::Expr_::Pipe(..)
                     | aast::Expr_::Await(..)
                     | aast::Expr_::Delay(..) = dim.2
-                    {
-                        has_arrayget_key = true;
-                    }
+                {
+                    has_arrayget_key = true;
                 }
             }
             aast::Expr_::ObjGet(boxed) => {
@@ -83,10 +82,10 @@ pub(crate) fn analyze<'expr>(
         )
     {
         replacement_left = get_fake_as_var(left, statements_analyzer, analysis_data, context);
-    } else if let aast::Expr_::Lvar(var) = root_expr.2 {
-        if var.1.1 == "$$" {
-            replacement_left = get_fake_as_var(left, statements_analyzer, analysis_data, context);
-        }
+    } else if let aast::Expr_::Lvar(var) = root_expr.2
+        && var.1.1 == "$$"
+    {
+        replacement_left = get_fake_as_var(left, statements_analyzer, analysis_data, context);
     }
 
     let ternary = aast::Expr(
@@ -220,12 +219,12 @@ fn get_fake_as_var(
         .locals
         .insert(VarName::new(left_var_id.clone()), condition_type);
 
-    return Some(aast::Expr(
+    Some(aast::Expr(
         (),
         left.pos().clone(),
         aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
             left.pos().clone(),
             (5, left_var_id.clone()),
         ))),
-    ));
+    ))
 }

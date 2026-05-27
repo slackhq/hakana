@@ -156,10 +156,11 @@ impl LanguageServer for Backend {
                     }
                     _ => {}
                 }
-            } else if Path::new(&file_path).extension().is_none() && !file_path.contains("/.git/") {
-                if let FileChangeType::DELETED = change_type {
-                    new_file_statuses.insert(file_path, FileStatus::DeletedDir);
-                }
+            } else if Path::new(&file_path).extension().is_none()
+                && !file_path.contains("/.git/")
+                && let FileChangeType::DELETED = change_type
+            {
+                new_file_statuses.insert(file_path, FileStatus::DeletedDir);
             }
         }
 
@@ -220,38 +221,35 @@ impl LanguageServer for Backend {
                     let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
 
                     // Check member definition locations (methods, properties, constants)
-                    if let Some(analysis_result) = analysis_result_guard.as_ref() {
-                        if let Some(definition_locations) =
+                    if let Some(analysis_result) = analysis_result_guard.as_ref()
+                        && let Some(definition_locations) =
                             analysis_result.definition_locations.get(&file_path_obj)
+                    {
+                        // Find all matching ranges and pick the most specific (narrowest) one
+                        let mut best_match = None;
+                        let mut best_range_size = u32::MAX;
+
+                        for ((start_offset, end_offset), (classlike_name, member_name)) in
+                            definition_locations
                         {
-                            // Find all matching ranges and pick the most specific (narrowest) one
-                            let mut best_match = None;
-                            let mut best_range_size = u32::MAX;
+                            if (offset as u32) >= *start_offset && (offset as u32) <= *end_offset {
+                                let range_size = end_offset - start_offset;
+                                if range_size < best_range_size {
+                                    best_range_size = range_size;
+                                    best_match = Some((classlike_name, member_name));
+                                }
+                            }
+                        }
 
-                            for ((start_offset, end_offset), (classlike_name, member_name)) in
-                                definition_locations
+                        if let Some((classlike_name, member_name)) = best_match {
+                            if let Some(pos) = scan_data
+                                .codebase
+                                .get_symbol_pos(classlike_name, member_name)
                             {
-                                if (offset as u32) >= *start_offset
-                                    && (offset as u32) <= *end_offset
-                                {
-                                    let range_size = end_offset - start_offset;
-                                    if range_size < best_range_size {
-                                        best_range_size = range_size;
-                                        best_match = Some((classlike_name, member_name));
-                                    }
-                                }
+                                return Ok(pos_to_offset(pos, &scan_data.interner));
                             }
 
-                            if let Some((classlike_name, member_name)) = best_match {
-                                if let Some(pos) = scan_data
-                                    .codebase
-                                    .get_symbol_pos(classlike_name, member_name)
-                                {
-                                    return Ok(pos_to_offset(pos, &scan_data.interner));
-                                }
-
-                                return Ok(None);
-                            }
+                            return Ok(None);
                         }
                     }
                 }
@@ -283,7 +281,7 @@ fn pos_to_offset(def_pos: HPos, interner: &Interner) -> Option<GotoDefinitionRes
         }));
     }
 
-    return None;
+    None
 }
 
 impl Backend {
@@ -550,7 +548,7 @@ pub async fn serve_with_plugins<Reader, Writer>(
         }
         None => {
             stderr
-                .write_all_buf(&mut Cursor::new(format!("Using local analysis")))
+                .write_all_buf(&mut Cursor::new("Using local analysis".to_string()))
                 .await
                 .ok();
             None
