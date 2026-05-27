@@ -50,7 +50,7 @@ impl IntegrationTest for LinterTest {
             ]
             .into_iter()
             .filter(|p| Path::new(p).exists())
-            .map(|p| std::path::PathBuf::from(p))
+            .map(std::path::PathBuf::from)
             .collect::<Vec<_>>()
         } else if Path::new(&format!("{}.php.in", ctx.dir)).exists() {
             vec![std::path::PathBuf::from(format!("{}.php.in", ctx.dir))]

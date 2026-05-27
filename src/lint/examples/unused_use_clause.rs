@@ -44,6 +44,12 @@ impl Linter for UnusedUseClauseLinter {
     }
 }
 
+impl Default for UnusedUseClauseLinter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UnusedUseClauseLinter {
     pub fn new() -> Self {
         Self
@@ -182,30 +188,24 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                 }
                 // Also extract type arguments: in Foo<Bar, Baz>, we need to mark Bar and Baz as used
                 // The argument_list contains TypeArguments which has a types field
-                if let SyntaxVariant::TypeArguments(args) = &spec.argument_list.children {
-                    if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
-                        for type_arg in types_list.iter() {
-                            if let SyntaxVariant::ListItem(item) = &type_arg.children {
-                                extract_type_names(
-                                    &item.item,
-                                    self.ctx,
-                                    &mut self.referenced_names,
-                                );
-                            }
+                if let SyntaxVariant::TypeArguments(args) = &spec.argument_list.children
+                    && let SyntaxVariant::SyntaxList(types_list) = &args.types.children
+                {
+                    for type_arg in types_list.iter() {
+                        if let SyntaxVariant::ListItem(item) = &type_arg.children {
+                            extract_type_names(&item.item, self.ctx, &mut self.referenced_names);
                         }
                     }
                 }
             }
             // Qualified name: Foo\Bar\Baz - track first part as namespace
             SyntaxVariant::QualifiedName(qn) => {
-                if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
-                    if let Some(first_item) = parts.first() {
-                        if let SyntaxVariant::ListItem(item) = &first_item.children {
-                            if let Some(name) = extract_name_token(&item.item, self.ctx) {
-                                self.referenced_names.namespaces.insert(name);
-                            }
-                        }
-                    }
+                if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children
+                    && let Some(first_item) = parts.first()
+                    && let SyntaxVariant::ListItem(item) = &first_item.children
+                    && let Some(name) = extract_name_token(&item.item, self.ctx)
+                {
+                    self.referenced_names.namespaces.insert(name);
                 }
             }
             // Function call: foo() or foo<Bar>()
@@ -214,16 +214,12 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                     self.referenced_names.functions.insert(name);
                 }
                 // Extract type arguments: in Cfg::get<CookiesConfig>(), we need CookiesConfig
-                if let SyntaxVariant::TypeArguments(args) = &call.type_args.children {
-                    if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
-                        for type_arg in types_list.iter() {
-                            if let SyntaxVariant::ListItem(item) = &type_arg.children {
-                                extract_type_names(
-                                    &item.item,
-                                    self.ctx,
-                                    &mut self.referenced_names,
-                                );
-                            }
+                if let SyntaxVariant::TypeArguments(args) = &call.type_args.children
+                    && let SyntaxVariant::SyntaxList(types_list) = &args.types.children
+                {
+                    for type_arg in types_list.iter() {
+                        if let SyntaxVariant::ListItem(item) = &type_arg.children {
+                            extract_type_names(&item.item, self.ctx, &mut self.referenced_names);
                         }
                     }
                 }
@@ -234,16 +230,12 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                     self.referenced_names.functions.insert(name);
                 }
                 // Extract type arguments: in foo_bar<SomeType>, we need SomeType
-                if let SyntaxVariant::TypeArguments(args) = &ptr.type_args.children {
-                    if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
-                        for type_arg in types_list.iter() {
-                            if let SyntaxVariant::ListItem(item) = &type_arg.children {
-                                extract_type_names(
-                                    &item.item,
-                                    self.ctx,
-                                    &mut self.referenced_names,
-                                );
-                            }
+                if let SyntaxVariant::TypeArguments(args) = &ptr.type_args.children
+                    && let SyntaxVariant::SyntaxList(types_list) = &args.types.children
+                {
+                    for type_arg in types_list.iter() {
+                        if let SyntaxVariant::ListItem(item) = &type_arg.children {
+                            extract_type_names(&item.item, self.ctx, &mut self.referenced_names);
                         }
                     }
                 }
@@ -300,14 +292,12 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                     self.referenced_names.types.insert(name);
                 } else if let SyntaxVariant::QualifiedName(qn) = &nameof_expr.target.children {
                     // Qualified name in nameof - extract first part as namespace
-                    if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
-                        if let Some(first_item) = parts.first() {
-                            if let SyntaxVariant::ListItem(item) = &first_item.children {
-                                if let Some(name) = extract_name_token(&item.item, self.ctx) {
-                                    self.referenced_names.namespaces.insert(name);
-                                }
-                            }
-                        }
+                    if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children
+                        && let Some(first_item) = parts.first()
+                        && let SyntaxVariant::ListItem(item) = &first_item.children
+                        && let Some(name) = extract_name_token(&item.item, self.ctx)
+                    {
+                        self.referenced_names.namespaces.insert(name);
                     }
                 }
             }
@@ -318,14 +308,12 @@ impl<'a> SyntaxVisitor<'a> for UnusedUseClauseVisitor<'a> {
                     self.referenced_names.types.insert(name);
                 } else if let SyntaxVariant::QualifiedName(qn) = &enum_label.qualifier.children {
                     // Qualified enum name - extract first part as namespace
-                    if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
-                        if let Some(first_item) = parts.first() {
-                            if let SyntaxVariant::ListItem(item) = &first_item.children {
-                                if let Some(name) = extract_name_token(&item.item, self.ctx) {
-                                    self.referenced_names.namespaces.insert(name);
-                                }
-                            }
-                        }
+                    if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children
+                        && let Some(first_item) = parts.first()
+                        && let SyntaxVariant::ListItem(item) = &first_item.children
+                        && let Some(name) = extract_name_token(&item.item, self.ctx)
+                    {
+                        self.referenced_names.namespaces.insert(name);
                     }
                 }
             }
@@ -452,7 +440,7 @@ impl<'a> UnusedUseClauseVisitor<'a> {
                 let full_name = if prefix.is_empty() {
                     // No prefix, just use clause path
                     clause_path.clone()
-                } else if prefix == "\\" || prefix == "" {
+                } else if prefix == "\\" || prefix.is_empty() {
                     // Prefix is just "\" (root namespace), prepend to clause path
                     format!("\\{}", clause_path)
                 } else if prefix.ends_with('\\') {
@@ -478,7 +466,7 @@ impl<'a> UnusedUseClauseVisitor<'a> {
 
         // Group consecutive unused clauses to avoid overlapping edits
         // Sort unused clauses by start offset
-        let mut sorted_unused: Vec<&UseClauseInfo> = unused_clauses.iter().copied().collect();
+        let mut sorted_unused: Vec<&UseClauseInfo> = unused_clauses.to_vec();
         sorted_unused.sort_by_key(|c| c.start_offset);
 
         // Group consecutive clauses together
@@ -590,10 +578,10 @@ impl<'a> UnusedUseClauseVisitor<'a> {
                             end += 1;
                         }
                         // Also consume leading space if it exists
-                        if let Some((_, has_space)) = leading_context {
-                            if has_space {
-                                start -= 1;
-                            }
+                        if let Some((_, has_space)) = leading_context
+                            && has_space
+                        {
+                            start -= 1;
                         }
                     } else {
                         // Inline case
@@ -636,15 +624,15 @@ impl<'a> UnusedUseClauseVisitor<'a> {
                 if first_unused.start_offset > 0 {
                     let lookbehind_start = first_unused.start_offset.saturating_sub(100);
                     let lookbehind = &source_bytes[lookbehind_start..first_unused.start_offset];
-                    if let Ok(text) = std::str::from_utf8(lookbehind) {
-                        if text.trim_end().ends_with(',') {
-                            has_leading_comma = true;
-                            // Find the comma position
-                            for i in (lookbehind_start..first_unused.start_offset).rev() {
-                                if source_bytes[i] == b',' {
-                                    comma_start = i;
-                                    break;
-                                }
+                    if let Ok(text) = std::str::from_utf8(lookbehind)
+                        && text.trim_end().ends_with(',')
+                    {
+                        has_leading_comma = true;
+                        // Find the comma position
+                        for i in (lookbehind_start..first_unused.start_offset).rev() {
+                            if source_bytes[i] == b',' {
+                                comma_start = i;
+                                break;
                             }
                         }
                     }
@@ -720,33 +708,33 @@ fn extract_use_clauses(clauses_node: &PositionedSyntax, ctx: &LintContext) -> Ve
 
     if let SyntaxVariant::SyntaxList(list) = &clauses_node.children {
         for item in list.iter() {
-            if let SyntaxVariant::ListItem(list_item) = &item.children {
-                if let SyntaxVariant::NamespaceUseClause(clause) = &list_item.item.children {
-                    // Get the full clause path (what's actually written in the clause)
-                    let full_clause_path = ctx.node_text(&clause.name).trim().to_string();
+            if let SyntaxVariant::ListItem(list_item) = &item.children
+                && let SyntaxVariant::NamespaceUseClause(clause) = &list_item.item.children
+            {
+                // Get the full clause path (what's actually written in the clause)
+                let full_clause_path = ctx.node_text(&clause.name).trim().to_string();
 
-                    // Check if this clause has an alias
-                    let has_alias = !matches!(&clause.alias.children, SyntaxVariant::Missing);
+                // Check if this clause has an alias
+                let has_alias = !matches!(&clause.alias.children, SyntaxVariant::Missing);
 
-                    // Get the imported name (alias or last part of qualified name)
-                    let imported_name = if has_alias {
-                        // Has an alias - use that
-                        ctx.node_text(&clause.alias).trim().to_string()
-                    } else {
-                        // No alias - get last part of the name
-                        extract_last_name_part(&clause.name, ctx)
-                    };
+                // Get the imported name (alias or last part of qualified name)
+                let imported_name = if has_alias {
+                    // Has an alias - use that
+                    ctx.node_text(&clause.alias).trim().to_string()
+                } else {
+                    // No alias - get last part of the name
+                    extract_last_name_part(&clause.name, ctx)
+                };
 
-                    if !imported_name.is_empty() {
-                        let (start, end) = ctx.node_full_range(&list_item.item);
-                        clauses.push(UseClauseInfo {
-                            imported_name,
-                            full_clause_path,
-                            has_alias,
-                            start_offset: start,
-                            end_offset: end,
-                        });
-                    }
+                if !imported_name.is_empty() {
+                    let (start, end) = ctx.node_full_range(&list_item.item);
+                    clauses.push(UseClauseInfo {
+                        imported_name,
+                        full_clause_path,
+                        has_alias,
+                        start_offset: start,
+                        end_offset: end,
+                    });
                 }
             }
         }
@@ -757,17 +745,16 @@ fn extract_use_clauses(clauses_node: &PositionedSyntax, ctx: &LintContext) -> Ve
 
 /// Extract the last part of a name (for determining what was imported)
 fn extract_last_name_part(name_node: &PositionedSyntax, ctx: &LintContext) -> String {
-    if let Some(_) = name_node.get_token() {
+    if name_node.get_token().is_some() {
         // Simple name token
         ctx.node_text(name_node).trim().to_string()
     } else if let SyntaxVariant::QualifiedName(qn) = &name_node.children {
         // Qualified name - get last part
-        if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
-            if let Some(last_item) = parts.last() {
-                if let SyntaxVariant::ListItem(item) = &last_item.children {
-                    return ctx.node_text(&item.item).trim().to_string();
-                }
-            }
+        if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children
+            && let Some(last_item) = parts.last()
+            && let SyntaxVariant::ListItem(item) = &last_item.children
+        {
+            return ctx.node_text(&item.item).trim().to_string();
         }
         String::new()
     } else {
@@ -778,11 +765,11 @@ fn extract_last_name_part(name_node: &PositionedSyntax, ctx: &LintContext) -> St
 /// Extract a simple name token's text from a node
 fn extract_name_token(node: &PositionedSyntax, ctx: &LintContext) -> Option<String> {
     // Check if this node is a token
-    if let Some(token) = node.get_token() {
-        if matches!(token.kind(), TokenKind::Name) {
-            // Use ctx to get the text
-            return Some(ctx.node_text(node).trim().to_string());
-        }
+    if let Some(token) = node.get_token()
+        && matches!(token.kind(), TokenKind::Name)
+    {
+        // Use ctx to get the text
+        return Some(ctx.node_text(node).trim().to_string());
     }
     None
 }
@@ -830,14 +817,12 @@ fn extract_type_names(node: &PositionedSyntax, ctx: &LintContext, names: &mut Re
             // Check if the specifier is a qualified name
             if let SyntaxVariant::QualifiedName(qn) = &spec.specifier.children {
                 // Extract first part as namespace
-                if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
-                    if let Some(first_item) = parts.first() {
-                        if let SyntaxVariant::ListItem(item) = &first_item.children {
-                            if let Some(name) = extract_name_token(&item.item, ctx) {
-                                names.namespaces.insert(name);
-                            }
-                        }
-                    }
+                if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children
+                    && let Some(first_item) = parts.first()
+                    && let SyntaxVariant::ListItem(item) = &first_item.children
+                    && let Some(name) = extract_name_token(&item.item, ctx)
+                {
+                    names.namespaces.insert(name);
                 }
             } else if let Some(name) = extract_name_token(&spec.specifier, ctx) {
                 // Simple name token
@@ -850,26 +835,24 @@ fn extract_type_names(node: &PositionedSyntax, ctx: &LintContext, names: &mut Re
                 names.types.insert(name);
             }
             // Recursively extract type arguments
-            if let SyntaxVariant::TypeArguments(args) = &spec.argument_list.children {
-                if let SyntaxVariant::SyntaxList(types_list) = &args.types.children {
-                    for type_arg in types_list.iter() {
-                        if let SyntaxVariant::ListItem(item) = &type_arg.children {
-                            extract_type_names(&item.item, ctx, names);
-                        }
+            if let SyntaxVariant::TypeArguments(args) = &spec.argument_list.children
+                && let SyntaxVariant::SyntaxList(types_list) = &args.types.children
+            {
+                for type_arg in types_list.iter() {
+                    if let SyntaxVariant::ListItem(item) = &type_arg.children {
+                        extract_type_names(&item.item, ctx, names);
                     }
                 }
             }
         }
         // Qualified name: Foo\Bar\Baz
         SyntaxVariant::QualifiedName(qn) => {
-            if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children {
-                if let Some(first_item) = parts.first() {
-                    if let SyntaxVariant::ListItem(item) = &first_item.children {
-                        if let Some(name) = extract_name_token(&item.item, ctx) {
-                            names.namespaces.insert(name);
-                        }
-                    }
-                }
+            if let SyntaxVariant::SyntaxList(parts) = &qn.parts.children
+                && let Some(first_item) = parts.first()
+                && let SyntaxVariant::ListItem(item) = &first_item.children
+                && let Some(name) = extract_name_token(&item.item, ctx)
+            {
+                names.namespaces.insert(name);
             }
         }
         // Nullable type: ?Foo

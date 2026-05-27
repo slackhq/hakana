@@ -206,11 +206,11 @@ pub fn combine(
             continue;
         }
 
-        if let TAtomic::TNothing = atomic {
-            if combination_value_type_count > 1 || !new_types.is_empty() {
-                has_nothing = true;
-                continue;
-            }
+        if let TAtomic::TNothing = atomic
+            && (combination_value_type_count > 1 || !new_types.is_empty())
+        {
+            has_nothing = true;
+            continue;
         }
 
         new_types.push(atomic);
@@ -376,14 +376,14 @@ fn scrape_type_properties(
     }
 
     // bool|false = bool
-    if let TAtomic::TFalse { .. } | TAtomic::TTrue { .. } = atomic {
-        if combination.value_types.contains_key("bool") {
-            return;
-        }
+    if let TAtomic::TFalse | TAtomic::TTrue = atomic
+        && combination.value_types.contains_key("bool")
+    {
+        return;
     }
 
     // false|bool = bool
-    if let TAtomic::TBool { .. } = atomic {
+    if let TAtomic::TBool = atomic {
         combination.value_types.remove("false");
         combination.value_types.remove("true");
     }
@@ -553,10 +553,10 @@ fn scrape_type_properties(
 
         if let Some(shape_name) = &shape_name {
             if let Some(ref mut existing_name) = combination.dict_alias_name {
-                if let Some(existing_name_inner) = existing_name {
-                    if existing_name_inner != shape_name {
-                        *existing_name = None;
-                    }
+                if let Some(existing_name_inner) = existing_name
+                    && existing_name_inner != shape_name
+                {
+                    *existing_name = None;
                 }
             } else {
                 combination.dict_alias_name = Some(Some(*shape_name));
@@ -867,16 +867,14 @@ fn scrape_type_properties(
             } else {
                 existing_enum_values.insert(member_name, (as_type, underlying_type));
             }
-        } else {
-            if let Some(enum_storage) = codebase.classlike_infos.get(&enum_name) {
-                combination.enum_value_types.insert(
-                    enum_name,
-                    (
-                        enum_storage.constants.len(),
-                        FxHashMap::from_iter([(member_name, (as_type, underlying_type))]),
-                    ),
-                );
-            }
+        } else if let Some(enum_storage) = codebase.classlike_infos.get(&enum_name) {
+            combination.enum_value_types.insert(
+                enum_name,
+                (
+                    enum_storage.constants.len(),
+                    FxHashMap::from_iter([(member_name, (as_type, underlying_type))]),
+                ),
+            );
         }
 
         if let Some((as_type, underlying_type)) = matched_len_constraint {
@@ -1036,7 +1034,7 @@ fn scrape_type_properties(
         return;
     }
 
-    if let TAtomic::TScalar { .. } = atomic {
+    if let TAtomic::TScalar = atomic {
         combination.literal_strings = FxHashSet::default();
         combination.literal_ints = FxHashSet::default();
         combination.value_types.retain(|k, _| {
@@ -1069,7 +1067,7 @@ fn scrape_type_properties(
         return;
     }
 
-    if let TAtomic::TNum { .. } = atomic {
+    if let TAtomic::TNum = atomic {
         if combination.value_types.contains_key("scalar") {
             return;
         }
@@ -1083,28 +1081,25 @@ fn scrape_type_properties(
         return;
     }
 
-    if let TAtomic::TString { .. }
+    if let TAtomic::TString
     | TAtomic::TLiteralString { .. }
     | TAtomic::TStringWithFlags(..)
     | TAtomic::TInt
     | TAtomic::TLiteralInt { .. } = atomic
+        && (combination.value_types.contains_key("arraykey")
+            || combination.value_types.contains_key("scalar"))
     {
-        if combination.value_types.contains_key("arraykey")
-            || combination.value_types.contains_key("scalar")
-        {
-            return;
-        }
+        return;
     }
 
-    if let TAtomic::TFloat | TAtomic::TInt | TAtomic::TLiteralInt { .. } = atomic {
-        if combination.value_types.contains_key("num")
-            || combination.value_types.contains_key("scalar")
-        {
-            return;
-        }
+    if let TAtomic::TFloat | TAtomic::TInt | TAtomic::TLiteralInt { .. } = atomic
+        && (combination.value_types.contains_key("num")
+            || combination.value_types.contains_key("scalar"))
+    {
+        return;
     }
 
-    if let TAtomic::TString { .. } = atomic {
+    if let TAtomic::TString = atomic {
         combination.literal_strings = FxHashSet::default();
         combination.value_types.insert(atomic.get_key(), atomic);
         return;
@@ -1171,7 +1166,7 @@ fn scrape_type_properties(
             match existing_string_type {
                 TAtomic::TString => return,
                 TAtomic::TStringWithFlags(is_truthy, is_nonempty, is_nonspecific_literal) => {
-                    if value == "" {
+                    if value.is_empty() {
                         *is_truthy = false;
                         *is_nonempty = false;
                     } else if value == "0" {
@@ -1194,8 +1189,8 @@ fn scrape_type_properties(
                     combination
                         .literal_strings
                         .iter()
-                        .all(|s| s != "" && s != "0"),
-                    combination.literal_strings.iter().all(|s| s != ""),
+                        .all(|s| !s.is_empty() && s != "0"),
+                    combination.literal_strings.iter().all(|s| !s.is_empty()),
                     true,
                 ),
             );

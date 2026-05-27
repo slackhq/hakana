@@ -54,7 +54,7 @@ impl IntegrationTest for CyclomaticComplexityTest {
                 let time_in_analysis = analysis_result.time_in_analysis;
 
                 let mut results = analysis_result.cyclomatic_complexity;
-                results.sort_by(|a, b| b.cmp(&run_data.interner, &a));
+                results.sort_by(|a, b| b.cmp(&run_data.interner, a));
 
                 let output: Vec<String> = results
                     .iter()

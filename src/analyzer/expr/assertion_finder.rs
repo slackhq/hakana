@@ -364,40 +364,40 @@ fn scrape_shapes_isset(
             None
         };
 
-        if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
-            if let Some((codebase, interner)) = assertion_context.codebase {
-                if class_name == StrId::SHAPES && member_name == StrId::IDX {
-                    let shape_name = get_var_id(
-                        &call.args[0].to_expr_ref(),
-                        assertion_context.this_class_name,
-                        assertion_context.resolved_names,
-                        assertion_context.codebase,
-                    );
+        if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id
+            && let Some((codebase, interner)) = assertion_context.codebase
+            && class_name == StrId::SHAPES
+            && member_name == StrId::IDX
+        {
+            let shape_name = get_var_id(
+                call.args[0].to_expr_ref(),
+                assertion_context.this_class_name,
+                assertion_context.resolved_names,
+                assertion_context.codebase,
+            );
 
-                    let dim_id = get_dim_id(
-                        &call.args[1].to_expr_ref(),
-                        Some((codebase, interner)),
-                        assertion_context.resolved_names,
-                    );
+            let dim_id = get_dim_id(
+                call.args[1].to_expr_ref(),
+                Some((codebase, interner)),
+                assertion_context.resolved_names,
+            );
 
-                    if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
-                        let dict_key = if dim_id.starts_with('\'') {
-                            DictKey::String(dim_id[1..(dim_id.len() - 1)].to_string())
-                        } else if let Ok(arraykey_value) = dim_id.parse::<u64>() {
-                            DictKey::Int(arraykey_value)
-                        } else {
-                            panic!("bad int key {}", dim_id);
-                        };
-                        if_types.insert(
-                            shape_name,
-                            vec![vec![if negated {
-                                Assertion::DoesNotHaveNonnullEntryForKey(dict_key)
-                            } else {
-                                Assertion::HasNonnullEntryForKey(dict_key)
-                            }]],
-                        );
-                    }
-                }
+            if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
+                let dict_key = if dim_id.starts_with('\'') {
+                    DictKey::String(dim_id[1..(dim_id.len() - 1)].to_string())
+                } else if let Ok(arraykey_value) = dim_id.parse::<u64>() {
+                    DictKey::Int(arraykey_value)
+                } else {
+                    panic!("bad int key {}", dim_id);
+                };
+                if_types.insert(
+                    shape_name,
+                    vec![vec![if negated {
+                        Assertion::DoesNotHaveNonnullEntryForKey(dict_key)
+                    } else {
+                        Assertion::HasNonnullEntryForKey(dict_key)
+                    }]],
+                );
             }
         }
     }
@@ -529,46 +529,46 @@ fn scrape_function_assertions(
 
     if function_name == &StrId::ISSET {
         let (first_arg, first_var_name, first_var_type) = firsts.unwrap();
-        if let Some(first_var_name) = first_var_name {
-            if let Some(first_var_type) = first_var_type {
-                if matches!(first_arg, aast::Expr((), _, aast::Expr_::Lvar(_)))
-                    && &first_arg.1 != pos
-                    && !first_var_type.is_mixed()
-                    && !first_var_type.possibly_undefined_from_try
-                {
-                    if_types.insert(
-                        first_var_name.clone(),
-                        vec![vec![Assertion::IsNotType(TAtomic::TNull)]],
-                    );
-                } else {
-                    if_types.insert(first_var_name.clone(), vec![vec![Assertion::IsIsset]]);
-                }
+        if let Some(first_var_name) = first_var_name
+            && let Some(first_var_type) = first_var_type
+        {
+            if matches!(first_arg, aast::Expr((), _, aast::Expr_::Lvar(_)))
+                && &first_arg.1 != pos
+                && !first_var_type.is_mixed()
+                && !first_var_type.possibly_undefined_from_try
+            {
+                if_types.insert(
+                    first_var_name.clone(),
+                    vec![vec![Assertion::IsNotType(TAtomic::TNull)]],
+                );
+            } else {
+                if_types.insert(first_var_name.clone(), vec![vec![Assertion::IsIsset]]);
             }
         }
     } else if function_name == &StrId::IN_ARRAY {
         let (first_arg, first_var_name, _) = firsts.unwrap();
-        if let (Some(first_var_name), Some(second_arg)) = (first_var_name, args.get(1)) {
-            if let aast::Expr_::ValCollection(vals) = &second_arg.to_expr_ref().2 {
-                let mut in_arr_types = vec![];
-                let mut has_reconcilable_type = true;
-                for val_expr in &vals.2 {
-                    let val_expr_type = analysis_data.get_expr_type(val_expr.pos());
+        if let (Some(first_var_name), Some(second_arg)) = (first_var_name, args.get(1))
+            && let aast::Expr_::ValCollection(vals) = &second_arg.to_expr_ref().2
+        {
+            let mut in_arr_types = vec![];
+            let mut has_reconcilable_type = true;
+            for val_expr in &vals.2 {
+                let val_expr_type = analysis_data.get_expr_type(val_expr.pos());
 
-                    if let Some(val_expr_type) = val_expr_type {
-                        in_arr_types.extend(val_expr_type.types.clone());
-                    } else {
-                        has_reconcilable_type = false;
-                    }
+                if let Some(val_expr_type) = val_expr_type {
+                    in_arr_types.extend(val_expr_type.types.clone());
+                } else {
+                    has_reconcilable_type = false;
                 }
+            }
 
-                if has_reconcilable_type {
-                    let union = TUnion::new(in_arr_types);
-                    if matches!(first_arg, aast::Expr((), _, aast::Expr_::Lvar(_))) {
-                        if_types.insert(
-                            first_var_name.clone(),
-                            vec![vec![Assertion::InArray(union)]],
-                        );
-                    }
+            if has_reconcilable_type {
+                let union = TUnion::new(in_arr_types);
+                if matches!(first_arg, aast::Expr((), _, aast::Expr_::Lvar(_))) {
+                    if_types.insert(
+                        first_var_name.clone(),
+                        vec![vec![Assertion::InArray(union)]],
+                    );
                 }
             }
         }
@@ -733,19 +733,20 @@ pub(crate) fn has_typed_value_comparison(
         assertion_context.codebase,
     );
 
-    if let Some(right_type) = analysis_data.get_expr_type(right.pos()) {
-        if (left_var_id.is_some() || right_var_id.is_none())
-            && right_type.is_single()
-            && !right_type.is_mixed()
-        {
-            return Some(OtherValuePosition::Right);
-        }
+    if let Some(right_type) = analysis_data.get_expr_type(right.pos())
+        && (left_var_id.is_some() || right_var_id.is_none())
+        && right_type.is_single()
+        && !right_type.is_mixed()
+    {
+        return Some(OtherValuePosition::Right);
     }
 
-    if let Some(left_type) = analysis_data.get_expr_type(left.pos()) {
-        if left_var_id.is_none() && left_type.is_single() && !left_type.is_mixed() {
-            return Some(OtherValuePosition::Left);
-        }
+    if let Some(left_type) = analysis_data.get_expr_type(left.pos())
+        && left_var_id.is_none()
+        && left_type.is_single()
+        && !left_type.is_mixed()
+    {
+        return Some(OtherValuePosition::Left);
     }
     None
 }
@@ -829,23 +830,23 @@ fn get_typed_value_equality_assertions(
         }
     }
 
-    if let Some(var_name) = var_name {
-        if let Some(other_value_type) = other_value_type {
-            if other_value_type.is_single() {
-                let orred_types = vec![Assertion::IsEqual(other_value_type.get_single().clone())];
+    if let Some(var_name) = var_name
+        && let Some(other_value_type) = other_value_type
+    {
+        if other_value_type.is_single() {
+            let orred_types = vec![Assertion::IsEqual(other_value_type.get_single().clone())];
 
-                if_types.insert(var_name, vec![orred_types]);
-            }
+            if_types.insert(var_name, vec![orred_types]);
+        }
 
-            if let Some(other_value_var_name) = other_value_var_name {
-                if let Some(var_type) = var_type {
-                    if !var_type.is_mixed() && var_type.is_single() {
-                        let orred_types = vec![Assertion::IsEqual(var_type.get_single().clone())];
+        if let Some(other_value_var_name) = other_value_var_name
+            && let Some(var_type) = var_type
+            && !var_type.is_mixed()
+            && var_type.is_single()
+        {
+            let orred_types = vec![Assertion::IsEqual(var_type.get_single().clone())];
 
-                        if_types.insert(other_value_var_name, vec![orred_types]);
-                    }
-                }
-            }
+            if_types.insert(other_value_var_name, vec![orred_types]);
         }
     }
 
@@ -909,25 +910,23 @@ fn get_typed_value_inequality_assertions(
         }
     }
 
-    if let Some(var_name) = var_name {
-        if let Some(other_value_type) = other_value_type {
-            if other_value_type.is_single() {
-                let orred_types =
-                    vec![Assertion::IsNotEqual(other_value_type.get_single().clone())];
+    if let Some(var_name) = var_name
+        && let Some(other_value_type) = other_value_type
+    {
+        if other_value_type.is_single() {
+            let orred_types = vec![Assertion::IsNotEqual(other_value_type.get_single().clone())];
 
-                if_types.insert(var_name, vec![orred_types]);
-            }
+            if_types.insert(var_name, vec![orred_types]);
+        }
 
-            if let Some(other_value_var_name) = other_value_var_name {
-                if let Some(var_type) = var_type {
-                    if !var_type.is_mixed() && var_type.is_single() {
-                        let orred_types =
-                            vec![Assertion::IsNotEqual(var_type.get_single().clone())];
+        if let Some(other_value_var_name) = other_value_var_name
+            && let Some(var_type) = var_type
+            && !var_type.is_mixed()
+            && var_type.is_single()
+        {
+            let orred_types = vec![Assertion::IsNotEqual(var_type.get_single().clone())];
 
-                        if_types.insert(other_value_var_name, vec![orred_types]);
-                    }
-                }
-            }
+            if_types.insert(other_value_var_name, vec![orred_types]);
         }
     }
 

@@ -79,7 +79,7 @@ pub fn generate_definition_locations_json(
         } else {
             original_file_path_str
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or(original_file_path_str)
                 .to_string()
         };

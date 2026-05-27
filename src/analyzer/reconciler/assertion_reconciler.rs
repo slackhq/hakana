@@ -132,9 +132,9 @@ pub fn reconcile(
                     suppressed_issues,
                 );
             }
-            TAtomic::TBool { .. } => {
+            TAtomic::TBool => {
                 return intersect_simple!(
-                    TAtomic::TBool { .. } | TAtomic::TFalse | TAtomic::TTrue,
+                    TAtomic::TBool | TAtomic::TFalse | TAtomic::TTrue,
                     TAtomic::TMixed
                         | TAtomic::TMixedWithFlags(..)
                         | TAtomic::TScalar
@@ -152,9 +152,9 @@ pub fn reconcile(
                     suppressed_issues,
                 );
             }
-            TAtomic::TFalse { .. } => {
+            TAtomic::TFalse => {
                 return intersect_simple!(
-                    TAtomic::TFalse { .. },
+                    TAtomic::TFalse,
                     TAtomic::TMixed
                         | TAtomic::TMixedWithFlags(_, false, _, _)
                         | TAtomic::TScalar
@@ -173,9 +173,9 @@ pub fn reconcile(
                     suppressed_issues,
                 );
             }
-            TAtomic::TTrue { .. } => {
+            TAtomic::TTrue => {
                 return intersect_simple!(
-                    TAtomic::TTrue { .. },
+                    TAtomic::TTrue,
                     TAtomic::TMixed
                         | TAtomic::TMixedWithFlags(_, _, false, _)
                         | TAtomic::TScalar
@@ -194,9 +194,9 @@ pub fn reconcile(
                     suppressed_issues,
                 );
             }
-            TAtomic::TFloat { .. } => {
+            TAtomic::TFloat => {
                 return intersect_simple!(
-                    TAtomic::TFloat { .. },
+                    TAtomic::TFloat,
                     TAtomic::TMixed
                         | TAtomic::TMixedWithFlags(..)
                         | TAtomic::TScalar
@@ -234,42 +234,38 @@ pub fn reconcile(
             &mut did_remove_type,
         );
 
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                if can_report_issues {
-                    if existing_var_type.types == refined_type.types {
-                        if !assertion.has_equality()
-                            && !assertion_type.is_mixed()
-                            && !did_remove_type
-                        {
-                            trigger_issue_for_impossible(
-                                analysis_data,
-                                statements_analyzer,
-                                &old_var_type_string,
-                                key,
-                                assertion,
-                                true,
-                                negated,
-                                pos,
-                                calling_functionlike_id,
-                                suppressed_issues,
-                            );
-                        }
-                    } else if refined_type.is_nothing() {
-                        trigger_issue_for_impossible(
-                            analysis_data,
-                            statements_analyzer,
-                            &old_var_type_string,
-                            key,
-                            assertion,
-                            false,
-                            negated,
-                            pos,
-                            calling_functionlike_id,
-                            suppressed_issues,
-                        );
-                    }
+        if let Some(key) = key
+            && let Some(pos) = pos
+            && can_report_issues
+        {
+            if existing_var_type.types == refined_type.types {
+                if !assertion.has_equality() && !assertion_type.is_mixed() && !did_remove_type {
+                    trigger_issue_for_impossible(
+                        analysis_data,
+                        statements_analyzer,
+                        &old_var_type_string,
+                        key,
+                        assertion,
+                        true,
+                        negated,
+                        pos,
+                        calling_functionlike_id,
+                        suppressed_issues,
+                    );
                 }
+            } else if refined_type.is_nothing() {
+                trigger_issue_for_impossible(
+                    analysis_data,
+                    statements_analyzer,
+                    &old_var_type_string,
+                    key,
+                    assertion,
+                    false,
+                    negated,
+                    pos,
+                    calling_functionlike_id,
+                    suppressed_issues,
+                );
             }
         }
 
@@ -553,14 +549,13 @@ pub(crate) fn intersect_atomic_with_atomic(
             }
         }
         (TAtomic::TTypeVariable { name }, TAtomic::TNull) => {
-            if let Some(pos) = pos {
-                if let Some(TypeVariableBounds { lower_bounds, .. }) =
+            if let Some(pos) = pos
+                && let Some(TypeVariableBounds { lower_bounds, .. }) =
                     analysis_data.type_variable_bounds.get_mut(name)
-                {
-                    let mut bound = TemplateBound::new(get_null(), 0, None, None);
-                    bound.pos = Some(statements_analyzer.get_hpos(pos));
-                    lower_bounds.push(bound);
-                }
+            {
+                let mut bound = TemplateBound::new(get_null(), 0, None, None);
+                bound.pos = Some(statements_analyzer.get_hpos(pos));
+                lower_bounds.push(bound);
             }
 
             *did_remove_type = true;
@@ -590,7 +585,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             return None;
         }
         (
-            TAtomic::TObject { .. }
+            TAtomic::TObject
             | TAtomic::TClosure(_)
             | TAtomic::TAwaitable { .. }
             | TAtomic::TNamedObject(TNamedObject { .. }),
@@ -655,7 +650,7 @@ pub(crate) fn intersect_atomic_with_atomic(
         (type_1_atomic, TAtomic::TNum) => {
             if type_1_atomic.is_mixed() {
                 return Some(TAtomic::TNum);
-            } else if type_1_atomic.is_int() || matches!(type_1_atomic, TAtomic::TFloat { .. }) {
+            } else if type_1_atomic.is_int() || matches!(type_1_atomic, TAtomic::TFloat) {
                 return Some(type_1_atomic.clone());
             } else if let TAtomic::TClassTypeConstant { .. } = type_1_atomic {
                 *did_remove_type = true;
@@ -674,7 +669,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             | TAtomic::TClassPtr { .. }
             | TAtomic::TTypename { .. }
             | TAtomic::TStringWithFlags(..)
-            | TAtomic::TString { .. },
+            | TAtomic::TString,
             TAtomic::TString,
         ) => {
             return Some(type_1_atomic.clone());
@@ -717,26 +712,24 @@ pub(crate) fn intersect_atomic_with_atomic(
                 } else {
                     return None;
                 }
+            } else if atomic_type_comparator::is_contained_by(
+                statements_analyzer.codebase,
+                statements_analyzer.get_file_path(),
+                underlying_type,
+                &TAtomic::TString,
+                false,
+                &mut TypeComparisonResult::new(),
+            ) {
+                *did_remove_type = true;
+                return Some(TAtomic::TEnumLiteralCase {
+                    enum_name: *enum_name,
+                    member_name: *member_name,
+                    as_type: Some(Arc::new(TAtomic::TString)),
+                    underlying_type: Some(underlying_type.clone()),
+                });
             } else {
-                if atomic_type_comparator::is_contained_by(
-                    statements_analyzer.codebase,
-                    statements_analyzer.get_file_path(),
-                    underlying_type,
-                    &TAtomic::TString,
-                    false,
-                    &mut TypeComparisonResult::new(),
-                ) {
-                    *did_remove_type = true;
-                    return Some(TAtomic::TEnumLiteralCase {
-                        enum_name: *enum_name,
-                        member_name: *member_name,
-                        as_type: Some(Arc::new(TAtomic::TString)),
-                        underlying_type: Some(underlying_type.clone()),
-                    });
-                } else {
-                    *did_remove_type = true;
-                    return Some(TAtomic::TString);
-                }
+                *did_remove_type = true;
+                return Some(TAtomic::TString);
             }
         }
         (
@@ -809,14 +802,13 @@ pub(crate) fn intersect_atomic_with_atomic(
             });
         }
         (TAtomic::TTypeVariable { name }, TAtomic::TString) => {
-            if let Some(pos) = pos {
-                if let Some(TypeVariableBounds { lower_bounds, .. }) =
+            if let Some(pos) = pos
+                && let Some(TypeVariableBounds { lower_bounds, .. }) =
                     analysis_data.type_variable_bounds.get_mut(name)
-                {
-                    let mut bound = TemplateBound::new(get_string(), 0, None, None);
-                    bound.pos = Some(statements_analyzer.get_hpos(pos));
-                    lower_bounds.push(bound);
-                }
+            {
+                let mut bound = TemplateBound::new(get_string(), 0, None, None);
+                bound.pos = Some(statements_analyzer.get_hpos(pos));
+                lower_bounds.push(bound);
             }
 
             *did_remove_type = true;
@@ -895,14 +887,13 @@ pub(crate) fn intersect_atomic_with_atomic(
         (TAtomic::TTypeVariable { name }, TAtomic::TInt) => {
             *did_remove_type = true;
 
-            if let Some(pos) = pos {
-                if let Some(TypeVariableBounds { lower_bounds, .. }) =
+            if let Some(pos) = pos
+                && let Some(TypeVariableBounds { lower_bounds, .. }) =
                     analysis_data.type_variable_bounds.get_mut(name)
-                {
-                    let mut bound = TemplateBound::new(get_int(), 0, None, None);
-                    bound.pos = Some(statements_analyzer.get_hpos(pos));
-                    lower_bounds.push(bound);
-                }
+            {
+                let mut bound = TemplateBound::new(get_int(), 0, None, None);
+                bound.pos = Some(statements_analyzer.get_hpos(pos));
+                lower_bounds.push(bound);
             }
             return Some(type_1_atomic.clone());
         }
@@ -1280,15 +1271,14 @@ pub(crate) fn intersect_atomic_with_atomic(
             if let (Some(storage_1), Some(storage_2)) = (
                 codebase.classlike_infos.get(type_1_name),
                 codebase.classlike_infos.get(type_2_name),
-            ) {
-                if let Some(c1) = &storage_1.constants.get(member_name) {
-                    for (_, c2) in &storage_2.constants {
-                        let c1_value = expand_constant_value(c1, codebase);
-                        let c2_value = expand_constant_value(c2, codebase);
+            ) && let Some(c1) = &storage_1.constants.get(member_name)
+            {
+                for (_, c2) in &storage_2.constants {
+                    let c1_value = expand_constant_value(c1, codebase);
+                    let c2_value = expand_constant_value(c2, codebase);
 
-                        if c1_value == c2_value {
-                            return Some(type_2_atomic.clone());
-                        }
+                    if c1_value == c2_value {
+                        return Some(type_2_atomic.clone());
                     }
                 }
             }
@@ -1306,15 +1296,14 @@ pub(crate) fn intersect_atomic_with_atomic(
             if let (Some(storage_1), Some(storage_2)) = (
                 codebase.classlike_infos.get(type_1_name),
                 codebase.classlike_infos.get(type_2_name),
-            ) {
-                if let Some(c2) = &storage_2.constants.get(member_name) {
-                    for (_, c1) in &storage_1.constants {
-                        let c1_value = expand_constant_value(c1, codebase);
-                        let c2_value = expand_constant_value(c2, codebase);
+            ) && let Some(c2) = &storage_2.constants.get(member_name)
+            {
+                for (_, c1) in &storage_1.constants {
+                    let c1_value = expand_constant_value(c1, codebase);
+                    let c2_value = expand_constant_value(c2, codebase);
 
-                        if c1_value == c2_value {
-                            return Some(type_1_atomic.clone());
-                        }
+                    if c1_value == c2_value {
+                        return Some(type_1_atomic.clone());
                     }
                 }
             }
@@ -1408,7 +1397,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 statements_analyzer.codebase,
                 statements_analyzer.get_file_path(),
                 type_1_name,
-                &underlying_type,
+                underlying_type,
                 type_2_atomic.clone(),
             );
         }
@@ -1424,7 +1413,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 statements_analyzer.codebase,
                 statements_analyzer.get_file_path(),
                 type_2_name,
-                &underlying_type,
+                underlying_type,
                 type_1_atomic.clone(),
             );
         }
@@ -1618,8 +1607,8 @@ pub(crate) fn intersect_atomic_with_atomic(
             return intersect_union_with_union(
                 statements_analyzer,
                 analysis_data,
-                &type_1_param,
-                &type_2_param,
+                type_1_param,
+                type_2_param,
                 pos,
                 did_remove_type,
             )
@@ -1661,10 +1650,10 @@ pub(crate) fn intersect_atomic_with_atomic(
 
             let mut params = type_2_params.clone();
 
-            if let Some(ref mut params) = params {
-                if params.0.is_arraykey() {
-                    params.0 = Box::new(type_1_key_param);
-                }
+            if let Some(ref mut params) = params
+                && params.0.is_arraykey()
+            {
+                *params.0 = type_1_key_param;
             }
 
             return Some(TAtomic::TDict(TDict {
@@ -1695,7 +1684,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     ref mut as_type, ..
                 }) = type_1_atomic
                 {
-                    *as_type = Box::new(new_as);
+                    **as_type = new_as;
                 }
 
                 return Some(type_1_atomic);
@@ -1721,7 +1710,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     ref mut as_type, ..
                 }) = type_2_atomic
                 {
-                    *as_type = Box::new(new_as);
+                    **as_type = new_as;
                 }
 
                 return Some(type_2_atomic);
@@ -2042,7 +2031,7 @@ pub(crate) fn intersect_union_with_union(
         return Some(type_1_param.clone());
     }
 
-    let type_param = match (type_1_param.is_single(), type_2_param.is_single()) {
+    match (type_1_param.is_single(), type_2_param.is_single()) {
         (true, true) => intersect_atomic_with_atomic(
             statements_analyzer,
             analysis_data,
@@ -2098,8 +2087,7 @@ pub(crate) fn intersect_union_with_union(
                 Some(combined_union)
             }
         }
-    };
-    type_param
+    }
 }
 
 fn intersect_enumcase_with_string(
@@ -2109,17 +2097,15 @@ fn intersect_enumcase_with_string(
     type_2_atomic: &TAtomic,
 ) -> Option<TAtomic> {
     let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
-    if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
-        if let Some(inferred_type) = &member_storage.inferred_type {
-            if let TAtomic::TLiteralString {
-                value: inferred_value,
-            } = inferred_type
-            {
-                return Some(TAtomic::TLiteralString {
-                    value: inferred_value.clone(),
-                });
-            }
-        }
+    if let Some(member_storage) = enum_storage.constants.get(type_1_member_name)
+        && let Some(inferred_type) = &member_storage.inferred_type
+        && let TAtomic::TLiteralString {
+            value: inferred_value,
+        } = inferred_type
+    {
+        return Some(TAtomic::TLiteralString {
+            value: inferred_value.clone(),
+        });
     }
     Some(type_2_atomic.clone())
 }
@@ -2131,17 +2117,15 @@ fn intersect_enum_case_with_int(
     type_2_atomic: &TAtomic,
 ) -> Option<TAtomic> {
     let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
-    if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
-        if let Some(inferred_type) = &member_storage.inferred_type {
-            if let TAtomic::TLiteralInt {
-                value: inferred_value,
-            } = inferred_type
-            {
-                return Some(TAtomic::TLiteralInt {
-                    value: *inferred_value,
-                });
-            }
-        }
+    if let Some(member_storage) = enum_storage.constants.get(type_1_member_name)
+        && let Some(inferred_type) = &member_storage.inferred_type
+        && let TAtomic::TLiteralInt {
+            value: inferred_value,
+        } = inferred_type
+    {
+        return Some(TAtomic::TLiteralInt {
+            value: *inferred_value,
+        });
     }
     Some(type_2_atomic.clone())
 }
@@ -2214,29 +2198,25 @@ fn intersect_contained_atomic_with_another(
     pos: Option<&Pos>,
     did_remove_type: &mut bool,
 ) -> Option<TAtomic> {
-    if generic_coercion {
-        if let TAtomic::TNamedObject(TNamedObject {
+    if generic_coercion
+        && let TAtomic::TNamedObject(TNamedObject {
             name: sub_atomic_name,
             type_params: None,
             ..
         }) = sub_atomic
-        {
-            if let TAtomic::TNamedObject(TNamedObject {
-                name: super_atomic_name,
-                type_params: Some(super_params),
-                ..
-            }) = super_atomic
-            {
-                if super_atomic_name == sub_atomic_name {
-                    return Some(TAtomic::TNamedObject(TNamedObject {
-                        name: *sub_atomic_name,
-                        type_params: Some(super_params.clone()),
-                        is_this: false,
-                        remapped_params: false,
-                    }));
-                }
-            }
-        }
+        && let TAtomic::TNamedObject(TNamedObject {
+            name: super_atomic_name,
+            type_params: Some(super_params),
+            ..
+        }) = super_atomic
+        && super_atomic_name == sub_atomic_name
+    {
+        return Some(TAtomic::TNamedObject(TNamedObject {
+            name: *sub_atomic_name,
+            type_params: Some(super_params.clone()),
+            is_this: false,
+            remapped_params: false,
+        }));
     }
 
     if let TAtomic::TNamedObject(TNamedObject { .. }) = sub_atomic {
@@ -2245,25 +2225,24 @@ fn intersect_contained_atomic_with_another(
             as_type: ref mut type_1_as_type,
             ..
         }) = type_1_atomic
+            && type_1_as_type.has_object_type()
         {
-            if type_1_as_type.has_object_type() {
-                let type_1_as = intersect_union_with_atomic(
-                    statements_analyzer,
-                    analysis_data,
-                    type_1_as_type,
-                    sub_atomic,
-                    pos,
-                    did_remove_type,
-                );
+            let type_1_as = intersect_union_with_atomic(
+                statements_analyzer,
+                analysis_data,
+                type_1_as_type,
+                sub_atomic,
+                pos,
+                did_remove_type,
+            );
 
-                if let Some(type_1_as) = type_1_as {
-                    *type_1_as_type = Box::new(type_1_as);
-                } else {
-                    return None;
-                }
-
-                return Some(type_1_atomic);
+            if let Some(type_1_as) = type_1_as {
+                **type_1_as_type = type_1_as;
+            } else {
+                return None;
             }
+
+            return Some(type_1_atomic);
         }
     }
 

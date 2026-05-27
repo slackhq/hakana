@@ -230,72 +230,71 @@ impl VirtualFileSystem {
             return;
         };
 
-        if metadata.is_file() {
-            if let Some(extension) = path.extension() {
-                if extension.eq("hack") || extension.eq("php") || extension.eq("hhi") {
-                    let str_path = path.to_str().unwrap().to_string();
+        if metadata.is_file()
+            && let Some(extension) = path.extension()
+            && (extension.eq("hack") || extension.eq("php") || extension.eq("hhi"))
+        {
+            let str_path = path.to_str().unwrap().to_string();
 
-                    for ignore_pattern in ignore_patterns {
-                        if ignore_pattern.matches(&str_path) {
-                            return;
-                        }
-                    }
+            for ignore_pattern in ignore_patterns {
+                if ignore_pattern.matches(&str_path) {
+                    return;
+                }
+            }
 
-                    // Optimization: Only scan files matching the allowlist during cyclomatic complexity analysis.
-                    if config.analyze_cyclomatic_complexity
-                        && !config.cyclomatic_complexity_file_patterns.is_empty()
-                        && !config
-                            .cyclomatic_complexity_file_patterns
-                            .iter()
-                            .any(|pattern| pattern.matches(&str_path))
-                    {
-                        return;
-                    }
+            // Optimization: Only scan files matching the allowlist during cyclomatic complexity analysis.
+            if config.analyze_cyclomatic_complexity
+                && !config.cyclomatic_complexity_file_patterns.is_empty()
+                && !config
+                    .cyclomatic_complexity_file_patterns
+                    .iter()
+                    .any(|pattern| pattern.matches(&str_path))
+            {
+                return;
+            }
 
-                    let interned_file_path = FilePath(interner.intern(str_path.clone()));
+            let interned_file_path = FilePath(interner.intern(str_path.clone()));
 
-                    let updated_time = metadata
-                        .modified()
-                        .unwrap()
-                        .duration_since(SystemTime::UNIX_EPOCH)
-                        .unwrap()
-                        .as_micros() as u64;
+            let updated_time = metadata
+                .modified()
+                .unwrap()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros() as u64;
 
-                    let file_hash = if let Some(existing_file_system) = existing_file_system {
-                        if let Some((old_contents_hash, old_update_time)) = existing_file_system
-                            .file_hashes_and_times
-                            .get(&interned_file_path)
-                        {
-                            if old_update_time == &updated_time {
-                                *old_contents_hash
-                            } else if calculate_file_hashes {
-                                get_file_contents_hash(&str_path).unwrap_or(0)
-                            } else {
-                                0
-                            }
-                        } else {
-                            0
-                        }
+            let file_hash = if let Some(existing_file_system) = existing_file_system {
+                if let Some((old_contents_hash, old_update_time)) = existing_file_system
+                    .file_hashes_and_times
+                    .get(&interned_file_path)
+                {
+                    if old_update_time == &updated_time {
+                        *old_contents_hash
                     } else if calculate_file_hashes {
                         get_file_contents_hash(&str_path).unwrap_or(0)
                     } else {
                         0
-                    };
-
-                    self.file_hashes_and_times
-                        .insert(interned_file_path, (file_hash, updated_time));
-
-                    files_to_scan.push(str_path.clone());
-
-                    if !extension.eq("hhi") {
-                        if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
-                            if config.allow_taints_in_file(&str_path) {
-                                files_to_analyze.push(str_path.clone());
-                            }
-                        } else {
-                            files_to_analyze.push(str_path.clone());
-                        }
                     }
+                } else {
+                    0
+                }
+            } else if calculate_file_hashes {
+                get_file_contents_hash(&str_path).unwrap_or(0)
+            } else {
+                0
+            };
+
+            self.file_hashes_and_times
+                .insert(interned_file_path, (file_hash, updated_time));
+
+            files_to_scan.push(str_path.clone());
+
+            if !extension.eq("hhi") {
+                if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
+                    if config.allow_taints_in_file(&str_path) {
+                        files_to_analyze.push(str_path.clone());
+                    }
+                } else {
+                    files_to_analyze.push(str_path.clone());
                 }
             }
         }

@@ -71,7 +71,7 @@ pub(crate) fn check_argument_matches(
                 context,
                 arg_value_type: &arg_value_type,
                 arg,
-                param_type: &param_type,
+                param_type,
                 argument_offset,
                 function_call_pos,
                 function_name_pos,
@@ -83,7 +83,7 @@ pub(crate) fn check_argument_matches(
     self::verify_type(
         statements_analyzer,
         &arg_value_type,
-        &param_type,
+        param_type,
         functionlike_id,
         argument_offset,
         arg.to_expr_ref(),
@@ -555,12 +555,11 @@ fn add_dataflow(
         }
 
         for at in &param_type.types {
-            if let Some(shape_name) = at.get_shape_name() {
-                if let Some(t) = codebase.type_definitions.get(&shape_name) {
-                    if t.shape_field_taints.is_some() {
-                        return;
-                    }
-                }
+            if let Some(shape_name) = at.get_shape_name()
+                && let Some(t) = codebase.type_definitions.get(&shape_name)
+                && t.shape_field_taints.is_some()
+            {
+                return;
             }
         }
     }
@@ -626,60 +625,24 @@ fn add_dataflow(
     };
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id {
-            if let Some(method_call_info) = method_call_info {
-                if let Some(dependent_classlikes) = codebase
-                    .all_classlike_descendants
-                    .get(&method_call_info.classlike_storage.name)
-                {
-                    if method_name != &statements_analyzer.interner.get("__construct").unwrap() {
-                        for dependent_classlike in dependent_classlikes {
-                            if codebase.declaring_method_exists(dependent_classlike, method_name) {
-                                let new_sink = DataFlowNode::get_for_method_argument(
-                                    &FunctionLikeIdentifier::Method(
-                                        *dependent_classlike,
-                                        *method_name,
-                                    ),
-                                    argument_offset,
-                                    None,
-                                    if specialize_taint {
-                                        Some(function_call_hpos)
-                                    } else {
-                                        None
-                                    },
-                                );
-
-                                data_flow_graph.add_node(new_sink.clone());
-
-                                data_flow_graph.add_path(
-                                    &method_node.id,
-                                    &new_sink.id,
-                                    PathKind::Default,
-                                    vec![],
-                                    vec![],
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if let Some(MethodCallInfo {
-            declaring_method_id: Some(declaring_method_id),
-            ..
-        }) = method_call_info
+        if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id
+            && let Some(method_call_info) = method_call_info
+            && let Some(dependent_classlikes) = codebase
+                .all_classlike_descendants
+                .get(&method_call_info.classlike_storage.name)
+            && method_name != &statements_analyzer.interner.get("__construct").unwrap()
         {
-            if let Some(method_id) = functionlike_id.as_method_identifier() {
-                if declaring_method_id != &method_id {
+            for dependent_classlike in dependent_classlikes {
+                if codebase.declaring_method_exists(dependent_classlike, method_name) {
                     let new_sink = DataFlowNode::get_for_method_argument(
-                        &FunctionLikeIdentifier::Method(
-                            declaring_method_id.0,
-                            declaring_method_id.1,
-                        ),
+                        &FunctionLikeIdentifier::Method(*dependent_classlike, *method_name),
                         argument_offset,
-                        Some(statements_analyzer.get_hpos(input_expr.pos())),
                         None,
+                        if specialize_taint {
+                            Some(function_call_hpos)
+                        } else {
+                            None
+                        },
                     );
 
                     data_flow_graph.add_node(new_sink.clone());
@@ -693,6 +656,31 @@ fn add_dataflow(
                     );
                 }
             }
+        }
+
+        if let Some(MethodCallInfo {
+            declaring_method_id: Some(declaring_method_id),
+            ..
+        }) = method_call_info
+            && let Some(method_id) = functionlike_id.as_method_identifier()
+            && declaring_method_id != &method_id
+        {
+            let new_sink = DataFlowNode::get_for_method_argument(
+                &FunctionLikeIdentifier::Method(declaring_method_id.0, declaring_method_id.1),
+                argument_offset,
+                Some(statements_analyzer.get_hpos(input_expr.pos())),
+                None,
+            );
+
+            data_flow_graph.add_node(new_sink.clone());
+
+            data_flow_graph.add_path(
+                &method_node.id,
+                &new_sink.id,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
         }
     }
 
@@ -826,10 +814,9 @@ fn get_argument_taints(
         FunctionLikeIdentifier::Method(fq_class, method_name) => {
             if let ("AsyncMysqlConnection", "query") =
                 (interner.lookup(fq_class), interner.lookup(method_name))
+                && arg_offset == 0
             {
-                if arg_offset == 0 {
-                    return vec![SinkType::Sql];
-                }
+                return vec![SinkType::Sql];
             }
         }
         _ => {}

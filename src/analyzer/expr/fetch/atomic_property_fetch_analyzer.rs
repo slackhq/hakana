@@ -243,7 +243,7 @@ fn get_class_property_type(
             &TypeExpansionOptions {
                 self_class: Some(declaring_class_storage.name),
                 static_class_type: StaticClassType::Object(&lhs_type_part),
-                parent_class: parent_class,
+                parent_class,
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -268,29 +268,28 @@ fn get_class_property_type(
                 );
             }
 
-            if let Some(functionlike_storage) = statements_analyzer.get_functionlike_info() {
-                if !functionlike_storage.where_constraints.is_empty() {
-                    type_expander::expand_union(
-                        codebase,
-                        &Some(statements_analyzer.interner),
-                        &statements_analyzer.file_analyzer.file_source.file_path,
-                        &mut class_property_type,
-                        &TypeExpansionOptions {
-                            self_class: Some(declaring_class_storage.name),
-                            static_class_type: StaticClassType::Object(&lhs_type_part),
-                            parent_class: parent_class,
-                            where_constraints: if functionlike_storage.where_constraints.is_empty()
-                            {
-                                None
-                            } else {
-                                Some(&functionlike_storage.where_constraints)
-                            },
-                            ..Default::default()
+            if let Some(functionlike_storage) = statements_analyzer.get_functionlike_info()
+                && !functionlike_storage.where_constraints.is_empty()
+            {
+                type_expander::expand_union(
+                    codebase,
+                    &Some(statements_analyzer.interner),
+                    &statements_analyzer.file_analyzer.file_source.file_path,
+                    &mut class_property_type,
+                    &TypeExpansionOptions {
+                        self_class: Some(declaring_class_storage.name),
+                        static_class_type: StaticClassType::Object(&lhs_type_part),
+                        parent_class,
+                        where_constraints: if functionlike_storage.where_constraints.is_empty() {
+                            None
+                        } else {
+                            Some(&functionlike_storage.where_constraints)
                         },
-                        &mut analysis_data.data_flow_graph,
-                        &mut 0,
-                    );
-                }
+                        ..Default::default()
+                    },
+                    &mut analysis_data.data_flow_graph,
+                    &mut 0,
+                );
             }
         }
 
@@ -399,13 +398,13 @@ fn update_template_types(
                         .map(|(i, _)| i)
                         .next();
 
-                    if let Some(position) = position {
-                        if let Some(mapped_param) = lhs_type_params.get(position) {
-                            v.insert(
-                                GenericParent::ClassLike(property_declaring_class_storage.name),
-                                mapped_param.clone(),
-                            );
-                        }
+                    if let Some(position) = position
+                        && let Some(mapped_param) = lhs_type_params.get(position)
+                    {
+                        v.insert(
+                            GenericParent::ClassLike(property_declaring_class_storage.name),
+                            mapped_param.clone(),
+                        );
                     }
                 }
             }

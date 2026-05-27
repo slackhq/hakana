@@ -289,7 +289,7 @@ impl IssueKind {
     }
 
     pub fn has_autofix(&self) -> bool {
-        AUTOFIXABLE_ISSUES.contains(&self)
+        AUTOFIXABLE_ISSUES.contains(self)
     }
 }
 

@@ -191,12 +191,12 @@ pub fn infer(
             }
         }
         aast::Expr_::Id(name) => {
-            if let Some(name_string) = resolved_names.get(&(name.0.start_offset() as u32)) {
-                if *name_string == StrId::LIB_MATH_INT32_MAX {
-                    return Some(TAtomic::TLiteralInt {
-                        value: i32::MAX as i64,
-                    });
-                }
+            if let Some(name_string) = resolved_names.get(&(name.0.start_offset() as u32))
+                && *name_string == StrId::LIB_MATH_INT32_MAX
+            {
+                return Some(TAtomic::TLiteralInt {
+                    value: i32::MAX as i64,
+                });
             }
 
             None

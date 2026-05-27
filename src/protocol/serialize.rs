@@ -1032,7 +1032,7 @@ pub async fn read_message<R: tokio::io::AsyncRead + Unpin>(
     reader
         .read_exact(&mut len_buf)
         .await
-        .map_err(|e| ProtocolError::Io(e))?;
+        .map_err(ProtocolError::Io)?;
     let len = u32::from_le_bytes(len_buf);
 
     if len > MAX_MESSAGE_SIZE {
@@ -1043,7 +1043,7 @@ pub async fn read_message<R: tokio::io::AsyncRead + Unpin>(
     reader
         .read_exact(&mut frame)
         .await
-        .map_err(|e| ProtocolError::Io(e))?;
+        .map_err(ProtocolError::Io)?;
 
     if frame.is_empty() {
         return Err(ProtocolError::UnexpectedEof);
@@ -1061,11 +1061,8 @@ pub async fn write_message<W: tokio::io::AsyncWrite + Unpin>(
     msg: &Message,
 ) -> Result<(), ProtocolError> {
     let frame = encode_message(msg);
-    writer
-        .write_all(&frame)
-        .await
-        .map_err(|e| ProtocolError::Io(e))?;
-    writer.flush().await.map_err(|e| ProtocolError::Io(e))?;
+    writer.write_all(&frame).await.map_err(ProtocolError::Io)?;
+    writer.flush().await.map_err(ProtocolError::Io)?;
     Ok(())
 }
 

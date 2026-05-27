@@ -11,6 +11,7 @@ use std::path::Path;
 /// Configuration for HHAST linting
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct HhastLintConfig {
     /// Root directories to lint
     #[serde(default)]
@@ -105,10 +106,10 @@ impl HhastLintConfig {
         }
 
         // If builtin_linters is "none", only enable explicitly enabled linters
-        if let Some(ref builtin) = self.builtin_linters {
-            if builtin == "none" {
-                return explicitly_enabled;
-            }
+        if let Some(ref builtin) = self.builtin_linters
+            && builtin == "none"
+        {
+            return explicitly_enabled;
         }
 
         enabled
@@ -154,11 +155,7 @@ impl HhastLintConfig {
                     current_pos += part.len();
                 } else if i == parts.len() - 1 {
                     // Last non-empty part must be found somewhere
-                    if path[current_pos..].contains(part) {
-                        return true;
-                    } else {
-                        return false;
-                    }
+                    return path[current_pos..].contains(part);
                 } else {
                     // Middle parts must be found
                     if let Some(pos) = path[current_pos..].find(part) {
@@ -193,21 +190,6 @@ impl HhastLintConfig {
             .into_iter()
             .filter(|linter| self.is_linter_enabled(linter, file_path))
             .collect()
-    }
-}
-
-impl Default for HhastLintConfig {
-    fn default() -> Self {
-        Self {
-            roots: vec![],
-            builtin_linters: None,
-            namespace_aliases: HashMap::new(),
-            extra_linters: vec![],
-            disabled_linters: vec![],
-            disabled_auto_fixes: vec![],
-            disable_all_auto_fixes: false,
-            overrides: vec![],
-        }
     }
 }
 

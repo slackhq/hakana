@@ -132,7 +132,6 @@ pub fn check_variables_redefined_in_loop(
     let multi_assignment_vars: FxHashMap<&String, &FxHashSet<(u32, u32)>> = variable_assignments
         .iter()
         .filter(|(_, offsets)| offsets.len() > 1)
-        .map(|(name, offsets)| (name, offsets))
         .collect();
 
     if multi_assignment_vars.is_empty() {
@@ -155,7 +154,7 @@ pub fn check_variables_redefined_in_loop(
 
     // Build a reverse index: offset -> source node for quick lookup
     let mut offset_to_source: FxHashMap<u32, &DataFlowNode> = FxHashMap::default();
-    for (_, source_node) in &graph.sources {
+    for source_node in graph.sources.values() {
         if let (DataFlowNodeKind::VariableUseSource { pos, .. }, DataFlowNodeId::Var(..)) =
             (&source_node.kind, &source_node.id)
         {
@@ -396,19 +395,16 @@ pub fn check_variables_scoped_incorrectly(
     (incorrectly_scoped, async_incorrectly_scoped)
 }
 
-fn get_sources_grouped_by_usage<'a>(
-    graph: &'a DataFlowGraph,
+fn get_sources_grouped_by_usage(
+    graph: &DataFlowGraph,
     function_pos: HPos,
-) -> Vec<(
-    Vec<&'a DataFlowNode>,
-    FxHashMap<&'a DataFlowNode, Vec<HPos>>,
-)> {
+) -> Vec<(Vec<&DataFlowNode>, FxHashMap<&DataFlowNode, Vec<HPos>>)> {
     let mut sink_to_sources: FxHashMap<DataFlowNodeId, Vec<&DataFlowNode>> = FxHashMap::default();
     let mut source_to_sinks = FxHashMap::default();
 
     // First, collect all relevant sources
     let mut relevant_sources = Vec::new();
-    for (_, source_node) in &graph.sources {
+    for source_node in graph.sources.values() {
         if let DataFlowNodeKind::VariableUseSource { kind, pure, .. } = &source_node.kind {
             // Skip function parameters - they're not "defined outside if blocks" in the problematic sense
             if matches!(
@@ -603,15 +599,15 @@ fn get_all_variable_uses(
         visited_nodes.insert(node_id.clone());
 
         // Check if this node is a sink
-        if let Some(sink_node) = graph.sinks.get(&node_id) {
-            if let DataFlowNodeKind::VariableUseSink { .. } = &sink_node.kind {
-                sink_nodes.push(sink_node.id.clone());
-            }
+        if let Some(sink_node) = graph.sinks.get(&node_id)
+            && let DataFlowNodeKind::VariableUseSink { .. } = &sink_node.kind
+        {
+            sink_nodes.push(sink_node.id.clone());
         }
 
         // Add connected nodes to visit
         if let Some(edges) = graph.forward_edges.get(&node_id) {
-            for (to_id, _) in edges {
+            for to_id in edges.keys() {
                 if !visited_nodes.contains(to_id) {
                     to_visit.push(to_id.clone());
                 }
@@ -790,64 +786,59 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             _ => false,
         });
 
-        if has_matching_node {
-            if let aast::Stmt_::Expr(boxed) = &stmt.1 {
-                if let aast::Expr_::Assign(boxed) = &boxed.2 {
-                    let expression_effects = analysis_data
+        if has_matching_node
+            && let aast::Stmt_::Expr(boxed) = &stmt.1
+            && let aast::Expr_::Assign(boxed) = &boxed.2
+        {
+            let expression_effects = analysis_data
+                .expr_effects
+                .get(&(
+                    boxed.2.1.start_offset() as u32,
+                    boxed.2.1.end_offset() as u32,
+                ))
+                .unwrap_or(&0);
+
+            if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS = *expression_effects {
+                if !self.in_single_block {
+                    let span = stmt.0.to_raw_span();
+                    analysis_data.add_replacement(
+                        (stmt.0.start_offset() as u32, stmt.0.end_offset() as u32),
+                        Replacement::TrimPrecedingWhitespace(span.start.beg_of_line() as u32),
+                    );
+
+                    self.remove_fixme_comments(stmt, analysis_data, stmt.0.start_offset());
+                }
+            } else {
+                analysis_data.add_replacement(
+                    (
+                        stmt.0.start_offset() as u32,
+                        boxed.2.1.start_offset() as u32,
+                    ),
+                    Replacement::Remove,
+                );
+
+                // remove trailing array fetches
+                if let aast::Expr_::ArrayGet(array_get) = &boxed.2.2
+                    && let Some(array_offset_expr) = &array_get.1
+                {
+                    let array_offset_effects = analysis_data
                         .expr_effects
                         .get(&(
-                            boxed.2.1.start_offset() as u32,
-                            boxed.2.1.end_offset() as u32,
+                            array_offset_expr.1.start_offset() as u32,
+                            array_offset_expr.1.end_offset() as u32,
                         ))
                         .unwrap_or(&0);
 
                     if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
-                        *expression_effects
+                        *array_offset_effects
                     {
-                        if !self.in_single_block {
-                            let span = stmt.0.to_raw_span();
-                            analysis_data.add_replacement(
-                                (stmt.0.start_offset() as u32, stmt.0.end_offset() as u32),
-                                Replacement::TrimPrecedingWhitespace(
-                                    span.start.beg_of_line() as u32
-                                ),
-                            );
-
-                            self.remove_fixme_comments(stmt, analysis_data, stmt.0.start_offset());
-                        }
-                    } else {
                         analysis_data.add_replacement(
                             (
-                                stmt.0.start_offset() as u32,
-                                boxed.2.1.start_offset() as u32,
+                                array_offset_expr.pos().start_offset() as u32 - 1,
+                                array_offset_expr.pos().end_offset() as u32 + 1,
                             ),
                             Replacement::Remove,
                         );
-
-                        // remove trailing array fetches
-                        if let aast::Expr_::ArrayGet(array_get) = &boxed.2.2 {
-                            if let Some(array_offset_expr) = &array_get.1 {
-                                let array_offset_effects = analysis_data
-                                    .expr_effects
-                                    .get(&(
-                                        array_offset_expr.1.start_offset() as u32,
-                                        array_offset_expr.1.end_offset() as u32,
-                                    ))
-                                    .unwrap_or(&0);
-
-                                if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
-                                    *array_offset_effects
-                                {
-                                    analysis_data.add_replacement(
-                                        (
-                                            array_offset_expr.pos().start_offset() as u32 - 1,
-                                            array_offset_expr.pos().end_offset() as u32 + 1,
-                                        ),
-                                        Replacement::Remove,
-                                    );
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -866,36 +857,34 @@ impl<'a> Scanner<'a> {
     ) {
         for (comment_pos, comment) in self.comments {
             if comment_pos.line() == stmt.0.line() {
-                if let Comment::CmtBlock(block) = comment {
-                    if block.trim() == "HHAST_FIXME[UnusedVariable]" {
-                        analysis_data.add_replacement(
-                            (comment_pos.start_offset() as u32, limit as u32),
-                            Replacement::TrimPrecedingWhitespace(
-                                comment_pos.to_raw_span().start.beg_of_line() as u32,
-                            ),
-                        );
+                if let Comment::CmtBlock(block) = comment
+                    && block.trim() == "HHAST_FIXME[UnusedVariable]"
+                {
+                    analysis_data.add_replacement(
+                        (comment_pos.start_offset() as u32, limit as u32),
+                        Replacement::TrimPrecedingWhitespace(
+                            comment_pos.to_raw_span().start.beg_of_line() as u32,
+                        ),
+                    );
 
-                        return;
-                    }
+                    return;
                 }
-            } else if comment_pos.line() == stmt.0.line() - 1 {
-                if let Comment::CmtBlock(block) = comment {
-                    if let "HAKANA_FIXME[UnusedAssignment]"
-                    | "HAKANA_FIXME[UnusedAssignmentStatement]" = block.trim()
-                    {
-                        let stmt_start = stmt.0.to_raw_span().start;
-                        analysis_data.add_replacement(
-                            (
-                                comment_pos.start_offset() as u32,
-                                (stmt_start.beg_of_line() as u32) - 1,
-                            ),
-                            Replacement::TrimPrecedingWhitespace(
-                                comment_pos.to_raw_span().start.beg_of_line() as u32,
-                            ),
-                        );
-                        return;
-                    }
-                }
+            } else if comment_pos.line() == stmt.0.line() - 1
+                && let Comment::CmtBlock(block) = comment
+                && let "HAKANA_FIXME[UnusedAssignment]" | "HAKANA_FIXME[UnusedAssignmentStatement]" =
+                    block.trim()
+            {
+                let stmt_start = stmt.0.to_raw_span().start;
+                analysis_data.add_replacement(
+                    (
+                        comment_pos.start_offset() as u32,
+                        (stmt_start.beg_of_line() as u32) - 1,
+                    ),
+                    Replacement::TrimPrecedingWhitespace(
+                        comment_pos.to_raw_span().start.beg_of_line() as u32,
+                    ),
+                );
+                return;
             }
         }
     }

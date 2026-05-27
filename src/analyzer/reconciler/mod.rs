@@ -169,10 +169,10 @@ pub(crate) fn reconcile_keyed_types(
             )
         };
 
-        if let Some(maybe_result_type) = &result_type {
-            if maybe_result_type.types.is_empty() {
-                panic!();
-            }
+        if let Some(maybe_result_type) = &result_type
+            && maybe_result_type.types.is_empty()
+        {
+            panic!();
         }
 
         let before_adjustment = result_type.clone();
@@ -241,10 +241,10 @@ pub(crate) fn reconcile_keyed_types(
                     if new_type_part_parts.len() == 1 {
                         let assertion = &new_type_part_parts[0];
 
-                        if let Assertion::IsType(t) | Assertion::IsEqual(t) = assertion {
-                            if t.is_some_scalar() {
-                                has_scalar_restriction = true;
-                            }
+                        if let Assertion::IsType(t) | Assertion::IsEqual(t) = assertion
+                            && t.is_some_scalar()
+                        {
+                            has_scalar_restriction = true;
                         }
                     }
                 }
@@ -443,15 +443,15 @@ fn adjust_array_type(
 
         changed_var_ids.insert(VarName::new(format!("{}[{}]", base_key, array_key.clone())));
 
-        if let Some(last_part) = key_parts.last() {
-            if last_part == "]" {
-                adjust_array_type(
-                    key_parts.clone(),
-                    context,
-                    changed_var_ids,
-                    &wrap_atomic(base_atomic_type.clone()),
-                );
-            }
+        if let Some(last_part) = key_parts.last()
+            && last_part == "]"
+        {
+            adjust_array_type(
+                key_parts.clone(),
+                context,
+                changed_var_ids,
+                &wrap_atomic(base_atomic_type.clone()),
+            );
         }
     }
 
@@ -977,12 +977,12 @@ fn get_value_for_key(
 
                     let class_property_type: TUnion;
 
-                    if let TAtomic::TNull { .. } = existing_key_type_part {
+                    if let TAtomic::TNull = existing_key_type_part {
                         class_property_type = get_null();
                     } else if let TAtomic::TMixed
                     | TAtomic::TMixedWithFlags(..)
                     | TAtomic::TGenericParam(TGenericParam { .. })
-                    | TAtomic::TObject { .. } = existing_key_type_part
+                    | TAtomic::TObject = existing_key_type_part
                     {
                         class_property_type = get_mixed_any();
                     } else if let TAtomic::TNamedObject(TNamedObject {

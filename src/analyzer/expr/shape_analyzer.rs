@@ -41,15 +41,15 @@ pub(crate) fn analyze(
             ShapeFieldName::SFclassname(_) => todo!(),
         };
 
-        if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
-            if current_stmt_offset.line != start_pos.line() as u32 {
-                *current_stmt_offset = StmtStart {
-                    offset: start_pos.start_offset() as u32,
-                    line: start_pos.line() as u32,
-                    column: start_pos.to_raw_span().start.column() as u16,
-                    add_newline: true,
-                };
-            }
+        if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset
+            && current_stmt_offset.line != start_pos.line() as u32
+        {
+            *current_stmt_offset = StmtStart {
+                offset: start_pos.start_offset() as u32,
+                line: start_pos.line() as u32,
+                column: start_pos.to_raw_span().start.column() as u16,
+                add_newline: true,
+            };
         }
 
         let name = match name {

@@ -64,13 +64,13 @@ pub(crate) fn analyze(
         None
     };
 
-    if let Some(var_id) = &var_id {
-        if context.has_variable(var_id) {
-            // short circuit if the type is known in scope
-            handle_scoped_property(context, analysis_data, pos, var_id);
+    if let Some(var_id) = &var_id
+        && context.has_variable(var_id)
+    {
+        // short circuit if the type is known in scope
+        handle_scoped_property(context, analysis_data, pos, var_id);
 
-            return Ok(());
-        }
+        return Ok(());
     }
 
     let stmt_var_type = if let Some(stmt_var_id) = &stmt_var_id {
@@ -148,20 +148,20 @@ pub(crate) fn analyze(
     let mut stmt_type = analysis_data.get_rc_expr_type(pos).cloned();
 
     if has_nullsafe_null {
-        if let Some(ref mut stmt_type) = stmt_type {
-            if !stmt_type.is_nullable_mixed() {
-                let mut stmt_type_inner = (**stmt_type).clone();
-                stmt_type_inner = add_union_type(
-                    stmt_type_inner,
-                    &get_null(),
-                    statements_analyzer.codebase,
-                    false,
-                );
+        if let Some(ref mut stmt_type) = stmt_type
+            && !stmt_type.is_nullable_mixed()
+        {
+            let mut stmt_type_inner = (**stmt_type).clone();
+            stmt_type_inner = add_union_type(
+                stmt_type_inner,
+                &get_null(),
+                statements_analyzer.codebase,
+                false,
+            );
 
-                *stmt_type = Rc::new(stmt_type_inner);
+            *stmt_type = Rc::new(stmt_type_inner);
 
-                analysis_data.set_rc_expr_type(pos, stmt_type.clone());
-            }
+            analysis_data.set_rc_expr_type(pos, stmt_type.clone());
         }
     } else if nullsafe {
         // todo emit issue

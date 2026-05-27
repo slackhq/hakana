@@ -90,41 +90,17 @@ pub(crate) fn reconcile(
                     pos,
                 );
 
-                if !has_changes || existing_var_type.is_nothing() {
-                    if let Some(key) = &key {
-                        if let Some(pos) = pos {
-                            trigger_issue_for_impossible(
-                                analysis_data,
-                                statements_analyzer,
-                                &old_var_type_string,
-                                key,
-                                assertion,
-                                !has_changes,
-                                negated,
-                                pos,
-                                calling_functionlike_id,
-                                suppressed_issues,
-                            );
-                        }
-                    }
-                }
-            }
-        } else if let Some(key) = &key {
-            if let Some(pos) = pos {
-                if !union_type_comparator::can_expression_types_be_identical(
-                    codebase,
-                    statements_analyzer.get_file_path(),
-                    &existing_var_type,
-                    &wrap_atomic(assertion_type.clone()),
-                    true,
-                ) {
+                if (!has_changes || existing_var_type.is_nothing())
+                    && let Some(key) = &key
+                    && let Some(pos) = pos
+                {
                     trigger_issue_for_impossible(
                         analysis_data,
                         statements_analyzer,
                         &old_var_type_string,
                         key,
                         assertion,
-                        true,
+                        !has_changes,
                         negated,
                         pos,
                         calling_functionlike_id,
@@ -132,6 +108,28 @@ pub(crate) fn reconcile(
                     );
                 }
             }
+        } else if let Some(key) = &key
+            && let Some(pos) = pos
+            && !union_type_comparator::can_expression_types_be_identical(
+                codebase,
+                statements_analyzer.get_file_path(),
+                &existing_var_type,
+                &wrap_atomic(assertion_type.clone()),
+                true,
+            )
+        {
+            trigger_issue_for_impossible(
+                analysis_data,
+                statements_analyzer,
+                &old_var_type_string,
+                key,
+                assertion,
+                true,
+                negated,
+                pos,
+                calling_functionlike_id,
+                suppressed_issues,
+            );
         }
     }
 
@@ -139,21 +137,21 @@ pub(crate) fn reconcile(
         // todo prevent complaining about $this assertions in traits
 
         if !is_equality {
-            if let Some(key) = &key {
-                if let Some(pos) = pos {
-                    trigger_issue_for_impossible(
-                        analysis_data,
-                        statements_analyzer,
-                        &old_var_type_string,
-                        key,
-                        assertion,
-                        false,
-                        negated,
-                        pos,
-                        calling_functionlike_id,
-                        suppressed_issues,
-                    );
-                }
+            if let Some(key) = &key
+                && let Some(pos) = pos
+            {
+                trigger_issue_for_impossible(
+                    analysis_data,
+                    statements_analyzer,
+                    &old_var_type_string,
+                    key,
+                    assertion,
+                    false,
+                    negated,
+                    pos,
+                    calling_functionlike_id,
+                    suppressed_issues,
+                );
             }
 
             return get_nothing();
@@ -224,22 +222,22 @@ fn subtract_complex_type(
                     .get(existing_classlike_name)
                 {
                     // handle __Sealed classes, negating where possible
-                    if let Some(child_classlikes) = &classlike_storage.child_classlikes {
-                        if child_classlikes.contains(assertion_classlike_name) {
-                            handle_negated_class(
-                                statements_analyzer,
-                                analysis_data,
-                                child_classlikes,
-                                &existing_atomic,
-                                assertion_classlike_name,
-                                &mut acceptable_types,
-                                pos,
-                            );
+                    if let Some(child_classlikes) = &classlike_storage.child_classlikes
+                        && child_classlikes.contains(assertion_classlike_name)
+                    {
+                        handle_negated_class(
+                            statements_analyzer,
+                            analysis_data,
+                            child_classlikes,
+                            &existing_atomic,
+                            assertion_classlike_name,
+                            &mut acceptable_types,
+                            pos,
+                        );
 
-                            *can_be_disjunct = true;
+                        *can_be_disjunct = true;
 
-                            continue;
-                        }
+                        continue;
                     }
                 }
 
@@ -420,7 +418,7 @@ pub(crate) fn handle_literal_negated_equality(
 
     for existing_atomic_type in existing_var_types {
         match existing_atomic_type {
-            TAtomic::TInt { .. } | TAtomic::TNum => {
+            TAtomic::TInt | TAtomic::TNum => {
                 if let TAtomic::TLiteralInt { .. } | TAtomic::TEnumLiteralCase { .. } =
                     assertion_type
                 {
@@ -554,25 +552,24 @@ pub(crate) fn handle_literal_negated_equality(
 
                     let mut member_enum_literals = vec![];
                     for (cname, const_info) in &enum_storage.constants {
-                        if let Some(inferred_type) = &const_info.inferred_type {
-                            if let TAtomic::TLiteralString {
+                        if let Some(inferred_type) = &const_info.inferred_type
+                            && let TAtomic::TLiteralString {
                                 value: const_inferred_value,
                             } = inferred_type
-                            {
-                                if const_inferred_value != assertion_value {
-                                    if let Some(constant_type) = codebase.get_class_constant_type(
-                                        &existing_name,
-                                        false,
-                                        cname,
-                                        FxHashSet::default(),
-                                    ) {
-                                        member_enum_literals.push(constant_type.get_single_owned());
-                                    } else {
-                                        panic!("unrecognised constant type");
-                                    }
+                        {
+                            if const_inferred_value != assertion_value {
+                                if let Some(constant_type) = codebase.get_class_constant_type(
+                                    &existing_name,
+                                    false,
+                                    cname,
+                                    FxHashSet::default(),
+                                ) {
+                                    member_enum_literals.push(constant_type.get_single_owned());
                                 } else {
-                                    matched_string = true;
+                                    panic!("unrecognised constant type");
                                 }
+                            } else {
+                                matched_string = true;
                             }
                         }
                     }
@@ -593,25 +590,24 @@ pub(crate) fn handle_literal_negated_equality(
 
                     let mut member_enum_literals = vec![];
                     for (cname, const_info) in &enum_storage.constants {
-                        if let Some(inferred_type) = &const_info.inferred_type {
-                            if let TAtomic::TLiteralInt {
+                        if let Some(inferred_type) = &const_info.inferred_type
+                            && let TAtomic::TLiteralInt {
                                 value: const_inferred_value,
                             } = inferred_type
-                            {
-                                if const_inferred_value != assertion_value {
-                                    if let Some(constant_type) = codebase.get_class_constant_type(
-                                        &existing_name,
-                                        false,
-                                        cname,
-                                        FxHashSet::default(),
-                                    ) {
-                                        member_enum_literals.push(constant_type.get_single_owned());
-                                    } else {
-                                        panic!("unrecognised constant type");
-                                    }
+                        {
+                            if const_inferred_value != assertion_value {
+                                if let Some(constant_type) = codebase.get_class_constant_type(
+                                    &existing_name,
+                                    false,
+                                    cname,
+                                    FxHashSet::default(),
+                                ) {
+                                    member_enum_literals.push(constant_type.get_single_owned());
                                 } else {
-                                    matched_string = true;
+                                    panic!("unrecognised constant type");
                                 }
+                            } else {
+                                matched_string = true;
                             }
                         }
                     }
@@ -648,17 +644,14 @@ pub(crate) fn handle_literal_negated_equality(
 
                     let mut matched_string = false;
 
-                    if let Some(const_info) = enum_storage.constants.get(&existing_member_name) {
-                        if let Some(const_inferred_type) = &const_info.inferred_type {
-                            if let TAtomic::TLiteralString {
-                                value: const_inferred_value,
-                            } = const_inferred_type
-                            {
-                                if const_inferred_value == value {
-                                    matched_string = true;
-                                }
-                            }
-                        }
+                    if let Some(const_info) = enum_storage.constants.get(&existing_member_name)
+                        && let Some(const_inferred_type) = &const_info.inferred_type
+                        && let TAtomic::TLiteralString {
+                            value: const_inferred_value,
+                        } = const_inferred_type
+                        && const_inferred_value == value
+                    {
+                        matched_string = true;
                     }
 
                     if !matched_string {
@@ -688,7 +681,7 @@ pub(crate) fn handle_literal_negated_equality(
                 did_remove_type = true;
                 acceptable_types.push(existing_atomic_type);
             }
-            TAtomic::TMixed {} | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset => {
+            TAtomic::TMixed | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset => {
                 did_remove_type = true;
                 acceptable_types.push(existing_atomic_type);
             }
@@ -725,23 +718,22 @@ pub(crate) fn handle_literal_negated_equality(
         }
     }
 
-    if let Some(key) = &key {
-        if let Some(pos) = pos {
-            if !did_remove_type || acceptable_types.is_empty() {
-                trigger_issue_for_impossible(
-                    analysis_data,
-                    statements_analyzer,
-                    &old_var_type_string,
-                    key,
-                    assertion,
-                    !did_remove_type,
-                    negated,
-                    pos,
-                    calling_functionlike_id,
-                    suppressed_issues,
-                );
-            }
-        }
+    if let Some(key) = &key
+        && let Some(pos) = pos
+        && (!did_remove_type || acceptable_types.is_empty())
+    {
+        trigger_issue_for_impossible(
+            analysis_data,
+            statements_analyzer,
+            &old_var_type_string,
+            key,
+            assertion,
+            !did_remove_type,
+            negated,
+            pos,
+            calling_functionlike_id,
+            suppressed_issues,
+        );
     }
 
     new_var_type.types = acceptable_types;

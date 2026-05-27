@@ -30,10 +30,10 @@ pub(crate) fn get_control_actions(
     'outer: for stmt in stmts {
         match &stmt.1 {
             aast::Stmt_::Expr(boxed) => {
-                if let Some(t) = analysis_data.get_expr_type(boxed.pos()) {
-                    if t.is_nothing() {
-                        return control_end(control_actions);
-                    }
+                if let Some(t) = analysis_data.get_expr_type(boxed.pos())
+                    && t.is_nothing()
+                {
+                    return control_end(control_actions);
                 }
             }
             aast::Stmt_::Break => {
@@ -147,21 +147,21 @@ pub(crate) fn get_control_actions(
                 // check for infinite loop behaviour
                 match &stmt.1 {
                     aast::Stmt_::While(boxed) => {
-                        if let Some(expr_type) = analysis_data.get_expr_type(&boxed.0.2.1) {
-                            if expr_type.is_always_truthy() {
-                                //infinite while loop that only return don't have an exit path
-                                let loop_only_ends = control_actions
-                                    .iter()
-                                    .filter(|action| {
-                                        *action != &ControlAction::End
-                                            && *action != &ControlAction::Return
-                                    })
-                                    .count()
-                                    == 0;
+                        if let Some(expr_type) = analysis_data.get_expr_type(&boxed.0.2.1)
+                            && expr_type.is_always_truthy()
+                        {
+                            //infinite while loop that only return don't have an exit path
+                            let loop_only_ends = control_actions
+                                .iter()
+                                .filter(|action| {
+                                    *action != &ControlAction::End
+                                        && *action != &ControlAction::Return
+                                })
+                                .count()
+                                == 0;
 
-                                if loop_only_ends {
-                                    return control_actions;
-                                }
+                            if loop_only_ends {
+                                return control_actions;
                             }
                         }
                     }

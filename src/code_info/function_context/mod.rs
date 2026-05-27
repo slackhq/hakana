@@ -77,9 +77,7 @@ impl FunctionContext {
                 .and_then(|calling_class| codebase.classlike_infos.get(&calling_class))
                 // The calling class ID may not actually point to a valid class
                 // because we set it to a fake ID when analyzing global constants.
-                .map_or(false, |calling_class_info| {
-                    calling_class_info.is_production_code
-                }),
+                .is_some_and(|calling_class_info| calling_class_info.is_production_code),
         }
     }
 

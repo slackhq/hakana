@@ -116,19 +116,20 @@ pub fn scan_files(
         resolved_names = FxHashMap::default();
     }
 
-    if existing_file_system.is_none() && use_codebase_cache {
-        if let Some(cache_dir) = cache_dir {
-            existing_file_system = get_file_manifest(cache_dir);
-        };
-    }
+    if existing_file_system.is_none()
+        && use_codebase_cache
+        && let Some(cache_dir) = cache_dir
+    {
+        existing_file_system = get_file_manifest(cache_dir);
+    };
 
     let file_discovery_now = Instant::now();
     let load_from_cache_now = Instant::now();
 
-    if let Some(symbols_path) = &symbols_path {
-        if let Some(cached_interner) = load_cached_interner(symbols_path, use_codebase_cache) {
-            interner = cached_interner;
-        }
+    if let Some(symbols_path) = &symbols_path
+        && let Some(cached_interner) = load_cached_interner(symbols_path, use_codebase_cache)
+    {
+        interner = cached_interner;
     }
 
     let file_system = if let Some(language_server_changes) = language_server_changes {
@@ -170,21 +171,19 @@ pub fn scan_files(
         .collect::<FxHashSet<_>>();
 
     // this needs to come after we've loaded interned strings
-    if !has_starter {
-        if let Some(codebase_path) = &codebase_path {
-            if let Some(cache_codebase) = load_cached_codebase(codebase_path, use_codebase_cache) {
-                codebase = cache_codebase;
-            }
-        }
+    if !has_starter
+        && let Some(codebase_path) = &codebase_path
+        && let Some(cache_codebase) = load_cached_codebase(codebase_path, use_codebase_cache)
+    {
+        codebase = cache_codebase;
     }
 
-    if let Some(aast_names_path) = &aast_names_path {
-        if let Some(cached_resolved_names) =
+    if let Some(aast_names_path) = &aast_names_path
+        && let Some(cached_resolved_names) =
             load_cached_aast_names(aast_names_path, use_codebase_cache)
-        {
-            resolved_names = cached_resolved_names
-        };
-    }
+    {
+        resolved_names = cached_resolved_names
+    };
 
     let load_from_cache_elapsed = load_from_cache_now.elapsed();
 
@@ -224,13 +223,13 @@ pub fn scan_files(
         let mut codebase_diff = get_diff(&codebase.files, &codebase.files);
 
         for (target_file, status) in &file_statuses {
-            if let FileStatus::Deleted = status {
-                if let Some(deleted_file_info) = existing_changed_files.get(target_file) {
-                    for node in &deleted_file_info.ast_nodes {
-                        codebase_diff
-                            .add_or_delete
-                            .insert((node.name, StrId::EMPTY));
-                    }
+            if let FileStatus::Deleted = status
+                && let Some(deleted_file_info) = existing_changed_files.get(target_file)
+            {
+                for node in &deleted_file_info.ast_nodes {
+                    codebase_diff
+                        .add_or_delete
+                        .insert((node.name, StrId::EMPTY));
                 }
             }
         }

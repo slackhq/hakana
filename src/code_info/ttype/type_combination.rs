@@ -96,22 +96,23 @@ impl TypeCombination {
 
     #[inline]
     pub(crate) fn is_simple(&self) -> bool {
-        if self.value_types.len() == 1 && !self.has_dict {
-            if let (None, None, None, None) = (
+        if self.value_types.len() == 1
+            && !self.has_dict
+            && let (None, None, None, None) = (
                 &self.dict_type_params,
                 &self.vec_type_param,
                 &self.keyset_type_param,
                 &self.awaitable_param,
-            ) {
-                return self.dict_entries.is_empty()
-                    && self.vec_entries.is_empty()
-                    && self.object_type_params.is_empty()
-                    && self.enum_types.is_empty()
-                    && self.enum_value_types.is_empty()
-                    && self.literal_strings.is_empty()
-                    && self.literal_ints.is_empty()
-                    && self.class_string_types.is_empty();
-            }
+            )
+        {
+            return self.dict_entries.is_empty()
+                && self.vec_entries.is_empty()
+                && self.object_type_params.is_empty()
+                && self.enum_types.is_empty()
+                && self.enum_value_types.is_empty()
+                && self.literal_strings.is_empty()
+                && self.literal_ints.is_empty()
+                && self.class_string_types.is_empty();
         }
 
         false

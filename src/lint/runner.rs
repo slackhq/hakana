@@ -135,7 +135,7 @@ fn parse_suppressions(source: &str) -> SuppressionInfo {
                         // HHAST_FIXME[Linter] or HHAST_IGNORE_ERROR[Linter] - suppress for this line
                         single_instance
                             .entry(line_num)
-                            .or_insert_with(FxHashSet::default)
+                            .or_default()
                             .insert(linter_name.to_string());
                     }
 
@@ -153,7 +153,7 @@ fn parse_suppressions(source: &str) -> SuppressionInfo {
         if !found_any_brackets {
             single_instance
                 .entry(line_num)
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert(String::new());
         }
     }
@@ -261,19 +261,18 @@ fn is_suppressed_with_boundaries(
 
     // Check for statement-level suppression: if a suppression appears on a line
     // before the statement starts, it suppresses errors throughout the statement
-    if let Some(&(stmt_start, _)) = containing_statement {
-        if stmt_start > 0 {
-            if let Some(linters) = suppressions.single_instance.get(&(stmt_start - 1)) {
-                // Empty string means suppress all linters
-                if linters.contains("") {
-                    return true;
-                }
+    if let Some(&(stmt_start, _)) = containing_statement
+        && stmt_start > 0
+        && let Some(linters) = suppressions.single_instance.get(&(stmt_start - 1))
+    {
+        // Empty string means suppress all linters
+        if linters.contains("") {
+            return true;
+        }
 
-                // Check if this specific linter is suppressed
-                if is_linter_in_set(linters, linter_name, hhast_name) {
-                    return true;
-                }
-            }
+        // Check if this specific linter is suppressed
+        if is_linter_in_set(linters, linter_name, hhast_name) {
+            return true;
         }
     }
 
@@ -306,10 +305,10 @@ fn is_linter_in_set(
             }
 
             // Check without "Linter" suffix
-            if let Some(without_suffix) = last_part.strip_suffix("Linter") {
-                if linters.contains(without_suffix) {
-                    return true;
-                }
+            if let Some(without_suffix) = last_part.strip_suffix("Linter")
+                && linters.contains(without_suffix)
+            {
+                return true;
             }
         }
     }
@@ -369,13 +368,13 @@ fn add_fixme_comments(
             // Insert with newline (will add "/* HHAST_FIXME[...] */\n{indent}" before the statement)
             fixme_insertions
                 .entry((line_start_offset, true))
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(pascal_case_name);
         } else {
             // Add fixme right before the error location (inline)
             fixme_insertions
                 .entry((error_offset, false))
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(pascal_case_name);
         }
     }
@@ -472,12 +471,11 @@ pub fn run_linters(
             continue;
         }
 
-        if let Some(hhast_name) = linter.hhast_name() {
-            if !config.fixme_linters.is_empty()
-                && !config.fixme_linters.contains(&hhast_name.to_string())
-            {
-                continue;
-            }
+        if let Some(hhast_name) = linter.hhast_name()
+            && !config.fixme_linters.is_empty()
+            && !config.fixme_linters.contains(&hhast_name.to_string())
+        {
+            continue;
         }
 
         let start_time = std::time::Instant::now();

@@ -126,18 +126,17 @@ pub fn get_named_object(
     name: StrId,
     type_resolution_context: Option<&TypeResolutionContext>,
 ) -> TUnion {
-    if let Some(type_resolution_context) = type_resolution_context {
-        if let Some(t) = type_resolution_context
+    if let Some(type_resolution_context) = type_resolution_context
+        && let Some(t) = type_resolution_context
             .template_type_map
             .iter()
             .find(|v| v.0 == name)
-        {
-            return wrap_atomic(TAtomic::TGenericClassname {
-                param_name: name,
-                defining_entity: t.1[0].0,
-                as_type: Box::new((*(t.1[0].1.get_single())).clone()),
-            });
-        }
+    {
+        return wrap_atomic(TAtomic::TGenericClassname {
+            param_name: name,
+            defining_entity: t.1[0].0,
+            as_type: Box::new((*(t.1[0].1.get_single())).clone()),
+        });
     }
     wrap_atomic(TAtomic::TNamedObject(TNamedObject {
         name,
@@ -412,7 +411,7 @@ fn intersect_atomic_with_atomic_simple(
         }
         (TAtomic::TNull, TAtomic::TMixedWithFlags(_, _, _, true)) => return None,
         (
-            TAtomic::TObject { .. }
+            TAtomic::TObject
             | TAtomic::TClosure(_)
             | TAtomic::TAwaitable { .. }
             | TAtomic::TNamedObject(TNamedObject { .. }),
@@ -440,7 +439,7 @@ fn intersect_atomic_with_atomic_simple(
         (type_1_atomic, TAtomic::TNum) => {
             if type_1_atomic.is_mixed() {
                 return Some(TAtomic::TNum);
-            } else if type_1_atomic.is_int() || matches!(type_1_atomic, TAtomic::TFloat { .. }) {
+            } else if type_1_atomic.is_int() || matches!(type_1_atomic, TAtomic::TFloat) {
                 return Some(type_1_atomic.clone());
             } else if matches!(type_1_atomic, TAtomic::TArraykey { .. }) {
                 return Some(TAtomic::TInt);
@@ -456,7 +455,7 @@ fn intersect_atomic_with_atomic_simple(
             | TAtomic::TClassPtr { .. }
             | TAtomic::TTypename { .. }
             | TAtomic::TStringWithFlags(..)
-            | TAtomic::TString { .. },
+            | TAtomic::TString,
             TAtomic::TString,
         ) => {
             return Some(type_1_atomic.clone());
@@ -764,31 +763,25 @@ fn intersect_vecs_simple(
                 }
             }
 
-            if let Some(type_param) = type_param {
-                Some(TAtomic::TVec(TVec {
+            type_param.map(|type_param| {
+                TAtomic::TVec(TVec {
                     known_items: Some(type_2_known_items),
                     type_param: Box::new(type_param),
                     non_empty: true,
                     known_count: None,
                     variadic_type: None,
-                }))
-            } else {
-                None
-            }
+                })
+            })
         }
-        _ => {
-            if let Some(type_param) = type_param {
-                Some(TAtomic::TVec(TVec {
-                    known_items: None,
-                    type_param: Box::new(type_param),
-                    non_empty: false,
-                    known_count: None,
-                    variadic_type: None,
-                }))
-            } else {
-                None
-            }
-        }
+        _ => type_param.map(|type_param| {
+            TAtomic::TVec(TVec {
+                known_items: None,
+                type_param: Box::new(type_param),
+                non_empty: false,
+                known_count: None,
+                variadic_type: None,
+            })
+        }),
     }
 }
 
@@ -940,7 +933,7 @@ pub fn get_union_syntax_type(
     let is_nullable = union.is_nullable() && !union.is_mixed();
 
     for atomic in &union.types {
-        if let TAtomic::TNull { .. } = atomic {
+        if let TAtomic::TNull = atomic {
             continue;
         }
 
@@ -951,12 +944,10 @@ pub fn get_union_syntax_type(
                 type_params: None,
                 ..
             }) = atomic
+                && let Some(storage) = codebase.classlike_infos.get(name)
+                && let Some(parent_class) = &storage.direct_parent_class
             {
-                if let Some(storage) = codebase.classlike_infos.get(name) {
-                    if let Some(parent_class) = &storage.direct_parent_class {
-                        t_object_parents.insert(*name, *parent_class);
-                    }
-                }
+                t_object_parents.insert(*name, *parent_class);
             }
             s
         });
@@ -1006,7 +997,7 @@ pub fn get_atomic_syntax_type(
 ) -> String {
     match atomic {
         TAtomic::TArraykey { .. } => "arraykey".to_string(),
-        TAtomic::TBool { .. } => "bool".to_string(),
+        TAtomic::TBool => "bool".to_string(),
         TAtomic::TClassname { as_type, .. } => {
             let as_string = get_atomic_syntax_type(as_type, codebase, interner, is_valid);
             let mut str = String::new();
@@ -1057,37 +1048,37 @@ pub fn get_atomic_syntax_type(
                 };
             }
 
-            if let Some(known_items) = known_items {
-                if if let Some(params) = params {
+            if let Some(known_items) = known_items
+                && if let Some(params) = params {
                     params.0.is_arraykey() && params.1.is_mixed()
                 } else {
                     true
-                } {
-                    let mut str = String::new();
-                    str += "shape(";
-                    let mut known_item_strings = vec![];
-
-                    for (property, (pu, property_type)) in known_items {
-                        known_item_strings.push({
-                            let property_type_string =
-                                get_union_syntax_type(property_type, codebase, interner, is_valid);
-                            format!(
-                                "{}'{}' => {}",
-                                if *pu { "?".to_string() } else { "".to_string() },
-                                property.to_string(Some(interner)),
-                                property_type_string
-                            )
-                        })
-                    }
-                    str += known_item_strings.join(", ").as_str();
-
-                    if !params.is_none() {
-                        str += ", ...";
-                    }
-
-                    str += ")";
-                    return str;
                 }
+            {
+                let mut str = String::new();
+                str += "shape(";
+                let mut known_item_strings = vec![];
+
+                for (property, (pu, property_type)) in known_items {
+                    known_item_strings.push({
+                        let property_type_string =
+                            get_union_syntax_type(property_type, codebase, interner, is_valid);
+                        format!(
+                            "{}'{}' => {}",
+                            if *pu { "?".to_string() } else { "".to_string() },
+                            property.to_string(Some(interner)),
+                            property_type_string
+                        )
+                    })
+                }
+                str += known_item_strings.join(", ").as_str();
+
+                if !params.is_none() {
+                    str += ", ...";
+                }
+
+                str += ")";
+                return str;
             }
 
             if let Some(params) = params {
@@ -1099,8 +1090,8 @@ pub fn get_atomic_syntax_type(
             }
         }
         TAtomic::TEnum { name, .. } => interner.lookup(name).to_string(),
-        TAtomic::TFalse { .. } => "bool".to_string(),
-        TAtomic::TFloat { .. } => "float".to_string(),
+        TAtomic::TFalse => "bool".to_string(),
+        TAtomic::TFloat => "float".to_string(),
         TAtomic::TClosure(_) => {
             *is_valid = false;
             // todo
@@ -1111,7 +1102,7 @@ pub fn get_atomic_syntax_type(
             // todo
             "_".to_string()
         }
-        TAtomic::TInt { .. } => "int".to_string(),
+        TAtomic::TInt => "int".to_string(),
         TAtomic::TObject => {
             *is_valid = false;
             "_".to_string()
@@ -1159,16 +1150,16 @@ pub fn get_atomic_syntax_type(
             }
         }
         TAtomic::TNothing => "nothing".to_string(),
-        TAtomic::TNull { .. } => {
+        TAtomic::TNull => {
             *is_valid = false;
             "_".to_string()
         }
-        TAtomic::TNum { .. } => "num".to_string(),
+        TAtomic::TNum => "num".to_string(),
         TAtomic::TScalar => {
             *is_valid = false;
             "_".to_string()
         }
-        TAtomic::TString { .. } => "string".to_string(),
+        TAtomic::TString => "string".to_string(),
         TAtomic::TGenericParam(TGenericParam { param_name, .. }) => {
             interner.lookup(param_name).to_string()
         }
@@ -1199,29 +1190,29 @@ pub fn get_atomic_syntax_type(
             interner.lookup(param_name),
             defining_entity.to_string(Some(interner))
         ),
-        TAtomic::TTrue { .. } => "bool".to_string(),
+        TAtomic::TTrue => "bool".to_string(),
         TAtomic::TVec(TVec {
             type_param,
             known_items,
             ..
         }) => {
-            if type_param.is_nothing() {
-                if let Some(known_items) = known_items {
-                    let mut known_item_strings = vec![];
-                    let mut all_good = true;
-                    for (i, (offset, (pu, t))) in known_items.iter().enumerate() {
-                        if i == *offset && !pu {
-                            known_item_strings
-                                .push(get_union_syntax_type(t, codebase, interner, is_valid))
-                        } else {
-                            all_good = false;
-                            break;
-                        }
+            if type_param.is_nothing()
+                && let Some(known_items) = known_items
+            {
+                let mut known_item_strings = vec![];
+                let mut all_good = true;
+                for (i, (offset, (pu, t))) in known_items.iter().enumerate() {
+                    if i == *offset && !pu {
+                        known_item_strings
+                            .push(get_union_syntax_type(t, codebase, interner, is_valid))
+                    } else {
+                        all_good = false;
+                        break;
                     }
+                }
 
-                    if all_good {
-                        return format!("({})", known_item_strings.join(", "));
-                    }
+                if all_good {
+                    return format!("({})", known_item_strings.join(", "));
                 }
             }
 

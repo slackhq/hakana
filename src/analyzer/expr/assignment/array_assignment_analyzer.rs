@@ -101,24 +101,23 @@ pub(crate) fn analyze(
         &mut current_type,
     )?;
 
-    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
-        if let Some(root_var_id) = &root_var_id {
-            if let aast::Expr_::Lvar(_) = &root_array_expr.2 {
-                let interner = statements_analyzer.interner;
-                analysis_data
-                    .data_flow_graph
-                    .add_node(DataFlowNode::get_for_variable_source(
-                        VariableSourceKind::Default,
-                        VarId(interner.get(root_var_id).unwrap()),
-                        statements_analyzer.get_hpos(root_array_expr.pos()),
-                        false,
-                        false,
-                        false,
-                        false,
-                        false,
-                    ));
-            }
-        }
+    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
+        && let Some(root_var_id) = &root_var_id
+        && let aast::Expr_::Lvar(_) = &root_array_expr.2
+    {
+        let interner = statements_analyzer.interner;
+        analysis_data
+            .data_flow_graph
+            .add_node(DataFlowNode::get_for_variable_source(
+                VariableSourceKind::Default,
+                VarId(interner.get(root_var_id).unwrap()),
+                statements_analyzer.get_hpos(root_array_expr.pos()),
+                false,
+                false,
+                false,
+                false,
+                false,
+            ));
     }
 
     let root_is_string = root_type.has_string();
@@ -230,18 +229,18 @@ fn update_atomic_given_key(
     current_type: &TUnion,
     codebase: &CodebaseInfo,
 ) -> TAtomic {
-    if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = &atomic_type {
-        if as_type.types.len() == 1 {
-            // destructure generic after update
-            return update_atomic_given_key(
-                as_type.types[0].clone(),
-                key_values,
-                key_type,
-                has_matching_item,
-                current_type,
-                codebase,
-            );
-        }
+    if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = &atomic_type
+        && as_type.types.len() == 1
+    {
+        // destructure generic after update
+        return update_atomic_given_key(
+            as_type.types[0].clone(),
+            key_values,
+            key_type,
+            has_matching_item,
+            current_type,
+            codebase,
+        );
     }
     if !key_values.is_empty() {
         for key_value in key_values {
@@ -281,12 +280,12 @@ fn update_atomic_given_key(
                 } => {
                     *has_matching_item = true;
 
-                    *type_param = Box::new(combine_union_types(
+                    **type_param = combine_union_types(
                         type_param,
                         &wrap_atomic(key_value.clone()),
                         codebase,
                         true,
-                    ));
+                    );
                 }
                 TAtomic::TDict(TDict {
                     ref mut known_items,
@@ -338,12 +337,12 @@ fn update_atomic_given_key(
                 ref mut known_count,
                 ..
             }) => {
-                *type_param = Box::new(hakana_code_info::ttype::add_union_type(
+                **type_param = hakana_code_info::ttype::add_union_type(
                     arrayish_params.unwrap().1,
                     current_type,
                     codebase,
                     false,
-                ));
+                );
 
                 *known_items = None;
                 *known_count = None;
@@ -351,12 +350,12 @@ fn update_atomic_given_key(
             TAtomic::TKeyset {
                 ref mut type_param, ..
             } => {
-                *type_param = Box::new(hakana_code_info::ttype::add_union_type(
+                **type_param = hakana_code_info::ttype::add_union_type(
                     arrayish_params.unwrap().1,
                     current_type,
                     codebase,
                     false,
-                ));
+                );
             }
             TAtomic::TDict(TDict {
                 ref mut known_items,
@@ -399,10 +398,10 @@ fn add_array_assignment_dataflow(
     key_values: &Vec<TAtomic>,
     inside_general_use: bool,
 ) -> TUnion {
-    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = analysis_data.data_flow_graph.kind {
-        if !child_expr_type.has_taintable_value() {
-            return parent_expr_type;
-        }
+    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = analysis_data.data_flow_graph.kind
+        && !child_expr_type.has_taintable_value()
+    {
+        return parent_expr_type;
     }
 
     let parent_node = if let Some(var_var_id) = var_var_id {
@@ -761,13 +760,13 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             array_expr_var_type = Rc::new(atomic);
 
             analysis_data.set_rc_expr_type(array_expr.0.pos(), array_expr_var_type.clone());
-        } else if let Some(parent_var_id) = parent_var_id.to_owned() {
-            if context.locals.contains_key(parent_var_id.as_str()) {
-                let scoped_type = context.locals.get(parent_var_id.as_str()).unwrap();
-                analysis_data.set_rc_expr_type(array_expr.0.pos(), scoped_type.clone());
+        } else if let Some(parent_var_id) = parent_var_id.to_owned()
+            && context.locals.contains_key(parent_var_id.as_str())
+        {
+            let scoped_type = context.locals.get(parent_var_id.as_str()).unwrap();
+            analysis_data.set_rc_expr_type(array_expr.0.pos(), scoped_type.clone());
 
-                array_expr_var_type = scoped_type.clone();
-            }
+            array_expr_var_type = scoped_type.clone();
         }
 
         let new_offset_type = array_expr_offset_type.clone().unwrap_or(Rc::new(get_int()));
@@ -857,19 +856,19 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
     let first_stmt = &array_exprs.remove(0);
 
-    if let Some(root_var_id) = &root_var_id {
-        if analysis_data.get_expr_type(first_stmt.0.pos()).is_some() {
-            let extended_var_id = root_var_id.clone() + var_id_additions.join("").as_str();
+    if let Some(root_var_id) = &root_var_id
+        && analysis_data.get_expr_type(first_stmt.0.pos()).is_some()
+    {
+        let extended_var_id = root_var_id.clone() + var_id_additions.join("").as_str();
 
-            if full_var_id && extended_var_id.contains("[$") {
-                context.locals.insert(
-                    VarName::new(extended_var_id.clone()),
-                    Rc::new(assign_value_type.clone()),
-                );
-                context
-                    .possibly_assigned_var_ids
-                    .insert(VarName::new(extended_var_id));
-            }
+        if full_var_id && extended_var_id.contains("[$") {
+            context.locals.insert(
+                VarName::new(extended_var_id.clone()),
+                Rc::new(assign_value_type.clone()),
+            );
+            context
+                .possibly_assigned_var_ids
+                .insert(VarName::new(extended_var_id));
         }
     }
 
@@ -919,16 +918,16 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         *last_array_expr_type = array_expr_type.clone();
         last_array_expr_dim = array_expr.1;
 
-        if let Some(array_expr_id) = &array_expr_id {
-            if array_expr_id.contains("[$") {
-                context.locals.insert(
-                    VarName::new(array_expr_id.clone()),
-                    Rc::new(array_expr_type.clone()),
-                );
-                context
-                    .possibly_assigned_var_ids
-                    .insert(VarName::new(array_expr_id.clone()));
-            }
+        if let Some(array_expr_id) = &array_expr_id
+            && array_expr_id.contains("[$")
+        {
+            context.locals.insert(
+                VarName::new(array_expr_id.clone()),
+                Rc::new(array_expr_type.clone()),
+            );
+            context
+                .possibly_assigned_var_ids
+                .insert(VarName::new(array_expr_id.clone()));
         }
 
         let array_type = analysis_data

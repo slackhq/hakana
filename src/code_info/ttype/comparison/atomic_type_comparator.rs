@@ -45,28 +45,24 @@ pub fn is_contained_by(
 
     if let TAtomic::TGenericParam(TGenericParam { .. }) | TAtomic::TObjectIntersection { .. } =
         container_type_part
-    {
-        if let TAtomic::TGenericParam(TGenericParam { .. }) | TAtomic::TObjectIntersection { .. } =
+        && let TAtomic::TGenericParam(TGenericParam { .. }) | TAtomic::TObjectIntersection { .. } =
             input_type_part
-        {
-            return object_type_comparator::is_shallowly_contained_by(
-                codebase,
-                file_path,
-                input_type_part,
-                container_type_part,
-                inside_assertion,
-                atomic_comparison_result,
-            );
-        }
+    {
+        return object_type_comparator::is_shallowly_contained_by(
+            codebase,
+            file_path,
+            input_type_part,
+            container_type_part,
+            inside_assertion,
+            atomic_comparison_result,
+        );
     }
 
     if container_type_part.is_mixed() || container_type_part.is_templated_as_mixed(&mut false) {
         if matches!(container_type_part, TAtomic::TMixedWithFlags(_, _, _, true))
             && matches!(
                 input_type_part,
-                TAtomic::TNull { .. }
-                    | TAtomic::TMixed
-                    | TAtomic::TMixedWithFlags(_, false, _, false)
+                TAtomic::TNull | TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false, _, false)
             )
         {
             return false;
@@ -136,10 +132,10 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TNull = input_type_part {
-        if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = container_type_part {
-            if as_type.is_nullable() || as_type.is_mixed() {
-                return true;
-            }
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = container_type_part
+            && (as_type.is_nullable() || as_type.is_mixed())
+        {
+            return true;
         }
 
         return false;
@@ -167,33 +163,31 @@ pub fn is_contained_by(
         type_params: Some(type_params),
         ..
     }) = container_type_part
-    {
-        if let TAtomic::TVec(TVec { .. }) | TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } =
+        && let TAtomic::TVec(TVec { .. }) | TAtomic::TDict(TDict { .. }) | TAtomic::TKeyset { .. } =
             input_type_part
-        {
-            let arrayish_params = get_arrayish_params(input_type_part, codebase);
+    {
+        let arrayish_params = get_arrayish_params(input_type_part, codebase);
 
-            if let Some(arrayish_params) = arrayish_params {
-                return union_type_comparator::is_contained_by(
-                    codebase,
-                    file_path,
-                    &arrayish_params.0,
-                    &type_params[0],
-                    false,
-                    false,
-                    inside_assertion,
-                    atomic_comparison_result,
-                ) && union_type_comparator::is_contained_by(
-                    codebase,
-                    file_path,
-                    &arrayish_params.1,
-                    &type_params[1],
-                    false,
-                    false,
-                    inside_assertion,
-                    atomic_comparison_result,
-                );
-            }
+        if let Some(arrayish_params) = arrayish_params {
+            return union_type_comparator::is_contained_by(
+                codebase,
+                file_path,
+                &arrayish_params.0,
+                &type_params[0],
+                false,
+                false,
+                inside_assertion,
+                atomic_comparison_result,
+            ) && union_type_comparator::is_contained_by(
+                codebase,
+                file_path,
+                &arrayish_params.1,
+                &type_params[1],
+                false,
+                false,
+                inside_assertion,
+                atomic_comparison_result,
+            );
         }
     }
 
@@ -294,66 +288,64 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TDict(TDict { .. }) = container_type_part {
-        if let TAtomic::TDict(TDict { .. }) = input_type_part {
-            return dict_type_comparator::is_contained_by(
-                codebase,
-                file_path,
-                input_type_part,
-                container_type_part,
-                inside_assertion,
-                atomic_comparison_result,
-            );
-        }
+    if let TAtomic::TDict(TDict { .. }) = container_type_part
+        && let TAtomic::TDict(TDict { .. }) = input_type_part
+    {
+        return dict_type_comparator::is_contained_by(
+            codebase,
+            file_path,
+            input_type_part,
+            container_type_part,
+            inside_assertion,
+            atomic_comparison_result,
+        );
     }
 
-    if let TAtomic::TVec(TVec { .. }) = container_type_part {
-        if let TAtomic::TVec(TVec { .. }) = input_type_part {
-            return vec_type_comparator::is_contained_by(
-                codebase,
-                file_path,
-                input_type_part,
-                container_type_part,
-                inside_assertion,
-                atomic_comparison_result,
-            );
-        }
+    if let TAtomic::TVec(TVec { .. }) = container_type_part
+        && let TAtomic::TVec(TVec { .. }) = input_type_part
+    {
+        return vec_type_comparator::is_contained_by(
+            codebase,
+            file_path,
+            input_type_part,
+            container_type_part,
+            inside_assertion,
+            atomic_comparison_result,
+        );
     }
 
     if let TAtomic::TKeyset {
         type_param: container_type_param,
         ..
     } = container_type_part
-    {
-        if let TAtomic::TKeyset {
+        && let TAtomic::TKeyset {
             type_param: input_type_param,
             ..
         } = input_type_part
-        {
-            return union_type_comparator::is_contained_by(
-                codebase,
-                file_path,
-                input_type_param,
-                container_type_param,
-                false,
-                input_type_param.ignore_falsable_issues,
-                inside_assertion,
-                atomic_comparison_result,
-            );
-        }
+    {
+        return union_type_comparator::is_contained_by(
+            codebase,
+            file_path,
+            input_type_param,
+            container_type_param,
+            false,
+            input_type_param.ignore_falsable_issues,
+            inside_assertion,
+            atomic_comparison_result,
+        );
     }
 
-    if let TAtomic::TObject { .. } = container_type_part {
-        if let TAtomic::TNamedObject(TNamedObject { .. }) = input_type_part {
-            return true;
-        }
+    if let TAtomic::TObject = container_type_part
+        && let TAtomic::TNamedObject(TNamedObject { .. }) = input_type_part
+    {
+        return true;
     }
 
-    if let TAtomic::TObject { .. } = input_type_part {
-        if let TAtomic::TNamedObject(TNamedObject { .. }) = container_type_part {
-            atomic_comparison_result.type_coerced = Some(true);
-            return false;
-        }
+    if let TAtomic::TObject = input_type_part
+        && let TAtomic::TNamedObject(TNamedObject { .. }) = container_type_part
+    {
+        atomic_comparison_result.type_coerced = Some(true);
+        return false;
     }
 
     if let (
@@ -421,10 +413,10 @@ pub fn is_contained_by(
         return false;
     }
 
-    if let TAtomic::TObject { .. } = input_type_part {
-        if let TAtomic::TObject { .. } = container_type_part {
-            return true;
-        }
+    if let TAtomic::TObject = input_type_part
+        && let TAtomic::TObject = container_type_part
+    {
+        return true;
     }
 
     if let TAtomic::TGenericParam(TGenericParam {
@@ -475,8 +467,8 @@ pub fn is_contained_by(
     }) = input_type_part
     {
         for input_extends_type_part in input_extends.types.iter() {
-            if matches!(input_extends_type_part, TAtomic::TNull { .. })
-                && matches!(container_type_part, TAtomic::TNull { .. })
+            if matches!(input_extends_type_part, TAtomic::TNull)
+                && matches!(container_type_part, TAtomic::TNull)
             {
                 continue;
             }
@@ -502,16 +494,13 @@ pub fn is_contained_by(
         name: StrId::STATIC,
         ..
     }) = input_type_part
-    {
-        if let TAtomic::TNamedObject(TNamedObject {
+        && let TAtomic::TNamedObject(TNamedObject {
             name: container_name,
             ..
         }) = container_type_part
-        {
-            if container_name == &StrId::SELF {
-                return true;
-            }
-        }
+        && container_name == &StrId::SELF
+    {
+        return true;
     }
 
     // handle KeyedContainer and Container accepting arrays
@@ -520,98 +509,94 @@ pub fn is_contained_by(
         type_params: Some(container_type_params),
         ..
     }) = container_type_part
+        && let StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY = *container_name
     {
-        if let StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY = *container_name {
-            let type_params = get_arrayish_params(input_type_part, codebase);
+        let type_params = get_arrayish_params(input_type_part, codebase);
 
-            if let Some(input_type_params) = type_params {
-                let mut all_types_contain = true;
+        if let Some(input_type_params) = type_params {
+            let mut all_types_contain = true;
 
-                let mut array_comparison_result = TypeComparisonResult::new();
-                if *container_name == StrId::CONTAINER {
-                    if let Some(container_value_param) = container_type_params.first() {
-                        if !union_type_comparator::is_contained_by(
-                            codebase,
-                            file_path,
-                            &input_type_params.1,
-                            container_value_param,
-                            false,
-                            input_type_params.1.ignore_falsable_issues,
-                            inside_assertion,
-                            &mut array_comparison_result,
-                        ) && !array_comparison_result
-                            .type_coerced_to_literal
-                            .unwrap_or(false)
-                        {
-                            if array_comparison_result
-                                .type_coerced_from_nested_mixed
-                                .unwrap_or(false)
-                            {
-                                atomic_comparison_result.type_coerced_from_nested_mixed =
-                                    Some(true);
-                            }
-
-                            all_types_contain = false;
-                        }
-                    }
-                } else {
-                    if let Some(container_key_param) = container_type_params.first() {
-                        if !union_type_comparator::is_contained_by(
-                            codebase,
-                            file_path,
-                            &input_type_params.0,
-                            container_key_param,
-                            false,
-                            input_type_params.0.ignore_falsable_issues,
-                            inside_assertion,
-                            &mut array_comparison_result,
-                        ) && !array_comparison_result
-                            .type_coerced_to_literal
-                            .unwrap_or(false)
-                        {
-                            if array_comparison_result
-                                .type_coerced_from_nested_mixed
-                                .unwrap_or(false)
-                            {
-                                atomic_comparison_result.type_coerced_from_nested_mixed =
-                                    Some(true);
-                            }
-
-                            all_types_contain = false;
-                        }
+            let mut array_comparison_result = TypeComparisonResult::new();
+            if *container_name == StrId::CONTAINER {
+                if let Some(container_value_param) = container_type_params.first()
+                    && !union_type_comparator::is_contained_by(
+                        codebase,
+                        file_path,
+                        &input_type_params.1,
+                        container_value_param,
+                        false,
+                        input_type_params.1.ignore_falsable_issues,
+                        inside_assertion,
+                        &mut array_comparison_result,
+                    )
+                    && !array_comparison_result
+                        .type_coerced_to_literal
+                        .unwrap_or(false)
+                {
+                    if array_comparison_result
+                        .type_coerced_from_nested_mixed
+                        .unwrap_or(false)
+                    {
+                        atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
                     }
 
-                    let mut array_comparison_result = TypeComparisonResult::new();
-
-                    if let Some(container_value_param) = container_type_params.get(1) {
-                        if !union_type_comparator::is_contained_by(
-                            codebase,
-                            file_path,
-                            &input_type_params.1,
-                            container_value_param,
-                            false,
-                            input_type_params.1.ignore_falsable_issues,
-                            inside_assertion,
-                            &mut array_comparison_result,
-                        ) && !array_comparison_result
-                            .type_coerced_to_literal
-                            .unwrap_or(false)
-                        {
-                            if array_comparison_result
-                                .type_coerced_from_nested_mixed
-                                .unwrap_or(false)
-                            {
-                                atomic_comparison_result.type_coerced_from_nested_mixed =
-                                    Some(true);
-                            }
-
-                            all_types_contain = false;
-                        }
+                    all_types_contain = false;
+                }
+            } else {
+                if let Some(container_key_param) = container_type_params.first()
+                    && !union_type_comparator::is_contained_by(
+                        codebase,
+                        file_path,
+                        &input_type_params.0,
+                        container_key_param,
+                        false,
+                        input_type_params.0.ignore_falsable_issues,
+                        inside_assertion,
+                        &mut array_comparison_result,
+                    )
+                    && !array_comparison_result
+                        .type_coerced_to_literal
+                        .unwrap_or(false)
+                {
+                    if array_comparison_result
+                        .type_coerced_from_nested_mixed
+                        .unwrap_or(false)
+                    {
+                        atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
                     }
+
+                    all_types_contain = false;
                 }
 
-                return all_types_contain;
+                let mut array_comparison_result = TypeComparisonResult::new();
+
+                if let Some(container_value_param) = container_type_params.get(1)
+                    && !union_type_comparator::is_contained_by(
+                        codebase,
+                        file_path,
+                        &input_type_params.1,
+                        container_value_param,
+                        false,
+                        input_type_params.1.ignore_falsable_issues,
+                        inside_assertion,
+                        &mut array_comparison_result,
+                    )
+                    && !array_comparison_result
+                        .type_coerced_to_literal
+                        .unwrap_or(false)
+                {
+                    if array_comparison_result
+                        .type_coerced_from_nested_mixed
+                        .unwrap_or(false)
+                    {
+                        atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
+                    }
+
+                    all_types_contain = false;
+                }
             }
+
+            return all_types_contain;
         }
     }
 
@@ -621,84 +606,76 @@ pub fn is_contained_by(
         type_params: Some(input_type_params),
         ..
     }) = input_type_part
-    {
-        if matches!(
+        && matches!(
             *input_name,
             StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY
-        ) {
-            if let TAtomic::TKeyset { .. }
-            | TAtomic::TVec(TVec { .. })
-            | TAtomic::TDict(TDict { .. }) = container_type_part
-            {
-                atomic_comparison_result.type_coerced = Some(true);
+        )
+        && let TAtomic::TKeyset { .. } | TAtomic::TVec(TVec { .. }) | TAtomic::TDict(TDict { .. }) =
+            container_type_part
+    {
+        atomic_comparison_result.type_coerced = Some(true);
 
-                let container_arrayish_params =
-                    get_arrayish_params(container_type_part, codebase).unwrap();
+        let container_arrayish_params = get_arrayish_params(container_type_part, codebase).unwrap();
 
-                if *input_name == StrId::CONTAINER {
-                    if let Some(input_value_param) = input_type_params.first() {
-                        union_type_comparator::is_contained_by(
-                            codebase,
-                            file_path,
-                            input_value_param,
-                            &container_arrayish_params.1,
-                            false,
-                            input_value_param.ignore_falsable_issues,
-                            inside_assertion,
-                            atomic_comparison_result,
-                        );
-                    }
-                } else {
-                    if let Some(input_key_param) = input_type_params.first() {
-                        union_type_comparator::is_contained_by(
-                            codebase,
-                            file_path,
-                            input_key_param,
-                            &container_arrayish_params.0,
-                            false,
-                            input_key_param.ignore_falsable_issues,
-                            inside_assertion,
-                            atomic_comparison_result,
-                        );
-                    }
+        if *input_name == StrId::CONTAINER {
+            if let Some(input_value_param) = input_type_params.first() {
+                union_type_comparator::is_contained_by(
+                    codebase,
+                    file_path,
+                    input_value_param,
+                    &container_arrayish_params.1,
+                    false,
+                    input_value_param.ignore_falsable_issues,
+                    inside_assertion,
+                    atomic_comparison_result,
+                );
+            }
+        } else {
+            if let Some(input_key_param) = input_type_params.first() {
+                union_type_comparator::is_contained_by(
+                    codebase,
+                    file_path,
+                    input_key_param,
+                    &container_arrayish_params.0,
+                    false,
+                    input_key_param.ignore_falsable_issues,
+                    inside_assertion,
+                    atomic_comparison_result,
+                );
+            }
 
-                    let mut array_comparison_result = TypeComparisonResult::new();
+            let mut array_comparison_result = TypeComparisonResult::new();
 
-                    if let Some(input_value_param) = input_type_params.get(1) {
-                        union_type_comparator::is_contained_by(
-                            codebase,
-                            file_path,
-                            input_value_param,
-                            &container_arrayish_params.1,
-                            false,
-                            input_value_param.ignore_falsable_issues,
-                            inside_assertion,
-                            &mut array_comparison_result,
-                        );
-                    }
-                }
-
-                return false;
+            if let Some(input_value_param) = input_type_params.get(1) {
+                union_type_comparator::is_contained_by(
+                    codebase,
+                    file_path,
+                    input_value_param,
+                    &container_arrayish_params.1,
+                    false,
+                    input_value_param.ignore_falsable_issues,
+                    inside_assertion,
+                    &mut array_comparison_result,
+                );
             }
         }
+
+        return false;
     }
 
     if let TAtomic::TNamedObject(TNamedObject {
         name: container_name,
         ..
     }) = container_type_part
+        && container_name == &StrId::XHP_CHILD
+        && let TAtomic::TString
+        | TAtomic::TLiteralString { .. }
+        | TAtomic::TInt
+        | TAtomic::TLiteralInt { .. }
+        | TAtomic::TFloat
+        | TAtomic::TNum = input_type_part
     {
-        if container_name == &StrId::XHP_CHILD {
-            if let TAtomic::TString
-            | TAtomic::TLiteralString { .. }
-            | TAtomic::TInt
-            | TAtomic::TLiteralInt { .. }
-            | TAtomic::TFloat
-            | TAtomic::TNum = input_type_part
-            {
-                return true;
-            }
-        }
+        return true;
     }
 
     if let TAtomic::TTypeAlias {
@@ -712,37 +689,36 @@ pub fn is_contained_by(
             type_params: input_type_params,
             ..
         } = input_type_part
+            && input_name == container_name
         {
-            if input_name == container_name {
-                match (input_type_params, container_type_params) {
-                    (None, None) => return true,
-                    (None, Some(_)) => return false,
-                    (Some(_), None) => return false,
-                    (Some(input_type_params), Some(container_type_params)) => {
-                        let mut all_types_contain = true;
-                        for (i, input_param) in input_type_params.iter().enumerate() {
-                            if let Some(container_param) = container_type_params.get(i) {
-                                compare_generic_params(
-                                    codebase,
-                                    file_path,
-                                    input_type_part,
-                                    input_name,
-                                    input_param,
-                                    container_name,
-                                    container_param,
-                                    None,
-                                    i,
-                                    inside_assertion,
-                                    &mut all_types_contain,
-                                    atomic_comparison_result,
-                                );
-                            } else {
-                                all_types_contain = false;
-                            }
+            match (input_type_params, container_type_params) {
+                (None, None) => return true,
+                (None, Some(_)) => return false,
+                (Some(_), None) => return false,
+                (Some(input_type_params), Some(container_type_params)) => {
+                    let mut all_types_contain = true;
+                    for (i, input_param) in input_type_params.iter().enumerate() {
+                        if let Some(container_param) = container_type_params.get(i) {
+                            compare_generic_params(
+                                codebase,
+                                file_path,
+                                input_type_part,
+                                input_name,
+                                input_param,
+                                container_name,
+                                container_param,
+                                None,
+                                i,
+                                inside_assertion,
+                                &mut all_types_contain,
+                                atomic_comparison_result,
+                            );
+                        } else {
+                            all_types_contain = false;
                         }
-
-                        return all_types_contain;
                     }
+
+                    return all_types_contain;
                 }
             }
         }
@@ -750,42 +726,37 @@ pub fn is_contained_by(
         if matches!(
             *container_name,
             StrId::FORMAT_STRING | StrId::TYPED_FORMAT_STRING
-        ) {
-            if let TAtomic::TString { .. }
-            | TAtomic::TLiteralString { .. }
-            | TAtomic::TStringWithFlags { .. } = input_type_part
-            {
-                // todo maybe more specific checks for the type of format string
-                return true;
-            }
+        ) && let TAtomic::TString
+        | TAtomic::TLiteralString { .. }
+        | TAtomic::TStringWithFlags { .. } = input_type_part
+        {
+            // todo maybe more specific checks for the type of format string
+            return true;
         }
 
-        if *container_name == StrId::ENUM_CLASS_LABEL {
-            if let TAtomic::TEnumClassLabel {
+        if *container_name == StrId::ENUM_CLASS_LABEL
+            && let TAtomic::TEnumClassLabel {
                 class_name: input_class_name,
                 member_name: input_member_name,
             } = input_type_part
-            {
-                if let Some(container_type_params) = container_type_params {
-                    if let (Some(container_enum_param), Some(_)) =
-                        (container_type_params.first(), container_type_params.get(1))
-                    {
-                        let container_enum_param = container_enum_param.get_single();
+        {
+            if let Some(container_type_params) = container_type_params {
+                if let (Some(container_enum_param), Some(_)) =
+                    (container_type_params.first(), container_type_params.get(1))
+                {
+                    let container_enum_param = container_enum_param.get_single();
 
-                        if let TAtomic::TNamedObject(TNamedObject {
-                            name: container_enum_name,
-                            ..
-                        }) = container_enum_param
+                    if let TAtomic::TNamedObject(TNamedObject {
+                        name: container_enum_name,
+                        ..
+                    }) = container_enum_param
+                    {
+                        if let Some(input_class_name) = input_class_name {
+                            return input_class_name == container_enum_name;
+                        } else if let Some(classlike_info) =
+                            codebase.classlike_infos.get(container_enum_name)
                         {
-                            if let Some(input_class_name) = input_class_name {
-                                return input_class_name == container_enum_name;
-                            } else if let Some(classlike_info) =
-                                codebase.classlike_infos.get(container_enum_name)
-                            {
-                                return classlike_info.constants.contains_key(input_member_name);
-                            }
-                        } else {
-                            return false;
+                            return classlike_info.constants.contains_key(input_member_name);
                         }
                     } else {
                         return false;
@@ -793,6 +764,8 @@ pub fn is_contained_by(
                 } else {
                     return false;
                 }
+            } else {
+                return false;
             }
         }
     }
@@ -806,10 +779,9 @@ pub fn is_contained_by(
         if matches!(
             *input_name,
             StrId::FORMAT_STRING | StrId::TYPED_FORMAT_STRING
-        ) {
-            if let TAtomic::TString { .. } = container_type_part {
-                return true;
-            }
+        ) && let TAtomic::TString = container_type_part
+        {
+            return true;
         }
 
         if let Some(as_type) = as_type {
@@ -881,15 +853,14 @@ pub(crate) fn can_be_identical<'a>(
         as_type: None,
         underlying_type: Some(underlying_type),
     } = type1_part
+        && !matches!(type2_part, TAtomic::TEnum { .. })
     {
-        if !matches!(type2_part, TAtomic::TEnum { .. }) {
-            let class_const_type = codebase.get_classconst_literal_value(enum_name, member_name);
+        let class_const_type = codebase.get_classconst_literal_value(enum_name, member_name);
 
-            if let Some(class_const_type) = class_const_type {
-                type1_part = class_const_type;
-            } else {
-                type1_part = underlying_type;
-            }
+        if let Some(class_const_type) = class_const_type {
+            type1_part = class_const_type;
+        } else {
+            type1_part = underlying_type;
         }
     }
 
@@ -899,15 +870,14 @@ pub(crate) fn can_be_identical<'a>(
         as_type: None,
         underlying_type: Some(underlying_type),
     } = type2_part
+        && !matches!(type1_part, TAtomic::TEnum { .. })
     {
-        if !matches!(type1_part, TAtomic::TEnum { .. }) {
-            let class_const_type = codebase.get_classconst_literal_value(enum_name, member_name);
+        let class_const_type = codebase.get_classconst_literal_value(enum_name, member_name);
 
-            if let Some(class_const_type) = class_const_type {
-                type2_part = class_const_type;
-            } else {
-                type2_part = underlying_type;
-            }
+        if let Some(class_const_type) = class_const_type {
+            type2_part = class_const_type;
+        } else {
+            type2_part = underlying_type;
         }
     }
 
@@ -916,8 +886,7 @@ pub(crate) fn can_be_identical<'a>(
         underlying_type: Some(underlying_type),
         ..
     } = type1_part
-    {
-        if !matches!(
+        && !matches!(
             type2_part,
             TAtomic::TEnum { .. }
                 | TAtomic::TEnumLiteralCase { .. }
@@ -925,9 +894,9 @@ pub(crate) fn can_be_identical<'a>(
                 | TAtomic::TLiteralInt { .. }
                 | TAtomic::TLiteralClassname { .. }
                 | TAtomic::TLiteralClassPtr { .. }
-        ) {
-            type1_part = underlying_type;
-        }
+        )
+    {
+        type1_part = underlying_type;
     }
 
     if let TAtomic::TEnum {
@@ -935,8 +904,7 @@ pub(crate) fn can_be_identical<'a>(
         underlying_type: Some(underlying_type),
         ..
     } = type2_part
-    {
-        if !matches!(
+        && !matches!(
             type1_part,
             TAtomic::TEnum { .. }
                 | TAtomic::TEnumLiteralCase { .. }
@@ -944,9 +912,9 @@ pub(crate) fn can_be_identical<'a>(
                 | TAtomic::TLiteralInt { .. }
                 | TAtomic::TLiteralClassname { .. }
                 | TAtomic::TLiteralClassPtr { .. }
-        ) {
-            type2_part = underlying_type;
-        }
+        )
+    {
+        type2_part = underlying_type;
     }
 
     if let (
@@ -1002,10 +970,10 @@ pub(crate) fn can_be_identical<'a>(
             ..
         },
     ) = (type1_part, type2_part)
+        && enum_1_name == enum_2_name
+        && enum_1_member_name == enum_2_member_name
     {
-        if enum_1_name == enum_2_name && enum_1_member_name == enum_2_member_name {
-            return true;
-        }
+        return true;
     }
 
     if let (
@@ -1133,12 +1101,10 @@ pub fn expand_constant_value(v: &ConstantInfo, codebase: &CodebaseInfo) -> TAtom
         member_name,
         ..
     }) = &v.inferred_type
+        && let Some(classlike_info) = codebase.classlike_infos.get(enum_name)
+        && let Some(constant_info) = classlike_info.constants.get(member_name)
     {
-        if let Some(classlike_info) = codebase.classlike_infos.get(enum_name) {
-            if let Some(constant_info) = classlike_info.constants.get(member_name) {
-                return expand_constant_value(constant_info, codebase);
-            }
-        }
+        return expand_constant_value(constant_info, codebase);
     }
 
     v.inferred_type.clone().unwrap_or(

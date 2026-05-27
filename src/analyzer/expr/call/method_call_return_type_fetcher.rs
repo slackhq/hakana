@@ -210,14 +210,13 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
             }
             _ => {}
         },
-        StrId::MESSAGE_FORMATTER => match method_id.1 {
-            StrId::FORMAT_MESSAGE => {
+        StrId::MESSAGE_FORMATTER => {
+            if method_id.1 == StrId::FORMAT_MESSAGE {
                 let mut u = TUnion::new(vec![TAtomic::TString, TAtomic::TFalse]);
                 u.ignore_falsable_issues = true;
                 return Some(u);
             }
-            _ => {}
-        },
+        }
         _ => {}
     }
 
@@ -246,10 +245,10 @@ fn add_dataflow(
     let added_taints = vec![];
     let removed_taints = vec![];
 
-    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-        if !context.allow_taints {
-            return return_type_candidate;
-        }
+    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind
+        && !context.allow_taints
+    {
+        return return_type_candidate;
     }
 
     let codebase = statements_analyzer.codebase;
@@ -282,40 +281,40 @@ fn add_dataflow(
             },
         );
 
-        if let Some(lhs_expr) = lhs_expr {
-            if let Some(expr_type) = analysis_data.expr_types.get(&(
+        if let Some(lhs_expr) = lhs_expr
+            && let Some(expr_type) = analysis_data.expr_types.get(&(
                 lhs_expr.pos().start_offset() as u32,
                 lhs_expr.pos().end_offset() as u32,
-            )) {
-                let lhs_expr_parent_nodes = &expr_type.parent_nodes;
+            ))
+        {
+            let lhs_expr_parent_nodes = &expr_type.parent_nodes;
 
-                if matches!(functionlike_storage.effects, FnEffect::Pure) {
-                    for parent_node in lhs_expr_parent_nodes {
-                        analysis_data.data_flow_graph.add_path(
-                            &parent_node.id,
-                            &method_call_node.id,
-                            PathKind::Default,
-                            vec![],
-                            vec![],
-                        );
-                    }
-                } else {
-                    let sink_node = DataFlowNode::get_for_unlabelled_sink(
-                        statements_analyzer.get_hpos(lhs_expr.pos()),
+            if matches!(functionlike_storage.effects, FnEffect::Pure) {
+                for parent_node in lhs_expr_parent_nodes {
+                    analysis_data.data_flow_graph.add_path(
+                        &parent_node.id,
+                        &method_call_node.id,
+                        PathKind::Default,
+                        vec![],
+                        vec![],
                     );
-
-                    for parent_node in lhs_expr_parent_nodes {
-                        analysis_data.data_flow_graph.add_path(
-                            &parent_node.id,
-                            &sink_node.id,
-                            PathKind::Default,
-                            vec![],
-                            vec![],
-                        );
-                    }
-
-                    analysis_data.data_flow_graph.add_node(sink_node);
                 }
+            } else {
+                let sink_node = DataFlowNode::get_for_unlabelled_sink(
+                    statements_analyzer.get_hpos(lhs_expr.pos()),
+                );
+
+                for parent_node in lhs_expr_parent_nodes {
+                    analysis_data.data_flow_graph.add_path(
+                        &parent_node.id,
+                        &sink_node.id,
+                        PathKind::Default,
+                        vec![],
+                        vec![],
+                    );
+                }
+
+                analysis_data.data_flow_graph.add_node(sink_node);
             }
         }
     }
@@ -375,23 +374,23 @@ fn add_dataflow(
     }
 
     for (param_offset, param) in functionlike_storage.params.iter().enumerate() {
-        if param.propagate_taint {
-            if let Some(arg) = call_expr.1.get(param_offset) {
-                let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
+        if param.propagate_taint
+            && let Some(arg) = call_expr.1.get(param_offset)
+        {
+            let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
 
-                add_special_param_dataflow(
-                    statements_analyzer,
-                    &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
-                    functionlike_storage.specialize_call,
-                    param_offset,
-                    arg_pos,
-                    call_pos,
-                    &FxHashMap::default(),
-                    &mut analysis_data.data_flow_graph,
-                    &method_call_node,
-                    PathKind::Default,
-                );
-            }
+            add_special_param_dataflow(
+                statements_analyzer,
+                &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+                functionlike_storage.specialize_call,
+                param_offset,
+                arg_pos,
+                call_pos,
+                &FxHashMap::default(),
+                &mut analysis_data.data_flow_graph,
+                &method_call_node,
+                PathKind::Default,
+            );
         }
     }
 
@@ -488,111 +487,108 @@ fn get_tainted_method_node(
         }
     }
 
-    if method_id.1 == StrId::CONSTRUCT {
-        if let Some(var_type) = context.locals.get_mut("$this") {
-            let before_construct_node = DataFlowNode::get_for_this_before_method(
-                method_id,
-                functionlike_storage.return_type_location,
-                Some(statements_analyzer.get_hpos(call_pos)),
-            );
+    if method_id.1 == StrId::CONSTRUCT
+        && let Some(var_type) = context.locals.get_mut("$this")
+    {
+        let before_construct_node = DataFlowNode::get_for_this_before_method(
+            method_id,
+            functionlike_storage.return_type_location,
+            Some(statements_analyzer.get_hpos(call_pos)),
+        );
 
-            for this_parent_node in &var_type.parent_nodes {
-                data_flow_graph.add_path(
-                    &this_parent_node.id,
-                    &before_construct_node.id,
-                    PathKind::Default,
-                    vec![],
-                    vec![],
-                )
-            }
-
-            data_flow_graph.add_node(before_construct_node);
-
-            let after_construct_node = DataFlowNode::get_for_this_after_method(
-                method_id,
-                functionlike_storage.return_type_location,
-                Some(statements_analyzer.get_hpos(call_pos)),
-            );
-
-            let mut var_type_inner = (**var_type).clone();
-
-            var_type_inner.parent_nodes = vec![after_construct_node.clone()];
-
-            data_flow_graph.add_node(after_construct_node);
-
-            *var_type = Rc::new(var_type_inner);
+        for this_parent_node in &var_type.parent_nodes {
+            data_flow_graph.add_path(
+                &this_parent_node.id,
+                &before_construct_node.id,
+                PathKind::Default,
+                vec![],
+                vec![],
+            )
         }
+
+        data_flow_graph.add_node(before_construct_node);
+
+        let after_construct_node = DataFlowNode::get_for_this_after_method(
+            method_id,
+            functionlike_storage.return_type_location,
+            Some(statements_analyzer.get_hpos(call_pos)),
+        );
+
+        let mut var_type_inner = (**var_type).clone();
+
+        var_type_inner.parent_nodes = vec![after_construct_node.clone()];
+
+        data_flow_graph.add_node(after_construct_node);
+
+        *var_type = Rc::new(var_type_inner);
     }
 
-    if let (Some(lhs_expr), Some(lhs_var_id)) = (lhs_expr, lhs_var_id) {
-        if functionlike_storage.specialize_call {
-            if let Some(context_type) = &analysis_data
-                .expr_types
-                .get(&(
-                    lhs_expr.pos().start_offset() as u32,
-                    lhs_expr.pos().end_offset() as u32,
-                ))
-                .cloned()
-            {
-                let lhs_var_expr_id = get_expr_id(lhs_expr, statements_analyzer);
+    if let (Some(lhs_expr), Some(lhs_var_id)) = (lhs_expr, lhs_var_id)
+        && functionlike_storage.specialize_call
+        && let Some(context_type) = &analysis_data
+            .expr_types
+            .get(&(
+                lhs_expr.pos().start_offset() as u32,
+                lhs_expr.pos().end_offset() as u32,
+            ))
+            .cloned()
+    {
+        let lhs_var_expr_id = get_expr_id(lhs_expr, statements_analyzer);
 
-                let var_node = match lhs_var_expr_id {
-                    Some(ExprId::Var(id)) => DataFlowNode::get_for_lvar(
-                        VarId(id),
-                        statements_analyzer.get_hpos(lhs_expr.pos()),
-                    ),
-                    Some(ExprId::InstanceProperty(lhs_expr, name_pos, rhs_expr)) => {
-                        DataFlowNode::get_for_local_property_fetch(lhs_expr, rhs_expr, name_pos)
-                    }
-                    None => DataFlowNode::get_for_instance_method_call(
-                        statements_analyzer.get_hpos(lhs_expr.pos()),
-                    ),
-                };
-
-                let this_before_method_node = DataFlowNode::get_for_this_before_method(
-                    declaring_method_id,
-                    functionlike_storage.name_location,
-                    Some(statements_analyzer.get_hpos(call_pos)),
-                );
-
-                for parent_node in &context_type.parent_nodes {
-                    data_flow_graph.add_path(
-                        &parent_node.id,
-                        &this_before_method_node.id,
-                        PathKind::Default,
-                        vec![],
-                        vec![],
-                    );
-                }
-
-                let this_after_method_node = DataFlowNode::get_for_this_after_method(
-                    declaring_method_id,
-                    functionlike_storage.name_location,
-                    Some(statements_analyzer.get_hpos(call_pos)),
-                );
-
-                data_flow_graph.add_path(
-                    &this_after_method_node.id,
-                    &var_node.id,
-                    PathKind::Default,
-                    vec![],
-                    vec![],
-                );
-
-                let mut context_type_inner = (**context_type).clone();
-
-                context_type_inner.parent_nodes = vec![var_node.clone()];
-
-                context.locals.insert(
-                    VarName::new(lhs_var_id.clone()),
-                    Rc::new(context_type_inner),
-                );
-
-                data_flow_graph.add_node(var_node);
-                data_flow_graph.add_node(this_before_method_node);
-                data_flow_graph.add_node(this_after_method_node);
+        let var_node = match lhs_var_expr_id {
+            Some(ExprId::Var(id)) => {
+                DataFlowNode::get_for_lvar(VarId(id), statements_analyzer.get_hpos(lhs_expr.pos()))
             }
+            Some(ExprId::InstanceProperty(lhs_expr, name_pos, rhs_expr)) => {
+                DataFlowNode::get_for_local_property_fetch(lhs_expr, rhs_expr, name_pos)
+            }
+            None => DataFlowNode::get_for_instance_method_call(
+                statements_analyzer.get_hpos(lhs_expr.pos()),
+            ),
+        };
+
+        let this_before_method_node = DataFlowNode::get_for_this_before_method(
+            declaring_method_id,
+            functionlike_storage.name_location,
+            Some(statements_analyzer.get_hpos(call_pos)),
+        );
+
+        for parent_node in &context_type.parent_nodes {
+            data_flow_graph.add_path(
+                &parent_node.id,
+                &this_before_method_node.id,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
         }
+
+        let this_after_method_node = DataFlowNode::get_for_this_after_method(
+            declaring_method_id,
+            functionlike_storage.name_location,
+            Some(statements_analyzer.get_hpos(call_pos)),
+        );
+
+        data_flow_graph.add_path(
+            &this_after_method_node.id,
+            &var_node.id,
+            PathKind::Default,
+            vec![],
+            vec![],
+        );
+
+        let mut context_type_inner = (**context_type).clone();
+
+        context_type_inner.parent_nodes = vec![var_node.clone()];
+
+        context.locals.insert(
+            VarName::new(lhs_var_id.clone()),
+            Rc::new(context_type_inner),
+        );
+
+        data_flow_graph.add_node(var_node);
+        data_flow_graph.add_node(this_before_method_node);
+        data_flow_graph.add_node(this_after_method_node);
     }
 
     if !functionlike_storage.taint_source_types.is_empty() {

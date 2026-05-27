@@ -277,14 +277,13 @@ pub(crate) fn get_functionlike(
         )
         .unwrap();
 
-        if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = where_first {
-            if let ast_defs::ConstraintKind::ConstraintEq | ast_defs::ConstraintKind::ConstraintAs =
+        if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = where_first
+            && let ast_defs::ConstraintKind::ConstraintEq | ast_defs::ConstraintKind::ConstraintAs =
                 where_hint.1
-            {
-                functionlike_info
-                    .where_constraints
-                    .push((param_name, where_second));
-            }
+        {
+            functionlike_info
+                .where_constraints
+                .push((param_name, where_second));
         }
     }
 
@@ -382,11 +381,11 @@ pub(crate) fn get_functionlike(
                 functionlike_info.effects = FnEffect::Some(EFFECT_IMPURE_DB);
             }
             StrId::HAKANA_BANNED_FUNCTION => {
-                if let Some(attribute_param_expr) = user_attribute.params.first() {
-                    if let aast::Expr_::String(str) = &attribute_param_expr.2 {
-                        functionlike_info.banned_function_message =
-                            Some(interner.intern(str.to_string()));
-                    }
+                if let Some(attribute_param_expr) = user_attribute.params.first()
+                    && let aast::Expr_::String(str) = &attribute_param_expr.2
+                {
+                    functionlike_info.banned_function_message =
+                        Some(interner.intern(str.to_string()));
                 }
             }
             StrId::HAKANA_SECURITY_ANALYSIS_IGNORE_PATH_IF_TRUE => {
@@ -462,18 +461,17 @@ pub(crate) fn get_functionlike(
     {
         let stmt = &stmts[0];
 
-        if let aast::Stmt_::Return(expr) = &stmt.1 {
-            if let Some(expr) = expr.as_ref() {
-                if let Some(function_id) = get_async_version(
-                    expr,
-                    resolved_names,
-                    &functionlike_info.params,
-                    interner,
-                    this_name,
-                ) {
-                    functionlike_info.async_version = Some(function_id);
-                }
-            }
+        if let aast::Stmt_::Return(expr) = &stmt.1
+            && let Some(expr) = expr.as_ref()
+            && let Some(function_id) = get_async_version(
+                expr,
+                resolved_names,
+                &functionlike_info.params,
+                interner,
+                this_name,
+            )
+        {
+            functionlike_info.async_version = Some(function_id);
         }
     }
 
@@ -520,47 +518,40 @@ fn get_async_version(
 ) -> Option<FunctionLikeIdentifier> {
     match &expr.2 {
         aast::Expr_::Call(call) => {
-            if let aast::Expr_::Id(boxed_id) = &call.func.2 {
-                if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
-                    if fn_id == &StrId::ASIO_JOIN && call.args.len() == 1 {
-                        let first_join_expr = &call.args[0].to_expr_ref().2;
+            if let aast::Expr_::Id(boxed_id) = &call.func.2
+                && let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32))
+                && fn_id == &StrId::ASIO_JOIN
+                && call.args.len() == 1
+            {
+                let first_join_expr = &call.args[0].to_expr_ref().2;
 
-                        if let aast::Expr_::Call(call) = &first_join_expr {
-                            if !is_async_call_is_same_as_sync(&call.args, params, interner) {
-                                return None;
-                            }
-
-                            return get_name_from_expr(
-                                resolved_names,
-                                interner,
-                                &call.func.2,
-                                current_class,
-                            );
-                        }
+                if let aast::Expr_::Call(call) = &first_join_expr {
+                    if !is_async_call_is_same_as_sync(&call.args, params, interner) {
+                        return None;
                     }
+
+                    return get_name_from_expr(
+                        resolved_names,
+                        interner,
+                        &call.func.2,
+                        current_class,
+                    );
                 }
             }
         }
         aast::Expr_::Pipe(boxed) => {
-            if let aast::Expr_::Call(call) = &boxed.2.2 {
-                if let aast::Expr_::Id(boxed_id) = &call.func.2 {
-                    if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
-                        if fn_id == &StrId::ASIO_JOIN && call.args.len() == 1 {
-                            if let aast::Expr_::Call(call) = &boxed.1.2 {
-                                if !is_async_call_is_same_as_sync(&call.args, params, interner) {
-                                    return None;
-                                }
-
-                                return get_name_from_expr(
-                                    resolved_names,
-                                    interner,
-                                    &call.func.2,
-                                    current_class,
-                                );
-                            }
-                        }
-                    }
+            if let aast::Expr_::Call(call) = &boxed.2.2
+                && let aast::Expr_::Id(boxed_id) = &call.func.2
+                && let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32))
+                && fn_id == &StrId::ASIO_JOIN
+                && call.args.len() == 1
+                && let aast::Expr_::Call(call) = &boxed.1.2
+            {
+                if !is_async_call_is_same_as_sync(&call.args, params, interner) {
+                    return None;
                 }
+
+                return get_name_from_expr(resolved_names, interner, &call.func.2, current_class);
             }
         }
         _ => {}
@@ -586,14 +577,13 @@ fn get_name_from_expr(
 
             match &class_id.2 {
                 aast::ClassId_::CIexpr(lhs_expr) => {
-                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                        if let Some(class_name) = resolved_names.get(&(id.0.start_offset() as u32))
-                        {
-                            return Some(FunctionLikeIdentifier::Method(
-                                *class_name,
-                                interner.intern(rhs_expr.1.clone()),
-                            ));
-                        }
+                    if let aast::Expr_::Id(id) = &lhs_expr.2
+                        && let Some(class_name) = resolved_names.get(&(id.0.start_offset() as u32))
+                    {
+                        return Some(FunctionLikeIdentifier::Method(
+                            *class_name,
+                            interner.intern(rhs_expr.1.clone()),
+                        ));
                     }
                 }
                 aast::ClassId_::CIreified(id) => {
@@ -625,17 +615,15 @@ fn get_name_from_expr(
             let (obj_expr, member_expr, _nullflavor, _prop_or_method) = &**boxed;
 
             // Check if this is $this->method_name()
-            if let aast::Expr_::Lvar(var_id) = &obj_expr.2 {
-                if var_id.1.1 == "$this" {
-                    if let aast::Expr_::Id(method_id) = &member_expr.2 {
-                        if let Some(class_name) = current_class {
-                            return Some(FunctionLikeIdentifier::Method(
-                                class_name,
-                                interner.intern(method_id.1.clone()),
-                            ));
-                        }
-                    }
-                }
+            if let aast::Expr_::Lvar(var_id) = &obj_expr.2
+                && var_id.1.1 == "$this"
+                && let aast::Expr_::Id(method_id) = &member_expr.2
+                && let Some(class_name) = current_class
+            {
+                return Some(FunctionLikeIdentifier::Method(
+                    class_name,
+                    interner.intern(method_id.1.clone()),
+                ));
             }
         }
         _ => (),

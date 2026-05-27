@@ -281,89 +281,85 @@ pub(crate) fn analyze(
     let finally_scope = try_context.finally_scope.clone();
     try_context.finally_scope = None;
 
-    if let Some(loop_scope) = loop_scope {
-        if !try_leaves_loop && !loop_scope.final_actions.contains(&ControlAction::None) {
-            loop_scope.final_actions.insert(ControlAction::None);
-        }
+    if let Some(loop_scope) = loop_scope
+        && !try_leaves_loop
+        && !loop_scope.final_actions.contains(&ControlAction::None)
+    {
+        loop_scope.final_actions.insert(ControlAction::None);
     }
 
     let mut finally_has_returned = false;
 
-    if !stmt.2.is_empty() {
-        if let Some(finally_scope) = finally_scope {
-            let finally_scope = finally_scope.borrow();
-            let mut finally_context = context.clone();
+    if !stmt.2.is_empty()
+        && let Some(finally_scope) = finally_scope
+    {
+        let finally_scope = finally_scope.borrow();
+        let mut finally_context = context.clone();
 
-            finally_context.assigned_var_ids = FxHashMap::default();
-            finally_context.possibly_assigned_var_ids = FxHashSet::default();
+        finally_context.assigned_var_ids = FxHashMap::default();
+        finally_context.possibly_assigned_var_ids = FxHashSet::default();
 
-            finally_context.locals = finally_scope.locals.clone();
+        finally_context.locals = finally_scope.locals.clone();
 
-            for (var_id, var_type) in &try_context.locals {
-                if let Some(finally_type) = finally_context.locals.get_mut(var_id) {
-                    *finally_type =
-                        Rc::new(combine_union_types(finally_type, var_type, codebase, false));
-                } else {
-                    finally_context
-                        .locals
-                        .insert(var_id.clone(), var_type.clone());
-                }
+        for (var_id, var_type) in &try_context.locals {
+            if let Some(finally_type) = finally_context.locals.get_mut(var_id) {
+                *finally_type =
+                    Rc::new(combine_union_types(finally_type, var_type, codebase, false));
+            } else {
+                finally_context
+                    .locals
+                    .insert(var_id.clone(), var_type.clone());
             }
+        }
 
-            statements_analyzer.analyze(
-                &stmt.2.0,
-                analysis_data,
-                &mut finally_context,
-                loop_scope,
-            )?;
+        statements_analyzer.analyze(&stmt.2.0, analysis_data, &mut finally_context, loop_scope)?;
 
-            finally_has_returned = finally_context.has_returned;
+        finally_has_returned = finally_context.has_returned;
 
-            let finally_actions = control_analyzer::get_control_actions(
-                codebase,
-                statements_analyzer.interner,
-                statements_analyzer.file_analyzer.resolved_names,
-                &stmt.2.0,
-                analysis_data,
-                vec![],
-                true,
-            );
+        let finally_actions = control_analyzer::get_control_actions(
+            codebase,
+            statements_analyzer.interner,
+            statements_analyzer.file_analyzer.resolved_names,
+            &stmt.2.0,
+            analysis_data,
+            vec![],
+            true,
+        );
 
-            if finally_actions.len() != 1
-                || !matches!(
-                    finally_actions.iter().next().unwrap(),
-                    ControlAction::End | ControlAction::Continue | ControlAction::Break
-                )
-            {
-                for (var_id, finally_type) in &finally_context.locals {
-                    if let Some(context_type) = context.locals.get_mut(var_id) {
-                        if context_type.possibly_undefined_from_try {
-                            let mut context_type_inner = (**context_type).clone();
-                            context_type_inner.possibly_undefined_from_try = false;
-                            *context_type = Rc::new(context_type_inner);
-                        }
-
-                        *context_type = Rc::new(combine_union_types(
-                            context_type,
-                            finally_type,
-                            codebase,
-                            false,
-                        ));
-                    } else {
-                        context.locals.insert(var_id.clone(), finally_type.clone());
+        if finally_actions.len() != 1
+            || !matches!(
+                finally_actions.iter().next().unwrap(),
+                ControlAction::End | ControlAction::Continue | ControlAction::Break
+            )
+        {
+            for (var_id, finally_type) in &finally_context.locals {
+                if let Some(context_type) = context.locals.get_mut(var_id) {
+                    if context_type.possibly_undefined_from_try {
+                        let mut context_type_inner = (**context_type).clone();
+                        context_type_inner.possibly_undefined_from_try = false;
+                        *context_type = Rc::new(context_type_inner);
                     }
+
+                    *context_type = Rc::new(combine_union_types(
+                        context_type,
+                        finally_type,
+                        codebase,
+                        false,
+                    ));
+                } else {
+                    context.locals.insert(var_id.clone(), finally_type.clone());
                 }
             }
         }
     }
 
     for var_id in definitely_newly_assigned_var_ids.keys() {
-        if let Some(context_type) = context.locals.get_mut(var_id) {
-            if context_type.possibly_undefined_from_try {
-                let mut context_type_inner = (**context_type).clone();
-                context_type_inner.possibly_undefined_from_try = false;
-                *context_type = Rc::new(context_type_inner);
-            }
+        if let Some(context_type) = context.locals.get_mut(var_id)
+            && context_type.possibly_undefined_from_try
+        {
+            let mut context_type_inner = (**context_type).clone();
+            context_type_inner.possibly_undefined_from_try = false;
+            *context_type = Rc::new(context_type_inner);
         }
     }
 

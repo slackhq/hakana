@@ -172,42 +172,42 @@ pub(crate) fn scan(
 
             codebase.symbols.add_class_name(class_name);
 
-            if let Some(parent_class) = classlike_node.extends.first() {
-                if let oxidized::ast::Hint_::Happly(name, params) = &*parent_class.1 {
-                    signature_end = name.0.end_offset() as u32;
+            if let Some(parent_class) = classlike_node.extends.first()
+                && let oxidized::ast::Hint_::Happly(name, params) = &*parent_class.1
+            {
+                signature_end = name.0.end_offset() as u32;
 
-                    let parent_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
+                let parent_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
-                    if !params.is_empty() {
-                        signature_end = params.last().unwrap().0.end_offset() as u32;
-                    }
-
-                    storage.direct_parent_class = Some(parent_name);
-                    storage.all_parent_classes.push(parent_name);
-
-                    storage.template_extended_offsets.insert(
-                        parent_name,
-                        params
-                            .iter()
-                            .map(|param| {
-                                Arc::new(
-                                    get_type_from_hint(
-                                        &param.1,
-                                        Some(*class_name),
-                                        &TypeResolutionContext {
-                                            template_type_map: storage.template_types.clone(),
-                                            template_supers: vec![],
-                                        },
-                                        resolved_names,
-                                        file_source.file_path,
-                                        param.0.start_offset() as u32,
-                                    )
-                                    .unwrap(),
-                                )
-                            })
-                            .collect(),
-                    );
+                if !params.is_empty() {
+                    signature_end = params.last().unwrap().0.end_offset() as u32;
                 }
+
+                storage.direct_parent_class = Some(parent_name);
+                storage.all_parent_classes.push(parent_name);
+
+                storage.template_extended_offsets.insert(
+                    parent_name,
+                    params
+                        .iter()
+                        .map(|param| {
+                            Arc::new(
+                                get_type_from_hint(
+                                    &param.1,
+                                    Some(*class_name),
+                                    &TypeResolutionContext {
+                                        template_type_map: storage.template_types.clone(),
+                                        template_supers: vec![],
+                                    },
+                                    resolved_names,
+                                    file_source.file_path,
+                                    param.0.start_offset() as u32,
+                                )
+                                .unwrap(),
+                            )
+                        })
+                        .collect(),
+                );
             }
 
             for extended_interface in &classlike_node.implements {
@@ -621,12 +621,11 @@ pub(crate) fn scan(
                 let attribute_param_type =
                     simple_type_inferer::infer(attribute_param_expr, resolved_names, false);
 
-                if let Some(attribute_param_type) = attribute_param_type {
-                    if let TAtomic::TLiteralClassname { name: value }
+                if let Some(attribute_param_type) = attribute_param_type
+                    && let TAtomic::TLiteralClassname { name: value }
                     | TAtomic::TLiteralClassPtr { name: value } = attribute_param_type
-                    {
-                        child_classlikes.insert(value);
-                    }
+                {
+                    child_classlikes.insert(value);
                 }
             }
 
@@ -1017,7 +1016,7 @@ fn visit_class_const_declaration(
         unresolved_value: None,
         is_abstract: matches!(const_node.kind, ClassConstKind::CCAbstract(..)),
         allow_non_exclusive_enum_values: false,
-        suppressed_issues: suppressed_issues,
+        suppressed_issues,
         defining_class: *class_name,
     };
 
@@ -1167,14 +1166,13 @@ fn visit_property_declaration(
 
     if !classlike_storage.template_readonly.is_empty()
         && matches!(property_node.visibility, ast_defs::Visibility::Public)
+        && let Some(property_type) = &property_type
     {
-        if let Some(property_type) = &property_type {
-            let template_types = property_type.get_template_types();
+        let template_types = property_type.get_template_types();
 
-            for template_type in template_types {
-                if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = template_type {
-                    classlike_storage.template_readonly.remove(param_name);
-                }
+        for template_type in template_types {
+            if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = template_type {
+                classlike_storage.template_readonly.remove(param_name);
             }
         }
     }

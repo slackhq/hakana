@@ -119,10 +119,9 @@ pub(crate) fn analyze_vals(
                         value: key_literal_value,
                         ..
                     } = key_type
+                        && (offset as i64) == key_literal_value
                     {
-                        if (offset as i64) == key_literal_value {
-                            known_items.insert(offset, (false, value_type));
-                        }
+                        known_items.insert(offset, (false, value_type));
                     }
                 }
             }

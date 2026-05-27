@@ -27,7 +27,7 @@ impl HooksProvider for CoreHooksProvider {
         all_linters.retain(|linter| {
             if let Some(hhast_name) = linter.hhast_name() {
                 // For HHAST-compatible linters, check if directory contains the linter name
-                dir.contains(hhast_name.split('\\').last().unwrap_or(""))
+                dir.contains(hhast_name.split('\\').next_back().unwrap_or(""))
             } else {
                 false
             }

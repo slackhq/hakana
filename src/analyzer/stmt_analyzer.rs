@@ -308,20 +308,20 @@ fn detect_unused_statement_expressions(
     if let Some(effect) = analysis_data.expr_effects.get(&(
         boxed.pos().start_offset() as u32,
         boxed.pos().end_offset() as u32,
-    )) {
-        if effect == &EFFECT_PURE && !matches!(boxed.2, aast::Expr_::New(..)) {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::UnusedStatement,
-                    "This statement has no effect and can be removed".to_string(),
-                    statements_analyzer.get_hpos(&stmt.0),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-            return;
-        }
+    )) && effect == &EFFECT_PURE
+        && !matches!(boxed.2, aast::Expr_::New(..))
+    {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::UnusedStatement,
+                "This statement has no effect and can be removed".to_string(),
+                statements_analyzer.get_hpos(&stmt.0),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+        return;
     }
 
     match &boxed.2 {
@@ -337,53 +337,52 @@ fn detect_unused_statement_expressions(
                 if let Some(functionlike_info) = codebase
                     .functionlike_infos
                     .get(&(function_id, StrId::EMPTY))
+                    && let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned()
                 {
-                    if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
-                        let function_name = statements_analyzer.interner.lookup(&function_id);
+                    let function_name = statements_analyzer.interner.lookup(&function_id);
 
-                        if !functionlike_info.user_defined
-                            && matches!(functionlike_info.effects, FnEffect::Arg(..))
-                            && expr_type.is_single()
+                    if !functionlike_info.user_defined
+                        && matches!(functionlike_info.effects, FnEffect::Arg(..))
+                        && expr_type.is_single()
+                    {
+                        let array_types = get_arrayish_params(expr_type.get_single(), codebase);
+
+                        if let Some((_, value_type)) = array_types
+                            && !value_type.is_null()
+                            && !value_type.is_void()
                         {
-                            let array_types = get_arrayish_params(expr_type.get_single(), codebase);
-
-                            if let Some((_, value_type)) = array_types {
-                                if !value_type.is_null() && !value_type.is_void() {
-                                    analysis_data.maybe_add_issue(
-                                        Issue::new(
-                                            IssueKind::UnusedBuiltinReturnValue,
-                                            format!(
-                                                "The value {} returned from {} should be consumed",
-                                                expr_type
-                                                    .get_id(Some(statements_analyzer.interner)),
-                                                function_name
-                                            ),
-                                            statements_analyzer.get_hpos(&stmt.0),
-                                            &context.function_context.calling_functionlike_id,
-                                        ),
-                                        statements_analyzer.get_config(),
-                                        statements_analyzer.get_file_path_actual(),
-                                    );
-                                }
-                            }
+                            analysis_data.maybe_add_issue(
+                                Issue::new(
+                                    IssueKind::UnusedBuiltinReturnValue,
+                                    format!(
+                                        "The value {} returned from {} should be consumed",
+                                        expr_type.get_id(Some(statements_analyzer.interner)),
+                                        function_name
+                                    ),
+                                    statements_analyzer.get_hpos(&stmt.0),
+                                    &context.function_context.calling_functionlike_id,
+                                ),
+                                statements_analyzer.get_config(),
+                                statements_analyzer.get_file_path_actual(),
+                            );
                         }
                     }
                 }
             }
 
-            if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
-                if expr_type.has_awaitable_types() {
-                    analysis_data.maybe_add_issue(
-                        Issue::new(
-                            IssueKind::UnusedAwaitable,
-                            "This awaitable is never awaited".to_string(),
-                            statements_analyzer.get_hpos(&stmt.0),
-                            &context.function_context.calling_functionlike_id,
-                        ),
-                        statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual(),
-                    );
-                }
+            if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned()
+                && expr_type.has_awaitable_types()
+            {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UnusedAwaitable,
+                        "This awaitable is never awaited".to_string(),
+                        statements_analyzer.get_hpos(&stmt.0),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
             }
         }
         aast::Expr_::Collection(_)
@@ -429,7 +428,7 @@ fn has_unused_must_use(
                         if function_id == StrId::ASIO_JOIN {
                             for arg in boxed_call.args.iter() {
                                 let has_unused = has_unused_must_use(
-                                    &arg.to_expr_ref(),
+                                    arg.to_expr_ref(),
                                     statements_analyzer,
                                     analysis_data,
                                 );

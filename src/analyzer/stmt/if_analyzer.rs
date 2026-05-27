@@ -115,14 +115,14 @@ pub(crate) fn analyze(
     if_context.possibly_assigned_var_ids.clear();
 
     // Track if block boundaries for variable scoping analysis
-    if let Some(first_stmt) = stmt.1.0.first() {
-        if let Some(last_stmt) = stmt.1.0.last() {
-            let if_block_start = first_stmt.0.start_offset() as u32;
-            let if_block_end = last_stmt.0.end_offset() as u32;
-            analysis_data
-                .if_block_boundaries
-                .push((if_block_start, if_block_end));
-        }
+    if let Some(first_stmt) = stmt.1.0.first()
+        && let Some(last_stmt) = stmt.1.0.last()
+    {
+        let if_block_start = first_stmt.0.start_offset() as u32;
+        let if_block_end = last_stmt.0.end_offset() as u32;
+        analysis_data
+            .if_block_boundaries
+            .push((if_block_start, if_block_end));
     }
 
     statements_analyzer.analyze(&stmt.1.0, analysis_data, if_context, loop_scope)?;
@@ -270,10 +270,10 @@ pub(crate) fn update_if_scope(
                     ),
                 );
 
-                if let Some(outer_context_type) = outer_context.locals.get(&redefined_var_id) {
-                    if scope_redefined_type == **outer_context_type {
-                        scope_redefined_vars.remove(&redefined_var_id);
-                    }
+                if let Some(outer_context_type) = outer_context.locals.get(&redefined_var_id)
+                    && scope_redefined_type == **outer_context_type
+                {
+                    scope_redefined_vars.remove(&redefined_var_id);
                 }
             } else {
                 scope_redefined_vars.remove(&redefined_var_id);

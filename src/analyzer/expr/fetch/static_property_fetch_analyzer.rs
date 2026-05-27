@@ -245,7 +245,7 @@ pub(crate) fn analyze(
             &TypeExpansionOptions {
                 self_class: Some(declaring_class_storage.name),
                 static_class_type: StaticClassType::Name(declaring_class_storage.name),
-                parent_class: parent_class,
+                parent_class,
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -458,7 +458,7 @@ fn analyze_variable_static_property_fetch_fallback(
 ) -> Result<(), AnalysisError> {
     let fake_var_name = "__fake_var_".to_string() + &pos.line().to_string();
     context.locals.insert(
-        VarName::new(fake_var_name.to_owned()),
+        VarName::new(&fake_var_name),
         Rc::new(stmt_class_type.clone()),
     );
 

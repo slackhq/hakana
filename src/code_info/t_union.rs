@@ -81,7 +81,7 @@ impl TUnion {
 
     pub fn is_int(&self) -> bool {
         for atomic in &self.types {
-            let no_int = !matches!(atomic, TAtomic::TInt { .. } | TAtomic::TLiteralInt { .. });
+            let no_int = !matches!(atomic, TAtomic::TInt | TAtomic::TLiteralInt { .. });
 
             if no_int {
                 return false;
@@ -94,7 +94,7 @@ impl TUnion {
     pub fn has_int(&self) -> bool {
         for atomic in &self.types {
             match atomic {
-                TAtomic::TInt { .. } | TAtomic::TLiteralInt { .. } => {
+                TAtomic::TInt | TAtomic::TLiteralInt { .. } => {
                     return true;
                 }
                 _ => {}
@@ -106,7 +106,7 @@ impl TUnion {
 
     pub fn has_float(&self) -> bool {
         for atomic in &self.types {
-            if let TAtomic::TFloat { .. } = atomic {
+            if let TAtomic::TFloat = atomic {
                 return true;
             };
         }
@@ -127,7 +127,7 @@ impl TUnion {
     pub fn has_string(&self) -> bool {
         for atomic in &self.types {
             match atomic {
-                TAtomic::TString { .. }
+                TAtomic::TString
                 | TAtomic::TLiteralString { .. }
                 | TAtomic::TStringWithFlags { .. } => {
                     return true;
@@ -232,10 +232,10 @@ impl TUnion {
                 return true;
             }
 
-            if let TAtomic::TNamedObject(TNamedObject { is_this, .. }) = atomic {
-                if *is_this {
-                    return true;
-                }
+            if let TAtomic::TNamedObject(TNamedObject { is_this, .. }) = atomic
+                && *is_this
+            {
+                return true;
             }
 
             if let TAtomic::TObjectIntersection { types } = atomic {
@@ -316,15 +316,14 @@ impl TUnion {
         let mut template_types = Vec::new();
 
         for child_node in all_child_nodes {
-            if let TypeNode::Atomic(inner) = child_node {
-                if let TAtomic::TGenericParam(TGenericParam { .. })
+            if let TypeNode::Atomic(inner) = child_node
+                && let TAtomic::TGenericParam(TGenericParam { .. })
                 | TAtomic::TGenericClassPtr { .. }
                 | TAtomic::TGenericClassname { .. }
                 | TAtomic::TGenericTypename { .. }
                 | TAtomic::TClassTypeConstant { .. } = inner
-                {
-                    template_types.push(inner);
-                }
+            {
+                template_types.push(inner);
             }
         }
 
@@ -333,7 +332,7 @@ impl TUnion {
 
     pub fn is_objecty(&self) -> bool {
         for atomic in &self.types {
-            if let &TAtomic::TObject { .. }
+            if let &TAtomic::TObject
             | TAtomic::TNamedObject(TNamedObject { .. })
             | TAtomic::TAwaitable { .. }
             | TAtomic::TClosure(_) = atomic
@@ -349,10 +348,10 @@ impl TUnion {
 
     pub fn is_generator(&self) -> bool {
         for atomic in &self.types {
-            if let &TAtomic::TNamedObject(TNamedObject { name, .. }) = &atomic {
-                if *name == StrId::GENERATOR {
-                    continue;
-                }
+            if let &TAtomic::TNamedObject(TNamedObject { name, .. }) = &atomic
+                && *name == StrId::GENERATOR
+            {
+                continue;
             }
 
             return false;
@@ -386,18 +385,15 @@ impl TUnion {
     }
 
     pub fn has_bool(&self) -> bool {
-        self.types.iter().any(|atomic| {
-            matches!(
-                atomic,
-                TAtomic::TBool { .. } | TAtomic::TFalse { .. } | TAtomic::TTrue { .. }
-            )
-        })
+        self.types
+            .iter()
+            .any(|atomic| matches!(atomic, TAtomic::TBool | TAtomic::TFalse | TAtomic::TTrue))
     }
 
     pub fn has_scalar(&self) -> bool {
         self.types
             .iter()
-            .any(|atomic| matches!(atomic, TAtomic::TScalar { .. }))
+            .any(|atomic| matches!(atomic, TAtomic::TScalar))
     }
 
     pub fn is_always_truthy(&self) -> bool {
@@ -436,10 +432,10 @@ impl TUnion {
             }
             TAtomic::TEnum { name, .. } => {
                 for self_atomic_type in &self.types {
-                    if let TAtomic::TEnumLiteralCase { enum_name, .. } = self_atomic_type {
-                        if enum_name == name {
-                            continue;
-                        }
+                    if let TAtomic::TEnumLiteralCase { enum_name, .. } = self_atomic_type
+                        && enum_name == name
+                    {
+                        continue;
                     }
 
                     return false;
@@ -465,21 +461,19 @@ impl TUnion {
                     | TAtomic::TTrue
             ) {
                 true
-            } else {
-                if let TAtomic::TVec(TVec {
-                    known_items: Some(known_items),
-                    type_param,
-                    ..
-                }) = atomic
-                {
-                    if type_param.is_nothing() {
-                        known_items.iter().all(|(_, t)| t.1.all_literals())
-                    } else {
-                        false
-                    }
+            } else if let TAtomic::TVec(TVec {
+                known_items: Some(known_items),
+                type_param,
+                ..
+            }) = atomic
+            {
+                if type_param.is_nothing() {
+                    known_items.iter().all(|(_, t)| t.1.all_literals())
                 } else {
                     false
                 }
+            } else {
+                false
             }
         })
     }
@@ -572,9 +566,7 @@ impl TUnion {
 
     #[inline]
     pub fn has_object(&self) -> bool {
-        self.types
-            .iter()
-            .any(|t| matches!(t, TAtomic::TObject { .. }))
+        self.types.iter().any(|t| matches!(t, TAtomic::TObject))
     }
 
     #[inline]
@@ -663,8 +655,8 @@ impl TUnion {
                 atomic,
                 TAtomic::TLiteralInt { .. }
                     | TAtomic::TLiteralString { .. }
-                    | TAtomic::TTrue { .. }
-                    | TAtomic::TFalse { .. }
+                    | TAtomic::TTrue
+                    | TAtomic::TFalse
                     | TAtomic::TLiteralClassname { .. }
                     | TAtomic::TLiteralClassPtr { .. }
             )
@@ -818,7 +810,7 @@ pub fn populate_union_type(
                 symbol_references,
                 force,
             );
-            *as_type = Box::new(new_as_type);
+            **as_type = new_as_type;
         } else {
             populate_atomic_type(
                 atomic,

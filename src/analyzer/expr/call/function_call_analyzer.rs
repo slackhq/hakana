@@ -188,10 +188,9 @@ pub(crate) fn analyze(
     if let Some(effects) = analysis_data
         .expr_effects
         .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
+        && effects > &EFFECT_WRITE_PROPS
     {
-        if effects > &EFFECT_WRITE_PROPS {
-            context.remove_mutable_object_vars();
-        }
+        context.remove_mutable_object_vars();
     }
 
     if function_storage.ignore_taints_if_true {
@@ -286,7 +285,7 @@ pub(crate) fn analyze(
         }
         StrId::LIB_C_IS_EMPTY => {
             let expr_var_id = expression_identifier::get_var_id(
-                &expr.2[0].to_expr_ref(),
+                expr.2[0].to_expr_ref(),
                 context.function_context.calling_class,
                 resolved_names,
                 Some((statements_analyzer.codebase, statements_analyzer.interner)),
@@ -303,7 +302,7 @@ pub(crate) fn analyze(
         | StrId::LIB_DICT_CONTAINS
         | StrId::LIB_DICT_CONTAINS_KEY => {
             let expr_var_id = expression_identifier::get_var_id(
-                &expr.2[0].to_expr_ref(),
+                expr.2[0].to_expr_ref(),
                 context.function_context.calling_class,
                 resolved_names,
                 Some((statements_analyzer.codebase, statements_analyzer.interner)),
@@ -356,7 +355,7 @@ pub(crate) fn analyze(
                         );
                     } else {
                         if let Some(dim_var_id) = expression_identifier::get_dim_id(
-                            &expr.2[1].to_expr_ref(),
+                            expr.2[1].to_expr_ref(),
                             Some((statements_analyzer.codebase, statements_analyzer.interner)),
                             resolved_names,
                         ) {
@@ -390,130 +389,119 @@ pub(crate) fn analyze(
 
             if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                 let second_arg_var_id = expression_identifier::get_var_id(
-                    &expr.2[1].to_expr_ref(),
+                    expr.2[1].to_expr_ref(),
                     context.function_context.calling_class,
                     resolved_names,
                     Some((statements_analyzer.codebase, statements_analyzer.interner)),
                 );
 
-                if let Some(expr_var_id) = second_arg_var_id {
-                    if let Some(expr_var_interned_id) =
+                if let Some(expr_var_id) = second_arg_var_id
+                    && let Some(expr_var_interned_id) =
                         statements_analyzer.interner.get(&expr_var_id)
+                {
+                    analysis_data.if_true_assertions.insert(
+                        (pos.start_offset() as u32, pos.end_offset() as u32),
+                        FxHashMap::from_iter([(
+                            "hakana taints".to_string(),
+                            vec![Assertion::RemoveTaints(
+                                VarId(expr_var_interned_id),
+                                SinkType::user_controllable_taints(),
+                            )],
+                        )]),
+                    );
+                }
+            }
+        }
+        StrId::LIB_STR_STARTS_WITH => {
+            if expr.2.len() == 2
+                && let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind
+            {
+                let expr_var_id = expression_identifier::get_var_id(
+                    expr.2[0].to_expr_ref(),
+                    context.function_context.calling_class,
+                    resolved_names,
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
+                );
+
+                let second_arg_type = analysis_data.get_expr_type(expr.2[1].to_expr_ref().pos());
+
+                // if we have a HH\Lib\Str\starts_with($foo, "/something") check
+                // we can remove url-specific taints
+                if let (Some(expr_var_id), Some(second_arg_type)) = (expr_var_id, second_arg_type)
+                    && let Some(str) = second_arg_type.get_single_literal_string_value()
+                    && str.len() > 1
+                    && str != "http://"
+                    && str != "https://"
+                    && let Some(id) = statements_analyzer.interner.get(&expr_var_id)
+                {
+                    analysis_data.if_true_assertions.insert(
+                        (pos.start_offset() as u32, pos.end_offset() as u32),
+                        FxHashMap::from_iter([(
+                            "hakana taints".to_string(),
+                            vec![Assertion::RemoveTaints(
+                                VarId(id),
+                                vec![
+                                    SinkType::HtmlAttributeUri,
+                                    SinkType::CurlUri,
+                                    SinkType::RedirectUri,
+                                ],
+                            )],
+                        )]),
+                    );
+                }
+            }
+        }
+        StrId::LIB_REGEX_MATCHES => {
+            if expr.2.len() == 2
+                && let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind
+            {
+                let expr_var_id = expression_identifier::get_var_id(
+                    expr.2[0].to_expr_ref(),
+                    context.function_context.calling_class,
+                    resolved_names,
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
+                );
+
+                let second_arg_type = analysis_data.get_expr_type(expr.2[1].to_expr_ref().pos());
+
+                // if we have a HH\Lib\Str\starts_with($foo, "/something") check
+                // we can remove url-specific taints
+                if let (Some(expr_var_id), Some(second_arg_type)) = (expr_var_id, second_arg_type)
+                    && let Some(str) = second_arg_type.get_single_literal_string_value()
+                {
+                    let mut hashes_to_remove = vec![];
+
+                    if str.starts_with('^')
+                        && str != "^http:\\/\\/"
+                        && str != "^https:\\/\\/"
+                        && str != "^https?:\\/\\/"
+                    {
+                        hashes_to_remove.extend([
+                            SinkType::HtmlAttributeUri,
+                            SinkType::CurlUri,
+                            SinkType::RedirectUri,
+                        ]);
+
+                        if str.ends_with('$') && !str.contains(".*") && !str.contains(".+") {
+                            hashes_to_remove.extend([
+                                SinkType::HtmlTag,
+                                SinkType::CurlHeader,
+                                SinkType::CurlUri,
+                                SinkType::HtmlAttribute,
+                            ]);
+                        }
+                    }
+
+                    if !hashes_to_remove.is_empty()
+                        && let Some(id) = statements_analyzer.interner.get(&expr_var_id)
                     {
                         analysis_data.if_true_assertions.insert(
                             (pos.start_offset() as u32, pos.end_offset() as u32),
                             FxHashMap::from_iter([(
                                 "hakana taints".to_string(),
-                                vec![Assertion::RemoveTaints(
-                                    VarId(expr_var_interned_id),
-                                    SinkType::user_controllable_taints(),
-                                )],
+                                vec![Assertion::RemoveTaints(VarId(id), hashes_to_remove)],
                             )]),
                         );
-                    }
-                }
-            }
-        }
-        StrId::LIB_STR_STARTS_WITH => {
-            if expr.2.len() == 2 {
-                if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-                    let expr_var_id = expression_identifier::get_var_id(
-                        &expr.2[0].to_expr_ref(),
-                        context.function_context.calling_class,
-                        resolved_names,
-                        Some((statements_analyzer.codebase, statements_analyzer.interner)),
-                    );
-
-                    let second_arg_type =
-                        analysis_data.get_expr_type(expr.2[1].to_expr_ref().pos());
-
-                    // if we have a HH\Lib\Str\starts_with($foo, "/something") check
-                    // we can remove url-specific taints
-                    if let (Some(expr_var_id), Some(second_arg_type)) =
-                        (expr_var_id, second_arg_type)
-                    {
-                        if let Some(str) = second_arg_type.get_single_literal_string_value() {
-                            if str.len() > 1 && str != "http://" && str != "https://" {
-                                if let Some(id) = statements_analyzer.interner.get(&expr_var_id) {
-                                    analysis_data.if_true_assertions.insert(
-                                        (pos.start_offset() as u32, pos.end_offset() as u32),
-                                        FxHashMap::from_iter([(
-                                            "hakana taints".to_string(),
-                                            vec![Assertion::RemoveTaints(
-                                                VarId(id),
-                                                vec![
-                                                    SinkType::HtmlAttributeUri,
-                                                    SinkType::CurlUri,
-                                                    SinkType::RedirectUri,
-                                                ],
-                                            )],
-                                        )]),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        StrId::LIB_REGEX_MATCHES => {
-            if expr.2.len() == 2 {
-                if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-                    let expr_var_id = expression_identifier::get_var_id(
-                        &expr.2[0].to_expr_ref(),
-                        context.function_context.calling_class,
-                        resolved_names,
-                        Some((statements_analyzer.codebase, statements_analyzer.interner)),
-                    );
-
-                    let second_arg_type =
-                        analysis_data.get_expr_type(expr.2[1].to_expr_ref().pos());
-
-                    // if we have a HH\Lib\Str\starts_with($foo, "/something") check
-                    // we can remove url-specific taints
-                    if let (Some(expr_var_id), Some(second_arg_type)) =
-                        (expr_var_id, second_arg_type)
-                    {
-                        if let Some(str) = second_arg_type.get_single_literal_string_value() {
-                            let mut hashes_to_remove = vec![];
-
-                            if str.starts_with('^')
-                                && str != "^http:\\/\\/"
-                                && str != "^https:\\/\\/"
-                                && str != "^https?:\\/\\/"
-                            {
-                                hashes_to_remove.extend([
-                                    SinkType::HtmlAttributeUri,
-                                    SinkType::CurlUri,
-                                    SinkType::RedirectUri,
-                                ]);
-
-                                if str.ends_with('$') && !str.contains(".*") && !str.contains(".+")
-                                {
-                                    hashes_to_remove.extend([
-                                        SinkType::HtmlTag,
-                                        SinkType::CurlHeader,
-                                        SinkType::CurlUri,
-                                        SinkType::HtmlAttribute,
-                                    ]);
-                                }
-                            }
-
-                            if !hashes_to_remove.is_empty() {
-                                if let Some(id) = statements_analyzer.interner.get(&expr_var_id) {
-                                    analysis_data.if_true_assertions.insert(
-                                        (pos.start_offset() as u32, pos.end_offset() as u32),
-                                        FxHashMap::from_iter([(
-                                            "hakana taints".to_string(),
-                                            vec![Assertion::RemoveTaints(
-                                                VarId(id),
-                                                hashes_to_remove,
-                                            )],
-                                        )]),
-                                    );
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -698,46 +686,46 @@ fn check_array_key_or_value_type(
     if let Some(container_type) = container_type {
         for atomic_type in &container_type.types {
             let arrayish_params = get_arrayish_params(atomic_type, codebase);
-            if let Some(ref arg_type) = arg_type {
-                if let Some((params_key, param_value)) = arrayish_params {
-                    let param = if is_key { params_key } else { param_value };
+            if let Some(ref arg_type) = arg_type
+                && let Some((params_key, param_value)) = arrayish_params
+            {
+                let param = if is_key { params_key } else { param_value };
 
-                    let offset_type_contained_by_expected =
-                        union_type_comparator::can_expression_types_be_identical(
-                            codebase,
-                            statements_analyzer.get_file_path(),
-                            arg_type,
-                            &param.clone(),
-                            true,
-                        );
+                let offset_type_contained_by_expected =
+                    union_type_comparator::can_expression_types_be_identical(
+                        codebase,
+                        statements_analyzer.get_file_path(),
+                        arg_type,
+                        &param.clone(),
+                        true,
+                    );
 
-                    if offset_type_contained_by_expected {
-                        has_valid_container_type = true;
-                    } else {
-                        error_message = Some(format!(
-                            "Second arg of {} expects type {}, saw {}",
-                            statements_analyzer.interner.lookup(&function_name),
-                            param.get_id(Some(statements_analyzer.interner)),
-                            arg_type.get_id(Some(statements_analyzer.interner))
-                        ));
-                    }
-                };
-            }
+                if offset_type_contained_by_expected {
+                    has_valid_container_type = true;
+                } else {
+                    error_message = Some(format!(
+                        "Second arg of {} expects type {}, saw {}",
+                        statements_analyzer.interner.lookup(&function_name),
+                        param.get_id(Some(statements_analyzer.interner)),
+                        arg_type.get_id(Some(statements_analyzer.interner))
+                    ));
+                }
+            };
         }
 
-        if let Some(error_message) = error_message {
-            if !has_valid_container_type {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::InvalidContainsCheck,
-                        error_message,
-                        statements_analyzer.get_hpos(pos),
-                        calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-            }
+        if let Some(error_message) = error_message
+            && !has_valid_container_type
+        {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InvalidContainsCheck,
+                    error_message,
+                    statements_analyzer.get_hpos(pos),
+                    calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
         }
     }
 }
@@ -866,21 +854,19 @@ fn get_async_version_name(
         FunctionLikeIdentifier::Method(mut class_name, method_name) => Some({
             // When autofixing instance method calls, we need to preserve the original LHS expression
             // that the method is being invoked on, so only return the target method name.
-            if let Some(_) = lhs_expr {
-                if localize_string {
-                    return Some(interner.lookup(&method_name).into());
-                }
+            if lhs_expr.is_some() && localize_string {
+                return Some(interner.lookup(&method_name).into());
             }
 
             let mut is_local = false;
 
-            if let FunctionLikeIdentifier::Method(existing_class_name, _) = functionlike_id {
-                if class_name == StrId::SELF || class_name == StrId::STATIC {
-                    if context.function_context.calling_class != Some(existing_class_name) {
-                        class_name = existing_class_name;
-                    } else {
-                        is_local = true;
-                    }
+            if let FunctionLikeIdentifier::Method(existing_class_name, _) = functionlike_id
+                && (class_name == StrId::SELF || class_name == StrId::STATIC)
+            {
+                if context.function_context.calling_class != Some(existing_class_name) {
+                    class_name = existing_class_name;
+                } else {
+                    is_local = true;
                 }
             }
 
@@ -942,11 +928,11 @@ fn can_call_async_version(
                 let calling_class = context.function_context.calling_class;
 
                 match method_info.visibility {
-                    MemberVisibility::Private => calling_class.map(|cls| cls.eq(&declaring_class)),
+                    MemberVisibility::Private => calling_class.map(|cls| cls.eq(declaring_class)),
                     MemberVisibility::Protected => calling_class.map(|cls| {
                         statements_analyzer
                             .codebase
-                            .class_extends_or_implements(&cls, &declaring_class)
+                            .class_extends_or_implements(&cls, declaring_class)
                     }),
                     MemberVisibility::Public => Some(true),
                 }

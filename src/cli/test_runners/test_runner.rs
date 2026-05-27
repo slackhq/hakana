@@ -190,76 +190,75 @@ fn get_all_test_folders(test_or_test_dir: String) -> Result<Vec<String>, String>
 
             let metadata = fs::metadata(path).unwrap();
 
-            if metadata.is_dir() {
-                if let Some(path_str) = path.to_str() {
-                    let input_hack = path_str.to_owned() + "/input.hack";
-                    let output_txt = path_str.to_owned() + "/output.txt";
-                    let candidates_txt = path_str.to_owned() + "/candidates.txt";
+            if metadata.is_dir()
+                && let Some(path_str) = path.to_str()
+            {
+                let input_hack = path_str.to_owned() + "/input.hack";
+                let output_txt = path_str.to_owned() + "/output.txt";
+                let candidates_txt = path_str.to_owned() + "/candidates.txt";
 
-                    if path_str.contains("/diff/") {
-                        if Path::new(&(path_str.to_owned() + "/a")).is_dir() {
-                            // Found a diff test directory - check if output.txt exists
-                            if !Path::new(&output_txt).exists() {
-                                return Err(format!(
-                                    "Diff test directory is missing required output.txt file: {}",
-                                    path_str
-                                ));
-                            }
-                            test_folders.push(path_str.to_owned());
-                        }
-                    } else if path_str.contains("/hhast_tests/") {
-                        // Skip directories that start with "skipped-"
-                        if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
-                            if dir_name.starts_with("skipped-") {
-                                continue;
-                            }
-                        }
-
-                        // For HHAST tests, enumerate individual test files (not directories)
-                        if let Ok(entries) = fs::read_dir(path_str) {
-                            let mut in_files: Vec<String> = entries
-                                .filter_map(|e| e.ok())
-                                .filter_map(|e| {
-                                    let file_path = e.path();
-                                    let file_name = file_path.to_string_lossy().to_string();
-                                    if file_name.ends_with(".php.in")
-                                        || file_name.ends_with(".hack.in")
-                                    {
-                                        // Remove the ".in" extension to get the base test name
-                                        let base_name = file_name
-                                            .trim_end_matches(".php.in")
-                                            .trim_end_matches(".hack.in");
-                                        Some(base_name.to_string())
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect();
-
-                            in_files.sort();
-                            test_folders.extend(in_files);
-                        }
-                    } else if Path::new(&input_hack).exists() {
-                        // Migration candidates tests use candidates.txt instead of output.txt
-                        if path_str.contains("/migration-candidates/")
-                            && !Path::new(&candidates_txt).exists()
-                        {
+                if path_str.contains("/diff/") {
+                    if Path::new(&(path_str.to_owned() + "/a")).is_dir() {
+                        // Found a diff test directory - check if output.txt exists
+                        if !Path::new(&output_txt).exists() {
                             return Err(format!(
-                                "Migration candidates test directory is missing required candidates.txt file: {}",
-                                path_str
-                            ));
-                        } else if !Path::new(&output_txt).exists()
-                            && !path_str.contains("/goto-definition/")
-                            && !path_str.contains("/references/")
-                        {
-                            // Found a regular test directory - check if output.txt exists
-                            return Err(format!(
-                                "Test directory is missing required output.txt file: {}",
+                                "Diff test directory is missing required output.txt file: {}",
                                 path_str
                             ));
                         }
                         test_folders.push(path_str.to_owned());
                     }
+                } else if path_str.contains("/hhast_tests/") {
+                    // Skip directories that start with "skipped-"
+                    if let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+                        && dir_name.starts_with("skipped-")
+                    {
+                        continue;
+                    }
+
+                    // For HHAST tests, enumerate individual test files (not directories)
+                    if let Ok(entries) = fs::read_dir(path_str) {
+                        let mut in_files: Vec<String> = entries
+                            .filter_map(|e| e.ok())
+                            .filter_map(|e| {
+                                let file_path = e.path();
+                                let file_name = file_path.to_string_lossy().to_string();
+                                if file_name.ends_with(".php.in") || file_name.ends_with(".hack.in")
+                                {
+                                    // Remove the ".in" extension to get the base test name
+                                    let base_name = file_name
+                                        .trim_end_matches(".php.in")
+                                        .trim_end_matches(".hack.in");
+                                    Some(base_name.to_string())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        in_files.sort();
+                        test_folders.extend(in_files);
+                    }
+                } else if Path::new(&input_hack).exists() {
+                    // Migration candidates tests use candidates.txt instead of output.txt
+                    if path_str.contains("/migration-candidates/")
+                        && !Path::new(&candidates_txt).exists()
+                    {
+                        return Err(format!(
+                            "Migration candidates test directory is missing required candidates.txt file: {}",
+                            path_str
+                        ));
+                    } else if !Path::new(&output_txt).exists()
+                        && !path_str.contains("/goto-definition/")
+                        && !path_str.contains("/references/")
+                    {
+                        // Found a regular test directory - check if output.txt exists
+                        return Err(format!(
+                            "Test directory is missing required output.txt file: {}",
+                            path_str
+                        ));
+                    }
+                    test_folders.push(path_str.to_owned());
                 }
             }
         }

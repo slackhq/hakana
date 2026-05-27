@@ -41,6 +41,12 @@ impl Linter for MustUseBracesForControlFlowLinter {
     }
 }
 
+impl Default for MustUseBracesForControlFlowLinter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MustUseBracesForControlFlowLinter {
     pub fn new() -> Self {
         Self

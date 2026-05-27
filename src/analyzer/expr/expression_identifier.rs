@@ -25,14 +25,12 @@ pub fn get_var_id(
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => Some(var_expr.1.1.clone()),
         aast::Expr_::ObjGet(boxed) => {
-            if let ast_defs::PropOrMethod::IsProp = boxed.3 {
-                if let Some(base_id) =
+            if let ast_defs::PropOrMethod::IsProp = boxed.3
+                && let Some(base_id) =
                     get_var_id(&boxed.0, this_class_name, resolved_names, codebase)
-                {
-                    if let aast::Expr_::Id(boxed) = &boxed.1.2 {
-                        return Some(format!("{}->{}", base_id, boxed.1));
-                    }
-                }
+                && let aast::Expr_::Id(boxed) = &boxed.1.2
+            {
+                return Some(format!("{}->{}", base_id, boxed.1));
             }
 
             None
@@ -88,18 +86,18 @@ pub fn get_var_id(
             None
         }
         aast::Expr_::ArrayGet(boxed) => {
-            if let Some(base_id) = get_var_id(&boxed.0, this_class_name, resolved_names, codebase) {
-                if let Some(dim) = &boxed.1 {
-                    if let Some(dim_id) = get_dim_id(dim, codebase, resolved_names) {
-                        return Some(format!("{}[{}]", base_id, dim_id));
-                    } else if let Some(dim_id) =
-                        get_var_id(dim, this_class_name, resolved_names, codebase)
-                    {
-                        if dim_id.contains('\'') {
-                            return None;
-                        }
-                        return Some(format!("{}[{}]", base_id, dim_id));
+            if let Some(base_id) = get_var_id(&boxed.0, this_class_name, resolved_names, codebase)
+                && let Some(dim) = &boxed.1
+            {
+                if let Some(dim_id) = get_dim_id(dim, codebase, resolved_names) {
+                    return Some(format!("{}[{}]", base_id, dim_id));
+                } else if let Some(dim_id) =
+                    get_var_id(dim, this_class_name, resolved_names, codebase)
+                {
+                    if dim_id.contains('\'') {
+                        return None;
                     }
+                    return Some(format!("{}[{}]", base_id, dim_id));
                 }
             }
 
@@ -133,37 +131,26 @@ pub(crate) fn get_dim_id(
         aast::Expr_::String(value) => Some(format!("'{}'", value)),
         aast::Expr_::Int(value) => Some(value.clone().to_string()),
         aast::Expr_::ClassConst(boxed) => {
-            if let Some((codebase, interner)) = codebase {
-                if let aast::ClassId_::CIexpr(lhs_expr) = &boxed.0.2 {
-                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                        let mut is_static = false;
-                        let classlike_name = match get_id_name(
-                            id,
-                            &None,
-                            false,
-                            codebase,
-                            &mut is_static,
-                            resolved_names,
-                        ) {
-                            Some(value) => value,
-                            None => return None,
-                        };
+            if let Some((codebase, interner)) = codebase
+                && let aast::ClassId_::CIexpr(lhs_expr) = &boxed.0.2
+                && let aast::Expr_::Id(id) = &lhs_expr.2
+            {
+                let mut is_static = false;
+                let classlike_name =
+                    get_id_name(id, &None, false, codebase, &mut is_static, resolved_names)?;
 
-                        let constant_type = codebase.get_class_constant_type(
-                            &classlike_name,
-                            is_static,
-                            &interner.get(&boxed.1.1)?,
-                            FxHashSet::default(),
-                        );
+                let constant_type = codebase.get_class_constant_type(
+                    &classlike_name,
+                    is_static,
+                    &interner.get(&boxed.1.1)?,
+                    FxHashSet::default(),
+                );
 
-                        if let Some(constant_type) = constant_type {
-                            if let Some(constant_type_string) =
-                                constant_type.get_single_literal_string_value()
-                            {
-                                return Some(format!("'{}'", constant_type_string));
-                            }
-                        }
-                    }
+                if let Some(constant_type) = constant_type
+                    && let Some(constant_type_string) =
+                        constant_type.get_single_literal_string_value()
+                {
+                    return Some(format!("'{}'", constant_type_string));
                 }
             }
             None
@@ -278,18 +265,16 @@ pub fn get_expr_id(
             .get(&var_expr.1.1)
             .map(ExprId::Var),
         aast::Expr_::ObjGet(boxed) => {
-            if let ast_defs::PropOrMethod::IsProp = boxed.3 {
-                if let Some(ExprId::Var(base_id)) = get_expr_id(&boxed.0, statements_analyzer) {
-                    if let aast::Expr_::Id(boxed) = &boxed.1.2 {
-                        if let Some(prop_name) = statements_analyzer.interner.get(boxed.name()) {
-                            return Some(ExprId::InstanceProperty(
-                                VarId(base_id),
-                                statements_analyzer.get_hpos(boxed.pos()),
-                                prop_name,
-                            ));
-                        }
-                    }
-                }
+            if let ast_defs::PropOrMethod::IsProp = boxed.3
+                && let Some(ExprId::Var(base_id)) = get_expr_id(&boxed.0, statements_analyzer)
+                && let aast::Expr_::Id(boxed) = &boxed.1.2
+                && let Some(prop_name) = statements_analyzer.interner.get(boxed.name())
+            {
+                return Some(ExprId::InstanceProperty(
+                    VarId(base_id),
+                    statements_analyzer.get_hpos(boxed.pos()),
+                    prop_name,
+                ));
             }
 
             None

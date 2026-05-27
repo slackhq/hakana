@@ -290,21 +290,21 @@ impl Server {
 
         if let Some(config_path) = &self.config.config_path {
             let path = Path::new(config_path);
-            if path.exists() {
-                if let Ok(json_config) = json_config::read_from_file(path) {
-                    let ignore_files: Vec<String> = json_config
-                        .ignore_files
-                        .into_iter()
-                        .map(|v| format!("{}/{}", self.config.root_dir, v))
-                        .collect();
-                    if !ignore_files.is_empty() {
-                        info!(
-                            "Watchman will ignore {} path pattern(s)",
-                            ignore_files.len()
-                        );
-                    }
-                    return ignore_files;
+            if path.exists()
+                && let Ok(json_config) = json_config::read_from_file(path)
+            {
+                let ignore_files: Vec<String> = json_config
+                    .ignore_files
+                    .into_iter()
+                    .map(|v| format!("{}/{}", self.config.root_dir, v))
+                    .collect();
+                if !ignore_files.is_empty() {
+                    info!(
+                        "Watchman will ignore {} path pattern(s)",
+                        ignore_files.len()
+                    );
                 }
+                return ignore_files;
             }
         }
         Vec::new()

@@ -38,8 +38,8 @@ pub(crate) fn get_formula(
     cache: bool,
     inside_negation: bool,
 ) -> Result<Vec<Clause>, String> {
-    if let aast::Expr_::Binop(expr) = &conditional.2 {
-        if let Some(clauses) = handle_binop(
+    if let aast::Expr_::Binop(expr) = &conditional.2
+        && let Some(clauses) = handle_binop(
             conditional_object_id,
             &expr.bop,
             &expr.lhs,
@@ -48,13 +48,13 @@ pub(crate) fn get_formula(
             analysis_data,
             cache,
             inside_negation,
-        ) {
-            return clauses;
-        }
+        )
+    {
+        return clauses;
     }
 
-    if let aast::Expr_::Unop(expr) = &conditional.2 {
-        if let Some(clauses) = handle_uop(
+    if let aast::Expr_::Unop(expr) = &conditional.2
+        && let Some(clauses) = handle_uop(
             conditional_object_id,
             &expr.0,
             &expr.1,
@@ -62,9 +62,9 @@ pub(crate) fn get_formula(
             analysis_data,
             cache,
             inside_negation,
-        ) {
-            return clauses;
-        }
+        )
+    {
+        return clauses;
     }
 
     let anded_assertions = assertion_finder::scrape_assertions(

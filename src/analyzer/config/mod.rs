@@ -189,10 +189,10 @@ impl Config {
     }
 
     pub fn can_add_issue(&self, issue: &Issue) -> bool {
-        if let Some(issue_filter) = &self.allowed_issues {
-            if !issue_filter.contains(&issue.kind) {
-                return false;
-            }
+        if let Some(issue_filter) = &self.allowed_issues
+            && !issue_filter.contains(&issue.kind)
+        {
+            return false;
         }
 
         true

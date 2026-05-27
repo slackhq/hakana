@@ -188,12 +188,10 @@ pub(crate) fn compare_generic_params(
             type_params: Some(ref mut type_params),
             ..
         })) = atomic_comparison_result.replacement_atomic_type
+            && let Some(input_param_offset) = input_param_offset
+            && let Some(existing_param) = type_params.get_mut(input_param_offset)
         {
-            if let Some(input_param_offset) = input_param_offset {
-                if let Some(existing_param) = type_params.get_mut(input_param_offset) {
-                    *existing_param = container_param.clone();
-                }
-            }
+            *existing_param = container_param.clone();
         }
 
         return;
@@ -226,8 +224,8 @@ pub(crate) fn compare_generic_params(
         inside_assertion,
         &mut param_comparison_result,
     ) {
-        if let Some(Variance::Contravariant) = container_type_param_variance {
-            if union_type_comparator::is_contained_by(
+        if let Some(Variance::Contravariant) = container_type_param_variance
+            && union_type_comparator::is_contained_by(
                 codebase,
                 file_path,
                 container_param,
@@ -236,9 +234,9 @@ pub(crate) fn compare_generic_params(
                 container_param.ignore_falsable_issues,
                 inside_assertion,
                 &mut param_comparison_result,
-            ) {
-                return;
-            }
+            )
+        {
+            return;
         }
 
         if input_name == &StrId::KEYED_CONTAINER && container_param_offset == 0 {

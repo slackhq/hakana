@@ -102,7 +102,7 @@ pub(crate) fn analyze(
                                     let descendants = codebase
                                         .all_classlike_descendants
                                         .get(name)
-                                        .map(|i| i.clone())
+                                        .cloned()
                                         .unwrap_or_default();
 
                                     let mut potential_constant_types = add_optional_union_type(

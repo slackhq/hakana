@@ -41,14 +41,12 @@ impl ServerConnection {
     ) -> io::Result<Self> {
         let socket_path = SocketPath::for_project(project_root);
 
-        if socket_path.server_exists() {
-            if ClientSocket::connect(&socket_path).await.is_ok() {
-                return Ok(Self {
-                    socket_path,
-                    project_root: project_root.to_path_buf(),
-                    hakana_binary: hakana_binary.map(|s| s.to_string()),
-                });
-            }
+        if socket_path.server_exists() && ClientSocket::connect(&socket_path).await.is_ok() {
+            return Ok(Self {
+                socket_path,
+                project_root: project_root.to_path_buf(),
+                hakana_binary: hakana_binary.map(|s| s.to_string()),
+            });
         }
 
         let mut server_process = Self::spawn_server(project_root, hakana_binary)?;
@@ -167,21 +165,18 @@ impl ServerConnection {
                     let log_contents = std::fs::read_to_string(&log_path)
                         .unwrap_or_else(|_| "<no log available>".to_string());
                     log::info!("Server log contents:\n{}", log_contents);
-                    return Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        format!(
-                            "Server process exited during startup with status: {}. Check {} for details.",
-                            status,
-                            log_path.display()
-                        ),
-                    ));
+                    return Err(io::Error::other(format!(
+                        "Server process exited during startup with status: {}. Check {} for details.",
+                        status,
+                        log_path.display()
+                    )));
                 }
                 Ok(None) => {}
                 Err(e) => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("Failed to check server process status: {}", e),
-                    ));
+                    return Err(io::Error::other(format!(
+                        "Failed to check server process status: {}",
+                        e
+                    )));
                 }
             }
 
@@ -209,15 +204,12 @@ impl ServerConnection {
         let request = Message::Status(StatusRequest);
         match socket.request(&request).await {
             Ok(Message::StatusResult(response)) => Ok(response),
-            Ok(Message::Error(e)) => Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Server error: {}", e.message),
-            )),
+            Ok(Message::Error(e)) => Err(io::Error::other(format!("Server error: {}", e.message))),
             Ok(_) => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Unexpected response type",
             )),
-            Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{}", e))),
+            Err(e) => Err(io::Error::other(format!("{}", e))),
         }
     }
 
@@ -239,15 +231,12 @@ impl ServerConnection {
 
         match socket.request(&request).await {
             Ok(Message::GetIssuesResult(response)) => Ok(response),
-            Ok(Message::Error(e)) => Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Server error: {}", e.message),
-            )),
+            Ok(Message::Error(e)) => Err(io::Error::other(format!("Server error: {}", e.message))),
             Ok(_) => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Unexpected response type",
             )),
-            Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{}", e))),
+            Err(e) => Err(io::Error::other(format!("{}", e))),
         }
     }
 
@@ -268,15 +257,12 @@ impl ServerConnection {
 
         match socket.request(&request).await {
             Ok(Message::Ack(_)) => Ok(()),
-            Ok(Message::Error(e)) => Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Server error: {}", e.message),
-            )),
+            Ok(Message::Error(e)) => Err(io::Error::other(format!("Server error: {}", e.message))),
             Ok(_) => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Unexpected response type",
             )),
-            Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{}", e))),
+            Err(e) => Err(io::Error::other(format!("{}", e))),
         }
     }
 
@@ -295,15 +281,12 @@ impl ServerConnection {
 
         match socket.request(&request).await {
             Ok(Message::GotoDefinitionResult(response)) => Ok(response),
-            Ok(Message::Error(e)) => Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Server error: {}", e.message),
-            )),
+            Ok(Message::Error(e)) => Err(io::Error::other(format!("Server error: {}", e.message))),
             Ok(_) => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Unexpected response type",
             )),
-            Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{}", e))),
+            Err(e) => Err(io::Error::other(format!("{}", e))),
         }
     }
 
@@ -314,7 +297,7 @@ impl ServerConnection {
         match socket.request(&request).await {
             Ok(Message::Ack(_)) => Ok(()),
             Ok(_) => Ok(()),
-            Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{}", e))),
+            Err(e) => Err(io::Error::other(format!("{}", e))),
         }
     }
 }

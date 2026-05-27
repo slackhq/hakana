@@ -74,21 +74,18 @@ impl<'a> SyntaxVisitor<'a> for NoAwaitVisitor<'a> {
 
     fn visit_node(&mut self, node: &'a PositionedSyntax<'a>) -> bool {
         // Check if this is an await expression
-        if self.in_loop_depth > 0 {
-            if let Some(token) = node.get_token() {
-                if token.kind() == TokenKind::Await {
-                    let (start, end) = self.ctx.node_full_range(node);
-                    self.errors.borrow_mut().push(
-                        LintError::new(
-                            Severity::Warning,
-                            "Await expression found inside loop. Consider using concurrent operations instead.",
-                            start,
-                            end,
-                            "no-await-in-loop",
-                        )
-                    );
-                }
-            }
+        if self.in_loop_depth > 0
+            && let Some(token) = node.get_token()
+            && token.kind() == TokenKind::Await
+        {
+            let (start, end) = self.ctx.node_full_range(node);
+            self.errors.borrow_mut().push(LintError::new(
+                Severity::Warning,
+                "Await expression found inside loop. Consider using concurrent operations instead.",
+                start,
+                end,
+                "no-await-in-loop",
+            ));
         }
 
         // After processing children, decrement depth for loop statements
@@ -107,6 +104,12 @@ impl<'a> SyntaxVisitor<'a> for NoAwaitVisitor<'a> {
             _ => {}
         }
         true
+    }
+}
+
+impl Default for NoAwaitInLoopLinter {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

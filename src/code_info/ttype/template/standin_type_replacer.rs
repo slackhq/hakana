@@ -64,39 +64,38 @@ pub fn replace(
 
     let mut input_type = input_type.cloned();
 
-    if let Some(ref mut input_type) = input_type {
-        if original_atomic_types.len() > 1
-            && original_atomic_types
-                .iter()
-                .any(|t| matches!(t, TAtomic::TNull))
-            && input_type.is_mixed()
-        {
-            original_atomic_types.retain(|t| !matches!(t, TAtomic::TNull));
+    if let Some(ref mut input_type) = input_type
+        && original_atomic_types.len() > 1
+        && original_atomic_types
+            .iter()
+            .any(|t| matches!(t, TAtomic::TNull))
+        && input_type.is_mixed()
+    {
+        original_atomic_types.retain(|t| !matches!(t, TAtomic::TNull));
 
-            input_type.types = vec![match input_type.types[0] {
-                TAtomic::TMixedWithFlags(any_mixed, truthy_mixed, falsy_mixed, _) => {
-                    TAtomic::TMixedWithFlags(any_mixed, truthy_mixed, falsy_mixed, true)
-                }
-                TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => {
-                    TAtomic::TMixedWithFlags(false, false, false, true)
-                }
-                _ => TAtomic::TMixedWithFlags(true, false, false, true),
-            }];
-        }
+        input_type.types = vec![match input_type.types[0] {
+            TAtomic::TMixedWithFlags(any_mixed, truthy_mixed, falsy_mixed, _) => {
+                TAtomic::TMixedWithFlags(any_mixed, truthy_mixed, falsy_mixed, true)
+            }
+            TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => {
+                TAtomic::TMixedWithFlags(false, false, false, true)
+            }
+            _ => TAtomic::TMixedWithFlags(true, false, false, true),
+        }];
     }
 
-    if let Some(ref mut input_type_inner) = input_type {
-        if !input_type_inner.is_single() {
-            // here we want to subtract atomic types from the input type
-            // when they're also in the union type, so those shared atomic
-            // types will never be inferred as part of the generic type
-            for original_atomic_type in &original_atomic_types {
-                input_type_inner.remove_type(original_atomic_type);
-            }
+    if let Some(ref mut input_type_inner) = input_type
+        && !input_type_inner.is_single()
+    {
+        // here we want to subtract atomic types from the input type
+        // when they're also in the union type, so those shared atomic
+        // types will never be inferred as part of the generic type
+        for original_atomic_type in &original_atomic_types {
+            input_type_inner.remove_type(original_atomic_type);
+        }
 
-            if input_type_inner.types.is_empty() {
-                return union_type.clone();
-            }
+        if input_type_inner.types.is_empty() {
+            return union_type.clone();
         }
     }
 
@@ -134,7 +133,7 @@ pub fn replace(
         new_union_type.had_template = true;
     }
 
-    return new_union_type;
+    new_union_type
 }
 
 fn handle_atomic_standin(
@@ -163,27 +162,26 @@ fn handle_atomic_standin(
         defining_entity,
         ..
     }) = atomic_type
-    {
-        if let Some(template_type) = template_types_contains(
+        && let Some(template_type) = template_types_contains(
             &template_result.template_types.clone(),
             param_name,
             defining_entity,
-        ) {
-            return handle_template_param_standin(
-                atomic_type,
-                &normalized_key,
-                template_type,
-                template_result,
-                codebase,
-                interner,
-                file_path,
-                input_type,
-                input_arg_offset,
-                input_arg_pos,
-                opts,
-                had_template,
-            );
-        }
+        )
+    {
+        return handle_template_param_standin(
+            atomic_type,
+            &normalized_key,
+            template_type,
+            template_result,
+            codebase,
+            interner,
+            file_path,
+            input_type,
+            input_arg_offset,
+            input_arg_pos,
+            opts,
+            had_template,
+        );
     }
 
     if let TAtomic::TGenericClassname {
@@ -196,27 +194,25 @@ fn handle_atomic_standin(
         defining_entity,
         ..
     } = atomic_type
-    {
-        if template_types_contains(
+        && template_types_contains(
             &template_result.template_types.clone(),
             param_name,
             defining_entity,
         )
         .is_some()
-        {
-            return handle_template_param_class_standin(
-                atomic_type,
-                template_result,
-                codebase,
-                interner,
-                file_path,
-                input_type,
-                input_arg_offset,
-                input_arg_pos,
-                opts,
-                was_single,
-            );
-        }
+    {
+        return handle_template_param_class_standin(
+            atomic_type,
+            template_result,
+            codebase,
+            interner,
+            file_path,
+            input_type,
+            input_arg_offset,
+            input_arg_pos,
+            opts,
+            was_single,
+        );
     }
 
     if let TAtomic::TGenericTypename {
@@ -224,27 +220,25 @@ fn handle_atomic_standin(
         defining_entity,
         ..
     } = atomic_type
-    {
-        if template_types_contains(
+        && template_types_contains(
             &template_result.template_types.clone(),
             param_name,
             defining_entity,
         )
         .is_some()
-        {
-            return handle_template_param_type_standin(
-                atomic_type,
-                template_result,
-                codebase,
-                interner,
-                file_path,
-                input_type,
-                input_arg_offset,
-                input_arg_pos,
-                opts,
-                was_single,
-            );
-        }
+    {
+        return handle_template_param_type_standin(
+            atomic_type,
+            template_result,
+            codebase,
+            interner,
+            file_path,
+            input_type,
+            input_arg_offset,
+            input_arg_pos,
+            opts,
+            was_single,
+        );
     }
 
     let mut matching_input_types = Vec::new();
@@ -367,7 +361,7 @@ fn replace_atomic<'a>(
                     None
                 };
 
-                params.0 = Box::new(self::replace(
+                *params.0 = self::replace(
                     &params.0,
                     template_result,
                     codebase,
@@ -384,9 +378,9 @@ fn replace_atomic<'a>(
                         iteration_depth: opts.iteration_depth + 1,
                         ..opts
                     },
-                ));
+                );
 
-                params.1 = Box::new(self::replace(
+                *params.1 = self::replace(
                     &params.1,
                     template_result,
                     codebase,
@@ -403,7 +397,7 @@ fn replace_atomic<'a>(
                         iteration_depth: opts.iteration_depth + 1,
                         ..opts
                     },
-                ));
+                );
             }
 
             return atomic_type;
@@ -451,7 +445,7 @@ fn replace_atomic<'a>(
                     None
                 };
 
-                *type_param = Box::new(self::replace(
+                **type_param = self::replace(
                     type_param,
                     template_result,
                     codebase,
@@ -468,7 +462,7 @@ fn replace_atomic<'a>(
                         iteration_depth: opts.iteration_depth + 1,
                         ..opts
                     },
-                ));
+                );
             }
 
             return atomic_type;
@@ -476,7 +470,7 @@ fn replace_atomic<'a>(
         TAtomic::TKeyset {
             ref mut type_param, ..
         } => {
-            *type_param = Box::new(self::replace(
+            **type_param = self::replace(
                 type_param,
                 template_result,
                 codebase,
@@ -497,12 +491,12 @@ fn replace_atomic<'a>(
                     iteration_depth: opts.iteration_depth + 1,
                     ..opts
                 },
-            ));
+            );
 
             return atomic_type;
         }
         TAtomic::TAwaitable { ref mut value, .. } => {
-            *value = Box::new(self::replace(
+            **value = self::replace(
                 value,
                 template_result,
                 codebase,
@@ -522,7 +516,7 @@ fn replace_atomic<'a>(
                     iteration_depth: opts.iteration_depth + 1,
                     ..opts
                 },
-            ));
+            );
 
             return atomic_type;
         }
@@ -681,7 +675,7 @@ fn replace_atomic<'a>(
                 };
 
                 if let Some(ref mut param_type) = param.signature_type {
-                    *param_type = Box::new(self::replace(
+                    **param_type = self::replace(
                         param_type,
                         template_result,
                         codebase,
@@ -698,7 +692,7 @@ fn replace_atomic<'a>(
                             add_lower_bound: !opts.add_lower_bound,
                             ..opts
                         },
-                    ));
+                    );
                 }
             }
 
@@ -726,7 +720,7 @@ fn replace_atomic<'a>(
             return atomic_type;
         }
         TAtomic::TClassname { ref mut as_type } => {
-            *as_type = Box::new(replace_atomic(
+            **as_type = replace_atomic(
                 as_type,
                 template_result,
                 codebase,
@@ -743,12 +737,12 @@ fn replace_atomic<'a>(
                 input_arg_offset,
                 input_arg_pos,
                 opts,
-            ));
+            );
 
             return atomic_type;
         }
         TAtomic::TClassPtr { ref mut as_type } => {
-            *as_type = Box::new(replace_atomic(
+            **as_type = replace_atomic(
                 as_type,
                 template_result,
                 codebase,
@@ -765,12 +759,12 @@ fn replace_atomic<'a>(
                 input_arg_offset,
                 input_arg_pos,
                 opts,
-            ));
+            );
 
             return atomic_type;
         }
         TAtomic::TTypename { ref mut as_type } => {
-            *as_type = Box::new(replace_atomic(
+            **as_type = replace_atomic(
                 as_type,
                 template_result,
                 codebase,
@@ -787,7 +781,7 @@ fn replace_atomic<'a>(
                 input_arg_offset,
                 input_arg_pos,
                 opts,
-            ));
+            );
 
             return atomic_type;
         }
@@ -823,10 +817,10 @@ fn handle_template_param_standin<'a>(
         panic!()
     };
 
-    if let Some(calling_class) = opts.calling_class {
-        if defining_entity == &GenericParent::ClassLike(calling_class) {
-            return vec![atomic_type.clone()];
-        }
+    if let Some(calling_class) = opts.calling_class
+        && defining_entity == &GenericParent::ClassLike(calling_class)
+    {
+        return vec![atomic_type.clone()];
     }
 
     if &template_type.get_id(None) == normalized_key {
@@ -894,26 +888,24 @@ fn handle_template_param_standin<'a>(
                 as_type: replacement_as_type,
                 ..
             }) = replacement_atomic_type
-            {
-                if (opts.calling_class.is_none()
+                && (opts.calling_class.is_none()
                     || replacement_defining_entity
                         != &GenericParent::ClassLike(opts.calling_class.unwrap()))
-                    && match opts.calling_function {
-                        Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                            replacement_defining_entity
-                                != &GenericParent::FunctionLike(calling_function)
-                        }
-                        Some(FunctionLikeIdentifier::Method(_, _)) => true,
-                        Some(_) => {
-                            panic!()
-                        }
-                        None => true,
+                && match opts.calling_function {
+                    Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                        replacement_defining_entity
+                            != &GenericParent::FunctionLike(calling_function)
                     }
-                {
-                    for nested_type_atomic in &replacement_as_type.types {
-                        replacements_found = true;
-                        atomic_types.push(nested_type_atomic.clone());
+                    Some(FunctionLikeIdentifier::Method(_, _)) => true,
+                    Some(_) => {
+                        panic!()
                     }
+                    None => true,
+                }
+            {
+                for nested_type_atomic in &replacement_as_type.types {
+                    replacements_found = true;
+                    atomic_types.push(nested_type_atomic.clone());
                 }
             }
 
@@ -965,82 +957,81 @@ fn handle_template_param_standin<'a>(
         },
     );
 
-    if let Some(input_type) = input_type {
-        if !template_result.readonly
-            && (as_type.is_mixed()
-                || union_type_comparator::can_be_contained_by(
-                    codebase,
-                    file_path,
-                    input_type,
-                    &as_type,
-                    false,
-                    false,
-                    &mut matching_input_keys,
-                ))
-        {
-            let mut input_type = (*input_type).clone();
+    if let Some(input_type) = input_type
+        && !template_result.readonly
+        && (as_type.is_mixed()
+            || union_type_comparator::can_be_contained_by(
+                codebase,
+                file_path,
+                input_type,
+                &as_type,
+                false,
+                false,
+                &mut matching_input_keys,
+            ))
+    {
+        let mut input_type = (*input_type).clone();
 
-            if !matching_input_keys.is_empty() {
-                for atomic in &input_type.clone().types {
-                    if !matching_input_keys.contains(&atomic.get_key()) {
-                        input_type.remove_type(atomic);
-                    }
+        if !matching_input_keys.is_empty() {
+            for atomic in &input_type.clone().types {
+                if !matching_input_keys.contains(&atomic.get_key()) {
+                    input_type.remove_type(atomic);
                 }
             }
+        }
 
-            if !opts.add_lower_bound {
-                return input_type.types.clone();
-            }
+        if !opts.add_lower_bound {
+            return input_type.types.clone();
+        }
 
-            if let Some(existing_lower_bounds) =
-                if let Some(mapped_bounds) = template_result.lower_bounds.get(&param_name_key) {
-                    mapped_bounds.get(defining_entity)
-                } else {
-                    None
-                }
-            {
-                let mut has_matching_lower_bound = false;
-
-                for existing_lower_bound in existing_lower_bounds {
-                    let existing_depth = &existing_lower_bound.appearance_depth;
-                    let existing_arg_offset = if existing_lower_bound.arg_offset.is_none() {
-                        &input_arg_offset
-                    } else {
-                        &existing_lower_bound.arg_offset
-                    };
-
-                    if existing_depth == &opts.appearance_depth
-                        && &input_arg_offset == existing_arg_offset
-                        && existing_lower_bound.bound_type == input_type
-                        && existing_lower_bound.equality_bound_classlike.is_none()
-                    {
-                        has_matching_lower_bound = true;
-                        break;
-                    }
-                }
-
-                if !has_matching_lower_bound {
-                    insert_bound_type(
-                        template_result,
-                        param_name_key,
-                        defining_entity,
-                        input_type,
-                        opts,
-                        input_arg_offset,
-                        input_arg_pos,
-                    );
-                }
+        if let Some(existing_lower_bounds) =
+            if let Some(mapped_bounds) = template_result.lower_bounds.get(&param_name_key) {
+                mapped_bounds.get(defining_entity)
             } else {
+                None
+            }
+        {
+            let mut has_matching_lower_bound = false;
+
+            for existing_lower_bound in existing_lower_bounds {
+                let existing_depth = &existing_lower_bound.appearance_depth;
+                let existing_arg_offset = if existing_lower_bound.arg_offset.is_none() {
+                    &input_arg_offset
+                } else {
+                    &existing_lower_bound.arg_offset
+                };
+
+                if existing_depth == &opts.appearance_depth
+                    && &input_arg_offset == existing_arg_offset
+                    && existing_lower_bound.bound_type == input_type
+                    && existing_lower_bound.equality_bound_classlike.is_none()
+                {
+                    has_matching_lower_bound = true;
+                    break;
+                }
+            }
+
+            if !has_matching_lower_bound {
                 insert_bound_type(
                     template_result,
                     param_name_key,
                     defining_entity,
-                    input_type.clone(),
+                    input_type,
                     opts,
                     input_arg_offset,
                     input_arg_pos,
                 );
             }
+        } else {
+            insert_bound_type(
+                template_result,
+                param_name_key,
+                defining_entity,
+                input_type.clone(),
+                opts,
+                input_arg_offset,
+                input_arg_pos,
+            );
         }
     }
 
@@ -1064,9 +1055,9 @@ fn insert_bound_type(
     template_result
         .lower_bounds
         .entry(param_name_key)
-        .or_insert_with(FxHashMap::default)
+        .or_default()
         .entry(*defining_entity)
-        .or_insert_with(Vec::new)
+        .or_default()
         .push(TemplateBound {
             bound_type: input_type.generalize_literals(),
             appearance_depth: opts.appearance_depth,
@@ -1103,10 +1094,10 @@ fn handle_template_param_class_standin<'a>(
     {
         let is_class_ptr = matches!(atomic_type, TAtomic::TGenericClassPtr { .. });
         let mut atomic_type_as = *as_type.clone();
-        if let Some(calling_class) = opts.calling_class {
-            if defining_entity == &GenericParent::ClassLike(calling_class) {
-                return vec![atomic_type.clone()];
-            }
+        if let Some(calling_class) = opts.calling_class
+            && defining_entity == &GenericParent::ClassLike(calling_class)
+        {
+            return vec![atomic_type.clone()];
         }
 
         let mut atomic_types = vec![];
@@ -1313,10 +1304,10 @@ fn handle_template_param_type_standin<'a>(
     } = atomic_type
     {
         let mut atomic_type_as = *as_type.clone();
-        if let Some(calling_class) = opts.calling_class {
-            if defining_entity == &GenericParent::ClassLike(calling_class) {
-                return vec![atomic_type.clone()];
-            }
+        if let Some(calling_class) = opts.calling_class
+            && defining_entity == &GenericParent::ClassLike(calling_class)
+        {
+            return vec![atomic_type.clone()];
         }
 
         let mut atomic_types = vec![];
@@ -1578,28 +1569,27 @@ fn find_matching_atomic_types_for_template(
                 {
                     let classlike_info = codebase.classlike_infos.get(atomic_class_name);
 
-                    if let Some(classlike_info) = classlike_info {
-                        if let Some(extended_params) =
+                    if let Some(classlike_info) = classlike_info
+                        && let Some(extended_params) =
                             classlike_info.template_extended_params.get(base_as_value)
-                        {
-                            *depth += 1;
+                    {
+                        *depth += 1;
 
-                            matching_atomic_types.push(TAtomic::TClassname {
-                                as_type: Box::new(TAtomic::TNamedObject(TNamedObject {
-                                    name: *base_as_value,
-                                    type_params: Some(
-                                        extended_params
-                                            .clone()
-                                            .into_iter()
-                                            .map(|(_, v)| (*v).clone())
-                                            .collect::<Vec<_>>(),
-                                    ),
-                                    is_this: false,
-                                    remapped_params: false,
-                                })),
-                            });
-                            continue;
-                        }
+                        matching_atomic_types.push(TAtomic::TClassname {
+                            as_type: Box::new(TAtomic::TNamedObject(TNamedObject {
+                                name: *base_as_value,
+                                type_params: Some(
+                                    extended_params
+                                        .clone()
+                                        .into_iter()
+                                        .map(|(_, v)| (*v).clone())
+                                        .collect::<Vec<_>>(),
+                                ),
+                                is_this: false,
+                                remapped_params: false,
+                            })),
+                        });
+                        continue;
                     }
                 }
             }
@@ -1698,11 +1688,10 @@ fn find_matching_atomic_types_for_template(
                 if let TAtomic::TTypeAlias {
                     name: base_name, ..
                 } = base_type
+                    && input_name == base_name
                 {
-                    if input_name == base_name {
-                        matching_atomic_types.push(atomic_input_type.clone());
-                        continue;
-                    }
+                    matching_atomic_types.push(atomic_input_type.clone());
+                    continue;
                 }
 
                 matching_atomic_types.extend(find_matching_atomic_types_for_template(
@@ -1738,29 +1727,23 @@ fn find_matching_atomic_types_for_template(
                 if let TAtomic::TNamedObject(TNamedObject {
                     name: enum_name, ..
                 }) = &enum_type
+                    && let Some(classlike_info) = codebase.classlike_infos.get(enum_name)
+                    && let Some(constant_info) = classlike_info.constants.get(member_name)
                 {
-                    if let Some(classlike_info) = codebase.classlike_infos.get(enum_name) {
-                        if let Some(constant_info) = classlike_info.constants.get(member_name) {
-                            let provided_type =
-                                constant_info.provided_type.as_ref().unwrap().get_single();
+                    let provided_type = constant_info.provided_type.as_ref().unwrap().get_single();
 
-                            if let TAtomic::TTypeAlias {
-                                type_params: Some(type_params),
-                                ..
-                            } = provided_type
-                            {
-                                *depth += 1;
-                                matching_atomic_types.push(TAtomic::TTypeAlias {
-                                    name: StrId::ENUM_CLASS_LABEL,
-                                    type_params: Some(vec![
-                                        wrap_atomic(enum_type),
-                                        type_params[1].clone(),
-                                    ]),
-                                    as_type: None,
-                                    newtype: true,
-                                });
-                            }
-                        }
+                    if let TAtomic::TTypeAlias {
+                        type_params: Some(type_params),
+                        ..
+                    } = provided_type
+                    {
+                        *depth += 1;
+                        matching_atomic_types.push(TAtomic::TTypeAlias {
+                            name: StrId::ENUM_CLASS_LABEL,
+                            type_params: Some(vec![wrap_atomic(enum_type), type_params[1].clone()]),
+                            as_type: None,
+                            newtype: true,
+                        });
                     }
                 }
             }
@@ -1891,25 +1874,22 @@ pub fn get_mapped_generic_type_params(
                     defining_entity,
                     ..
                 })) = ets.first()
-                {
-                    if let Some((old_params_offset, (_, defining_classes))) = input_class_storage
+                    && let Some((old_params_offset, (_, defining_classes))) = input_class_storage
                         .template_types
                         .iter()
                         .enumerate()
                         .find(|(_, (n, _))| n == param_name)
-                    {
-                        if defining_classes.iter().any(|(e, _)| defining_entity == e) {
-                            let candidate_param_type_inner = input_type_params
-                                .get(old_params_offset)
-                                .unwrap_or(&(None, get_mixed_any()))
-                                .clone()
-                                .1;
+                    && defining_classes.iter().any(|(e, _)| defining_entity == e)
+                {
+                    let candidate_param_type_inner = input_type_params
+                        .get(old_params_offset)
+                        .unwrap_or(&(None, get_mixed_any()))
+                        .clone()
+                        .1;
 
-                            mapped_input_offset = Some(old_params_offset);
+                    mapped_input_offset = Some(old_params_offset);
 
-                            candidate_param_type = Some(candidate_param_type_inner);
-                        }
-                    }
+                    candidate_param_type = Some(candidate_param_type_inner);
                 }
 
                 let mut candidate_param_type =
@@ -2005,37 +1985,37 @@ pub(crate) fn get_root_template_type(
         return None;
     }
 
-    if let Some(mapped) = lower_bounds.get(param_name) {
-        if let Some(bounds) = mapped.get(defining_entity) {
-            let mapped_type = get_most_specific_type_from_bounds(bounds, codebase);
+    if let Some(mapped) = lower_bounds.get(param_name)
+        && let Some(bounds) = mapped.get(defining_entity)
+    {
+        let mapped_type = get_most_specific_type_from_bounds(bounds, codebase);
 
-            if !mapped_type.is_single() {
-                return Some(mapped_type);
-            }
-
-            let first_template = &mapped_type.get_single();
-
-            if let TAtomic::TGenericParam(TGenericParam {
-                param_name,
-                defining_entity,
-                ..
-            }) = first_template
-            {
-                visited_entities.insert(*defining_entity);
-                return Some(
-                    get_root_template_type(
-                        lower_bounds,
-                        param_name,
-                        defining_entity,
-                        visited_entities,
-                        codebase,
-                    )
-                    .unwrap_or(mapped_type),
-                );
-            }
-
-            return Some(mapped_type.clone());
+        if !mapped_type.is_single() {
+            return Some(mapped_type);
         }
+
+        let first_template = &mapped_type.get_single();
+
+        if let TAtomic::TGenericParam(TGenericParam {
+            param_name,
+            defining_entity,
+            ..
+        }) = first_template
+        {
+            visited_entities.insert(*defining_entity);
+            return Some(
+                get_root_template_type(
+                    lower_bounds,
+                    param_name,
+                    defining_entity,
+                    visited_entities,
+                    codebase,
+                )
+                .unwrap_or(mapped_type),
+            );
+        }
+
+        return Some(mapped_type.clone());
     }
 
     None

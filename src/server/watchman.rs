@@ -94,7 +94,7 @@ async fn run_subscription(
     log::info!("Connected to watchman, resolving root...");
 
     let canonical_path =
-        CanonicalPath::canonicalize(&root_dir).map_err(watchman_client::Error::ConnectionError)?;
+        CanonicalPath::canonicalize(root_dir).map_err(watchman_client::Error::ConnectionError)?;
 
     let resolved = watchman.resolve_root(canonical_path).await?;
 
@@ -118,7 +118,7 @@ async fn run_subscription(
         log::info!("Watching config file: {:?}", rel_path);
     }
 
-    let expression = build_expression(&ignore_files, &project_root, config_relative_path.as_ref());
+    let expression = build_expression(ignore_files, &project_root, config_relative_path.as_ref());
 
     let subscribe_request = SubscribeRequest {
         since: last_clock.take(),
@@ -147,7 +147,7 @@ async fn run_subscription(
             &project_root,
             last_clock,
             &config_relative_path,
-            &tx,
+            tx,
             subscription.next().await,
         )
         .await
@@ -198,12 +198,12 @@ async fn handle_subscription_event(
                     let file_path = project_root.join(&file_name);
                     let file_path_str = file_path.to_string_lossy().to_string();
 
-                    if let Some(config_rel) = config_relative_path {
-                        if Path::new(&file_name) == config_rel.as_path() {
-                            log::info!("Config file changed: {:?}", file_name);
-                            config_changed = true;
-                            continue;
-                        }
+                    if let Some(config_rel) = config_relative_path
+                        && Path::new(&file_name) == config_rel.as_path()
+                    {
+                        log::info!("Config file changed: {:?}", file_name);
+                        config_changed = true;
+                        continue;
                     }
 
                     // For existing files, treat all as Modified —
@@ -213,15 +213,13 @@ async fn handle_subscription_event(
                             continue;
                         }
                         FileStatus::Modified(0, 0)
+                    } else if file_path_str.ends_with(".hack")
+                        || file_path_str.ends_with(".php")
+                        || file_path_str.ends_with(".hhi")
+                    {
+                        FileStatus::Deleted
                     } else {
-                        if file_path_str.ends_with(".hack")
-                            || file_path_str.ends_with(".php")
-                            || file_path_str.ends_with(".hhi")
-                        {
-                            FileStatus::Deleted
-                        } else {
-                            FileStatus::DeletedDir
-                        }
+                        FileStatus::DeletedDir
                     };
 
                     if file_path_str.ends_with(".hack")

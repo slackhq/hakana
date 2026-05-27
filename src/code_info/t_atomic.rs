@@ -398,7 +398,7 @@ impl TAtomic {
                 str += ">";
                 str
             }
-            TAtomic::TBool { .. } => "bool".to_string(),
+            TAtomic::TBool => "bool".to_string(),
             TAtomic::TClassname { as_type, .. } => {
                 let mut str = String::new();
                 str += "classname<";
@@ -435,8 +435,8 @@ impl TAtomic {
                     name.0.to_string()
                 }
             }
-            TAtomic::TFalse { .. } => "false".to_string(),
-            TAtomic::TFloat { .. } => "float".to_string(),
+            TAtomic::TFalse => "false".to_string(),
+            TAtomic::TFloat => "float".to_string(),
             TAtomic::TClosure(closure) => {
                 let mut str = String::new();
                 str += "(function(";
@@ -481,7 +481,7 @@ impl TAtomic {
                 str += "<>";
                 str
             }
-            TAtomic::TInt { .. } => "int".to_string(),
+            TAtomic::TInt => "int".to_string(),
             TAtomic::TObject => "object".to_string(),
             TAtomic::TKeyset { type_param, .. } => {
                 let mut str = String::new();
@@ -663,10 +663,10 @@ impl TAtomic {
                 }
             }
             TAtomic::TNothing => "nothing".to_string(),
-            TAtomic::TNull { .. } => "null".to_string(),
-            TAtomic::TNum { .. } => "num".to_string(),
+            TAtomic::TNull => "null".to_string(),
+            TAtomic::TNum => "num".to_string(),
             TAtomic::TScalar => "scalar".to_string(),
-            TAtomic::TString { .. } => "string".to_string(),
+            TAtomic::TString => "string".to_string(),
             TAtomic::TStringWithFlags(is_truthy, is_non_empty, is_nonspecific_literal) => {
                 let mut str = String::new();
 
@@ -748,7 +748,7 @@ impl TAtomic {
                 str += ">";
                 str
             }
-            TAtomic::TTrue { .. } => "true".to_string(),
+            TAtomic::TTrue => "true".to_string(),
             TAtomic::TVec(vec) => vec.get_id_with_refs(interner, refs, indent),
             TAtomic::TVoid => "void".to_string(),
             TAtomic::TReference { name, .. } => {
@@ -834,17 +834,17 @@ impl TAtomic {
                 str
             }
             TAtomic::TAwaitable { .. } => "Awaitable".to_string(),
-            TAtomic::TFalse { .. }
-            | TAtomic::TFloat { .. }
+            TAtomic::TFalse
+            | TAtomic::TFloat
             | TAtomic::TClosure(_)
             | TAtomic::TClosureAlias { .. }
-            | TAtomic::TInt { .. }
+            | TAtomic::TInt
             | TAtomic::TNothing
-            | TAtomic::TNull { .. }
-            | TAtomic::TNum { .. }
+            | TAtomic::TNull
+            | TAtomic::TNum
             | TAtomic::TMixed
             | TAtomic::TMixedFromLoopIsset
-            | TAtomic::TString { .. }
+            | TAtomic::TString
             | TAtomic::TEnum { .. }
             | TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralClassPtr { .. }
@@ -854,13 +854,13 @@ impl TAtomic {
             | TAtomic::TClassTypeConstant { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TVoid
-            | TAtomic::TTrue { .. }
+            | TAtomic::TTrue
             | TAtomic::TObject
             | TAtomic::TScalar
             | TAtomic::TResource
             | TAtomic::TReference { .. }
             | TAtomic::TArraykey { .. }
-            | TAtomic::TBool { .. }
+            | TAtomic::TBool
             | TAtomic::TEnumClassLabel { .. }
             | TAtomic::TMixedWithFlags(..)
             | TAtomic::TTypeVariable { .. } => self.get_id_with_refs(None, &mut vec![], None),
@@ -972,7 +972,7 @@ impl TAtomic {
                     None
                 }
             }
-            TAtomic::TFalse { .. } => Some("false".to_string()),
+            TAtomic::TFalse => Some("false".to_string()),
             TAtomic::TLiteralClassname { name } => {
                 let mut str = String::new();
                 str += interner.lookup(name);
@@ -1014,8 +1014,8 @@ impl TAtomic {
                 Some(str)
             }
 
-            TAtomic::TNull { .. } => Some("null".to_string()),
-            TAtomic::TTrue { .. } => Some("true".to_string()),
+            TAtomic::TNull => Some("null".to_string()),
+            TAtomic::TTrue => Some("true".to_string()),
             TAtomic::TVec(TVec {
                 type_param,
                 known_items: Some(known_items),
@@ -1060,7 +1060,7 @@ impl TAtomic {
 
     pub fn is_object_type(&self) -> bool {
         match self {
-            TAtomic::TObject { .. } => true,
+            TAtomic::TObject => true,
             TAtomic::TClosure(_) => true,
             TAtomic::TAwaitable { .. } => true,
             TAtomic::TNamedObject(TNamedObject { .. }) => true,
@@ -1128,17 +1128,17 @@ impl TAtomic {
                 | TAtomic::TLiteralInt { .. }
                 | TAtomic::TLiteralString { .. }
                 | TAtomic::TArraykey { .. }
-                | TAtomic::TBool { .. }
+                | TAtomic::TBool
                 | TAtomic::TClassPtr { .. }
                 | TAtomic::TClassname { .. }
                 | TAtomic::TTypename { .. }
-                | TAtomic::TFalse { .. }
-                | TAtomic::TFloat { .. }
-                | TAtomic::TInt { .. }
-                | TAtomic::TNum { .. }
-                | TAtomic::TString { .. }
+                | TAtomic::TFalse
+                | TAtomic::TFloat
+                | TAtomic::TInt
+                | TAtomic::TNum
+                | TAtomic::TString
                 | TAtomic::TStringWithFlags(..)
-                | TAtomic::TTrue { .. }
+                | TAtomic::TTrue
                 | TAtomic::TEnum { .. }
                 | TAtomic::TEnumLiteralCase { .. }
         )
@@ -1149,14 +1149,14 @@ impl TAtomic {
         matches!(
             self,
             TAtomic::TArraykey { .. }
-                | TAtomic::TBool { .. }
+                | TAtomic::TBool
                 | TAtomic::TClassname { .. }
                 | TAtomic::TTypename { .. }
-                | TAtomic::TFalse { .. }
-                | TAtomic::TFloat { .. }
-                | TAtomic::TInt { .. }
-                | TAtomic::TNum { .. }
-                | TAtomic::TString { .. }
+                | TAtomic::TFalse
+                | TAtomic::TFloat
+                | TAtomic::TInt
+                | TAtomic::TNum
+                | TAtomic::TString
         )
     }
 
@@ -1179,7 +1179,7 @@ impl TAtomic {
     pub fn is_string(&self) -> bool {
         matches!(
             self,
-            TAtomic::TString { .. }
+            TAtomic::TString
                 | TAtomic::TLiteralClassname { .. }
                 | TAtomic::TLiteralString { .. }
                 | TAtomic::TLiteralClassPtr { .. }
@@ -1218,15 +1218,12 @@ impl TAtomic {
 
     #[inline]
     pub fn is_int(&self) -> bool {
-        matches!(self, TAtomic::TLiteralInt { .. } | TAtomic::TInt { .. })
+        matches!(self, TAtomic::TLiteralInt { .. } | TAtomic::TInt)
     }
 
     #[inline]
     pub fn is_bool(&self) -> bool {
-        matches!(
-            self,
-            TAtomic::TFalse { .. } | TAtomic::TTrue { .. } | TAtomic::TBool { .. }
-        )
+        matches!(self, TAtomic::TFalse | TAtomic::TTrue | TAtomic::TBool)
     }
 
     pub fn is_literal(&self) -> bool {
@@ -1237,10 +1234,10 @@ impl TAtomic {
                 | TAtomic::TLiteralInt { .. }
                 | TAtomic::TLiteralString { .. }
                 | TAtomic::TEnumLiteralCase { .. }
-                | TAtomic::TFalse { .. }
-                | TAtomic::TTrue { .. }
-                | TAtomic::TBool { .. }
-                | TAtomic::TNull { .. }
+                | TAtomic::TFalse
+                | TAtomic::TTrue
+                | TAtomic::TBool
+                | TAtomic::TNull
         )
     }
 
@@ -1313,10 +1310,10 @@ impl TAtomic {
 
     pub fn is_truthy(&self) -> bool {
         match &self {
-            &TAtomic::TTrue { .. }
+            &TAtomic::TTrue
             | &TAtomic::TMixedWithFlags(_, true, _, _)
             | &TAtomic::TStringWithFlags(true, _, _)
-            | &TAtomic::TObject { .. }
+            | &TAtomic::TObject
             | &TAtomic::TClosure(_)
             | &TAtomic::TLiteralClassname { .. }
             | &TAtomic::TLiteralClassPtr { .. }
@@ -1389,9 +1386,7 @@ impl TAtomic {
 
     pub fn is_falsy(&self) -> bool {
         match &self {
-            &TAtomic::TFalse { .. }
-            | &TAtomic::TNull { .. }
-            | &TAtomic::TMixedWithFlags(_, _, true, _) => true,
+            &TAtomic::TFalse | &TAtomic::TNull | &TAtomic::TMixedWithFlags(_, _, true, _) => true,
             &TAtomic::TLiteralInt { value, .. } => {
                 if *value == 0 {
                     return true;
@@ -1581,25 +1576,22 @@ impl TAtomic {
                 ..
             }) => {
                 if let TAtomic::TPlaceholder = params.0.get_single() {
-                    params.0 = Box::new(TUnion::new(vec![TAtomic::TArraykey { from_any: true }]));
+                    *params.0 = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                 }
                 if let TAtomic::TPlaceholder = params.1.get_single() {
-                    params.1 = Box::new(TUnion::new(vec![TAtomic::TMixedWithFlags(
-                        true, false, false, false,
-                    )]));
+                    *params.1 =
+                        TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
                 }
             }
             TAtomic::TVec(TVec { type_param, .. }) => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
-                    *type_param = Box::new(TUnion::new(vec![TAtomic::TMixedWithFlags(
-                        true, false, false, false,
-                    )]));
+                    **type_param =
+                        TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
                 }
             }
             TAtomic::TKeyset { type_param, .. } => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
-                    *type_param =
-                        Box::new(TUnion::new(vec![TAtomic::TArraykey { from_any: true }]));
+                    **type_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                 }
             }
             TAtomic::TNamedObject(TNamedObject {
@@ -1611,26 +1603,24 @@ impl TAtomic {
                     || name == &StrId::ANY_ARRAY
                     || name == &StrId::KEYED_TRAVERSABLE
                 {
-                    if let Some(key_param) = type_params.get_mut(0) {
-                        if let TAtomic::TPlaceholder = key_param.get_single() {
-                            *key_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
-                        }
+                    if let Some(key_param) = type_params.get_mut(0)
+                        && let TAtomic::TPlaceholder = key_param.get_single()
+                    {
+                        *key_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                     }
 
-                    if let Some(value_param) = type_params.get_mut(1) {
-                        if let TAtomic::TPlaceholder = value_param.get_single() {
-                            *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
-                                true, false, false, false,
-                            )]);
-                        }
+                    if let Some(value_param) = type_params.get_mut(1)
+                        && let TAtomic::TPlaceholder = value_param.get_single()
+                    {
+                        *value_param =
+                            TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
                     }
                 } else if name == &StrId::CONTAINER || name == &StrId::TRAVERSABLE {
-                    if let Some(value_param) = type_params.get_mut(0) {
-                        if let TAtomic::TPlaceholder = value_param.get_single() {
-                            *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
-                                true, false, false, false,
-                            )]);
-                        }
+                    if let Some(value_param) = type_params.get_mut(0)
+                        && let TAtomic::TPlaceholder = value_param.get_single()
+                    {
+                        *value_param =
+                            TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
                     }
                 } else {
                     for type_param in type_params {
@@ -1706,16 +1696,16 @@ impl TAtomic {
                 shape_name,
                 ..
             }) => {
-                if let Some((shape_name, None)) = shape_name {
-                    if banned_type_aliases.contains(shape_name) {
-                        return false;
-                    }
+                if let Some((shape_name, None)) = shape_name
+                    && banned_type_aliases.contains(shape_name)
+                {
+                    return false;
                 }
 
-                if let Some(params) = params {
-                    if !params.1.is_json_compatible(banned_type_aliases) {
-                        return false;
-                    }
+                if let Some(params) = params
+                    && !params.1.is_json_compatible(banned_type_aliases)
+                {
+                    return false;
                 }
 
                 if let Some(known_items) = known_items {

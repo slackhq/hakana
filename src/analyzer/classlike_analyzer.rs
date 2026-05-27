@@ -134,7 +134,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
         let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             &statements_analyzer.file_analyzer.file_source,
-            &statements_analyzer.comments,
+            statements_analyzer.comments,
             &statements_analyzer.get_config().all_custom_issues,
             None,
             None,
@@ -196,26 +196,24 @@ impl<'a> ClassLikeAnalyzer<'a> {
         // Check if interface has only one implementor
         if matches!(classlike_storage.kind, SymbolKind::Interface)
             && classlike_storage.is_production_code
+            && let Some(descendants) = codebase.direct_classlike_descendants.get(&name)
+            && descendants.len() == 1
         {
-            if let Some(descendants) = codebase.direct_classlike_descendants.get(&name) {
-                if descendants.len() == 1 {
-                    let implementor_name = descendants.iter().next().unwrap();
-                    analysis_data.maybe_add_issue(
-                        Issue::new(
-                            IssueKind::InterfaceSingleImplementor,
-                            format!(
-                                "Interface {} has only one implementing class {}",
-                                statements_analyzer.interner.lookup(&name),
-                                statements_analyzer.interner.lookup(implementor_name)
-                            ),
-                            classlike_storage.name_location,
-                            &Some(FunctionLikeIdentifier::Function(name)),
-                        ),
-                        statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual(),
-                    );
-                }
-            }
+            let implementor_name = descendants.iter().next().unwrap();
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InterfaceSingleImplementor,
+                    format!(
+                        "Interface {} has only one implementing class {}",
+                        statements_analyzer.interner.lookup(&name),
+                        statements_analyzer.interner.lookup(implementor_name)
+                    ),
+                    classlike_storage.name_location,
+                    &Some(FunctionLikeIdentifier::Function(name)),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
         }
 
         let mut existing_enum_str_values = FxHashMap::default();
@@ -233,42 +231,36 @@ impl<'a> ClassLikeAnalyzer<'a> {
                         true,
                     )?;
 
-                    if codebase.enum_exists(&name) {
-                        if let (Some(expr_value), Some(constant_name)) = (
+                    if codebase.enum_exists(&name)
+                        && let (Some(expr_value), Some(constant_name)) = (
                             analysis_data.get_expr_type(expr.pos()),
                             resolved_names.get(&(constant.id.0.start_offset() as u32)),
-                        ) {
-                            if let Some(string_value) = expr_value.get_single_literal_string_value()
+                        )
+                    {
+                        if let Some(string_value) = expr_value.get_single_literal_string_value() {
+                            if let Some(existing_name) = existing_enum_str_values.get(&string_value)
                             {
-                                if let Some(existing_name) =
-                                    existing_enum_str_values.get(&string_value)
-                                {
-                                    emit_dupe_enum_case_issue(
-                                        &mut analysis_data,
-                                        statements_analyzer,
-                                        name,
-                                        existing_name,
-                                        expr,
-                                    );
-                                } else {
-                                    existing_enum_str_values.insert(string_value, *constant_name);
-                                }
-                            } else if let Some(int_value) =
-                                expr_value.get_single_literal_int_value()
-                            {
-                                if let Some(existing_name) =
-                                    existing_enum_int_values.get(&int_value)
-                                {
-                                    emit_dupe_enum_case_issue(
-                                        &mut analysis_data,
-                                        statements_analyzer,
-                                        name,
-                                        existing_name,
-                                        expr,
-                                    );
-                                } else {
-                                    existing_enum_int_values.insert(int_value, *constant_name);
-                                }
+                                emit_dupe_enum_case_issue(
+                                    &mut analysis_data,
+                                    statements_analyzer,
+                                    name,
+                                    existing_name,
+                                    expr,
+                                );
+                            } else {
+                                existing_enum_str_values.insert(string_value, *constant_name);
+                            }
+                        } else if let Some(int_value) = expr_value.get_single_literal_int_value() {
+                            if let Some(existing_name) = existing_enum_int_values.get(&int_value) {
+                                emit_dupe_enum_case_issue(
+                                    &mut analysis_data,
+                                    statements_analyzer,
+                                    name,
+                                    existing_name,
+                                    expr,
+                                );
+                            } else {
+                                existing_enum_int_values.insert(int_value, *constant_name);
                             }
                         }
                     }
@@ -312,15 +304,15 @@ impl<'a> ClassLikeAnalyzer<'a> {
             // Constant types
             for (constant_name, constant_info) in &classlike_storage.constants {
                 // Only track constants defined in this class
-                if constant_info.defining_class == name {
-                    if let Some(provided_type) = &constant_info.provided_type {
-                        add_symbol_references_with_location(
-                            provided_type,
-                            Some(FunctionLikeIdentifier::Method(name, *constant_name)),
-                            &mut analysis_data,
-                            constant_info.type_pos,
-                        );
-                    }
+                if constant_info.defining_class == name
+                    && let Some(provided_type) = &constant_info.provided_type
+                {
+                    add_symbol_references_with_location(
+                        provided_type,
+                        Some(FunctionLikeIdentifier::Method(name, *constant_name)),
+                        &mut analysis_data,
+                        constant_info.type_pos,
+                    );
                 }
             }
         }

@@ -347,7 +347,7 @@ fn handle_nonexistent_method(
         let Some(classlike_info) = statements_analyzer
             .codebase
             .classlike_infos
-            .get(&classlike_name)
+            .get(classlike_name)
         else {
             return Err(AnalysisError::InternalError(
                 "Cannot load classlike storage".to_string(),

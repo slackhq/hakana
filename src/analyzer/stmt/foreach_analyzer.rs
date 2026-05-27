@@ -288,7 +288,7 @@ fn check_iterator_type(
             _ => {}
         }
 
-        if let TAtomic::TNull { .. } | TAtomic::TFalse { .. } = iterator_atomic_type {
+        if let TAtomic::TNull | TAtomic::TFalse = iterator_atomic_type {
             always_non_empty_array = false;
             continue;
         }
@@ -546,19 +546,18 @@ fn check_iterator_type(
         }
     }
 
-    if has_valid_iterator {
-        if let Some(ref mut key_type) = key_type {
-            if let Some(ref mut value_type) = value_type {
-                add_array_fetch_dataflow(
-                    statements_analyzer,
-                    expr.pos(),
-                    analysis_data,
-                    None,
-                    value_type,
-                    key_type,
-                )
-            }
-        }
+    if has_valid_iterator
+        && let Some(ref mut key_type) = key_type
+        && let Some(ref mut value_type) = value_type
+    {
+        add_array_fetch_dataflow(
+            statements_analyzer,
+            expr.pos(),
+            analysis_data,
+            None,
+            value_type,
+            key_type,
+        )
     }
 
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {

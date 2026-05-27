@@ -78,9 +78,9 @@ pub(crate) fn analyze(
                         pos: parent_node_pos,
                         ..
                     } = parent_node.kind
+                        && parent_node_pos.start_offset < loop_init_pos.start_offset
                     {
-                        if parent_node_pos.start_offset < loop_init_pos.start_offset {
-                            analysis_data.maybe_add_issue(
+                        analysis_data.maybe_add_issue(
                                 Issue::new(
                                     IssueKind::ShadowedLoopVar,
                                     format!(
@@ -93,8 +93,7 @@ pub(crate) fn analyze(
                                 statements_analyzer.get_config(),
                                 statements_analyzer.get_file_path_actual(),
                             );
-                            break;
-                        }
+                        break;
                     }
                 }
             }

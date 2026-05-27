@@ -119,10 +119,9 @@ impl SymbolReferences {
             if let Some(symbol_refs_in_signature) = self
                 .symbol_references_to_symbols_in_signature
                 .get(&(referencing_symbol, StrId::EMPTY))
+                && symbol_refs_in_signature.contains(&(symbol, StrId::EMPTY))
             {
-                if symbol_refs_in_signature.contains(&(symbol, StrId::EMPTY)) {
-                    return;
-                }
+                return;
             }
 
             self.symbol_references_to_symbols
@@ -180,10 +179,9 @@ impl SymbolReferences {
             if let Some(symbol_refs_in_signature) = self
                 .symbol_references_to_symbols_in_signature
                 .get(&referencing_class_member)
+                && symbol_refs_in_signature.contains(&(symbol, StrId::EMPTY))
             {
-                if symbol_refs_in_signature.contains(&(symbol, StrId::EMPTY)) {
-                    return;
-                }
+                return;
             }
 
             self.symbol_references_to_symbols

@@ -345,17 +345,15 @@ pub(crate) fn get_generic_param_for_offset(
                         defining_entity,
                         ..
                     }) = &extended_atomic_type
+                        && extended_param_name == template_name
+                        && defining_entity == &GenericParent::ClassLike(*classlike_name)
                     {
-                        if extended_param_name == template_name
-                            && defining_entity == &GenericParent::ClassLike(*classlike_name)
-                        {
-                            return get_generic_param_for_offset(
-                                extended_class_name,
-                                extended_template_name,
-                                template_extended_params,
-                                found_generic_params,
-                            );
-                        }
+                        return get_generic_param_for_offset(
+                            extended_class_name,
+                            extended_template_name,
+                            template_extended_params,
+                            found_generic_params,
+                        );
                     }
                 }
             }

@@ -53,27 +53,26 @@ pub(crate) fn collect(
                 continue;
             }
 
-            if class_storage.name != static_class_storage.name {
-                if let Some(input_type_extends) = e
+            if class_storage.name != static_class_storage.name
+                && let Some(input_type_extends) = e
                     .get(&class_storage.name)
                     .unwrap_or(&IndexMap::new())
                     .get(template_name)
-                {
-                    let output_type_extends = resolve_template_param(
-                        codebase,
-                        input_type_extends,
-                        static_class_storage,
-                        lhs_type_params,
-                    );
+            {
+                let output_type_extends = resolve_template_param(
+                    codebase,
+                    input_type_extends,
+                    static_class_storage,
+                    lhs_type_params,
+                );
 
-                    class_template_params
-                        .entry(*template_name)
-                        .or_insert_with(FxHashMap::default)
-                        .insert(
-                            GenericParent::ClassLike(class_storage.name),
-                            output_type_extends.unwrap_or(get_mixed_any()),
-                        );
-                }
+                class_template_params
+                    .entry(*template_name)
+                    .or_insert_with(FxHashMap::default)
+                    .insert(
+                        GenericParent::ClassLike(class_storage.name),
+                        output_type_extends.unwrap_or(get_mixed_any()),
+                    );
             }
 
             class_template_params
@@ -86,23 +85,22 @@ pub(crate) fn collect(
 
     for (template_name, type_map) in template_types {
         for (template_classname, type_) in type_map {
-            if class_storage.name != static_class_storage.name {
-                if let Some(extended_type) = e
+            if class_storage.name != static_class_storage.name
+                && let Some(extended_type) = e
                     .get(&class_storage.name)
                     .unwrap_or(&IndexMap::new())
                     .get(template_name)
-                {
-                    class_template_params
-                        .entry(*template_name)
-                        .or_insert_with(FxHashMap::default)
-                        .entry(GenericParent::ClassLike(class_storage.name))
-                        .or_insert(TUnion::new(expand_type(
-                            extended_type,
-                            e,
-                            &static_class_storage.name,
-                            &static_class_storage.template_types,
-                        )));
-                }
+            {
+                class_template_params
+                    .entry(*template_name)
+                    .or_insert_with(FxHashMap::default)
+                    .entry(GenericParent::ClassLike(class_storage.name))
+                    .or_insert(TUnion::new(expand_type(
+                        extended_type,
+                        e,
+                        &static_class_storage.name,
+                        &static_class_storage.template_types,
+                    )));
             }
 
             let self_call = if let Some(TAtomic::TNamedObject(TNamedObject {

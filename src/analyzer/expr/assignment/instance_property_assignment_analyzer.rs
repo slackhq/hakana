@@ -91,12 +91,12 @@ pub(crate) fn analyze(
         );
 
         if type_match_found {
-            if let Some(union_type) = union_comparison_result.replacement_union_type {
-                if let Some(var_id) = var_id.clone() {
-                    context
-                        .locals
-                        .insert(VarName::new(var_id), Rc::new(union_type));
-                }
+            if let Some(union_type) = union_comparison_result.replacement_union_type
+                && let Some(var_id) = var_id.clone()
+            {
+                context
+                    .locals
+                    .insert(VarName::new(var_id), Rc::new(union_type));
             }
 
             for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
@@ -330,7 +330,7 @@ pub(crate) fn analyze_regular_assignment(
         }
 
         for lhs_type_part in &lhs_type.types {
-            if let TAtomic::TNull { .. } = lhs_type_part {
+            if let TAtomic::TNull = lhs_type_part {
                 continue;
             }
 
@@ -361,9 +361,7 @@ pub(crate) fn analyze_regular_assignment(
     if let Some(var_id) = var_id {
         let context_type = Rc::new(context_type.unwrap_or(get_mixed_any()).clone());
 
-        context
-            .locals
-            .insert(VarName::new(var_id.to_owned()), context_type);
+        context.locals.insert(VarName::new(&var_id), context_type);
     }
 
     Ok(assigned_properties)
@@ -784,21 +782,21 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     let declaring_property_class =
         codebase.get_declaring_class_for_property(fq_class_name, &prop_name);
 
-    if let Some(declaring_property_class) = declaring_property_class {
-        if declaring_property_class != *fq_class_name {
-            let declaring_property_node = DataFlowNode::get_for_property(*property_id);
+    if let Some(declaring_property_class) = declaring_property_class
+        && declaring_property_class != *fq_class_name
+    {
+        let declaring_property_node = DataFlowNode::get_for_property(*property_id);
 
-            analysis_data.data_flow_graph.add_path(
-                &property_node.id,
-                &declaring_property_node.id,
-                PathKind::PropertyAssignment(property_id.0, property_id.1),
-                vec![],
-                vec![],
-            );
+        analysis_data.data_flow_graph.add_path(
+            &property_node.id,
+            &declaring_property_node.id,
+            PathKind::PropertyAssignment(property_id.0, property_id.1),
+            vec![],
+            vec![],
+        );
 
-            analysis_data
-                .data_flow_graph
-                .add_node(declaring_property_node);
-        }
+        analysis_data
+            .data_flow_graph
+            .add_node(declaring_property_node);
     }
 }

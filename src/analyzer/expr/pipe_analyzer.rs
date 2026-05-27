@@ -44,7 +44,7 @@ pub(crate) fn analyze(
 
     context
         .locals
-        .insert(VarName::new("$$".to_string()), Rc::new(pipe_expr_type));
+        .insert(VarName::new("$$"), Rc::new(pipe_expr_type));
 
     context.pipe_var_effects = *analysis_data
         .expr_effects

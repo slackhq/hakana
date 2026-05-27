@@ -108,12 +108,12 @@ pub(crate) fn analyze(
 }
 
 pub(crate) fn get_and_expressions(cond: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {
-    if let aast::Expr_::Binop(boxed) = &cond.2 {
-        if let ast_defs::Bop::Ampamp = boxed.bop {
-            let mut anded = get_and_expressions(&boxed.lhs);
-            anded.extend(get_and_expressions(&boxed.rhs));
-            return anded;
-        }
+    if let aast::Expr_::Binop(boxed) = &cond.2
+        && let ast_defs::Bop::Ampamp = boxed.bop
+    {
+        let mut anded = get_and_expressions(&boxed.lhs);
+        anded.extend(get_and_expressions(&boxed.rhs));
+        return anded;
     }
 
     vec![cond]
