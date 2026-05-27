@@ -64,6 +64,7 @@ pub(crate) fn analyze_vals(
                         type_param: Box::new(get_nothing()),
                         known_count: Some(0),
                         non_empty: false,
+                        variadic_type: None,
                     })),
                 );
             }
@@ -132,6 +133,7 @@ pub(crate) fn analyze_vals(
                     type_param: Box::new(get_nothing()),
                     known_count: Some(types.len()),
                     non_empty: true,
+                    variadic_type: None,
                 })
             } else {
                 TAtomic::TVec(TVec {
@@ -143,6 +145,7 @@ pub(crate) fn analyze_vals(
                     ))),
                     known_count: None,
                     non_empty: true,
+                    variadic_type: None,
                 })
             });
 

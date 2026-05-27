@@ -20,7 +20,6 @@ pub fn is_statement<'a>(
         // All *Statement variants
         SyntaxVariant::ExpressionStatement(_)
             | SyntaxVariant::UnsetStatement(_)
-            | SyntaxVariant::DeclareLocalStatement(_)
             | SyntaxVariant::WhileStatement(_)
             | SyntaxVariant::IfStatement(_)
             | SyntaxVariant::TryStatement(_)

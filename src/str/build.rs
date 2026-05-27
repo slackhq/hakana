@@ -217,6 +217,7 @@ fn main() -> Result<()> {
         "HH\\ReifiedGenerics\\get_type_structure",
         "HH\\Shapes",
         "HH\\Traversable",
+        "HH\\TypedFormatString",
         "HH\\TypeStructure",
         "HH\\Vector",
         "HH\\class_meth_get_class",

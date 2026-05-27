@@ -5,7 +5,8 @@ function foo(vec<class<A>> $classes): dict<classname<A>, int> {
     $ret = dict[];
     foreach ($classes as $cls) {
         // type error if class_pointer_ban_class_array_key
-        $ret[$cls] = $i++;
+        $ret[$cls] = $i;
+        $i++;
     }
 
     return $ret;

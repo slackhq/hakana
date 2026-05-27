@@ -36,6 +36,8 @@ pub struct FunctionLikeParameter {
 
     pub is_variadic: bool,
 
+    pub is_splat: bool,
+
     pub is_named: bool,
 
     pub taint_sinks: Option<Vec<SinkType>>,
@@ -76,6 +78,7 @@ impl FunctionLikeParameter {
             name_location,
             signature_type_location: None,
             is_variadic: false,
+            is_splat: false,
             is_named: false,
             taint_sinks: None,
             propagate_taint: false,
@@ -87,6 +90,10 @@ impl FunctionLikeParameter {
             removed_taints_when_returning_true: None,
             suppressed_issues: None,
         }
+    }
+
+    pub fn is_required(&self) -> bool {
+        !(self.is_optional || self.is_splat || self.is_variadic || self.is_named)
     }
 }
 

@@ -213,18 +213,18 @@ impl<'ast> Visitor<'ast> for Scanner {
         match &p.1 {
             Stmt_::For(boxed) => {
                 push_start(&p.0, c); // The line where for loop is declared is coverable
-                boxed.1.recurse(c, self)
+                boxed.3.recurse(c, self)
             }
             Stmt_::Foreach(boxed) => {
                 push_start(&p.0, c); // The line where foreach loop is declared is coverable
                 boxed.2.recurse(c, self)
             }
             Stmt_::Do(boxed) => {
-                push_pos(&boxed.1.1, c);
+                push_pos(&boxed.1.2.1, c);
                 boxed.0.recurse(c, self)
             }
             Stmt_::While(boxed) => {
-                push_pos(&boxed.0.1, c);
+                push_pos(&boxed.0.2.1, c);
                 boxed.1.recurse(c, self)
             }
             Stmt_::If(boxed) => {
@@ -274,7 +274,7 @@ impl<'ast> Visitor<'ast> for Scanner {
         match &p.2 {
             Expr_::Efun(boxed) => self.visit_block(c, &boxed.fun.body.fb_ast),
             Expr_::Lfun(boxed) => self.visit_block(c, &boxed.0.body.fb_ast),
-            Expr_::Await(boxed) => self.visit_expr(c, boxed),
+            Expr_::Await(boxed) | Expr_::Delay(boxed) => self.visit_expr(c, boxed),
             Expr_::As(boxed) => self.visit_expr(c, &boxed.expr),
             Expr_::Assign(boxed) => {
                 // a single-line assignment is always coverable

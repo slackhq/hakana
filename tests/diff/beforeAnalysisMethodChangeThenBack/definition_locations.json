@@ -1,6 +1,6 @@
 [
   {
-    "end_offset": 74,
+    "end_offset": 69,
     "file": "input.hack",
     "name": "A",
     "start_offset": 65
@@ -12,7 +12,7 @@
     "start_offset": 71
   },
   {
-    "end_offset": 95,
+    "end_offset": 90,
     "file": "input.hack",
     "name": "A",
     "start_offset": 86

@@ -106,7 +106,7 @@ pub(crate) fn analyze(
         aast::Stmt_::While(boxed) => {
             while_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, &boxed.1),
+                (&boxed.0.2, &boxed.1),
                 &stmt.0,
                 analysis_data,
                 context,
@@ -115,7 +115,7 @@ pub(crate) fn analyze(
         aast::Stmt_::Do(boxed) => {
             do_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, &boxed.1),
+                (&boxed.0, &boxed.1.2),
                 &stmt.0,
                 analysis_data,
                 context,
@@ -124,7 +124,12 @@ pub(crate) fn analyze(
         aast::Stmt_::For(boxed) => {
             for_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, &boxed.1, &boxed.2, &boxed.3),
+                (
+                    &boxed.0,
+                    &boxed.1.as_ref().map(|lc| lc.2.clone()),
+                    &boxed.2.2,
+                    &boxed.3,
+                ),
                 &stmt.0,
                 analysis_data,
                 context,
@@ -243,7 +248,6 @@ pub(crate) fn analyze(
             );
             return Err(AnalysisError::UserError);
         }
-        aast::Stmt_::DeclareLocal(_) => {}
         aast::Stmt_::Concurrent(boxed) => {
             let concurrent_block_start = stmt.0.start_offset() as u32;
             let concurrent_block_end = stmt.0.end_offset() as u32;
@@ -462,7 +466,7 @@ fn has_unused_must_use(
                 }
             }
         }
-        aast::Expr_::Await(await_expr) => {
+        aast::Expr_::Await(await_expr) | aast::Expr_::Delay(await_expr) => {
             return has_unused_must_use(await_expr, statements_analyzer, analysis_data);
         }
         _ => (),

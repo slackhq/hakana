@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use hakana_code_info::{
     ast::get_id_name,
+    codebase_info::CodebaseInfo,
     issue::{Issue, IssueKind},
     t_atomic::{TAtomic, TNamedObject},
     t_union::TUnion,
@@ -14,9 +15,11 @@ use hakana_code_info::{
     },
     var_name::VarName,
 };
+use hakana_str::StrId;
 use oxidized::{
-    aast::{self, ClassGetExpr, ClassId},
-    ast::Pos,
+    aast::{self, ClassId},
+    ast::Id,
+    ast_defs::{self, Pos},
 };
 
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -25,9 +28,33 @@ use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
 use super::instance_property_assignment_analyzer::add_unspecialized_property_assignment_dataflow;
 
+fn resolve_id(
+    id: &Id,
+    context: &BlockContext,
+    codebase: &CodebaseInfo,
+    statements_analyzer: &StatementsAnalyzer,
+) -> Result<StrId, AnalysisError> {
+    let mut is_static = false;
+
+    get_id_name(
+        id,
+        &context.function_context.calling_class,
+        context.function_context.calling_class_final,
+        codebase,
+        &mut is_static,
+        statements_analyzer.file_analyzer.resolved_names,
+    )
+    .ok_or_else(|| {
+        AnalysisError::InternalError(
+            "Could not resolve class name for static property assignment".to_string(),
+            statements_analyzer.get_hpos(&id.0),
+        )
+    })
+}
+
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
+    expr: (&ClassId<(), ()>, &ast_defs::Pstring),
     assign_value_pos: Option<&Pos>,
     assign_value_type: &TUnion,
     var_id: &Option<String>,
@@ -38,44 +65,10 @@ pub(crate) fn analyze(
     let stmt_class = expr.0;
     let stmt_name = expr.1;
 
-    let mut stmt_name_expr = None;
-    let mut stmt_name_string = None;
-    let stmt_name_pos;
+    let stmt_name_pos = &stmt_name.0;
+    let prop_name_str = stmt_name.1[1..].to_string();
 
-    match &stmt_name {
-        aast::ClassGetExpr::CGexpr(expr) => {
-            stmt_name_expr = Some(expr);
-            stmt_name_pos = expr.pos();
-        }
-        aast::ClassGetExpr::CGstring(str) => {
-            let id = &str.1;
-            stmt_name_string = Some(id);
-            stmt_name_pos = &str.0;
-        }
-    }
-
-    let prop_name = if let Some(stmt_name_string) = stmt_name_string {
-        Some(stmt_name_string[1..].to_string())
-    } else if let Some(stmt_name_expr) = stmt_name_expr {
-        if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
-            Some(id.1.clone())
-        } else if let Some(stmt_name_type) = analysis_data
-            .get_rc_expr_type(stmt_name_expr.pos())
-            .cloned()
-        {
-            if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
-                Some(value.clone())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    let prop_name = if let Some(prop_name) = prop_name {
+    let prop_name = if let Some(prop_name) = Some(prop_name_str) {
         if let Some(prop_name_id) = statements_analyzer.interner.get(&prop_name) {
             prop_name_id
         } else {
@@ -87,58 +80,51 @@ pub(crate) fn analyze(
 
     let mut fq_class_names = Vec::new();
 
-    if let aast::ClassId_::CIexpr(expr) = &stmt_class.2 {
-        match &expr.2 {
-            aast::Expr_::Id(id) => {
-                let mut is_static = false;
+    match &stmt_class.2 {
+        aast::ClassId_::CIexpr(expr) => {
+            match &expr.2 {
+                aast::Expr_::Id(id) => {
+                    fq_class_names.push(resolve_id(id, context, codebase, statements_analyzer)?)
+                }
+                _ => {
+                    // eg. $class::$foo
+                    let was_inside_general_use = context.inside_general_use;
+                    context.inside_general_use = true;
+                    expression_analyzer::analyze(
+                        statements_analyzer,
+                        expr,
+                        analysis_data,
+                        context,
+                        true,
+                    )?;
+                    context.inside_general_use = was_inside_general_use;
 
-                let classlike_name = if let Some(name) = get_id_name(
-                    id,
-                    &context.function_context.calling_class,
-                    context.function_context.calling_class_final,
-                    codebase,
-                    &mut is_static,
-                    statements_analyzer.file_analyzer.resolved_names,
-                ) {
-                    name
-                } else {
-                    return Err(AnalysisError::InternalError(
-                        "Could not resolve class name for static property assignment".to_string(),
-                        statements_analyzer.get_hpos(&id.0),
-                    ));
-                };
+                    let lhs_type = analysis_data.get_expr_type(&expr.1.clone());
 
-                fq_class_names.push(classlike_name);
-            }
-            _ => {
-                // eg. $class::$foo
-                let was_inside_general_use = context.inside_general_use;
-                context.inside_general_use = true;
-                expression_analyzer::analyze(
-                    statements_analyzer,
-                    expr,
-                    analysis_data,
-                    context,
-                    true,
-                )?;
-                context.inside_general_use = was_inside_general_use;
-
-                let lhs_type = analysis_data.get_expr_type(&expr.1.clone());
-
-                if let Some(lhs_type) = lhs_type {
-                    for lhs_atomic_type in lhs_type.types.clone() {
-                        if let TAtomic::TNamedObject(TNamedObject {
-                            name,
-                            type_params: None,
-                            ..
-                        }) = lhs_atomic_type
-                        {
-                            fq_class_names.push(name);
+                    if let Some(lhs_type) = lhs_type {
+                        for lhs_atomic_type in lhs_type.types.clone() {
+                            if let TAtomic::TNamedObject(TNamedObject {
+                                name,
+                                type_params: None,
+                                ..
+                            }) = lhs_atomic_type
+                            {
+                                fq_class_names.push(name);
+                            }
                         }
                     }
                 }
             }
         }
+        aast::ClassId_::CIreified(id) => {
+            fq_class_names.push(resolve_id(id, context, codebase, statements_analyzer)?)
+        }
+        aast::ClassId_::CIself => {
+            if let Some(class) = context.function_context.calling_class {
+                fq_class_names.push(class);
+            }
+        }
+        _ => {}
     }
 
     if fq_class_names.is_empty() {

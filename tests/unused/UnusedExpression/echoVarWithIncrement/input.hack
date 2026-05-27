@@ -5,5 +5,6 @@ function foo(int $i) : void {
 $a = 5;
 
 while (rand(0, 1)) {
-    foo(++$a);
+    $a++;
+    foo($a);
 }

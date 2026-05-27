@@ -160,6 +160,7 @@ pub struct TClosure {
 #[derivative(Hash)]
 pub struct TVec {
     pub known_items: Option<BTreeMap<usize, (bool, TUnion)>>,
+    pub variadic_type: Option<TUnion>,
     pub type_param: Box<TUnion>,
     pub known_count: Option<usize>,
     pub non_empty: bool,
@@ -193,6 +194,14 @@ impl TVec {
                     .get_id_with_refs(interner, refs, indent)
                     .as_str();
                 str += ">";
+            } else if let Some(variadic_type) = &self.variadic_type {
+                if !known_items.is_empty() {
+                    str += ", ";
+                }
+                str += "...";
+                str += variadic_type
+                    .get_id_with_refs(interner, refs, indent)
+                    .as_str();
             }
 
             str += ")";
@@ -211,6 +220,10 @@ impl TVec {
         str += ">";
 
         str
+    }
+
+    pub fn is_tuple(&self) -> bool {
+        self.known_items.is_some()
     }
 }
 
@@ -1269,12 +1282,14 @@ impl TAtomic {
         if let TAtomic::TVec(TVec {
             known_items,
             type_param,
+            variadic_type,
             ..
         }) = self
         {
             return TAtomic::TVec(TVec {
                 known_items: known_items.clone(),
                 type_param: type_param.clone(),
+                variadic_type: variadic_type.clone(),
                 known_count,
                 non_empty: true,
             });
@@ -1948,6 +1963,7 @@ pub fn populate_atomic_type(
         TAtomic::TVec(TVec {
             type_param,
             known_items,
+            variadic_type,
             ..
         }) => {
             populate_union_type(
@@ -1968,6 +1984,16 @@ pub fn populate_atomic_type(
                         force,
                     );
                 }
+            }
+
+            if let Some(variadic_type) = variadic_type {
+                populate_union_type(
+                    variadic_type,
+                    codebase_symbols,
+                    reference_source,
+                    symbol_references,
+                    force,
+                );
             }
         }
         TAtomic::TAwaitable { value, .. } => {

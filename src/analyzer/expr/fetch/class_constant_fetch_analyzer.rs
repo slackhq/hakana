@@ -33,6 +33,15 @@ pub(crate) fn analyze(
     let const_name = expr.1.1;
     let mut is_static = false;
     let classlike_name = match &expr.0.2 {
+        aast::ClassId_::CIreified(id) => get_id_name(
+            id,
+            &context.function_context.calling_class,
+            context.function_context.calling_class_final,
+            codebase,
+            &mut is_static,
+            statements_analyzer.file_analyzer.resolved_names,
+        )
+        .ok_or(AnalysisError::UserError)?,
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
                 match get_id_name(
@@ -167,8 +176,12 @@ pub(crate) fn analyze(
                 return Ok(());
             }
         }
+        aast::ClassId_::CIself => match context.function_context.calling_class {
+            Some(class) => class,
+            None => return Err(AnalysisError::UserError),
+        },
         _ => {
-            panic!()
+            return Ok(());
         }
     };
 

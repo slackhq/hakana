@@ -5,14 +5,130 @@ use crate::scope::control_action::ControlAction;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::EFFECT_WRITE_PROPS;
+use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::t_atomic::{TAtomic, TNamedObject};
+use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use hakana_str::StrId;
 use oxidized::aast;
+use oxidized::ast::Id;
 use oxidized::pos::Pos;
 
 use super::atomic_method_call_analyzer::AtomicMethodCallAnalysisResult;
 use super::atomic_static_call_analyzer;
+
+fn resolve_id(
+    id: &Id,
+    pos: &Pos,
+    classlike_name: &mut Option<StrId>,
+    statements_analyzer: &StatementsAnalyzer,
+    context: &BlockContext,
+    codebase: &CodebaseInfo,
+) -> Result<TUnion, AnalysisError> {
+    let name = statements_analyzer
+        .file_analyzer
+        .resolved_names
+        .get(&(id.0.start_offset() as u32))
+        .ok_or_else(|| {
+            AnalysisError::InternalError(
+                "Cannot resolve class name in static call".to_string(),
+                statements_analyzer.get_hpos(pos),
+            )
+        })?;
+    Ok(match *name {
+        StrId::SELF => {
+            let self_name = context
+                .function_context
+                .calling_class
+                .ok_or(AnalysisError::UserError)?;
+
+            *classlike_name = Some(self_name);
+
+            get_named_object(self_name, None)
+        }
+        StrId::PARENT => {
+            let self_name = if let Some(calling_class) = &context.function_context.calling_class {
+                calling_class
+            } else {
+                return Err(AnalysisError::UserError);
+            };
+
+            let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
+
+            let parent_name = if let Some(parent_class) = classlike_storage.direct_parent_class {
+                parent_class
+            } else {
+                // todo handle for traits
+                return Err(AnalysisError::UserError);
+            };
+
+            *classlike_name = Some(parent_name);
+
+            let type_params = if let Some(type_params) = classlike_storage
+                .template_extended_offsets
+                .get(&parent_name)
+            {
+                Some(
+                    type_params
+                        .iter()
+                        .map(|t| {
+                            let t = (**t).clone();
+
+                            t
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            } else {
+                None
+            };
+
+            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+                name: *self_name,
+                type_params: type_params,
+                is_this: !classlike_storage.is_final,
+                remapped_params: false,
+            }))
+        }
+        StrId::STATIC => {
+            let self_name = if let Some(calling_class) = &context.function_context.calling_class {
+                calling_class
+            } else {
+                return Err(AnalysisError::UserError);
+            };
+
+            *classlike_name = Some(*self_name);
+
+            let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
+
+            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+                name: *self_name,
+                type_params: None,
+                is_this: !classlike_storage.is_final,
+                remapped_params: false,
+            }))
+        }
+        _ => {
+            let type_resolution_context = statements_analyzer.get_type_resolution_context();
+
+            let lhs = get_named_object(*name, Some(type_resolution_context));
+
+            match lhs.get_single() {
+                TAtomic::TNamedObject(TNamedObject { name, .. }) => {
+                    *classlike_name = Some(*name);
+                }
+                TAtomic::TGenericClassname { as_type, .. }
+                | TAtomic::TGenericClassPtr { as_type, .. } => {
+                    if let TAtomic::TNamedObject(TNamedObject { name, .. }) = &**as_type {
+                        *classlike_name = Some(*name);
+                    }
+                }
+                _ => (),
+            }
+
+            lhs
+        }
+    })
+}
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -31,119 +147,17 @@ pub(crate) fn analyze(
 
     let mut classlike_name = None;
 
-    let resolved_names = statements_analyzer.file_analyzer.resolved_names;
-
     let lhs_type = match &expr.0.2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                let name = if let Some(name) = resolved_names.get(&(id.0.start_offset() as u32)) {
-                    name
-                } else {
-                    return Err(AnalysisError::InternalError(
-                        "Cannot resolve class name in static call".to_string(),
-                        statements_analyzer.get_hpos(pos),
-                    ));
-                };
-                match *name {
-                    StrId::SELF => {
-                        let self_name =
-                            if let Some(calling_class) = &context.function_context.calling_class {
-                                calling_class
-                            } else {
-                                return Err(AnalysisError::UserError);
-                            };
-
-                        classlike_name = Some(*self_name);
-
-                        get_named_object(*self_name, None)
-                    }
-                    StrId::PARENT => {
-                        let self_name =
-                            if let Some(calling_class) = &context.function_context.calling_class {
-                                calling_class
-                            } else {
-                                return Err(AnalysisError::UserError);
-                            };
-
-                        let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-
-                        let parent_name =
-                            if let Some(parent_class) = classlike_storage.direct_parent_class {
-                                parent_class
-                            } else {
-                                // todo handle for traits
-                                return Err(AnalysisError::UserError);
-                            };
-
-                        classlike_name = Some(parent_name);
-
-                        let type_params = if let Some(type_params) = classlike_storage
-                            .template_extended_offsets
-                            .get(&parent_name)
-                        {
-                            Some(
-                                type_params
-                                    .iter()
-                                    .map(|t| {
-                                        let t = (**t).clone();
-
-                                        t
-                                    })
-                                    .collect::<Vec<_>>(),
-                            )
-                        } else {
-                            None
-                        };
-
-                        wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                            name: *self_name,
-                            type_params: type_params,
-                            is_this: !classlike_storage.is_final,
-                            remapped_params: false,
-                        }))
-                    }
-                    StrId::STATIC => {
-                        let self_name =
-                            if let Some(calling_class) = &context.function_context.calling_class {
-                                calling_class
-                            } else {
-                                return Err(AnalysisError::UserError);
-                            };
-
-                        classlike_name = Some(*self_name);
-
-                        let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-
-                        wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                            name: *self_name,
-                            type_params: None,
-                            is_this: !classlike_storage.is_final,
-                            remapped_params: false,
-                        }))
-                    }
-                    _ => {
-                        let type_resolution_context =
-                            statements_analyzer.get_type_resolution_context();
-
-                        let lhs = get_named_object(*name, Some(type_resolution_context));
-
-                        match lhs.get_single() {
-                            TAtomic::TNamedObject(TNamedObject { name, .. }) => {
-                                classlike_name = Some(*name);
-                            }
-                            TAtomic::TGenericClassname { as_type, .. }
-                            | TAtomic::TGenericClassPtr { as_type, .. } => {
-                                if let TAtomic::TNamedObject(TNamedObject { name, .. }) = &**as_type
-                                {
-                                    classlike_name = Some(*name);
-                                }
-                            }
-                            _ => (),
-                        }
-
-                        lhs
-                    }
-                }
+                resolve_id(
+                    id,
+                    pos,
+                    &mut classlike_name,
+                    statements_analyzer,
+                    context,
+                    codebase,
+                )?
             } else {
                 let was_inside_general_use = context.inside_general_use;
                 context.inside_general_use = true;
@@ -161,8 +175,27 @@ pub(crate) fn analyze(
                     .unwrap_or(get_mixed_any())
             }
         }
+        aast::ClassId_::CIreified(id) => resolve_id(
+            id,
+            pos,
+            &mut classlike_name,
+            statements_analyzer,
+            context,
+            codebase,
+        )?,
+        aast::ClassId_::CIself => {
+            let self_name = if let Some(calling_class) = &context.function_context.calling_class {
+                calling_class
+            } else {
+                return Err(AnalysisError::UserError);
+            };
+
+            classlike_name = Some(*self_name);
+
+            get_named_object(*self_name, None)
+        }
         _ => {
-            panic!("cannot get here")
+            panic!("got unexpected expression: {:?}", expr.0.2);
         }
     };
 

@@ -158,6 +158,7 @@ pub fn get_vec(type_param: TUnion) -> TUnion {
         type_param: Box::new(type_param),
         known_count: None,
         non_empty: false,
+        variadic_type: None,
     }))
 }
 
@@ -769,6 +770,7 @@ fn intersect_vecs_simple(
                     type_param: Box::new(type_param),
                     non_empty: true,
                     known_count: None,
+                    variadic_type: None,
                 }))
             } else {
                 None
@@ -781,6 +783,7 @@ fn intersect_vecs_simple(
                     type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
+                    variadic_type: None,
                 }))
             } else {
                 None

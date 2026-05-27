@@ -265,6 +265,7 @@ pub fn is_contained_by(
                             known_items: None,
                             non_empty: false,
                             known_count: None,
+                            variadic_type: None,
                         }),
                         inside_assertion,
                         atomic_comparison_result,
@@ -746,7 +747,10 @@ pub fn is_contained_by(
             }
         }
 
-        if *container_name == StrId::FORMAT_STRING {
+        if matches!(
+            *container_name,
+            StrId::FORMAT_STRING | StrId::TYPED_FORMAT_STRING
+        ) {
             if let TAtomic::TString { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TStringWithFlags { .. } = input_type_part
@@ -799,7 +803,10 @@ pub fn is_contained_by(
         ..
     } = input_type_part
     {
-        if *input_name == StrId::FORMAT_STRING {
+        if matches!(
+            *input_name,
+            StrId::FORMAT_STRING | StrId::TYPED_FORMAT_STRING
+        ) {
             if let TAtomic::TString { .. } = container_type_part {
                 return true;
             }

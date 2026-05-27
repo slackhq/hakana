@@ -39,24 +39,33 @@ fn resolve_class_name(
     context: &BlockContext,
     class_id: &Box<aast::ClassId<(), ()>>,
 ) -> Option<TAtomic> {
-    // The RHS of a nameof expression always seems to be a CIexpr,
-    // even if a classname literal or a keyword like self/static/parent is passed.
-    let aast::ClassId_::CIexpr(ci_expr) = &class_id.2 else {
-        return None;
-    };
-    let aast::Expr_::Id(inner_class_id) = &ci_expr.2 else {
-        return None;
-    };
+    let resolved_class_id = match &class_id.2 {
+        aast::ClassId_::CIreified(id) => get_id_name(
+            id,
+            &context.function_context.calling_class,
+            context.function_context.calling_class_final,
+            statements_analyzer.codebase,
+            &mut false,
+            statements_analyzer.file_analyzer.resolved_names,
+        )?,
+        aast::ClassId_::CIexpr(ci_expr) => {
+            let aast::Expr_::Id(inner_class_id) = &ci_expr.2 else {
+                return None;
+            };
 
-    let mut is_static = false;
-    let resolved_class_id = get_id_name(
-        &inner_class_id,
-        &context.function_context.calling_class,
-        context.function_context.calling_class_final,
-        statements_analyzer.codebase,
-        &mut is_static,
-        statements_analyzer.file_analyzer.resolved_names,
-    )?;
+            let mut is_static = false;
+            get_id_name(
+                inner_class_id,
+                &context.function_context.calling_class,
+                context.function_context.calling_class_final,
+                statements_analyzer.codebase,
+                &mut is_static,
+                statements_analyzer.file_analyzer.resolved_names,
+            )?
+        }
+        aast::ClassId_::CIself => context.function_context.calling_class?,
+        _ => return None,
+    };
 
     analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,

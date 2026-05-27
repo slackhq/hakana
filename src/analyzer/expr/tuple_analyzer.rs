@@ -65,6 +65,7 @@ pub(crate) fn analyze(
         },
         type_param: Box::new(get_nothing()),
         non_empty: true,
+        variadic_type: None,
     }));
 
     new_dict.parent_nodes = parent_nodes;

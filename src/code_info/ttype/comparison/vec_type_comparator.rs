@@ -19,6 +19,7 @@ pub(crate) fn is_contained_by(
 
     if let TAtomic::TVec(TVec {
         known_items: Some(container_known_items),
+        variadic_type,
         ..
     }) = container_type_part
     {
@@ -49,6 +50,29 @@ pub(crate) fn is_contained_by(
                 } else if !c_u {
                     all_types_contain = false;
                     obviously_bad = true;
+                }
+            }
+
+            // For open tuples, e.g. tuple(int, Foo...), ensure any extra items in the input type
+            // match the type of the open part of the tuple.
+            if let Some(container_variadic_type) = variadic_type {
+                let num_known_items = container_known_items.len();
+
+                for (_, input_property_type) in input_known_items.values().skip(num_known_items) {
+                    if !union_type_comparator::is_contained_by(
+                        codebase,
+                        file_path,
+                        input_property_type,
+                        container_variadic_type,
+                        false,
+                        input_property_type.ignore_falsable_issues,
+                        inside_assertion,
+                        atomic_comparison_result,
+                    ) {
+                        all_types_contain = false;
+                        obviously_bad = true;
+                        break;
+                    }
                 }
             }
         } else {

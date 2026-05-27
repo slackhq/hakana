@@ -50,6 +50,7 @@ fn get_vec_type_from_hint(
         known_count: None,
         non_empty: false,
         known_items: None,
+        variadic_type: None,
     })
 }
 
@@ -60,33 +61,52 @@ fn get_tuple_type_from_hints(
     resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
+    let known_items = {
+        let mut map = BTreeMap::new();
+
+        for (i, tuple_member) in tuple_info.required.iter().enumerate() {
+            map.insert(
+                i,
+                (
+                    false,
+                    get_type_from_hint(
+                        &tuple_member.1,
+                        classlike_name,
+                        type_context,
+                        resolved_names,
+                        file_path,
+                        tuple_member.0.start_offset() as u32,
+                    )
+                    .unwrap(),
+                ),
+            );
+        }
+
+        map
+    };
+
+    // Handle open tuples like (mixed...), used for type splatting
+    let variadic_type = if let oxidized::ast::TupleExtra::Hextra(info) = &tuple_info.extra
+        && let Some(splat_hint) = &info.variadic
+        && let Some(splat_type) = get_type_from_hint(
+            &splat_hint.1,
+            classlike_name,
+            type_context,
+            resolved_names,
+            file_path,
+            splat_hint.0.start_offset() as u32,
+        ) {
+        Some(splat_type)
+    } else {
+        None
+    };
+
     TAtomic::TVec(TVec {
         type_param: Box::new(get_nothing()),
-        known_count: Some(tuple_info.required.len()),
+        known_count: Some(known_items.len()),
         non_empty: true,
-        known_items: Some({
-            let mut map = BTreeMap::new();
-
-            for (i, tuple_member) in tuple_info.required.iter().enumerate() {
-                map.insert(
-                    i,
-                    (
-                        false,
-                        get_type_from_hint(
-                            &tuple_member.1,
-                            classlike_name,
-                            type_context,
-                            resolved_names,
-                            file_path,
-                            tuple_member.0.start_offset() as u32,
-                        )
-                        .unwrap(),
-                    ),
-                );
-            }
-
-            map
-        }),
+        known_items: Some(known_items),
+        variadic_type,
     })
 }
 
@@ -553,6 +573,7 @@ pub fn get_type_from_hint(
                             known_items: None,
                             known_count: None,
                             non_empty: false,
+                            variadic_type: None,
                         })
                     }
                 }
@@ -629,6 +650,7 @@ pub fn get_type_from_hint(
                         ))),
                         non_empty: false,
                         known_count: None,
+                        variadic_type: None,
                     }));
                     TAtomic::TDict(TDict {
                         known_items: None,

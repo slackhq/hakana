@@ -110,6 +110,7 @@ pub fn combine(
             type_param: Box::new(vec_type_param),
             non_empty: combination.vec_always_filled,
             known_count: None,
+            variadic_type: None,
         }));
     }
 

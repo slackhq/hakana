@@ -252,7 +252,7 @@ pub(crate) fn analyze(
                         analysis_data,
                         context,
                         context.inside_assignment,
-                        matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
+                        matches!(nullfetch, ast_defs::OperatorNullFlavor::Nullsafe),
                     )?;
                 }
                 ast_defs::PropOrMethod::IsMethod => {
@@ -260,7 +260,7 @@ pub(crate) fn analyze(
                 }
             }
 
-            if let ast_defs::OgNullFlavor::OGNullsafe = nullfetch {
+            if let ast_defs::OperatorNullFlavor::Nullsafe = nullfetch {
                 // handle nullsafe calls
             }
         }
@@ -406,7 +406,7 @@ pub(crate) fn analyze(
                 analysis_data,
             )?;
         }
-        aast::Expr_::Await(boxed) => {
+        aast::Expr_::Await(boxed) | aast::Expr_::Delay(boxed) => {
             await_analyzer::analyze(statements_analyzer, expr, boxed, analysis_data, context)?;
         }
         aast::Expr_::FunctionPointer(boxed) => {
@@ -728,32 +728,54 @@ fn analyze_function_pointer(
             }
         }),
         aast::FunctionPtrId::FPClassConst(class_id, method_name) => {
-            let resolved_names = statements_analyzer.file_analyzer.resolved_names;
             let calling_class = &context.function_context.calling_class;
 
             let class_name = match &class_id.2 {
                 aast::ClassId_::CIexpr(inner_expr) => {
                     if let aast::Expr_::Id(id) = &inner_expr.2 {
-                        if let Some(name) = get_id_name(
+                        get_id_name(
                             id,
-                            calling_class,
+                            &context.function_context.calling_class,
                             context.function_context.calling_class_final,
                             codebase,
                             &mut false,
-                            resolved_names,
-                        ) {
-                            name
-                        } else {
-                            return Err(AnalysisError::InternalError(
+                            statements_analyzer.file_analyzer.resolved_names,
+                        )
+                        .ok_or_else(|| {
+                            AnalysisError::InternalError(
                                 "Cannot resolve function pointer class constant".to_string(),
-                                statements_analyzer.get_hpos(&id.0),
-                            ));
-                        }
+                                statements_analyzer.get_hpos(id.pos()),
+                            )
+                        })?
                     } else {
-                        panic!("Unrecognised expression type for class constant reference");
+                        panic!(
+                            "Unrecognised expression type for class constant reference: {:?}",
+                            inner_expr.2
+                        );
                     }
                 }
-                _ => panic!("Unrecognised expression type for class constant reference"),
+                aast::ClassId_::CIreified(id) => get_id_name(
+                    id,
+                    &context.function_context.calling_class,
+                    context.function_context.calling_class_final,
+                    codebase,
+                    &mut false,
+                    statements_analyzer.file_analyzer.resolved_names,
+                )
+                .ok_or_else(|| {
+                    AnalysisError::InternalError(
+                        "Cannot resolve function pointer class constant".to_string(),
+                        statements_analyzer.get_hpos(id.pos()),
+                    )
+                })?,
+                aast::ClassId_::CIself => match calling_class {
+                    Some(class) => *class,
+                    None => return Err(AnalysisError::UserError),
+                },
+                _ => panic!(
+                    "Unrecognised expression type for class constant reference: {:?}",
+                    class_id.2
+                ),
             };
 
             let method_name = statements_analyzer.interner.get(&method_name.1);
