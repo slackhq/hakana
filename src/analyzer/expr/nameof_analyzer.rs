@@ -13,7 +13,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
     expr: &aast::Expr<(), ()>,
-    class_id: &Box<aast::ClassId<(), ()>>,
+    class_id: &aast::ClassId<(), ()>,
 ) -> Result<(), AnalysisError> {
     let resolved_nameof_type =
         resolve_class_name(statements_analyzer, analysis_data, context, class_id).ok_or_else(
@@ -37,7 +37,7 @@ fn resolve_class_name(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
-    class_id: &Box<aast::ClassId<(), ()>>,
+    class_id: &aast::ClassId<(), ()>,
 ) -> Option<TAtomic> {
     let resolved_class_id = match &class_id.2 {
         aast::ClassId_::CIreified(id) => get_id_name(

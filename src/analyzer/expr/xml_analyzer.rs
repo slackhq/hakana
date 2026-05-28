@@ -34,18 +34,18 @@ use super::fetch::atomic_property_fetch_analyzer;
 
 pub(crate) fn analyze(
     context: &mut BlockContext,
-    boxed: &Box<(
+    parts: &(
         ast_defs::Id,
         Vec<aast::XhpAttribute<(), ()>>,
         Vec<aast::Expr<(), ()>>,
-    )>,
+    ),
     pos: &Pos,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
 ) -> Result<(), AnalysisError> {
     let resolved_names = statements_analyzer.file_analyzer.resolved_names;
     let xhp_class_name =
-        if let Some(resolved_name) = resolved_names.get(&(boxed.0.0.start_offset() as u32)) {
+        if let Some(resolved_name) = resolved_names.get(&(parts.0.0.start_offset() as u32)) {
             resolved_name
         } else {
             return Err(AnalysisError::InternalError(
@@ -66,8 +66,8 @@ pub(crate) fn analyze(
     {
         analysis_data.definition_locations.insert(
             (
-                boxed.0.0.start_offset() as u32,
-                boxed.0.0.end_offset() as u32,
+                parts.0.0.start_offset() as u32,
+                parts.0.0.end_offset() as u32,
             ),
             (*xhp_class_name, StrId::EMPTY),
         );
@@ -80,7 +80,7 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.codebase;
 
-    for attribute in &boxed.1 {
+    for attribute in &parts.1 {
         match attribute {
             aast::XhpAttribute::XhpSimple(xhp_simple) => {
                 let attribute_name = get_attribute_name(
@@ -193,7 +193,7 @@ pub(crate) fn analyze(
         },
     );
 
-    for inner_expr in &boxed.2 {
+    for inner_expr in &parts.2 {
         expression_analyzer::analyze(
             statements_analyzer,
             inner_expr,

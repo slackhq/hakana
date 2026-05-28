@@ -703,17 +703,17 @@ pub(crate) fn find_expr_logic_issues(
 
 fn analyze_function_pointer(
     statements_analyzer: &StatementsAnalyzer,
-    boxed: &Box<(
+    parts: &(
         aast::FunctionPtrId<(), ()>,
         Vec<aast::Targ<()>>,
         oxidized::nast::FunctionPointerSource,
-    )>,
+    ),
     context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     expr: &aast::Expr<(), ()>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.codebase;
-    let id = match &boxed.0 {
+    let id = match &parts.0 {
         aast::FunctionPtrId::FPId(id) => FunctionLikeIdentifier::Function({
             let resolved_names = statements_analyzer.file_analyzer.resolved_names;
 
