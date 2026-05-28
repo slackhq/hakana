@@ -130,7 +130,7 @@ pub fn get_subcommand() -> Command<'static> {
 pub async fn handle(
     sub_matches: &clap::ArgMatches,
     all_custom_issues: FxHashSet<String>,
-    root_dir: &str,
+    root_dir: &String,
     mut analysis_hooks: Vec<Box<dyn CustomHook>>,
     config_path: Option<&Path>,
     cwd: &String,
@@ -326,7 +326,7 @@ pub async fn handle(
 
     if config_path.exists() {
         config
-            .update_from_file(cwd, config_path, &mut interner)
+            .update_from_file(root_dir, config_path, &mut interner)
             .ok();
     }
 

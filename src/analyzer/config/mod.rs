@@ -101,6 +101,11 @@ impl Config {
         }
     }
 
+    /// Get the root path of the project being analyzed.
+    pub fn root_path(&self) -> &Path {
+        Path::new(&self.root_dir)
+    }
+
     pub fn update_from_file(
         &mut self,
         cwd: &String,

@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
@@ -56,7 +54,7 @@ pub(crate) fn analyze(
     if let Some(first_arg_type) = analysis_data.get_rc_expr_type(expr.pos()).cloned()
         && let Some(value) = first_arg_type.get_single_literal_string_value()
     {
-        let path = Path::new(&value);
+        let path = statements_analyzer.get_config().root_path().join(&value);
         if !path.exists() {
             analysis_data.maybe_add_issue(
                 Issue::new(
