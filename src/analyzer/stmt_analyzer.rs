@@ -450,9 +450,17 @@ fn has_unused_must_use(
                         }
                     }
                     FunctionLikeIdentifier::Method(method_class, method_name) => {
+                        // When checking whether the return value of a method must be used,
+                        // ensure we check on the declaring class since the method may be inherited.
                         if let Some(functionlike_info) = codebase
-                            .functionlike_infos
-                            .get(&(method_class, method_name))
+                            .classlike_infos
+                            .get(&method_class)
+                            .and_then(|c| c.declaring_method_ids.get(&method_name))
+                            .and_then(|declaring_class| {
+                                codebase
+                                    .functionlike_infos
+                                    .get(&(*declaring_class, method_name))
+                            })
                         {
                             return if functionlike_info.must_use {
                                 Some(IssueKind::UnusedMethodCall)
