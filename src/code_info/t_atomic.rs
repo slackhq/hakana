@@ -1512,36 +1512,39 @@ impl TAtomic {
 
     pub fn get_intersection_types(&self) -> (Vec<&TAtomic>, Vec<TAtomic>) {
         match self {
-            TAtomic::TObjectIntersection { types } => (types.iter().collect(), vec![]),
-            _ => {
-                if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = self {
-                    for as_atomic in &as_type.types {
-                        // T1 as T2 as object becomes (T1 as object) & (T2 as object)
+            TAtomic::TObjectIntersection { types } => return (types.iter().collect(), vec![]),
+            TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
+                for as_atomic in &as_type.types {
+                    // T1 as T2 as object becomes (T1 as object) & (T2 as object)
+                    if let TAtomic::TGenericParam(TGenericParam {
+                        as_type: extends_as_type,
+                        ..
+                    }) = as_atomic
+                    {
+                        let mut new_intersection_types = vec![];
+                        let intersection_types = as_atomic.get_intersection_types();
+                        new_intersection_types.extend(intersection_types.1);
+                        let mut type_part = self.clone();
                         if let TAtomic::TGenericParam(TGenericParam {
-                            as_type: extends_as_type,
-                            ..
-                        }) = as_atomic
+                            ref mut as_type, ..
+                        }) = type_part
                         {
-                            let mut new_intersection_types = vec![];
-                            let intersection_types = as_atomic.get_intersection_types();
-                            new_intersection_types.extend(intersection_types.1);
-                            let mut type_part = self.clone();
-                            if let TAtomic::TGenericParam(TGenericParam {
-                                ref mut as_type, ..
-                            }) = type_part
-                            {
-                                as_type.clone_from(extends_as_type);
-                            }
-                            new_intersection_types.push(type_part);
-
-                            return (intersection_types.0, new_intersection_types);
+                            as_type.clone_from(extends_as_type);
                         }
+                        new_intersection_types.push(type_part);
+
+                        return (intersection_types.0, new_intersection_types);
+                    }
+
+                    if let TAtomic::TNamedObject(..) = as_atomic {
+                        return (vec![], vec![as_atomic.clone()]);
                     }
                 }
-
-                (vec![self], vec![])
             }
+            _ => {}
         }
+
+        (vec![self], vec![])
     }
 
     /// Creates an intersection type from two atomic types.
