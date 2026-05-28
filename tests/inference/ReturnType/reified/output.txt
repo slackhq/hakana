@@ -1,0 +1,1 @@
+ERROR: InvalidReturnStatement - input.hack:14:16 - The type C does not match the declared return type TParam:D for D::bad
