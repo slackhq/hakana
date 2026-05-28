@@ -76,6 +76,11 @@ pub fn expand_union(
     data_flow_graph: &mut DataFlowGraph,
     cost: &mut u32,
 ) {
+    // Optimization: Avoid needless allocs from type expansion for leaf types that can't be expanded.
+    if return_type.types.iter().all(|t| !atomic_needs_expansion(t, options)) {
+        return;
+    }
+
     let mut overall_new_atomic_types = Vec::with_capacity(return_type.types.len());
     let mut overall_extra_data_flow_nodes = vec![];
 
@@ -83,6 +88,11 @@ pub fn expand_union(
     let original_types = std::mem::take(&mut return_type.types);
 
     for mut current_atomic_being_processed in original_types {
+        if !atomic_needs_expansion(&current_atomic_being_processed, options) {
+            overall_new_atomic_types.push(current_atomic_being_processed);
+            continue;
+        }
+
         let mut skip_this_atomic = false;
         // This vector will receive replacements if current_atomic_being_processed is skipped.
         let mut replacements_for_current_atomic = Vec::new();
@@ -117,6 +127,57 @@ pub fn expand_union(
     }
 
     extend_dataflow_uniquely(&mut return_type.parent_nodes, overall_extra_data_flow_nodes);
+}
+
+/// Determine whether a given TAtomic is a leaf type that requires no further expansion.
+#[inline]
+fn atomic_needs_expansion(atomic: &TAtomic, options: &TypeExpansionOptions) -> bool {
+    match atomic {
+        TAtomic::TArraykey { .. }
+        | TAtomic::TBool
+        | TAtomic::TFalse
+        | TAtomic::TFloat
+        | TAtomic::TInt
+        | TAtomic::TLiteralInt { .. }
+        | TAtomic::TLiteralString { .. }
+        | TAtomic::TLiteralClassname { .. }
+        | TAtomic::TLiteralClassPtr { .. }
+        | TAtomic::TMixed
+        | TAtomic::TMixedFromLoopIsset
+        | TAtomic::TMixedWithFlags(..)
+        | TAtomic::TNothing
+        | TAtomic::TNull
+        | TAtomic::TNum
+        | TAtomic::TObject
+        | TAtomic::TPlaceholder
+        | TAtomic::TResource
+        | TAtomic::TScalar
+        | TAtomic::TString
+        | TAtomic::TStringWithFlags(..)
+        | TAtomic::TTrue
+        | TAtomic::TTypeVariable { .. }
+        | TAtomic::TVoid
+        | TAtomic::TEnumClassLabel { .. } => false,
+
+        TAtomic::TNamedObject(TNamedObject { name, is_this, type_params, .. }) => {
+            if *name == StrId::THIS || *is_this {
+                return true;
+            }
+            type_params.is_some()
+        }
+
+        TAtomic::TEnum { .. }
+        | TAtomic::TEnumLiteralCase { .. } => true,
+
+        TAtomic::TTypeAlias { type_params, .. } => {
+            if !options.expand_type_aliases {
+                return type_params.as_ref().is_some_and(|p| !p.is_empty());
+            }
+            true
+        }
+
+        _ => true,
+    }
 }
 
 fn expand_atomic(
