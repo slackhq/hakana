@@ -292,7 +292,9 @@ fn detect_unused_statement_expressions(
     stmt: &aast::Stmt<(), ()>,
     context: &mut BlockContext,
 ) {
-    if let Some(issue_kind) = has_unused_must_use(boxed, statements_analyzer, analysis_data) {
+    if let Some(issue_kind) =
+        has_unused_must_use(boxed, statements_analyzer, analysis_data, context)
+    {
         analysis_data.maybe_add_issue(
             Issue::new(
                 issue_kind,
@@ -410,6 +412,7 @@ fn has_unused_must_use(
     boxed: &aast::Expr<(), ()>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
+    context: &BlockContext,
 ) -> Option<IssueKind> {
     match &boxed.2 {
         aast::Expr_::Call(boxed_call) => {
@@ -431,6 +434,7 @@ fn has_unused_must_use(
                                     arg.to_expr_ref(),
                                     statements_analyzer,
                                     analysis_data,
+                                    context,
                                 );
                                 if has_unused.is_some() {
                                     return has_unused;
@@ -450,11 +454,19 @@ fn has_unused_must_use(
                         }
                     }
                     FunctionLikeIdentifier::Method(method_class, method_name) => {
+                        let resolved_method_class = match method_class {
+                            StrId::SELF | StrId::STATIC => context.function_context.calling_class,
+                            StrId::PARENT => context
+                                .function_context
+                                .calling_class
+                                .and_then(|c| codebase.classlike_infos.get(&c))
+                                .and_then(|c| c.direct_parent_class),
+                            _ => Some(method_class),
+                        };
                         // When checking whether the return value of a method must be used,
                         // ensure we check on the declaring class since the method may be inherited.
-                        if let Some(functionlike_info) = codebase
-                            .classlike_infos
-                            .get(&method_class)
+                        if let Some(functionlike_info) = resolved_method_class
+                            .and_then(|c| codebase.classlike_infos.get(&c))
                             .and_then(|c| c.declaring_method_ids.get(&method_name))
                             .and_then(|declaring_class| {
                                 codebase
@@ -474,7 +486,7 @@ fn has_unused_must_use(
             }
         }
         aast::Expr_::Await(await_expr) | aast::Expr_::Delay(await_expr) => {
-            return has_unused_must_use(await_expr, statements_analyzer, analysis_data);
+            return has_unused_must_use(await_expr, statements_analyzer, analysis_data, context);
         }
         _ => (),
     }
