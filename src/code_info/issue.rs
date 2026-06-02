@@ -159,7 +159,6 @@ pub enum IssueKind {
     UnusedInheritedMethod,
     UnusedInoutAssignment,
     UnusedInterface,
-    UnusedMethodCall,
     UnusedParameter,
     UnusedPipeVariable,
     UnusedPrivateMethod,
