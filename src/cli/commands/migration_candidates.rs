@@ -1,7 +1,7 @@
 use clap::{Command, arg};
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_str::Interner;
+use hakana_str::{Interner, StrId};
 use rustc_hash::FxHashSet;
 use std::path::Path;
 use std::process::exit;
@@ -33,7 +33,7 @@ pub fn get_subcommand() -> Command<'static> {
         .arg(
             arg!(--"filter" <PATH>)
                 .required(false)
-                .help("Filter the files that are analyzed"),
+                .help("Only return migration candidates matching this glob expression"),
         )
         .arg(
             arg!(--"debug")
@@ -88,11 +88,13 @@ pub fn handle(
 
     let config = Arc::new(config);
 
-    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+    let filter = sub_matches
+        .value_of("filter")
+        .map(|f| glob::Pattern::new(f).expect(&format!("Invalid filter pattern {}", f)));
 
     let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),
-        filter,
+        None,
         None,
         config.clone(),
         None,
@@ -106,14 +108,44 @@ pub fn handle(
         || {},
     );
 
-    if let Ok(result) = result {
+    if let Ok((result, scan_data)) = result {
         tty_println!("\nSymbols to migrate:\n");
         for config_hook in &config.hooks {
             let migration_candidates =
-                config_hook.get_candidates(&result.1.codebase, &result.1.interner, &result.0);
+                config_hook.get_candidates(&scan_data.codebase, &scan_data.interner, &result);
 
             for migration_candidate in migration_candidates {
-                println!("{}", migration_candidate);
+                let (classlike_id, member_id) = if let Some((classlike_name, member_name)) =
+                    migration_candidate.split_once("::")
+                {
+                    (
+                        scan_data.interner.get(classlike_name),
+                        scan_data.interner.get(member_name),
+                    )
+                } else {
+                    (
+                        scan_data.interner.get(&migration_candidate),
+                        Some(StrId::EMPTY),
+                    )
+                };
+
+                // If a filter expression is given, only yield migration candidates that match it.
+                if let Some(classlike_id) = classlike_id
+                    && let Some(member_id) = member_id
+                    && let Some(location) =
+                        scan_data.codebase.get_symbol_pos(&classlike_id, &member_id)
+                {
+                    let relative_definition_path = location
+                        .file_path
+                        .get_relative_path(&scan_data.interner, &config.root_dir);
+
+                    if filter
+                        .as_ref()
+                        .is_none_or(|f| f.matches(&relative_definition_path))
+                    {
+                        println!("{}", migration_candidate);
+                    }
+                }
             }
         }
     }
