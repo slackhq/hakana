@@ -251,7 +251,10 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         }
 
         let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
-        let analysis_result = (*analysis_result.lock().unwrap()).clone();
+        let analysis_result = Arc::try_unwrap(analysis_result)
+            .unwrap()
+            .into_inner()
+            .unwrap();
         return Ok((analysis_result, scan_data));
     }
 
@@ -296,7 +299,12 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         pure_file_analysis_time
     );
 
-    let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
+    // Take ownership instead of cloning — the merged AnalysisResult can be very
+    // large, and a clone would keep two copies alive for the rest of this function.
+    let mut analysis_result = Arc::try_unwrap(analysis_result)
+        .unwrap()
+        .into_inner()
+        .unwrap();
 
     analysis_result.time_in_analysis = pure_file_analysis_time;
 
