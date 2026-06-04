@@ -410,7 +410,8 @@ fn handle_shapes_static_method(
                             ..
                         }) = atomic_type
                         {
-                            known_items.remove(&DictKey::String(dim_var_id.clone()));
+                            std::sync::Arc::make_mut(known_items)
+                                .remove(&DictKey::String(dim_var_id.clone()));
                         }
                     }
 
@@ -465,7 +466,9 @@ fn handle_shapes_static_method(
                         if let TAtomic::TDict(TDict { known_items, .. }) = atomic_type {
                             // Add or update the key in known_items
                             let known_items =
-                                known_items.get_or_insert_with(std::collections::BTreeMap::new);
+                                std::sync::Arc::make_mut(known_items.get_or_insert_with(|| {
+                                    std::sync::Arc::new(std::collections::BTreeMap::new())
+                                }));
                             known_items.insert(
                                 DictKey::String(key_str.clone()),
                                 (false, std::sync::Arc::new((*value_type).clone())),

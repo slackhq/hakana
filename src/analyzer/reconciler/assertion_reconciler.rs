@@ -1637,9 +1637,9 @@ pub(crate) fn intersect_atomic_with_atomic(
                 return None;
             };
 
-            let mut type_2_known_items = type_2_known_items.clone();
+            let type_2_known_items = type_2_known_items.clone();
 
-            for (_, type_2_value) in type_2_known_items.iter_mut() {
+            for (_, type_2_value) in type_2_known_items.iter() {
                 if type_1_value_param.is_nothing() {
                     // if the type_2 key is always defined, the intersection is impossible
                     if !type_2_value.0 {
@@ -1897,7 +1897,7 @@ fn intersect_dicts(
         (Some(type_1_known_items), Some(type_2_known_items)) => {
             let mut intersected_items = BTreeMap::new();
 
-            for (type_2_key, type_2_value) in type_2_known_items {
+            for (type_2_key, type_2_value) in type_2_known_items.iter() {
                 if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
                     intersected_items.insert(
                         type_2_key.clone(),
@@ -1942,7 +1942,7 @@ fn intersect_dicts(
             }
 
             Some(TAtomic::TDict(TDict {
-                known_items: Some(intersected_items),
+                known_items: Some(Arc::new(intersected_items)),
                 params,
                 non_empty: true,
                 shape_name: None,
@@ -1952,7 +1952,7 @@ fn intersect_dicts(
         (None, Some(type_2_known_items)) => {
             let mut type_2_known_items = type_2_known_items.clone();
 
-            for (_, type_2_value) in type_2_known_items.iter_mut() {
+            for (_, type_2_value) in Arc::make_mut(&mut type_2_known_items).iter_mut() {
                 if let Some(type_1_params) = &type_1_dict.params {
                     type_2_value.1 = if let Some(t) = intersect_union_with_union(
                         statements_analyzer,
@@ -1982,7 +1982,7 @@ fn intersect_dicts(
         (Some(type_1_known_items), None) => {
             let mut type_1_known_items = type_1_known_items.clone();
 
-            for (_, type_1_value) in type_1_known_items.iter_mut() {
+            for (_, type_1_value) in Arc::make_mut(&mut type_1_known_items).iter_mut() {
                 if let Some(type_2_params) = &type_2_dict.params {
                     type_1_value.1 = if let Some(t) = intersect_union_with_union(
                         statements_analyzer,

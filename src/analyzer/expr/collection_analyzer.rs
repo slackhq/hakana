@@ -279,7 +279,7 @@ pub(crate) fn analyze_keyvals(
 
     let mut new_dict = wrap_atomic(TAtomic::TDict(TDict {
         known_items: if !known_items.is_empty() {
-            Some(known_items)
+            Some(Arc::new(known_items))
         } else {
             None
         },

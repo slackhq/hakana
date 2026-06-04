@@ -1885,7 +1885,7 @@ fn reconcile_no_array_key(
                 if let Some(known_items) = known_items {
                     if let Some(known_item) = known_items.get(key_name) {
                         if known_item.0 {
-                            known_items.remove(key_name);
+                            std::sync::Arc::make_mut(known_items).remove(key_name);
                             did_remove_type = true;
                         }
                     } else if let Some((key_param, _)) = params
@@ -2019,6 +2019,7 @@ fn reconcile_no_nonnull_entry_for_key(existing_var_type: &TUnion, key_name: &Dic
         if let TAtomic::TDict(TDict { known_items, .. }) = atomic {
             let mut all_known_items_removed = false;
             if let Some(known_items_inner) = known_items {
+                let known_items_inner = std::sync::Arc::make_mut(known_items_inner);
                 if let Some(known_item) = known_items_inner.remove(key_name) {
                     if !known_item.0 {
                         // impossible to not have this key

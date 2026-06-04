@@ -307,7 +307,7 @@ fn replace_atomic(
             }
 
             if let Some(known_items) = known_items {
-                for (_, t) in known_items.values_mut() {
+                for (_, t) in Arc::make_mut(known_items).values_mut() {
                     *t = Arc::new(replace(t, template_result, codebase));
                 }
             }

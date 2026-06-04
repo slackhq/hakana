@@ -317,7 +317,7 @@ fn get_shape_type_from_hints(
         known_items: if known_items.is_empty() {
             None
         } else {
-            Some(known_items)
+            Some(std::sync::Arc::new(known_items))
         },
         non_empty: false,
         shape_name: None,

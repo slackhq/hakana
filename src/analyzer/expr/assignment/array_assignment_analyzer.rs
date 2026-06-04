@@ -307,6 +307,7 @@ fn update_atomic_given_key(
                         *has_matching_item = true;
 
                         if let Some(known_items) = known_items {
+                            let known_items = Arc::make_mut(known_items);
                             if let Some((pu, entry)) = known_items.get_mut(&key) {
                                 *entry = Arc::new(current_type.clone());
                                 *pu = false;
@@ -315,10 +316,10 @@ fn update_atomic_given_key(
                                 known_items.insert(key, (false, Arc::new(current_type.clone())));
                             }
                         } else {
-                            *known_items = Some(BTreeMap::from([(
+                            *known_items = Some(Arc::new(BTreeMap::from([(
                                 key,
                                 (false, Arc::new(current_type.clone())),
-                            )]));
+                            )])));
                         }
 
                         *non_empty = true;
@@ -543,12 +544,12 @@ fn update_array_assignment_child_type(
                     params: Some((Box::new((*key_type).clone()), Box::new(value_type.clone()))),
                     known_items: if let Some(known_items) = known_items {
                         let known_item = Arc::new(value_type.clone());
-                        Some(
+                        Some(Arc::new(
                             known_items
                                 .iter()
                                 .map(|(k, v)| (k.clone(), (v.0, known_item.clone())))
                                 .collect::<BTreeMap<_, _>>(),
-                        )
+                        ))
                     } else {
                         None
                     },

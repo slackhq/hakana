@@ -40,7 +40,7 @@ impl DictKey {
 #[derivative(Hash)]
 /// Corresponds to the `dict` type and also the `shape` type.
 pub struct TDict {
-    pub known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
+    pub known_items: Option<Arc<BTreeMap<DictKey, (bool, Arc<TUnion>)>>>,
     pub params: Option<(Box<TUnion>, Box<TUnion>)>,
     pub non_empty: bool,
     pub shape_name: Option<(StrId, Option<StrId>)>,
@@ -1910,7 +1910,7 @@ pub fn populate_atomic_type(
             }
 
             if let Some(known_items) = known_items {
-                for (_, prop_type) in known_items.values_mut() {
+                for (_, prop_type) in Arc::make_mut(known_items).values_mut() {
                     populate_union_type(
                         Arc::make_mut(prop_type),
                         codebase_symbols,

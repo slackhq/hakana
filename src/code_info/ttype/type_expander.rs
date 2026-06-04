@@ -162,16 +162,33 @@ fn expand_atomic(
         }
 
         if let Some(known_items) = known_items {
-            for (_, item_type) in known_items.values_mut() {
-                expand_union(
-                    codebase,
-                    interner,
-                    file_path,
-                    Arc::make_mut(item_type),
-                    options,
-                    data_flow_graph,
-                    cost,
-                );
+            // Avoid copy-on-write of the (possibly shared) map — and per-entry
+            // union clones — when no entry can be changed by expansion.
+            let mut inert_cost = 0;
+            let needs_expansion = known_items
+                .values()
+                .any(|(_, item_type)| union_needs_expansion(item_type, options, &mut inert_cost));
+
+            if !needs_expansion {
+                // Match the cost accounting expansion would have performed.
+                *cost += inert_cost;
+            } else {
+                for (_, item_type) in Arc::make_mut(known_items).values_mut() {
+                    let mut scratch = 0;
+                    if union_needs_expansion(item_type, options, &mut scratch) {
+                        expand_union(
+                            codebase,
+                            interner,
+                            file_path,
+                            Arc::make_mut(item_type),
+                            options,
+                            data_flow_graph,
+                            cost,
+                        );
+                    } else {
+                        *cost += scratch;
+                    }
+                }
             }
         }
 
@@ -849,6 +866,122 @@ fn expand_atomic(
                 *intersection_type = inner_new_parts.remove(0);
             }
         }
+    }
+}
+
+/// Conservative, read-only check of whether `expand_atomic` could change this
+/// union. Mirrors the recursion in `expand_atomic` above — if an arm is added
+/// there, this must be updated (the default arm returns true, so new variants
+/// are safe but unoptimised). `cost` is incremented once per atomic visited,
+/// matching the accounting `expand_atomic` performs for types it cannot change;
+/// callers should only apply it when this returns false.
+fn union_needs_expansion(union: &TUnion, options: &TypeExpansionOptions, cost: &mut u32) -> bool {
+    union
+        .types
+        .iter()
+        .any(|t| atomic_needs_expansion(t, options, cost))
+}
+
+fn atomic_needs_expansion(
+    atomic: &TAtomic,
+    options: &TypeExpansionOptions,
+    cost: &mut u32,
+) -> bool {
+    *cost += 1;
+
+    match atomic {
+        TAtomic::TArraykey { .. }
+        | TAtomic::TBool
+        | TAtomic::TFalse
+        | TAtomic::TFloat
+        | TAtomic::TInt
+        | TAtomic::TLiteralClassname { .. }
+        | TAtomic::TLiteralClassPtr { .. }
+        | TAtomic::TLiteralInt { .. }
+        | TAtomic::TLiteralString { .. }
+        | TAtomic::TMixed
+        | TAtomic::TMixedFromLoopIsset
+        | TAtomic::TMixedWithFlags(..)
+        | TAtomic::TNothing
+        | TAtomic::TNull
+        | TAtomic::TNum
+        | TAtomic::TObject
+        | TAtomic::TReference { .. }
+        | TAtomic::TScalar
+        | TAtomic::TString
+        | TAtomic::TStringWithFlags(..)
+        | TAtomic::TTrue
+        | TAtomic::TTypeVariable { .. } => false,
+        TAtomic::TDict(TDict {
+            known_items,
+            params,
+            shape_name,
+            ..
+        }) => {
+            (options.force_alias_expansion && shape_name.is_some())
+                || params.as_ref().is_some_and(|params| {
+                    union_needs_expansion(&params.0, options, cost)
+                        || union_needs_expansion(&params.1, options, cost)
+                })
+                || known_items.as_ref().is_some_and(|known_items| {
+                    known_items
+                        .values()
+                        .any(|(_, t)| union_needs_expansion(t, options, cost))
+                })
+        }
+        TAtomic::TVec(TVec {
+            known_items,
+            type_param,
+            ..
+        }) => {
+            union_needs_expansion(type_param, options, cost)
+                || known_items.as_ref().is_some_and(|known_items| {
+                    known_items
+                        .values()
+                        .any(|(_, t)| union_needs_expansion(t, options, cost))
+                })
+        }
+        TAtomic::TKeyset { type_param, .. } => union_needs_expansion(type_param, options, cost),
+        TAtomic::TAwaitable { value } => union_needs_expansion(value, options, cost),
+        TAtomic::TNamedObject(TNamedObject {
+            name,
+            type_params,
+            is_this,
+            ..
+        }) => {
+            *name == StrId::THIS
+                || *is_this
+                || type_params.as_ref().is_some_and(|type_params| {
+                    type_params
+                        .iter()
+                        .any(|t| union_needs_expansion(t, options, cost))
+                })
+        }
+        TAtomic::TClosure(closure) => {
+            closure
+                .return_type
+                .as_ref()
+                .is_some_and(|t| union_needs_expansion(t, options, cost))
+                || closure.params.iter().any(|param| {
+                    param
+                        .signature_type
+                        .as_ref()
+                        .is_some_and(|t| union_needs_expansion(t, options, cost))
+                })
+        }
+        TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
+            options.where_constraints.is_some() || union_needs_expansion(as_type, options, cost)
+        }
+        TAtomic::TClassname { as_type, .. }
+        | TAtomic::TTypename { as_type, .. }
+        | TAtomic::TClassPtr { as_type } => atomic_needs_expansion(as_type, options, cost),
+        TAtomic::TObjectIntersection { types } => types
+            .iter()
+            .any(|t| atomic_needs_expansion(t, options, cost)),
+        // TTypeAlias, TEnum, TEnumLiteralCase, TMemberReference,
+        // TClassTypeConstant, TClosureAlias, TGenericClassname/Typename/ClassPtr
+        // and any future variants: assume expansion is needed.
+        _ => true,
     }
 }
 

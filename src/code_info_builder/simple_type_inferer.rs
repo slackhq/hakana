@@ -63,7 +63,7 @@ pub fn infer(
 
             Some(TAtomic::TDict(TDict {
                 non_empty: !known_items.is_empty(),
-                known_items: Some(known_items),
+                known_items: Some(std::sync::Arc::new(known_items)),
                 params: None,
                 shape_name: None,
                 is_shape: true,
@@ -118,7 +118,7 @@ pub fn infer(
                 match boxed.0.1 {
                     oxidized::ast::KvcKind::Dict => Some(TAtomic::TDict(TDict {
                         non_empty: !known_items.is_empty(),
-                        known_items: Some(known_items),
+                        known_items: Some(std::sync::Arc::new(known_items)),
                         params: None,
                         shape_name: None,
                         is_shape: false,
@@ -296,7 +296,7 @@ pub fn get_atomic_for_prefix_regex_string(mut inner_text: String) -> TAtomic {
         name: StrId::LIB_REGEX_PATTERN,
         type_params: Some(vec![wrap_atomic(TAtomic::TDict(TDict {
             known_items: if !shape_fields.is_empty() {
-                Some(shape_fields)
+                Some(std::sync::Arc::new(shape_fields))
             } else {
                 None
             },
