@@ -40,6 +40,9 @@ fn main() -> Result<()> {
         "HH\\Facts\\enabled",
         "HH\\FIXME\\UNSAFE_CAST",
         "HH\\FormatString",
+        "HH\\ImmMap",
+        "HH\\ImmSet",
+        "HH\\ImmVector",
         "HH\\Iterator",
         "HH\\KeyedContainer",
         "HH\\KeyedIterator",
@@ -212,9 +215,12 @@ fn main() -> Result<()> {
         "HH\\Lib\\Vec\\take",
         "HH\\Lib\\Vec\\unique",
         "HH\\Lib\\Vec\\zip",
+        "HH\\Map",
         "HH\\MemberOf",
+        "HH\\Pair",
         "HH\\ReifiedGenerics\\get_classname",
         "HH\\ReifiedGenerics\\get_type_structure",
+        "HH\\Set",
         "HH\\Shapes",
         "HH\\Traversable",
         "HH\\TypedFormatString",
@@ -551,6 +557,17 @@ fn main() -> Result<()> {
         writeln!(f, "    pub const {}: StrId = StrId({});", const_name, i)?;
     }
     writeln!(f, "}}")?;
+
+    // A fingerprint of the pre-interned string table. Cached analysis data
+    // stores raw StrIds, so any change to this list invalidates caches.
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    use std::hash::{Hash, Hasher};
+    strings.hash(&mut hasher);
+    writeln!(
+        f,
+        "pub const INTERNED_STRINGS_HASH: u64 = {};",
+        hasher.finish()
+    )?;
 
     writeln!(f, "impl Default for Interner {{")?;
     writeln!(f, "    fn default() -> Self {{")?;

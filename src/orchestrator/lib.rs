@@ -174,7 +174,12 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
     if let Some(cache_dir) = cache_dir {
         let timestamp_path = format!("{}/buildinfo", cache_dir);
         let mut timestamp_file = fs::File::create(timestamp_path).unwrap();
-        write!(timestamp_file, "{}", header).unwrap();
+        write!(
+            timestamp_file,
+            "{}",
+            scanner::get_combined_build_checksum(header)
+        )
+        .unwrap();
 
         let aast_manifest_path = format!("{}/manifest", cache_dir);
         fs::File::create(&aast_manifest_path)
