@@ -582,6 +582,21 @@ fn update_array_assignment_child_type(
 
                     collection_types.push(original_type.clone());
                 }
+                TAtomic::TNamedObject(TNamedObject {
+                    name:
+                        StrId::VECTOR
+                        | StrId::IMM_VECTOR
+                        | StrId::SET
+                        | StrId::IMM_SET
+                        | StrId::MAP
+                        | StrId::IMM_MAP
+                        | StrId::PAIR,
+                    ..
+                }) => {
+                    // Hack collection objects are mutated in place, so the
+                    // variable keeps its existing type after an assignment
+                    collection_types.push(original_type.clone());
+                }
                 _ => collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false)),
             }
         }
@@ -653,6 +668,21 @@ fn update_array_assignment_child_type(
                         upper_bounds.push(bound);
                     }
 
+                    collection_types.push(original_type.clone());
+                }
+                TAtomic::TNamedObject(TNamedObject {
+                    name:
+                        StrId::VECTOR
+                        | StrId::IMM_VECTOR
+                        | StrId::SET
+                        | StrId::IMM_SET
+                        | StrId::MAP
+                        | StrId::IMM_MAP
+                        | StrId::PAIR,
+                    ..
+                }) => {
+                    // Hack collection objects are mutated in place, so the
+                    // variable keeps its existing type after an assignment
                     collection_types.push(original_type.clone());
                 }
                 _ => collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false)),

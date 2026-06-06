@@ -472,6 +472,67 @@ pub(crate) fn get_array_access_type_given_offset(
                         has_valid_expected_offset = true;
                     }
                 }
+                StrId::VECTOR | StrId::IMM_VECTOR | StrId::SET | StrId::IMM_SET => {
+                    if let Some(type_params) = type_params
+                        && !type_params.is_empty()
+                    {
+                        if let Some(existing_type) = stmt_type {
+                            stmt_type = Some(add_union_type(
+                                existing_type,
+                                &type_params[0],
+                                codebase,
+                                false,
+                            ));
+                        } else {
+                            stmt_type = Some(type_params[0].clone());
+                        }
+
+                        has_valid_expected_offset = true;
+                    }
+                }
+                StrId::MAP | StrId::IMM_MAP => {
+                    if let Some(type_params) = type_params
+                        && type_params.len() > 1
+                    {
+                        if let Some(existing_type) = stmt_type {
+                            stmt_type = Some(add_union_type(
+                                existing_type,
+                                &type_params[1],
+                                codebase,
+                                false,
+                            ));
+                        } else {
+                            stmt_type = Some(type_params[1].clone());
+                        }
+
+                        has_valid_expected_offset = true;
+                    }
+                }
+                StrId::PAIR => {
+                    if let Some(type_params) = type_params
+                        && type_params.len() > 1
+                    {
+                        let pair_value_type = add_union_type(
+                            type_params[0].clone(),
+                            &type_params[1],
+                            codebase,
+                            false,
+                        );
+
+                        if let Some(existing_type) = stmt_type {
+                            stmt_type = Some(add_union_type(
+                                existing_type,
+                                &pair_value_type,
+                                codebase,
+                                false,
+                            ));
+                        } else {
+                            stmt_type = Some(pair_value_type);
+                        }
+
+                        has_valid_expected_offset = true;
+                    }
+                }
                 StrId::XHP_CHILD => {
                     let new_type = handle_array_access_on_mixed(
                         statements_analyzer,

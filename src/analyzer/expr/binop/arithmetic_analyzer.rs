@@ -13,7 +13,11 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, expression_analyzer};
 use hakana_code_info::ttype::{get_mixed_any, get_num, type_combiner};
 use hakana_code_info::{
-    data_flow::{node::DataFlowNode, path::PathKind},
+    data_flow::{
+        graph::{GraphKind, WholeProgramKind},
+        node::DataFlowNode,
+        path::PathKind,
+    },
     t_atomic::TAtomic,
     t_union::TUnion,
     taint::SinkType,
@@ -201,7 +205,40 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                         oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
                         _ => TAtomic::TInt,
                     },
-                    _ => TAtomic::TFloat,
+                    _ => match operator {
+                        // modulo and bitwise operators are int-only in Hack
+                        oxidized::ast_defs::Bop::Percent
+                        | oxidized::ast_defs::Bop::Amp
+                        | oxidized::ast_defs::Bop::Bar
+                        | oxidized::ast_defs::Bop::Xor
+                        | oxidized::ast_defs::Bop::Ltlt
+                        | oxidized::ast_defs::Bop::Gtgt => TAtomic::TInt,
+                        _ => {
+                            // mixed operands produce mixed results — assuming float
+                            // would emit knock-on false positives. TMixedFromLoopIsset
+                            // is excluded (additions to loop-isset values are allowed),
+                            // and taint mode keeps the float result so that arithmetic
+                            // continues to scrub taints.
+                            let mut has_any = false;
+                            if !matches!(
+                                &analysis_data.data_flow_graph.kind,
+                                GraphKind::WholeProgram(WholeProgramKind::Taint)
+                            ) && (matches!(
+                                e1_type_atomic,
+                                TAtomic::TMixed | TAtomic::TMixedWithFlags(..)
+                            ) || matches!(
+                                e2_type_atomic,
+                                TAtomic::TMixed | TAtomic::TMixedWithFlags(..)
+                            )) {
+                                let _ = e1_type_atomic.is_mixed_with_any(&mut has_any)
+                                    || e2_type_atomic.is_mixed_with_any(&mut has_any);
+
+                                TAtomic::TMixedWithFlags(has_any, false, false, false)
+                            } else {
+                                TAtomic::TFloat
+                            }
+                        }
+                    },
                 }
             } else {
                 match (&e1_type_atomic, &e2_type_atomic) {
@@ -252,7 +289,40 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                         oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
                         _ => TAtomic::TInt,
                     },
-                    _ => TAtomic::TFloat,
+                    _ => match operator {
+                        // modulo and bitwise operators are int-only in Hack
+                        oxidized::ast_defs::Bop::Percent
+                        | oxidized::ast_defs::Bop::Amp
+                        | oxidized::ast_defs::Bop::Bar
+                        | oxidized::ast_defs::Bop::Xor
+                        | oxidized::ast_defs::Bop::Ltlt
+                        | oxidized::ast_defs::Bop::Gtgt => TAtomic::TInt,
+                        _ => {
+                            // mixed operands produce mixed results — assuming float
+                            // would emit knock-on false positives. TMixedFromLoopIsset
+                            // is excluded (additions to loop-isset values are allowed),
+                            // and taint mode keeps the float result so that arithmetic
+                            // continues to scrub taints.
+                            let mut has_any = false;
+                            if !matches!(
+                                &analysis_data.data_flow_graph.kind,
+                                GraphKind::WholeProgram(WholeProgramKind::Taint)
+                            ) && (matches!(
+                                e1_type_atomic,
+                                TAtomic::TMixed | TAtomic::TMixedWithFlags(..)
+                            ) || matches!(
+                                e2_type_atomic,
+                                TAtomic::TMixed | TAtomic::TMixedWithFlags(..)
+                            )) {
+                                let _ = e1_type_atomic.is_mixed_with_any(&mut has_any)
+                                    || e2_type_atomic.is_mixed_with_any(&mut has_any);
+
+                                TAtomic::TMixedWithFlags(has_any, false, false, false)
+                            } else {
+                                TAtomic::TFloat
+                            }
+                        }
+                    },
                 }
             });
         }

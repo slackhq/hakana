@@ -244,7 +244,34 @@ impl CodebaseInfo {
                 }]))
             } else if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
                 if matches!(classlike_storage.kind, SymbolKind::EnumClass) {
-                    constant_storage.provided_type.clone()
+                    let mut provided_type = constant_storage.provided_type.clone();
+
+                    // an enum class member inherited from a parent enum class
+                    // is typed by the class it's accessed through
+                    if let Some(ref mut provided_type) = provided_type {
+                        for atomic in provided_type.types.iter_mut() {
+                            if let TAtomic::TTypeAlias {
+                                name: StrId::MEMBER_OF,
+                                type_params: Some(type_params),
+                                ..
+                            } = atomic
+                                && let Some(first_param) = type_params.first_mut()
+                            {
+                                for first_atomic in first_param.types.iter_mut() {
+                                    if let TAtomic::TNamedObject(crate::t_atomic::TNamedObject {
+                                        name,
+                                        ..
+                                    })
+                                    | TAtomic::TReference { name, .. } = first_atomic
+                                    {
+                                        *name = *fq_class_name;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    provided_type
                 } else if let Some(provided_type) = &constant_storage.provided_type {
                     if provided_type.types.iter().all(|v| v.is_boring_scalar()) && !is_this {
                         if let Some(inferred_type) = &constant_storage.inferred_type {

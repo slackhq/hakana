@@ -131,6 +131,9 @@ pub(crate) fn fetch(
                 | TAtomic::TClassname { as_type }
                 | TAtomic::TGenericClassPtr { as_type, .. }
                 | TAtomic::TClassPtr { as_type } => type_expander::StaticClassType::Object(as_type),
+                TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } => {
+                    type_expander::StaticClassType::Name(*name)
+                }
                 _ => type_expander::StaticClassType::None,
             },
             parent_class: classlike_storage.direct_parent_class,

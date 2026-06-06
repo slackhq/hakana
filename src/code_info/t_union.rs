@@ -62,6 +62,16 @@ pub trait HasTypeNodes {
 }
 
 impl TUnion {
+    /// Recursively clears the `had_template` flag — used when a templated
+    /// type is stored somewhere that fixes its type (e.g. a variable).
+    pub fn clear_had_template(&mut self) {
+        self.had_template = false;
+
+        for atomic in self.types.iter_mut() {
+            atomic.clear_had_template();
+        }
+    }
+
     pub fn new(types: Vec<TAtomic>) -> TUnion {
         TUnion {
             types,

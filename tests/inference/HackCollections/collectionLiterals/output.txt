@@ -1,0 +1,2 @@
+ERROR: LessSpecificNestedAnyReturnStatement - input.hack:5:10 - The type HH\Map<any, any> is more general than the declared return type HH\Map<string, int> for A::getMap
+ERROR: LessSpecificNestedAnyReturnStatement - input.hack:18:10 - The type HH\Set<any> is more general than the declared return type HH\Set<string> for A::getSet

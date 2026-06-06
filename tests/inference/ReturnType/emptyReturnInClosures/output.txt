@@ -1,0 +1,1 @@
+ERROR: InvalidReturnStatement - input.hack:41:3 - Empty return statement not expected in genuinely_bad

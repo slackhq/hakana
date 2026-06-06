@@ -262,7 +262,13 @@ fn expand_atomic(
                 }
             };
 
-            if options.function_is_final {
+            // `this` can only be collapsed to the concrete class when the
+            // class itself is final — a final method may still be called on
+            // a subclass instance
+            if options.function_is_final
+                && let Some(classlike_info) = codebase.classlike_infos.get(name)
+                && classlike_info.is_final
+            {
                 *is_this = false;
             }
         } else if *is_this
@@ -721,6 +727,30 @@ fn expand_atomic(
             }),
             _ => false,
         };
+
+        // `this::T` written in an inherited signature should be resolved
+        // against the concrete class being analyzed or called, since it may
+        // override the type constant with a concrete type
+        let mut classes_to_check = classes_to_check;
+
+        if is_this {
+            let static_name: Option<&StrId> = match &options.static_class_type {
+                StaticClassType::Name(name) => Some(name),
+                StaticClassType::Object(TAtomic::TNamedObject(TNamedObject { name, .. })) => {
+                    Some(name)
+                }
+                _ => None,
+            };
+
+            if let Some(static_name) = static_name
+                && !classes_to_check.contains(&static_name)
+                && classes_to_check
+                    .iter()
+                    .any(|c| codebase.class_extends_or_implements(static_name, c))
+            {
+                classes_to_check.insert(0, static_name);
+            }
+        }
 
         // Collect resolved type constants from all classes
         let mut resolved_types: Vec<TUnion> = Vec::new();

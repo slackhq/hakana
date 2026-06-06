@@ -1,0 +1,2 @@
+ERROR: InterfaceSingleImplementor - input.hack:1:11 - Interface MyInvResult has only one implementing class MyInvResultImpl
+ERROR: InterfaceSingleImplementor - input.hack:11:11 - Interface Animal has only one implementing class Dog

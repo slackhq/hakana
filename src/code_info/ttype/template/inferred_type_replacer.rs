@@ -26,6 +26,8 @@ pub fn replace(
 
     let mut new_types = Vec::new();
 
+    let mut ignore_falsable_issues = false;
+
     for atomic_type in &union.types {
         let mut atomic_type = atomic_type.clone();
         atomic_type = replace_atomic(atomic_type, template_result, codebase);
@@ -50,6 +52,12 @@ pub fn replace(
 
                 if let Some(template_type) = template_type {
                     keys_to_unset.insert(*key);
+
+                    // flags like ignore_falsable_issues (e.g. on json_encode's
+                    // return type) need to survive template substitution
+                    if template_type.ignore_falsable_issues {
+                        ignore_falsable_issues = true;
+                    }
 
                     for template_type_part in template_type.types {
                         new_types.push(template_type_part);
@@ -205,6 +213,17 @@ pub fn replace(
     }
 
     union.types = type_combiner::combine(new_types, codebase, false);
+
+    if ignore_falsable_issues {
+        union.ignore_falsable_issues = true;
+    }
+
+    if !keys_to_unset.is_empty() {
+        // mark that this type was solved from a template, so comparisons can
+        // treat it as flexible — Hack's typechecker would have solved the
+        // template against the expected type instead
+        union.had_template = true;
+    }
 
     union
 }

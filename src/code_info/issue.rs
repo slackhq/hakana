@@ -12,12 +12,12 @@ use crate::{
     taint::SinkType,
 };
 
+#[deny(dead_code)]
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum IssueKind {
     AbstractInstantiation,
     AwaitInSyncContext,
     BannedFunction,
-    CannotInferGenericParam,
     CloneInsideLoop,
     CustomIssue(Box<String>),
     DuplicateClassDefinition,
@@ -29,7 +29,6 @@ pub enum IssueKind {
     ExclusiveEnumValueReused,
     ExtendFinalClass,
     FalsableReturnStatement,
-    FalseArgument,
     ForLoopInvalidation,
     ImmutablePropertyWrite,
     ImplicitAsioJoin,
@@ -48,12 +47,9 @@ pub enum IssueKind {
     InvalidArrayOffset,
     InvalidContainsCheck,
     InvalidHackFile,
-    InvalidInoutArgument,
     InvalidMethodCall,
     InvalidPropertyAssignmentValue,
     InvalidReturnStatement,
-    InvalidReturnType,
-    InvalidReturnValue,
     LargeTypeExpansion,
     LessSpecificArgument,
     LessSpecificNestedAnyArgumentType,
@@ -72,10 +68,8 @@ pub enum IssueKind {
     MixedAnyArrayAccess,
     MixedAnyArrayAssignment,
     MixedAnyArrayOffset,
-    MixedAnyAssignment,
     MixedAnyMethodCall,
     MixedAnyPropertyAssignment,
-    MixedAnyPropertyTypeCoercion,
     MixedAnyReturnStatement,
     MixedArgument,
     MixedArrayAccess,
@@ -100,25 +94,19 @@ pub enum IssueKind {
     NonExistentType,
     NonExistentXhpAttribute,
     NonEnumSwitchValue,
-    NonNullableReturnType,
     NothingReturn,
     NoValue,
     NullablePropertyAssignment,
     NullableReturnStatement,
-    NullableReturnValue,
     NullArrayOffset,
     NullIterator,
     OnlyUsedInTests,
     ParadoxicalCondition,
     PHPStandardLibrary,
     PossibleMethodCallOnNull,
-    PossiblyFalseArgument,
     PossiblyInvalidArgument,
-    PossiblyInvalidArrayAccess,
-    PossiblyInvalidMethodCall,
     PossiblyNullArrayAccess,
     PossiblyNullArrayOffset,
-    PossiblyNullIterator,
     PossiblyNullPropertyFetch,
     PossiblyUndefinedIntArrayOffset,
     PossiblyUndefinedStringArrayOffset,
@@ -134,7 +122,6 @@ pub enum IssueKind {
     TaintedData(Box<SinkType>),
     TestOnlyCall,
     TooFewArguments,
-    TooManyArguments,
     UndefinedIntArrayOffset,
     UndefinedStringArrayOffset,
     UndefinedVariable,
@@ -143,10 +130,8 @@ pub enum IssueKind {
     UnnecessaryAsyncAnnotation,
     UnnecessaryServiceCallsAttribute,
     UnnecessaryShapesIdx,
-    UnrecognizedBinaryOp,
     UnrecognizedExpression,
     UnrecognizedStatement,
-    UnrecognizedUnaryOp,
     UnusedAssignment,
     UnusedAssignmentInClosure,
     UnusedAssignmentStatement,
@@ -238,10 +223,8 @@ impl IssueKind {
                 | Self::MixedAnyArrayAccess
                 | Self::MixedAnyArrayAssignment
                 | Self::MixedAnyArrayOffset
-                | Self::MixedAnyAssignment
                 | Self::MixedAnyMethodCall
                 | Self::MixedAnyPropertyAssignment
-                | Self::MixedAnyPropertyTypeCoercion
                 | Self::MixedAnyReturnStatement
                 | Self::MixedArgument
                 | Self::MixedArrayAccess

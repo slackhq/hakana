@@ -3,7 +3,7 @@ use crate::{
     class_constant_info::ConstantInfo,
     code_location::FilePath,
     codebase_info::CodebaseInfo,
-    t_atomic::{TAtomic, TNamedObject},
+    t_atomic::{TAtomic, TDict, TNamedObject},
 };
 use hakana_str::StrId;
 
@@ -572,6 +572,17 @@ pub fn is_contained_by(
                         name: alias_name, ..
                     } = &**container_name
                         && alias_name == input_name
+                    {
+                        return true;
+                    }
+
+                    // the container type may have been expanded from a type alias
+                    // of a shape, in which case shape_name records its origin
+                    if let TAtomic::TDict(TDict {
+                        shape_name: Some((shape_name, None)),
+                        ..
+                    }) = &**container_name
+                        && shape_name == input_name
                     {
                         return true;
                     }
