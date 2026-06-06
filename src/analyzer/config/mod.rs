@@ -131,14 +131,14 @@ impl Config {
             .iter()
             .filter(|(k, _)| *k != "*")
             .map(|(k, v)| {
-                (
-                    IssueKind::from_str_custom(k.as_str(), &self.all_custom_issues).unwrap(),
+                Ok((
+                    IssueKind::from_str_custom(k.as_str(), &self.all_custom_issues)?,
                     v.iter()
                         .map(|v| glob::Pattern::new(&format!("{}/{}", cwd, v)).unwrap())
                         .collect(),
-                )
+                ))
             })
-            .collect();
+            .collect::<Result<FxHashMap<_, _>, String>>()?;
 
         if let Some(v) = json_config.ignore_issue_files.get("*") {
             self.ignore_all_issues_in_patterns = v
@@ -154,10 +154,8 @@ impl Config {
                 json_config
                     .allowed_issues
                     .into_iter()
-                    .map(|s| {
-                        IssueKind::from_str_custom(s.as_str(), &self.all_custom_issues).unwrap()
-                    })
-                    .collect::<FxHashSet<_>>(),
+                    .map(|s| IssueKind::from_str_custom(s.as_str(), &self.all_custom_issues))
+                    .collect::<Result<FxHashSet<_>, String>>()?,
             )
         };
 
