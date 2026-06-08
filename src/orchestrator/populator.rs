@@ -799,7 +799,27 @@ fn inherit_methods_from_parent(
                 continue;
             }
 
-            if !matches!(parent_storage.kind, SymbolKind::Trait)
+            // For interfaces and traits, members declared by a class are
+            // synthesized from `require extends`. Hack's OverridePrecedence
+            // lets a real (non-synthesized) declaration from the interface
+            // hierarchy beat a synthesized abstract one.
+            if matches!(storage.kind, SymbolKind::Interface | SymbolKind::Trait)
+                && matches!(parent_storage.kind, SymbolKind::Interface)
+                && codebase
+                    .classlike_infos
+                    .get(existing_declaring_class)
+                    .is_some_and(|s| matches!(s.kind, SymbolKind::Class))
+                && codebase
+                    .functionlike_infos
+                    .get(&(*existing_declaring_class, *method_name))
+                    .is_some_and(|f| {
+                        f.method_info
+                            .as_ref()
+                            .is_some_and(|method_info| method_info.is_abstract)
+                    })
+            {
+                // fall through to overwrite the synthesized entry
+            } else if !matches!(parent_storage.kind, SymbolKind::Trait)
                 || codebase
                     .classlike_infos
                     .get(declaring_class)

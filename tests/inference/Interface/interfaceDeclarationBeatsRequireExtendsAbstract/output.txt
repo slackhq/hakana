@@ -1,0 +1,4 @@
+ERROR: InterfaceSingleImplementor - input.hack:12:11 - Interface INonNullableType has only one implementing class INonNullableInputTypeFor
+ERROR: InterfaceSingleImplementor - input.hack:16:11 - Interface IInputType has only one implementing class IInputTypeFor
+ERROR: InterfaceSingleImplementor - input.hack:20:11 - Interface IInputTypeFor has only one implementing class INonNullableInputTypeFor
+ERROR: InterfaceSingleImplementor - input.hack:22:11 - Interface INonNullableInputTypeFor has only one implementing class INamedInputType
