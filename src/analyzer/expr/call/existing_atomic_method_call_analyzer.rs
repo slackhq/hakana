@@ -137,6 +137,11 @@ pub(crate) fn analyze(
                 } else {
                     break;
                 }
+            } else {
+                // The declaring class is an ancestor via `require extends` rather than
+                // actual inheritance (e.g. a trait whose required interface requires a
+                // class), so the parent-class chain ends before reaching it.
+                break;
             }
         }
     }
