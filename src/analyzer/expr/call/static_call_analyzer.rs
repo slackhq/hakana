@@ -44,7 +44,16 @@ fn resolve_id(
 
             *classlike_name = Some(self_name);
 
-            get_named_object(self_name, None)
+            let classlike_storage = codebase.classlike_infos.get(&self_name).unwrap();
+
+            // `self::` is a forwarding call — late static binding propagates
+            // through it, so a `this` return type keeps its static-ness
+            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+                name: self_name,
+                type_params: None,
+                is_this: !classlike_storage.is_final,
+                remapped_params: false,
+            }))
         }
         StrId::PARENT => {
             let self_name = if let Some(calling_class) = &context.function_context.calling_class {
@@ -184,7 +193,16 @@ pub(crate) fn analyze(
 
             classlike_name = Some(*self_name);
 
-            get_named_object(*self_name, None)
+            let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
+
+            // `self::` is a forwarding call — late static binding propagates
+            // through it, so a `this` return type keeps its static-ness
+            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+                name: *self_name,
+                type_params: None,
+                is_this: !classlike_storage.is_final,
+                remapped_params: false,
+            }))
         }
         _ => {
             panic!("got unexpected expression: {:?}", expr.0.2);
