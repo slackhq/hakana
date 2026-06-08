@@ -3,10 +3,12 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
+use hakana_code_info::GenericParent;
 use hakana_code_info::ast::get_id_name;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::t_atomic::TNamedObject;
+use hakana_code_info::t_atomic::{TGenericParam, TNamedObject};
+use hakana_code_info::ttype::template::{TemplateBound, TemplateResult, inferred_type_replacer};
 use hakana_code_info::ttype::type_expander::{StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any,
@@ -15,6 +17,7 @@ use hakana_code_info::ttype::{
 };
 use hakana_code_info::{t_atomic::TAtomic, t_union::TUnion};
 use hakana_str::StrId;
+use indexmap::IndexMap;
 use oxidized::{
     aast::{self, ClassId},
     ast_defs::Pos,
@@ -354,6 +357,61 @@ fn analyse_known_class_constant(
         &const_name,
         FxHashSet::default(),
     );
+
+    // A constant inherited from a generic ancestor is declared in terms of
+    // the ancestor's template params — instantiate those for the class the
+    // constant is accessed through (like Hack's Decl_instantiate substitution,
+    // e.g. ParentReq::T becomes ChildReq's T for ChildReq<T> extends
+    // ParentReq<T>).
+    if let Some(ref mut constant_type) = class_constant_type
+        && constant_type.has_template_types()
+        && !classlike_storage.template_extended_params.is_empty()
+    {
+        let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
+
+        for (ancestor_name, extended_params) in &classlike_storage.template_extended_params {
+            for (param_name, extended_type) in extended_params {
+                template_result
+                    .lower_bounds
+                    .entry(*param_name)
+                    .or_default()
+                    .entry(GenericParent::ClassLike(*ancestor_name))
+                    .or_insert_with(|| {
+                        vec![TemplateBound::new((**extended_type).clone(), 0, None, None)]
+                    });
+            }
+        }
+
+        // identity bounds for the class's own template params, so they're
+        // left untouched rather than guessed at by the replacer's fallback
+        for (param_name, type_map) in &classlike_storage.template_types {
+            for (generic_parent, constraint) in type_map {
+                template_result
+                    .lower_bounds
+                    .entry(*param_name)
+                    .or_default()
+                    .entry(*generic_parent)
+                    .or_insert_with(|| {
+                        vec![TemplateBound::new(
+                            wrap_atomic(TAtomic::TGenericParam(TGenericParam {
+                                param_name: *param_name,
+                                as_type: Box::new((**constraint).clone()),
+                                defining_entity: *generic_parent,
+                            })),
+                            0,
+                            None,
+                            None,
+                        )]
+                    });
+            }
+        }
+
+        let mut substituted_type =
+            inferred_type_replacer::replace(constant_type, &template_result, codebase);
+        // this is a faithful localization, not an argument-solved template
+        substituted_type.clear_had_template();
+        *constant_type = substituted_type;
+    }
 
     if let Some(ref mut class_constant_type) = class_constant_type {
         let this_class = TAtomic::TNamedObject(TNamedObject {

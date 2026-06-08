@@ -989,15 +989,25 @@ fn extend_type(
     type_: &Arc<TUnion>,
     template_extended_params: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
 ) -> Arc<TUnion> {
-    if !type_.has_template() {
+    if !type_.has_template_types() {
         return type_.clone();
     }
 
+    Arc::new(extend_type_inner(type_, template_extended_params))
+}
+
+// substitutes ancestor template params recursively — like Hack's
+// Decl_instantiate, nested occurrences (e.g. the T in Result<BaseLookupResult<T>>)
+// are replaced too
+fn extend_type_inner(
+    type_: &TUnion,
+    template_extended_params: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
+) -> TUnion {
     let mut extended_types = Vec::new();
 
     let mut cloned = type_.types.clone();
 
-    while let Some(atomic_type) = cloned.pop() {
+    while let Some(mut atomic_type) = cloned.pop() {
         if let TAtomic::TGenericParam(TGenericParam {
             defining_entity: GenericParent::ClassLike(defining_entity),
             param_name,
@@ -1010,8 +1020,72 @@ fn extend_type(
             continue;
         }
 
+        match &mut atomic_type {
+            TAtomic::TNamedObject(hakana_code_info::t_atomic::TNamedObject {
+                type_params: Some(type_params),
+                ..
+            }) => {
+                for type_param in type_params {
+                    if type_param.has_template_types() {
+                        *type_param = extend_type_inner(type_param, template_extended_params);
+                    }
+                }
+            }
+            TAtomic::TTypeAlias {
+                type_params: Some(type_params),
+                ..
+            } => {
+                for type_param in type_params {
+                    if type_param.has_template_types() {
+                        *type_param = extend_type_inner(type_param, template_extended_params);
+                    }
+                }
+            }
+            TAtomic::TVec(vec) => {
+                if vec.type_param.has_template_types() {
+                    *vec.type_param = extend_type_inner(&vec.type_param, template_extended_params);
+                }
+                if let Some(known_items) = &mut vec.known_items {
+                    for (_, item_type) in known_items.values_mut() {
+                        if item_type.has_template_types() {
+                            *item_type = extend_type_inner(item_type, template_extended_params);
+                        }
+                    }
+                }
+            }
+            TAtomic::TDict(dict) => {
+                if let Some(params) = &mut dict.params {
+                    if params.0.has_template_types() {
+                        *params.0 = extend_type_inner(&params.0, template_extended_params);
+                    }
+                    if params.1.has_template_types() {
+                        *params.1 = extend_type_inner(&params.1, template_extended_params);
+                    }
+                }
+                if let Some(known_items) = &mut dict.known_items {
+                    for (_, item_type) in Arc::make_mut(known_items).values_mut() {
+                        if item_type.has_template_types() {
+                            *item_type =
+                                Arc::new(extend_type_inner(item_type, template_extended_params));
+                        }
+                    }
+                }
+            }
+            TAtomic::TKeyset { type_param, .. } => {
+                if type_param.has_template_types() {
+                    **type_param = extend_type_inner(type_param, template_extended_params);
+                }
+            }
+            TAtomic::TAwaitable { value } => {
+                if value.has_template_types() {
+                    **value = extend_type_inner(value, template_extended_params);
+                }
+            }
+            _ => {}
+        }
+
         extended_types.push(atomic_type);
     }
 
-    Arc::new(TUnion::new(extended_types))
+    TUnion::new(extended_types)
 }

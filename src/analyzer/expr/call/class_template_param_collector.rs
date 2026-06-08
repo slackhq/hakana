@@ -228,9 +228,76 @@ fn expand_type(
         } else {
             // todo handle TClassConstant
 
-            output_type_extends.push(type_extends_atomic.clone());
+            let mut atomic = type_extends_atomic.clone();
+            expand_nested_type_params(&mut atomic, e, static_classlike_name, static_template_types);
+            output_type_extends.push(atomic);
         }
     }
 
     output_type_extends
+}
+
+// substitutes ancestor template params nested inside container types —
+// like Hack's Decl_instantiate, the T in e.g. LookupResult<T> is replaced too
+fn expand_nested_type_params(
+    atomic: &mut TAtomic,
+    e: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
+    static_classlike_name: &StrId,
+    static_template_types: &Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
+) {
+    let mut expand_in_place = |union: &mut TUnion| {
+        if union.has_template_types() {
+            *union = TUnion::new(expand_type(
+                &Arc::new(union.clone()),
+                e,
+                static_classlike_name,
+                static_template_types,
+            ));
+        }
+    };
+
+    match atomic {
+        TAtomic::TNamedObject(TNamedObject {
+            type_params: Some(type_params),
+            ..
+        })
+        | TAtomic::TTypeAlias {
+            type_params: Some(type_params),
+            ..
+        } => {
+            for type_param in type_params {
+                expand_in_place(type_param);
+            }
+        }
+        TAtomic::TVec(vec) => {
+            expand_in_place(&mut vec.type_param);
+            if let Some(known_items) = &mut vec.known_items {
+                for (_, item_type) in known_items.values_mut() {
+                    expand_in_place(item_type);
+                }
+            }
+        }
+        TAtomic::TDict(dict) => {
+            if let Some(params) = &mut dict.params {
+                expand_in_place(&mut params.0);
+                expand_in_place(&mut params.1);
+            }
+            if let Some(known_items) = &mut dict.known_items {
+                for (_, item_type) in Arc::make_mut(known_items).values_mut() {
+                    if item_type.has_template_types() {
+                        let mut new_item = (**item_type).clone();
+                        expand_in_place(&mut new_item);
+                        *item_type = Arc::new(new_item);
+                    }
+                }
+            }
+        }
+        TAtomic::TKeyset { type_param, .. } => {
+            expand_in_place(type_param);
+        }
+        TAtomic::TAwaitable { value } => {
+            expand_in_place(value);
+        }
+        _ => {}
+    }
 }
