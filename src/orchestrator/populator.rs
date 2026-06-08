@@ -792,17 +792,24 @@ fn inherit_methods_from_parent(
 
         // A trait method may override an existing method inherited from a parent class
         // (but thankfully not from an earlier trait as that's a type error)
-        if storage.declaring_method_ids.contains_key(method_name)
-            && (!matches!(parent_storage.kind, SymbolKind::Trait)
+        if let Some(existing_declaring_class) = storage.declaring_method_ids.get(method_name) {
+            // the class's (or outer trait's) own methods always win over
+            // methods brought in by used traits
+            if existing_declaring_class == classlike_name {
+                continue;
+            }
+
+            if !matches!(parent_storage.kind, SymbolKind::Trait)
                 || codebase
                     .classlike_infos
                     .get(declaring_class)
                     .map(|declaring_classlike_storage| {
                         !matches!(declaring_classlike_storage.kind, SymbolKind::Trait)
                     })
-                    .unwrap_or(true))
-        {
-            continue;
+                    .unwrap_or(true)
+            {
+                continue;
+            }
         }
 
         storage
