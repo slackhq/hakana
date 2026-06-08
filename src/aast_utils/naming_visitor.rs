@@ -152,16 +152,49 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         p.recurse(nc, self)
     }
 
-    fn visit_class_id_(
+    fn visit_class_id(
         &mut self,
         nc: &mut NameContext<'ast>,
-        id: &'ast aast::ClassId_<(), ()>,
+        p: &'ast aast::ClassId<(), ()>,
     ) -> Result<(), ()> {
         let was_in_class_id = nc.in_class_id;
 
         nc.in_class_id = true;
 
-        let result = id.recurse(nc, self);
+        let result = match p.2 {
+            aast::ClassId_::CIself | aast::ClassId_::CIstatic => {
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    self.resolved_names.entry(p.1.start_offset() as u32)
+                {
+                    let name = if matches!(p.2, aast::ClassId_::CIself) {
+                        "self"
+                    } else {
+                        "static"
+                    };
+                    let resolved_name = nc.get_resolved_name(
+                        self.interner,
+                        &name.to_string(),
+                        aast::NsKind::NSClassAndNamespace,
+                        if let Some(symbol_name) = nc.symbol_name {
+                            if let Some(member_name) = nc.member_name {
+                                self.symbol_member_uses
+                                    .entry((symbol_name, member_name))
+                                    .or_default()
+                            } else {
+                                self.symbol_uses.entry(symbol_name).or_default()
+                            }
+                        } else {
+                            &mut self.file_uses
+                        },
+                    );
+
+                    e.insert(resolved_name);
+                }
+
+                Ok(())
+            }
+            _ => p.recurse(nc, self),
+        };
 
         nc.in_class_id = was_in_class_id;
 
