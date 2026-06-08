@@ -58,7 +58,7 @@ pub fn reconcile(
     let existing_var_type = if let Some(existing_var_type) = existing_var_type {
         existing_var_type
     } else {
-        return get_missing_type(assertion, inside_loop);
+        return get_missing_type(assertion, inside_loop, codebase);
     };
 
     let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
@@ -307,7 +307,7 @@ fn refine_atomic_with_union(
 
     if let Some(mut intersection_type) = intersection_type {
         for intersection_atomic_type in intersection_type.types.iter_mut() {
-            intersection_atomic_type.remove_placeholders();
+            intersection_atomic_type.remove_placeholders(statements_analyzer.codebase);
         }
 
         return intersection_type;
@@ -1149,7 +1149,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             TAtomic::TDict(..),
         ) => {
             let mut type_2_atomic = type_2_atomic.clone();
-            type_2_atomic.remove_placeholders();
+            type_2_atomic.remove_placeholders(statements_analyzer.codebase);
             return Some(type_2_atomic);
         }
         _ => (),
@@ -1533,7 +1533,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                         is_this: false,
                         remapped_params: false,
                     });
-                    atomic.remove_placeholders();
+                    atomic.remove_placeholders(codebase);
                     return Some(atomic);
                 } else if type_2_name == &StrId::CONTAINER || type_2_name == &StrId::TRAVERSABLE {
                     let type_2_params = type_2_params
@@ -1546,7 +1546,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                         is_this: false,
                         remapped_params: false,
                     });
-                    atomic.remove_placeholders();
+                    atomic.remove_placeholders(codebase);
                     return Some(atomic);
                 }
             }
@@ -2249,7 +2249,11 @@ fn intersect_contained_atomic_with_another(
     Some(sub_atomic.clone())
 }
 
-fn get_missing_type(assertion: &Assertion, inside_loop: bool) -> TUnion {
+fn get_missing_type(
+    assertion: &Assertion,
+    inside_loop: bool,
+    codebase: &hakana_code_info::codebase_info::CodebaseInfo,
+) -> TUnion {
     if matches!(assertion, Assertion::IsIsset | Assertion::IsEqualIsset) {
         return get_mixed_maybe_from_loop(inside_loop);
     }
@@ -2263,7 +2267,7 @@ fn get_missing_type(assertion: &Assertion, inside_loop: bool) -> TUnion {
 
     if let Assertion::IsEqual(atomic) | Assertion::IsType(atomic) = assertion {
         let mut atomic = atomic.clone();
-        atomic.remove_placeholders();
+        atomic.remove_placeholders(codebase);
         return wrap_atomic(atomic.clone());
     }
 

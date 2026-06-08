@@ -1643,7 +1643,7 @@ impl TAtomic {
         TAtomic::TObjectIntersection { types }
     }
 
-    pub fn remove_placeholders(&mut self) {
+    pub fn remove_placeholders(&mut self, codebase: &crate::codebase_info::CodebaseInfo) {
         match self {
             TAtomic::TDict(TDict {
                 params: Some(params),
@@ -1697,9 +1697,28 @@ impl TAtomic {
                             TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
                     }
                 } else {
-                    for type_param in type_params {
+                    let template_types = codebase
+                        .classlike_infos
+                        .get(name)
+                        .map(|classlike_info| &classlike_info.template_types);
+
+                    for (i, type_param) in type_params.iter_mut().enumerate() {
                         if let TAtomic::TPlaceholder = type_param.get_single() {
-                            *type_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
+                            // use the template parameter's `as` constraint when
+                            // it's a plain type, otherwise fall back to mixed
+                            let constraint = template_types
+                                .and_then(|template_types| template_types.get(i))
+                                .and_then(|(_, constraint_map)| constraint_map.first())
+                                .map(|(_, constraint)| constraint)
+                                .filter(|constraint| !constraint.has_template_types());
+
+                            *type_param = if let Some(constraint) = constraint {
+                                (**constraint).clone()
+                            } else {
+                                TUnion::new(vec![TAtomic::TMixedWithFlags(
+                                    true, false, false, false,
+                                )])
+                            };
                         }
                     }
                 }

@@ -185,7 +185,7 @@ pub(crate) fn analyze<'expr>(
                 &mut 0,
             );
             for atomic_type in hint_type.types.iter_mut() {
-                atomic_type.remove_placeholders();
+                atomic_type.remove_placeholders(codebase);
             }
         }
 
