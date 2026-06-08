@@ -64,12 +64,23 @@ pub(crate) fn is_contained_by(
         type_params: None, ..
     }) = input_type_part
     {
-        if codebase.class_exists(input_name) {
+        if codebase.classlike_infos.contains_key(input_name) {
             let class_storage = codebase.classlike_infos.get(input_name).unwrap();
 
             let mut input_type_part = input_type_part.clone();
 
-            if let Some(extended_params) =
+            if input_name == container_name {
+                // a bare reference to the container's own class behaves like
+                // Hack's fresh type variables — they would unify with the
+                // container's params
+                if let TAtomic::TNamedObject(TNamedObject {
+                    ref mut type_params,
+                    ..
+                }) = input_type_part
+                {
+                    *type_params = Some(container_type_params.clone());
+                }
+            } else if let Some(extended_params) =
                 class_storage.template_extended_params.get(container_name)
             {
                 if let TAtomic::TNamedObject(TNamedObject {
