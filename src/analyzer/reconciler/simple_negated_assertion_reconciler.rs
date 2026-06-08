@@ -678,7 +678,16 @@ fn subtract_string(
             } else {
                 acceptable_types.push(atomic);
             }
-        } else if atomic.is_string() {
+        } else if atomic.is_string()
+            || matches!(
+                &atomic,
+                TAtomic::TTypeAlias {
+                    as_type: Some(as_type),
+                    ..
+                } if as_type.types.iter().all(|t| t.is_string())
+            )
+        {
+            // type aliases constrained `as string` are always strings at runtime
             did_remove_type = true;
 
             if is_equality {
@@ -783,7 +792,16 @@ fn subtract_int(
             } else {
                 acceptable_types.push(atomic);
             }
-        } else if atomic.is_int() {
+        } else if atomic.is_int()
+            || matches!(
+                &atomic,
+                TAtomic::TTypeAlias {
+                    as_type: Some(as_type),
+                    ..
+                } if as_type.types.iter().all(|t| t.is_int())
+            )
+        {
+            // type aliases constrained `as int` are always ints at runtime
             did_remove_type = true;
 
             if is_equality {
