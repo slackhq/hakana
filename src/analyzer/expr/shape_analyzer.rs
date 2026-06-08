@@ -86,7 +86,15 @@ pub(crate) fn analyze(
                                 ..
                             } => Some(DictKey::Enum(enum_name, member_name)),
                             TAtomic::TLiteralString { value } => Some(DictKey::String(value)),
-                            _ => None,
+                            TAtomic::TLiteralInt { value } => Some(DictKey::Int(value as u64)),
+                            // constants without a known literal value (e.g.
+                            // initialized from an expression) stay symbolic —
+                            // type expansion keeps declared shapes symbolic in
+                            // the same case, so the keys still compare equal
+                            _ => Some(DictKey::Enum(
+                                *lhs_name,
+                                statements_analyzer.interner.get(&name.1).unwrap(),
+                            )),
                         }
                     } else {
                         println!(

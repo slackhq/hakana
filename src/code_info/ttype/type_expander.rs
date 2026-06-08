@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     classlike_info::ClassConstantType,
     code_location::FilePath,
-    codebase_info::CodebaseInfo,
+    codebase_info::{CodebaseInfo, symbols::SymbolKind},
     data_flow::{
         graph::DataFlowGraph,
         node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
@@ -162,6 +162,53 @@ fn expand_atomic(
         }
 
         if let Some(known_items) = known_items {
+            // Shape keys that are constants of regular classes (not enum cases)
+            // are stored symbolically at scan time because constant values
+            // aren't known yet — resolve them to their literal values here so
+            // they compare equal to literal-keyed shapes.
+            let keys_to_normalize = known_items
+                .keys()
+                .filter(|k| {
+                    if let DictKey::Enum(class_name, _) = k {
+                        !matches!(
+                            codebase.symbols.all.get(class_name),
+                            Some(SymbolKind::Enum | SymbolKind::EnumClass)
+                        )
+                    } else {
+                        false
+                    }
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+
+            if !keys_to_normalize.is_empty() {
+                let map = Arc::make_mut(known_items);
+                for key in keys_to_normalize {
+                    let DictKey::Enum(class_name, member_name) = &key else {
+                        continue;
+                    };
+                    let new_key = match codebase
+                        .get_class_constant_type(
+                            class_name,
+                            false,
+                            member_name,
+                            FxHashSet::default(),
+                        )
+                        .filter(|t| t.is_single())
+                        .map(|t| t.get_single_owned())
+                    {
+                        Some(TAtomic::TLiteralString { value }) => Some(DictKey::String(value)),
+                        Some(TAtomic::TLiteralInt { value }) => Some(DictKey::Int(value as u64)),
+                        _ => None,
+                    };
+                    if let Some(new_key) = new_key
+                        && let Some(value) = map.remove(&key)
+                    {
+                        map.insert(new_key, value);
+                    }
+                }
+            }
+
             // Avoid copy-on-write of the (possibly shared) map — and per-entry
             // union clones — when no entry can be changed by expansion.
             let mut inert_cost = 0;
@@ -954,9 +1001,12 @@ fn atomic_needs_expansion(
                         || union_needs_expansion(&params.1, options, cost)
                 })
                 || known_items.as_ref().is_some_and(|known_items| {
-                    known_items
-                        .values()
-                        .any(|(_, t)| union_needs_expansion(t, options, cost))
+                    // conservative: class-constant keys may need resolving to
+                    // their literal values (no codebase access here to check)
+                    known_items.keys().any(|k| matches!(k, DictKey::Enum(..)))
+                        || known_items
+                            .values()
+                            .any(|(_, t)| union_needs_expansion(t, options, cost))
                 })
         }
         TAtomic::TVec(TVec {
