@@ -284,15 +284,6 @@ impl FunctionAnalysisData {
                 if fixme_pos.start_offset() as u32 > issue_start_offset {
                     continue;
                 }
-                let fixme_offsets = (
-                    fixme_pos.start_offset() as u32,
-                    fixme_pos.end_offset() as u32,
-                );
-                if let Some(offset) = self.previously_used_fixme_positions.get(&fixme_offsets)
-                    && *offset != (issue_start_offset, issue_end_offset)
-                {
-                    continue;
-                }
 
                 if matches!(
                     (issue_kind, hack_error),
@@ -304,9 +295,16 @@ impl FunctionAnalysisData {
                     return true;
                 }
 
+                // like Hack's fixme_provider, a fixme suppresses every error
+                // with a matching code on the line — there's no one-issue limit
                 if hack_error_covers_issue(*hack_error, issue_kind) {
-                    self.previously_used_fixme_positions
-                        .insert(fixme_offsets, (issue_start_offset, issue_end_offset));
+                    self.previously_used_fixme_positions.insert(
+                        (
+                            fixme_pos.start_offset() as u32,
+                            fixme_pos.end_offset() as u32,
+                        ),
+                        (issue_start_offset, issue_end_offset),
+                    );
                     return true;
                 }
             }
@@ -543,7 +541,8 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
                 | IssueKind::LessSpecificNestedAnyReturnStatement
                 | IssueKind::LessSpecificNestedAnyArgumentType
         ),
-        // Type inference failed
+        // Type inference failed — hh uses this where a type is too dynamic to
+        // check, which covers method calls on poorly-inferred receivers
         4297 => matches!(
             issue_kind,
             IssueKind::MixedAnyArgument
@@ -561,6 +560,7 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
                 | IssueKind::MixedPropertyAssignment
                 | IssueKind::MixedPropertyTypeCoercion
                 | IssueKind::MixedReturnStatement
+                | IssueKind::InvalidMethodCall
         ),
         // RequiredFieldIsOptional
         4163 => matches!(
