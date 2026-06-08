@@ -295,6 +295,10 @@ pub(crate) fn compare_generic_params(
                 &mut param_comparison_result,
             ) || param_comparison_result.type_coerced.unwrap_or(false))
                 && (!container_param.has_static_object() || !input_param.is_static_object())
+                // a nested type that was solved from a template (e.g. the T in
+                // QueryFilter<Container<T>>) keeps the whole param flexible —
+                // Hack would have solved it against the expected type
+                && !has_nested_template_solved_type(input_param)
             {
                 *all_types_contain = false;
 
@@ -302,6 +306,22 @@ pub(crate) fn compare_generic_params(
             }
         }
     }
+}
+
+// whether any union nested inside this one was solved from a template
+// (its `had_template` flag is set)
+fn has_nested_template_solved_type(union: &TUnion) -> bool {
+    if union.had_template {
+        return true;
+    }
+
+    union.get_all_child_nodes().iter().any(|node| {
+        if let crate::t_union::TypeNode::Union(child_union) = node {
+            child_union.had_template
+        } else {
+            false
+        }
+    })
 }
 
 pub(crate) fn update_failed_result_from_nested(

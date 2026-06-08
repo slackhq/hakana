@@ -37,8 +37,8 @@ use hakana_code_info::ttype::template::{
 };
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
-    add_optional_union_type, combine_optional_union_types, get_arraykey, get_mixed_any,
-    get_nothing, wrap_atomic,
+    add_optional_union_type, combine_optional_union_types, get_arrayish_params, get_arraykey,
+    get_mixed_any, get_nothing, wrap_atomic,
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
@@ -399,17 +399,38 @@ pub(crate) fn check_arguments_match(
             context.inside_general_use = false;
         }
 
+        expression_analyzer::analyze(
+            statements_analyzer,
+            unpacked_arg,
+            analysis_data,
+            context,
+            false,
+        )?;
+
         let arg_value_type = analysis_data
             .get_expr_type(unpacked_arg.pos())
             .cloned()
             .unwrap_or(get_mixed_any());
+
+        // the variadic param type describes a single element, so solve
+        // templates against the unpacked container's value type
+        let mut arg_element_type = None;
+        for arg_atomic_type in &arg_value_type.types {
+            if let Some((_, value_param)) = get_arrayish_params(arg_atomic_type, codebase) {
+                arg_element_type = Some(combine_optional_union_types(
+                    arg_element_type.as_ref(),
+                    Some(&value_param),
+                    codebase,
+                ));
+            }
+        }
 
         adjust_param_type(
             &class_generic_params,
             &mut param_type,
             codebase,
             statements_analyzer.get_file_path(),
-            arg_value_type,
+            arg_element_type.unwrap_or(arg_value_type),
             reordered_args.len(),
             unpacked_arg.pos(),
             context,
@@ -419,14 +440,6 @@ pub(crate) fn check_arguments_match(
         );
 
         last_param_type = Some(param_type.clone());
-
-        expression_analyzer::analyze(
-            statements_analyzer,
-            unpacked_arg,
-            analysis_data,
-            context,
-            false,
-        )?;
     }
 
     let function_params = &functionlike_info.params;

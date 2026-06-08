@@ -97,6 +97,16 @@ pub fn replace(
         if input_type_inner.types.is_empty() {
             return union_type.clone();
         }
+    } else if let Some(ref input_type_inner) = input_type
+        && matches!(input_type_inner.get_single(), TAtomic::TNull)
+        && original_atomic_types.len() > 1
+        && original_atomic_types
+            .iter()
+            .any(|t| matches!(t, TAtomic::TNull))
+    {
+        // a null input is wholly absorbed by the null part of `?T`,
+        // so it should not bind the template
+        return union_type.clone();
     }
 
     let mut had_template = false;

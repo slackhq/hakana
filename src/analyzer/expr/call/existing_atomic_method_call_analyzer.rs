@@ -6,6 +6,7 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::method_identifier::MethodIdentifier;
 use hakana_code_info::t_atomic::{TDict, TNamedObject};
 use hakana_code_info::ttype::get_null;
+use hakana_code_info::ttype::template::TemplateBound;
 use hakana_code_info::ttype::template::standin_type_replacer::{self, StandinOpts};
 use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
@@ -160,26 +161,14 @@ pub(crate) fn analyze(
         }
     }
 
-    let class_template_params =
-        if classlike_name != StrId::VECTOR || *method_name != StrId::FROM_ITEMS {
-            let declaring_classlike_storage =
-                if let Some(s) = codebase.classlike_infos.get(&declaring_method_id.0) {
-                    s
-                } else {
-                    return Err(AnalysisError::InternalError(
-                        "could not load storage for declaring method".to_string(),
-                        statements_analyzer.get_hpos(pos),
-                    ));
-                };
-
-            class_template_param_collector::collect(
-                codebase,
-                declaring_classlike_storage,
-                classlike_storage,
-                Some(lhs_type_part),
-            )
+    let declaring_classlike_storage =
+        if let Some(s) = codebase.classlike_infos.get(&declaring_method_id.0) {
+            s
         } else {
-            None
+            return Err(AnalysisError::InternalError(
+                "could not load storage for declaring method".to_string(),
+                statements_analyzer.get_hpos(pos),
+            ));
         };
 
     let functionlike_storage = if let Some(s) = codebase.get_method(&declaring_method_id) {
@@ -191,7 +180,52 @@ pub(crate) fn analyze(
         ));
     };
 
-    let functionlike_template_types = functionlike_storage.template_types.clone();
+    // A static method called on a bare generic classname (e.g.
+    // Filter::exclude(...)) has no bound class template params — solve them
+    // from the arguments like function templates instead of fixing them to
+    // their constraints. When the method is called through a subclass, the
+    // class template params may be bound by inheritance, so the collector
+    // handles them instead.
+    let solve_class_templates_from_args = functionlike_storage
+        .method_info
+        .as_ref()
+        .is_some_and(|method_info| method_info.is_static)
+        && declaring_method_id.0 == classlike_name
+        && !declaring_classlike_storage.template_types.is_empty()
+        && matches!(
+            lhs_type_part,
+            TAtomic::TNamedObject(TNamedObject {
+                type_params: None,
+                is_this: false,
+                ..
+            })
+        );
+
+    let class_template_params = if solve_class_templates_from_args
+        || (classlike_name == StrId::VECTOR && *method_name == StrId::FROM_ITEMS)
+    {
+        None
+    } else {
+        class_template_param_collector::collect(
+            codebase,
+            declaring_classlike_storage,
+            classlike_storage,
+            Some(lhs_type_part),
+        )
+    };
+
+    let mut functionlike_template_types = functionlike_storage.template_types.clone();
+
+    if solve_class_templates_from_args {
+        for (template_name, type_map) in &declaring_classlike_storage.template_types {
+            if !functionlike_template_types
+                .iter()
+                .any(|(existing_name, _)| existing_name == template_name)
+            {
+                functionlike_template_types.push((*template_name, type_map.clone()));
+            }
+        }
+    }
 
     let mut template_result = TemplateResult::new(
         IndexMap::from_iter(functionlike_template_types),
@@ -240,6 +274,37 @@ pub(crate) fn analyze(
         pos,
         method_name_pos,
     )?;
+
+    if solve_class_templates_from_args {
+        for (template_name, type_map) in &declaring_classlike_storage.template_types {
+            let bounds_by_parent = template_result
+                .lower_bounds
+                .entry(*template_name)
+                .or_default();
+            for (generic_parent, constraint) in type_map {
+                bounds_by_parent
+                    .entry(*generic_parent)
+                    .and_modify(|bounds| {
+                        // the solved type becomes a mutable object's param, so
+                        // literal-precise arg types (vec literals, literal
+                        // strings/ints) are widened
+                        for bound in bounds.iter_mut() {
+                            bound.bound_type =
+                                hakana_code_info::ttype::deep_generalize_template_bound(
+                                    &bound.bound_type,
+                                    codebase,
+                                );
+                        }
+                    })
+                    // class templates the arguments didn't bind (e.g.
+                    // CacheResult::miss()) fall back to their constraints,
+                    // matching the previous behaviour of fixing them up-front
+                    .or_insert_with(|| {
+                        vec![TemplateBound::new((**constraint).clone(), 0, None, None)]
+                    });
+            }
+        }
+    }
 
     // Check for ImplicitAsioJoin - methods that have async versions
     if let (Some(async_version), Some(method_name_pos)) =

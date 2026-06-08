@@ -231,6 +231,82 @@ pub fn extend_dataflow_uniquely(
     type_1_nodes.dedup_by(|a, b| a.id.eq(&b.id));
 }
 
+/// Recursively widens literal types in a template bound solved for a class
+/// template param. Objects are mutable, so a literal-precise element type
+/// (e.g. tuple(string(a), string(b)) from a vec literal) would wrongly
+/// reject later writes — Hack solves these against expected types instead.
+pub fn deep_generalize_template_bound(union: &TUnion, codebase: &CodebaseInfo) -> TUnion {
+    let mut new_atomics = vec![];
+
+    for atomic in &union.types {
+        new_atomics.push(deep_generalize_atomic(atomic, codebase));
+    }
+
+    let mut new_union = TUnion::new(if new_atomics.len() > 1 {
+        type_combiner::combine(new_atomics, codebase, false)
+    } else {
+        new_atomics
+    });
+    new_union.had_template = union.had_template;
+    new_union
+}
+
+fn deep_generalize_atomic(atomic: &TAtomic, codebase: &CodebaseInfo) -> TAtomic {
+    match atomic {
+        TAtomic::TLiteralString { .. } => TAtomic::TStringWithFlags(false, false, true),
+        TAtomic::TLiteralInt { .. } => TAtomic::TInt,
+        TAtomic::TEnumLiteralCase {
+            enum_name,
+            as_type,
+            underlying_type,
+            ..
+        } => TAtomic::TEnum {
+            name: *enum_name,
+            as_type: as_type.clone(),
+            underlying_type: underlying_type.clone(),
+        },
+        TAtomic::TVec(vec) => {
+            // a vec literal's tuple-ness is over-precise for a mutable
+            // container element — flatten known items into the value param
+            let mut value_param = (*vec.type_param).clone();
+            if let Some(known_items) = &vec.known_items {
+                for (_, (_, item_type)) in known_items {
+                    value_param = combine_union_types(&value_param, item_type, codebase, false);
+                }
+            }
+            TAtomic::TVec(crate::t_atomic::TVec {
+                type_param: Box::new(deep_generalize_template_bound(&value_param, codebase)),
+                known_items: None,
+                known_count: None,
+                non_empty: vec.non_empty,
+                variadic_type: vec.variadic_type.clone(),
+            })
+        }
+        TAtomic::TDict(dict) => {
+            let mut new_dict = dict.clone();
+            if let Some(known_items) = &mut new_dict.known_items {
+                for (_, item_type) in std::sync::Arc::make_mut(known_items).values_mut() {
+                    *item_type =
+                        std::sync::Arc::new(deep_generalize_template_bound(item_type, codebase));
+                }
+            }
+            if let Some(params) = &mut new_dict.params {
+                *params.0 = deep_generalize_template_bound(&params.0, codebase);
+                *params.1 = deep_generalize_template_bound(&params.1, codebase);
+            }
+            TAtomic::TDict(new_dict)
+        }
+        TAtomic::TKeyset {
+            type_param,
+            non_empty,
+        } => TAtomic::TKeyset {
+            type_param: Box::new(deep_generalize_template_bound(type_param, codebase)),
+            non_empty: *non_empty,
+        },
+        _ => atomic.clone(),
+    }
+}
+
 pub fn combine_union_types(
     type_1: &TUnion,
     type_2: &TUnion,
