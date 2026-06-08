@@ -234,6 +234,25 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                                     || e2_type_atomic.is_mixed_with_any(&mut has_any);
 
                                 TAtomic::TMixedWithFlags(has_any, false, false, false)
+                            } else if (matches!(e1_type_atomic, TAtomic::TNum)
+                                && matches!(
+                                    e2_type_atomic,
+                                    TAtomic::TNum
+                                        | TAtomic::TInt
+                                        | TAtomic::TLiteralInt { .. }
+                                        | TAtomic::TNothing
+                                ))
+                                || (matches!(e2_type_atomic, TAtomic::TNum)
+                                    && matches!(
+                                        e1_type_atomic,
+                                        TAtomic::TInt
+                                            | TAtomic::TLiteralInt { .. }
+                                            | TAtomic::TNothing
+                                    ))
+                            {
+                                // num combined with int or num stays num —
+                                // only a float operand forces a float result
+                                TAtomic::TNum
                             } else {
                                 TAtomic::TFloat
                             }
@@ -318,6 +337,25 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                                     || e2_type_atomic.is_mixed_with_any(&mut has_any);
 
                                 TAtomic::TMixedWithFlags(has_any, false, false, false)
+                            } else if (matches!(e1_type_atomic, TAtomic::TNum)
+                                && matches!(
+                                    e2_type_atomic,
+                                    TAtomic::TNum
+                                        | TAtomic::TInt
+                                        | TAtomic::TLiteralInt { .. }
+                                        | TAtomic::TNothing
+                                ))
+                                || (matches!(e2_type_atomic, TAtomic::TNum)
+                                    && matches!(
+                                        e1_type_atomic,
+                                        TAtomic::TInt
+                                            | TAtomic::TLiteralInt { .. }
+                                            | TAtomic::TNothing
+                                    ))
+                            {
+                                // num combined with int or num stays num —
+                                // only a float operand forces a float result
+                                TAtomic::TNum
                             } else {
                                 TAtomic::TFloat
                             }
