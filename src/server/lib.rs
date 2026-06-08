@@ -391,7 +391,11 @@ fn run_analysis(
         let path = Path::new(config_path);
         if path.exists() {
             info!("Loading config from: {}", config_path);
-            let _ = analysis_config.update_from_file(&config.root_dir, path, &mut interner);
+            if let Err(error) =
+                analysis_config.update_from_file(&config.root_dir, path, &mut interner)
+            {
+                log::error!("Invalid config {}: {}", config_path, error);
+            }
             if let Some(ref allowed) = analysis_config.allowed_issues {
                 info!("Allowed issues: {} types", allowed.len());
             } else {

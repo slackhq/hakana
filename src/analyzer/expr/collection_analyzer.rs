@@ -14,6 +14,7 @@ use hakana_code_info::{
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
+use hakana_str::StrId;
 use oxidized::{
     ast::Expr,
     ast::{KvcKind, VcKind},
@@ -45,6 +46,24 @@ impl ArrayCreationInfo {
     }
 }
 
+fn get_vc_object_name(vc_kind: &VcKind) -> StrId {
+    match vc_kind {
+        VcKind::Vector => StrId::VECTOR,
+        VcKind::ImmVector => StrId::IMM_VECTOR,
+        VcKind::Set => StrId::SET,
+        VcKind::ImmSet => StrId::IMM_SET,
+        VcKind::Vec | VcKind::Keyset => unreachable!(),
+    }
+}
+
+fn get_kvc_object_name(kvc_kind: &KvcKind) -> StrId {
+    match kvc_kind {
+        KvcKind::Map => StrId::MAP,
+        KvcKind::ImmMap => StrId::IMM_MAP,
+        KvcKind::Dict => unreachable!(),
+    }
+}
+
 pub(crate) fn analyze_vals(
     statements_analyzer: &StatementsAnalyzer,
     vc_kind: &oxidized::ast::VcKind,
@@ -71,18 +90,25 @@ pub(crate) fn analyze_vals(
             VcKind::Keyset => {
                 analysis_data.set_expr_type(pos, get_keyset(get_nothing()));
             }
-            VcKind::Vector => {
+            VcKind::Vector | VcKind::ImmVector | VcKind::Set | VcKind::ImmSet => {
                 analysis_data.set_expr_type(
                     pos,
                     wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                        name: statements_analyzer.interner.get("HH\\Vector").unwrap(),
-                        type_params: Some(vec![get_mixed_any()]),
+                        name: get_vc_object_name(vc_kind),
+                        // empty mutable collections can later be populated with
+                        // any type, so we can't assume nothing
+                        type_params: Some(vec![
+                            if matches!(vc_kind, VcKind::Vector | VcKind::Set) {
+                                get_mixed_any()
+                            } else {
+                                get_nothing()
+                            },
+                        ]),
                         is_this: false,
                         remapped_params: false,
                     })),
                 );
             }
-            _ => {}
         }
 
         return Ok(());
@@ -198,10 +224,14 @@ pub(crate) fn analyze_vals(
 
             analysis_data.set_expr_type(pos, keyset);
         }
-        VcKind::Vector => {
+        VcKind::Vector | VcKind::ImmVector | VcKind::Set | VcKind::ImmSet => {
             let mut new_vec = wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                name: statements_analyzer.interner.get("HH\\Vector").unwrap(),
-                type_params: Some(vec![get_mixed_any()]),
+                name: get_vc_object_name(vc_kind),
+                type_params: Some(vec![TUnion::new(type_combiner::combine(
+                    array_creation_info.item_value_atomic_types.clone(),
+                    codebase,
+                    false,
+                ))]),
                 is_this: false,
                 remapped_params: false,
             }));
@@ -210,7 +240,6 @@ pub(crate) fn analyze_vals(
 
             analysis_data.set_expr_type(pos, new_vec);
         }
-        _ => {}
     }
 
     analysis_data.expr_effects.insert(
@@ -231,16 +260,39 @@ pub(crate) fn analyze_keyvals(
 ) -> Result<(), AnalysisError> {
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
-        analysis_data.set_expr_type(
-            pos,
-            wrap_atomic(TAtomic::TDict(TDict {
-                known_items: None,
-                params: None,
-                non_empty: false,
-                shape_name: None,
-                is_shape: false,
-            })),
-        );
+        match kvc_kind {
+            KvcKind::Dict => {
+                analysis_data.set_expr_type(
+                    pos,
+                    wrap_atomic(TAtomic::TDict(TDict {
+                        known_items: None,
+                        params: None,
+                        non_empty: false,
+                        shape_name: None,
+                        is_shape: false,
+                    })),
+                );
+            }
+            KvcKind::Map | KvcKind::ImmMap => {
+                // empty mutable collections can later be populated with
+                // any type, so we can't assume nothing
+                let type_param = if matches!(kvc_kind, KvcKind::Map) {
+                    get_mixed_any()
+                } else {
+                    get_nothing()
+                };
+
+                analysis_data.set_expr_type(
+                    pos,
+                    wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+                        name: get_kvc_object_name(kvc_kind),
+                        type_params: Some(vec![type_param.clone(), type_param]),
+                        is_this: false,
+                        remapped_params: false,
+                    })),
+                );
+            }
+        }
         return Ok(());
     }
 
@@ -260,49 +312,70 @@ pub(crate) fn analyze_keyvals(
         )?;
     }
 
-    let mut known_items = BTreeMap::new();
-
-    if array_creation_info.item_key_atomic_types.len() < 20 {
-        for (key_type, value_type) in array_creation_info.known_items.into_iter() {
-            if let TAtomic::TLiteralString {
-                value: key_literal_value,
-                ..
-            } = key_type
-            {
-                known_items.insert(
-                    DictKey::String(key_literal_value),
-                    (false, Arc::new(value_type)),
-                );
-            }
-        }
-    }
-
-    let mut new_dict = wrap_atomic(TAtomic::TDict(TDict {
-        known_items: if !known_items.is_empty() {
-            Some(known_items)
-        } else {
-            None
-        },
-        params: if array_creation_info.item_key_atomic_types.is_empty() {
-            None
-        } else {
-            Some((
-                Box::new(TUnion::new(type_combiner::combine(
+    let mut new_dict = match kvc_kind {
+        KvcKind::Map | KvcKind::ImmMap => wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+            name: get_kvc_object_name(kvc_kind),
+            type_params: Some(vec![
+                TUnion::new(type_combiner::combine(
                     array_creation_info.item_key_atomic_types.clone(),
                     codebase,
                     false,
-                ))),
-                Box::new(TUnion::new(type_combiner::combine(
+                )),
+                TUnion::new(type_combiner::combine(
                     array_creation_info.item_value_atomic_types.clone(),
                     codebase,
                     false,
-                ))),
-            ))
-        },
-        non_empty: true,
-        shape_name: None,
-        is_shape: false,
-    }));
+                )),
+            ]),
+            is_this: false,
+            remapped_params: false,
+        })),
+        KvcKind::Dict => {
+            let mut known_items = BTreeMap::new();
+
+            if array_creation_info.item_key_atomic_types.len() < 20 {
+                for (key_type, value_type) in array_creation_info.known_items.into_iter() {
+                    if let TAtomic::TLiteralString {
+                        value: key_literal_value,
+                        ..
+                    } = key_type
+                    {
+                        known_items.insert(
+                            DictKey::String(key_literal_value),
+                            (false, Arc::new(value_type)),
+                        );
+                    }
+                }
+            }
+
+            wrap_atomic(TAtomic::TDict(TDict {
+                known_items: if !known_items.is_empty() {
+                    Some(Arc::new(known_items))
+                } else {
+                    None
+                },
+                params: if array_creation_info.item_key_atomic_types.is_empty() {
+                    None
+                } else {
+                    Some((
+                        Box::new(TUnion::new(type_combiner::combine(
+                            array_creation_info.item_key_atomic_types.clone(),
+                            codebase,
+                            false,
+                        ))),
+                        Box::new(TUnion::new(type_combiner::combine(
+                            array_creation_info.item_value_atomic_types.clone(),
+                            codebase,
+                            false,
+                        ))),
+                    ))
+                },
+                non_empty: true,
+                shape_name: None,
+                is_shape: false,
+            }))
+        }
+    };
 
     if !array_creation_info.parent_nodes.is_empty() {
         let dict_node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(pos));

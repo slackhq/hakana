@@ -1,0 +1,4 @@
+ERROR: MixedOperand - input.hack:8:11 - Operand has a mixed type
+ERROR: MixedAnyReturnStatement - input.hack:9:9 - Could not infer a proper return type — saw any
+ERROR: MixedOperand - input.hack:13:15 - Operand has a mixed type
+ERROR: MixedOperand - input.hack:17:9 - Operand has a mixed type

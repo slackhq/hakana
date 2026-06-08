@@ -521,12 +521,9 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
         4110 => matches!(
             issue_kind,
             IssueKind::FalsableReturnStatement
-                | IssueKind::FalseArgument
                 | IssueKind::ImpossibleAssignment
                 | IssueKind::InvalidArgument
                 | IssueKind::InvalidReturnStatement
-                | IssueKind::InvalidReturnType
-                | IssueKind::InvalidReturnValue
                 | IssueKind::LessSpecificArgument
                 | IssueKind::LessSpecificNestedArgumentType
                 | IssueKind::LessSpecificNestedReturnStatement
@@ -539,11 +536,8 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
                 | IssueKind::MixedPropertyAssignment
                 | IssueKind::MixedPropertyTypeCoercion
                 | IssueKind::PropertyTypeCoercion
-                | IssueKind::NonNullableReturnType
                 | IssueKind::NullablePropertyAssignment
                 | IssueKind::NullableReturnStatement
-                | IssueKind::NullableReturnValue
-                | IssueKind::PossiblyFalseArgument
                 | IssueKind::PossiblyInvalidArgument
                 | IssueKind::InvalidPropertyAssignmentValue
                 | IssueKind::LessSpecificNestedAnyReturnStatement
@@ -556,10 +550,8 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
                 | IssueKind::MixedAnyArrayAccess
                 | IssueKind::MixedAnyArrayAssignment
                 | IssueKind::MixedAnyArrayOffset
-                | IssueKind::MixedAnyAssignment
                 | IssueKind::MixedAnyMethodCall
                 | IssueKind::MixedAnyPropertyAssignment
-                | IssueKind::MixedAnyPropertyTypeCoercion
                 | IssueKind::MixedAnyReturnStatement
                 | IssueKind::MixedArgument
                 | IssueKind::MixedArrayAccess
@@ -575,8 +567,6 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
             issue_kind,
             IssueKind::InvalidArgument
                 | IssueKind::InvalidReturnStatement
-                | IssueKind::InvalidReturnType
-                | IssueKind::InvalidReturnValue
                 | IssueKind::LessSpecificArgument
                 | IssueKind::LessSpecificNestedArgumentType
                 | IssueKind::LessSpecificNestedReturnStatement

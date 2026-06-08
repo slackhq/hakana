@@ -320,7 +320,7 @@ fn replace_atomic<'a>(
             ..
         }) => {
             if let Some(known_items) = known_items {
-                for (offset, (_, property)) in known_items {
+                for (offset, (_, property)) in Arc::make_mut(known_items).iter_mut() {
                     let input_type_param = if let Some(TAtomic::TDict(TDict {
                         known_items: Some(ref input_known_items),
                         ..

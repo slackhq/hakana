@@ -416,12 +416,13 @@ fn adjust_array_type(
                 };
 
                 if let Some(known_items) = known_items {
-                    known_items.insert(dictkey, (false, Arc::new(result_type.clone())));
+                    Arc::make_mut(known_items)
+                        .insert(dictkey, (false, Arc::new(result_type.clone())));
                 } else {
-                    *known_items = Some(BTreeMap::from([(
+                    *known_items = Some(Arc::new(BTreeMap::from([(
                         dictkey,
                         (false, Arc::new(result_type.clone())),
-                    )]));
+                    )])));
                 }
             }
             TAtomic::TVec(TVec { known_items, .. }) => {

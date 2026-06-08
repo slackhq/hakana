@@ -497,15 +497,172 @@ pub(crate) fn analyze(
             )?;
         }
 
-        aast::Expr_::Collection(_)
-        | aast::Expr_::This
+        aast::Expr_::Collection(boxed) => {
+            let collection_name = boxed
+                .0
+                .1
+                .trim_start_matches('\\')
+                .trim_start_matches("HH\\");
+
+            match collection_name {
+                "Vector" | "ImmVector" | "Set" | "ImmSet" => {
+                    let vc_kind = match collection_name {
+                        "Vector" => oxidized::ast::VcKind::Vector,
+                        "ImmVector" => oxidized::ast::VcKind::ImmVector,
+                        "Set" => oxidized::ast::VcKind::Set,
+                        _ => oxidized::ast::VcKind::ImmSet,
+                    };
+
+                    let items = boxed
+                        .2
+                        .iter()
+                        .filter_map(|field| match field {
+                            aast::Afield::AFvalue(value_expr) => Some(value_expr.clone()),
+                            aast::Afield::AFkvalue(..) => None,
+                        })
+                        .collect::<Vec<_>>();
+
+                    collection_analyzer::analyze_vals(
+                        statements_analyzer,
+                        &vc_kind,
+                        &items,
+                        expr.pos(),
+                        analysis_data,
+                        context,
+                    )?;
+                }
+                "Map" | "ImmMap" => {
+                    let kvc_kind = if collection_name == "Map" {
+                        oxidized::ast::KvcKind::Map
+                    } else {
+                        oxidized::ast::KvcKind::ImmMap
+                    };
+
+                    let items = boxed
+                        .2
+                        .iter()
+                        .filter_map(|field| match field {
+                            aast::Afield::AFkvalue(key_expr, value_expr) => {
+                                Some(oxidized::ast::Field(key_expr.clone(), value_expr.clone()))
+                            }
+                            aast::Afield::AFvalue(_) => None,
+                        })
+                        .collect::<Vec<_>>();
+
+                    collection_analyzer::analyze_keyvals(
+                        statements_analyzer,
+                        &kvc_kind,
+                        &items,
+                        expr.pos(),
+                        analysis_data,
+                        context,
+                    )?;
+                }
+                "Pair" => {
+                    let mut item_types = vec![];
+
+                    for field in &boxed.2 {
+                        if let aast::Afield::AFvalue(value_expr) = field {
+                            expression_analyzer::analyze(
+                                statements_analyzer,
+                                value_expr,
+                                analysis_data,
+                                context,
+                                true,
+                            )?;
+
+                            item_types.push(
+                                analysis_data
+                                    .get_expr_type(value_expr.pos())
+                                    .cloned()
+                                    .unwrap_or(get_mixed_any()),
+                            );
+                        }
+                    }
+
+                    while item_types.len() < 2 {
+                        item_types.push(get_mixed_any());
+                    }
+
+                    analysis_data.set_expr_type(
+                        &expr.1,
+                        wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+                            name: StrId::PAIR,
+                            type_params: Some(item_types),
+                            is_this: false,
+                            remapped_params: false,
+                        })),
+                    );
+                }
+                _ => {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::UnrecognizedExpression,
+                            "Unrecognized collection type".to_string(),
+                            statements_analyzer.get_hpos(&expr.1),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+            }
+        }
+        aast::Expr_::Pair(boxed) => {
+            let mut item_types = vec![];
+
+            for item_expr in [&boxed.1, &boxed.2] {
+                expression_analyzer::analyze(
+                    statements_analyzer,
+                    item_expr,
+                    analysis_data,
+                    context,
+                    true,
+                )?;
+
+                item_types.push(
+                    analysis_data
+                        .get_expr_type(item_expr.pos())
+                        .cloned()
+                        .unwrap_or(get_mixed_any()),
+                );
+            }
+
+            analysis_data.set_expr_type(
+                &expr.1,
+                wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+                    name: StrId::PAIR,
+                    type_params: Some(item_types),
+                    is_this: false,
+                    remapped_params: false,
+                })),
+            );
+        }
+        aast::Expr_::ReadonlyExpr(boxed) => {
+            expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context, true)?;
+
+            if let Some(inner_type) = analysis_data
+                .expr_types
+                .get(&(
+                    boxed.pos().start_offset() as u32,
+                    boxed.pos().end_offset() as u32,
+                ))
+                .cloned()
+            {
+                analysis_data.expr_types.insert(
+                    (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
+                    inner_type,
+                );
+            }
+
+            analysis_data.copy_effects(boxed.pos(), &expr.1);
+        }
+        aast::Expr_::This
         | aast::Expr_::Omitted
         | aast::Expr_::Dollardollar(_)
-        | aast::Expr_::ReadonlyExpr(_)
         | aast::Expr_::ExpressionTree(_)
         | aast::Expr_::Lplaceholder(_)
         | aast::Expr_::MethodCaller(_)
-        | aast::Expr_::Pair(_)
         | aast::Expr_::ETSplice(_)
         | aast::Expr_::Hole(_)
         | aast::Expr_::Invalid(_) => {

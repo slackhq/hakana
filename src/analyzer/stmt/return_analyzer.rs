@@ -203,6 +203,58 @@ pub(crate) fn analyze(
         get_mixed_any()
     };
 
+    // method-level where constraints (e.g. `where T = ?Tv`) let us rewrite a
+    // constrained param in the returned type with its bound — so for a value
+    // of type T narrowed to nonnull, `T = ?Tv` makes it a valid Tv
+    if !functionlike_storage.where_constraints.is_empty() {
+        let mut new_inferred_types = vec![];
+        let mut substituted = false;
+
+        for inferred_atomic in &inferred_return_type.types {
+            if let TAtomic::TGenericParam(constrained_param) = inferred_atomic
+                && let Some((_, constraint_type)) = functionlike_storage
+                    .where_constraints
+                    .iter()
+                    .find(|(constrained_name, _)| constrained_name == &constrained_param.param_name)
+                && !expected_return_type.types.iter().any(|expected_atomic| {
+                    if let TAtomic::TGenericParam(expected_param) = expected_atomic {
+                        expected_param.param_name == constrained_param.param_name
+                    } else {
+                        false
+                    }
+                })
+            {
+                // narrowings applied to the param (e.g. `as nonnull`)
+                // also apply to the substituted constraint type
+                let param_accepts_null = constrained_param.as_type.is_nullable()
+                    || constrained_param.as_type.types.iter().any(|t| {
+                        matches!(
+                            t,
+                            TAtomic::TMixed
+                                | TAtomic::TMixedFromLoopIsset
+                                | TAtomic::TMixedWithFlags(_, _, _, false)
+                        )
+                    });
+
+                substituted = true;
+
+                for constraint_atomic in &constraint_type.types {
+                    if matches!(constraint_atomic, TAtomic::TNull) && !param_accepts_null {
+                        continue;
+                    }
+
+                    new_inferred_types.push(constraint_atomic.clone());
+                }
+            } else {
+                new_inferred_types.push(inferred_atomic.clone());
+            }
+        }
+
+        if substituted {
+            inferred_return_type.types = new_inferred_types;
+        }
+    }
+
     if let Some(return_expr) = return_expr {
         handle_dataflow(
             statements_analyzer,
@@ -506,7 +558,8 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual());
             }
         }
-    } else if !expected_return_type.is_void()
+    } else if functionlike_storage.return_type.is_some()
+        && !expected_return_type.is_void()
         && !functionlike_storage.has_yield
         && !functionlike_storage.is_async
         && !matches!(

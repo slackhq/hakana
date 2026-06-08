@@ -689,6 +689,11 @@ fn analyze_assignment_to_variable(
         );
     }
 
+    // once a templated type is stored in a variable its type is fixed — only
+    // direct flows (e.g. `return result_ok(...)`) stay flexible the way
+    // Hack's expected-type-directed template solving would treat them
+    assign_value_type.clear_had_template();
+
     context
         .locals
         .insert(VarName::new(&var_id), Rc::new(assign_value_type));

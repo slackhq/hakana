@@ -334,7 +334,7 @@ fn check_iterator_type(
                         }
 
                         if let Some(known_items) = known_items {
-                            for (var_id, (_, known_item)) in known_items {
+                            for (var_id, (_, known_item)) in known_items.iter() {
                                 match var_id {
                                     DictKey::Int(var_id) => {
                                         key_param = add_union_type(

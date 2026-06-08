@@ -475,7 +475,7 @@ fn has_unused_must_use(
                             })
                         {
                             return if functionlike_info.must_use {
-                                Some(IssueKind::UnusedMethodCall)
+                                Some(IssueKind::UnusedFunctionCall)
                             } else {
                                 None
                             };

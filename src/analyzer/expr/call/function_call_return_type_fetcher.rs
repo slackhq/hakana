@@ -312,7 +312,7 @@ fn handle_special_functions(
         &StrId::DEBUG_BACKTRACE => Some(wrap_atomic(TAtomic::TVec(TVec {
             known_items: None,
             type_param: Box::new(wrap_atomic(TAtomic::TDict(TDict {
-                known_items: Some(BTreeMap::from([
+                known_items: Some(Arc::new(BTreeMap::from([
                     (
                         DictKey::String("file".to_string()),
                         (false, Arc::new(get_string())),
@@ -341,7 +341,7 @@ fn handle_special_functions(
                         DictKey::String("args".to_string()),
                         (true, Arc::new(get_mixed_vec())),
                     ),
-                ])),
+                ]))),
                 params: None,
                 non_empty: true,
                 shape_name: None,

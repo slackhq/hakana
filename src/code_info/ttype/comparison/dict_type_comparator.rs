@@ -33,7 +33,7 @@ pub(crate) fn is_contained_by(
         {
             if let Some(container_known_items) = container_known_items {
                 if let Some(input_known_items) = input_known_items {
-                    for (key, (c_u, container_property_type)) in container_known_items {
+                    for (key, (c_u, container_property_type)) in container_known_items.iter() {
                         if let Some((i_u, input_property_type)) = input_known_items.get(key) {
                             if *i_u && !c_u {
                                 if atomic_comparison_result.type_mismatch_parents.is_none() {

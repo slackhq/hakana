@@ -261,6 +261,7 @@ pub(crate) fn compare_generic_params(
             }
         } else if !matches!(container_type_param_variance, Some(Variance::Covariant))
             && !container_param.had_template
+            && !input_param.had_template
         {
             atomic_comparison_result
                 .type_variable_lower_bounds

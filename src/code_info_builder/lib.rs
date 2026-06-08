@@ -466,7 +466,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     ..
                 }) = atomic_param_attribute
             {
-                for (name, (_, item_type)) in attribute_known_items {
+                for (name, (_, item_type)) in attribute_known_items.iter() {
                     let mut source_types = vec![];
 
                     if let Some(str) = item_type.get_single_literal_string_value()
@@ -526,11 +526,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         ..
                     }) = atomic_param_attribute
                 {
-                    for (name, (_, item_type)) in attribute_known_items {
+                    for (name, (_, item_type)) in attribute_known_items.iter() {
                         if let (DictKey::String(key_str), Some(value)) =
                             (name, item_type.get_single_literal_string_value())
                         {
-                            type_map.insert(key_str, value);
+                            type_map.insert(key_str.clone(), value);
                         }
                     }
                 }
@@ -994,7 +994,7 @@ fn transform_shape_type_constant(
         }) => {
             let mut transformed_items = std::collections::BTreeMap::new();
 
-            for (key, (_, value_type)) in items {
+            for (key, (_, value_type)) in items.iter() {
                 // For each value in the dict, we need to resolve it
                 let transformed_value_type = if value_type.types.len() == 1 {
                     let atomic = value_type.types.first().unwrap();
@@ -1044,12 +1044,12 @@ fn transform_shape_type_constant(
                 };
 
                 // keys should always be optional
-                transformed_items.insert(key, (true, transformed_value_type));
+                transformed_items.insert(key.clone(), (true, transformed_value_type));
             }
 
             TAtomic::TDict(TDict {
                 non_empty: !transformed_items.is_empty(),
-                known_items: Some(transformed_items),
+                known_items: Some(std::sync::Arc::new(transformed_items)),
                 params: None,
                 shape_name: None,
                 is_shape: true,

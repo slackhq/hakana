@@ -38,6 +38,19 @@ use log::{debug, info};
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
+/// Combines the binary's build header with a fingerprint of the pre-interned
+/// string table. Cached analysis data stores raw StrIds, so caches must be
+/// invalidated whenever the pre-interned list changes — even if the binary's
+/// version header is unchanged (e.g. local builds where only a dependency
+/// crate was modified).
+pub fn get_combined_build_checksum(build_checksum: &str) -> String {
+    format!(
+        "{}\nInterner:  {:x}",
+        build_checksum,
+        hakana_str::INTERNED_STRINGS_HASH
+    )
+}
+
 #[derive(Debug)]
 pub struct ScanFilesResult {
     pub codebase: CodebaseInfo,
@@ -82,7 +95,7 @@ pub fn scan_files(
 
         if build_checksum_path.exists() {
             if let Ok(contents) = fs::read_to_string(build_checksum_path) {
-                if contents != build_checksum {
+                if contents != get_combined_build_checksum(build_checksum) {
                     use_codebase_cache = false;
                 }
             } else {

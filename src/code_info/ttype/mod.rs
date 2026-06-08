@@ -681,7 +681,7 @@ fn intersect_dicts_simple(
         (Some(type_1_known_items), Some(type_2_known_items)) => {
             let mut intersected_items = BTreeMap::new();
 
-            for (type_2_key, type_2_value) in type_2_known_items {
+            for (type_2_key, type_2_value) in type_2_known_items.iter() {
                 if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
                     intersected_items.insert(
                         type_2_key.clone(),
@@ -720,7 +720,7 @@ fn intersect_dicts_simple(
             }
 
             Some(TAtomic::TDict(TDict {
-                known_items: Some(intersected_items),
+                known_items: Some(Arc::new(intersected_items)),
                 params,
                 non_empty: true,
                 shape_name: None,
@@ -804,7 +804,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             }
 
             if let Some(known_items) = known_items {
-                for (key, (_, property_type)) in known_items {
+                for (key, (_, property_type)) in known_items.iter() {
                     key_types.push(match key {
                         DictKey::Int(i) => TAtomic::TLiteralInt { value: *i as i64 },
                         DictKey::String(k) => TAtomic::TLiteralString { value: k.clone() },
@@ -1059,7 +1059,7 @@ pub fn get_atomic_syntax_type(
                 str += "shape(";
                 let mut known_item_strings = vec![];
 
-                for (property, (pu, property_type)) in known_items {
+                for (property, (pu, property_type)) in known_items.iter() {
                     known_item_strings.push({
                         let property_type_string =
                             get_union_syntax_type(property_type, codebase, interner, is_valid);

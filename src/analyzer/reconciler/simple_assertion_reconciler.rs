@@ -714,6 +714,7 @@ fn reconcile_has_array_key(
                 ..
             }) => {
                 if let Some(known_items) = known_items {
+                    let known_items = Arc::make_mut(known_items);
                     if let Some(known_item) = known_items.get_mut(key_name) {
                         if known_item.0 {
                             *known_item = (false, known_item.1.clone());
@@ -746,10 +747,10 @@ fn reconcile_has_array_key(
                         key_param,
                         false,
                     ) {
-                        *known_items = Some(BTreeMap::from([(
+                        *known_items = Some(Arc::new(BTreeMap::from([(
                             key_name.clone(),
                             (false, Arc::new((**value_param).clone())),
-                        )]));
+                        )])));
                     } else {
                         continue;
                     }
@@ -900,6 +901,7 @@ fn reconcile_has_nonnull_entry_for_key(
                 ..
             }) => {
                 if let Some(known_items) = known_items {
+                    let known_items = Arc::make_mut(known_items);
                     if let Some(known_item) = known_items.get_mut(key_name) {
                         let nonnull = subtract_null(
                             assertion,
@@ -968,10 +970,10 @@ fn reconcile_has_nonnull_entry_for_key(
                             calling_functionlike_id,
                             suppressed_issues,
                         );
-                        *known_items = Some(BTreeMap::from([(
+                        *known_items = Some(Arc::new(BTreeMap::from([(
                             key_name.clone(),
                             (false, Arc::new(nonnull)),
-                        )]));
+                        )])));
                     } else {
                         continue;
                     }

@@ -87,7 +87,7 @@ pub fn combine(
             known_items: if combination.dict_entries.is_empty() {
                 None
             } else {
-                Some(combination.dict_entries)
+                Some(Arc::new(combination.dict_entries))
             },
             params: if let Some((k, v)) = combination.dict_type_params {
                 Some((Box::new(k), Box::new(v)))
@@ -575,7 +575,7 @@ fn scrape_type_properties(
 
             let mut has_defined_keys = false;
 
-            for (candidate_item_name, (cu, candidate_item_type)) in known_items {
+            for (candidate_item_name, (cu, candidate_item_type)) in known_items.iter() {
                 if let Some((eu, existing_type)) =
                     combination.dict_entries.get_mut(candidate_item_name)
                 {

@@ -1,5 +1,5 @@
-ERROR: UnusedMethodCall - input.hack:18:3 - This is annotated with MustUse but the returned value is not used
-ERROR: UnusedMethodCall - input.hack:20:3 - This is annotated with MustUse but the returned value is not used
-ERROR: UnusedMethodCall - input.hack:26:3 - This is annotated with MustUse but the returned value is not used
-ERROR: UnusedMethodCall - input.hack:32:5 - This is annotated with MustUse but the returned value is not used
-ERROR: UnusedMethodCall - input.hack:35:2 - This is annotated with MustUse but the returned value is not used
+ERROR: UnusedFunctionCall - input.hack:18:3 - This is annotated with MustUse but the returned value is not used
+ERROR: UnusedFunctionCall - input.hack:20:3 - This is annotated with MustUse but the returned value is not used
+ERROR: UnusedFunctionCall - input.hack:26:3 - This is annotated with MustUse but the returned value is not used
+ERROR: UnusedFunctionCall - input.hack:32:5 - This is annotated with MustUse but the returned value is not used
+ERROR: UnusedFunctionCall - input.hack:35:2 - This is annotated with MustUse but the returned value is not used

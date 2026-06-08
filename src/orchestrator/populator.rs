@@ -578,6 +578,12 @@ fn populate_interface_data_from_parent_interface(
     storage
         .all_parent_interfaces
         .extend(parent_interface_storage.all_parent_interfaces.clone());
+
+    // interfaces inherit `require extends` classes from parent interfaces —
+    // these are stored in all_parent_classes (see handle_reqs in the scanner)
+    storage
+        .all_parent_classes
+        .extend(parent_interface_storage.all_parent_classes.clone());
 }
 
 fn populate_data_from_parent_classlike(

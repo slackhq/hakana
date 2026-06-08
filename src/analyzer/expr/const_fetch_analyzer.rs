@@ -20,6 +20,26 @@ use oxidized::ast_defs;
 
 use crate::statements_analyzer::StatementsAnalyzer;
 
+/// Whether the given declared type references a newtype whose defining file is
+/// not the file currently being analyzed — i.e. the newtype is opaque here.
+pub(crate) fn is_newtype_outside_defining_file(
+    provided_type: &hakana_code_info::t_union::TUnion,
+    codebase: &hakana_code_info::codebase_info::CodebaseInfo,
+    statements_analyzer: &StatementsAnalyzer,
+) -> bool {
+    provided_type.types.iter().any(|t| {
+        if let hakana_code_info::t_atomic::TAtomic::TReference { name, .. }
+        | hakana_code_info::t_atomic::TAtomic::TTypeAlias { name, .. } = t
+            && let Some(type_definition) = codebase.type_definitions.get(name)
+            && let Some(newtype_file) = &type_definition.newtype_file
+        {
+            return newtype_file != statements_analyzer.get_file_path();
+        }
+
+        false
+    })
+}
+
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     boxed: &ast_defs::Id,
@@ -54,7 +74,16 @@ pub(crate) fn analyze(
         } else if *name == StrId::FUNCTION_CONST {
             get_string()
         } else if let Some(t) = &constant_storage.inferred_type {
-            wrap_atomic(t.clone())
+            // if the constant is declared with a newtype, the newtype is opaque
+            // outside its defining file, so the literal inferred type would be
+            // wrong everywhere else
+            if let Some(provided_type) = &constant_storage.provided_type
+                && is_newtype_outside_defining_file(provided_type, codebase, statements_analyzer)
+            {
+                provided_type.clone()
+            } else {
+                wrap_atomic(t.clone())
+            }
         } else if let Some(t) = &constant_storage.provided_type {
             t.clone()
         } else {

@@ -1,0 +1,1 @@
+ERROR: InterfaceSingleImplementor - input.hack:7:11 - Interface ITypeSpecifier has only one implementing class ISimpleSpecifier

@@ -40,7 +40,7 @@ impl DictKey {
 #[derivative(Hash)]
 /// Corresponds to the `dict` type and also the `shape` type.
 pub struct TDict {
-    pub known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
+    pub known_items: Option<Arc<BTreeMap<DictKey, (bool, Arc<TUnion>)>>>,
     pub params: Option<(Box<TUnion>, Box<TUnion>)>,
     pub non_empty: bool,
     pub shape_name: Option<(StrId, Option<StrId>)>,
@@ -378,6 +378,77 @@ pub enum TAtomic {
 }
 
 impl TAtomic {
+    /// Recursively clears the `had_template` flag on all nested unions —
+    /// used when a templated type is stored somewhere that fixes its type.
+    pub fn clear_had_template(&mut self) {
+        match self {
+            TAtomic::TNamedObject(TNamedObject {
+                type_params: Some(type_params),
+                ..
+            })
+            | TAtomic::TReference {
+                type_params: Some(type_params),
+                ..
+            } => {
+                for type_param in type_params {
+                    type_param.clear_had_template();
+                }
+            }
+            TAtomic::TTypeAlias {
+                type_params,
+                as_type,
+                ..
+            } => {
+                if let Some(type_params) = type_params {
+                    for type_param in type_params {
+                        type_param.clear_had_template();
+                    }
+                }
+                if let Some(as_type) = as_type {
+                    as_type.clear_had_template();
+                }
+            }
+            TAtomic::TVec(TVec {
+                type_param,
+                known_items,
+                variadic_type,
+                ..
+            }) => {
+                type_param.clear_had_template();
+                if let Some(known_items) = known_items {
+                    for (_, t) in known_items.values_mut() {
+                        t.clear_had_template();
+                    }
+                }
+                if let Some(variadic_type) = variadic_type {
+                    variadic_type.clear_had_template();
+                }
+            }
+            TAtomic::TDict(TDict {
+                params,
+                known_items,
+                ..
+            }) => {
+                if let Some(params) = params {
+                    params.0.clear_had_template();
+                    params.1.clear_had_template();
+                }
+                if let Some(known_items) = known_items {
+                    for (_, t) in std::sync::Arc::make_mut(known_items).values_mut() {
+                        std::sync::Arc::make_mut(t).clear_had_template();
+                    }
+                }
+            }
+            TAtomic::TKeyset { type_param, .. } => {
+                type_param.clear_had_template();
+            }
+            TAtomic::TAwaitable { value, .. } => {
+                value.clear_had_template();
+            }
+            _ => {}
+        }
+    }
+
     pub fn get_id(&self, interner: Option<&Interner>) -> String {
         self.get_id_with_refs(interner, &mut vec![], None)
     }
@@ -1910,7 +1981,7 @@ pub fn populate_atomic_type(
             }
 
             if let Some(known_items) = known_items {
-                for (_, prop_type) in known_items.values_mut() {
+                for (_, prop_type) in Arc::make_mut(known_items).values_mut() {
                     populate_union_type(
                         Arc::make_mut(prop_type),
                         codebase_symbols,
