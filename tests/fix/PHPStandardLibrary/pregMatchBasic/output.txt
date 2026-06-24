@@ -1,0 +1,4 @@
+function takes_string(string $haystack): void {
+    \HH\Lib\Regex\matches($haystack, re"/^foo$/");
+    \HH\Lib\Regex\matches($haystack, re'/^foo$/');
+}
