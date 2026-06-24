@@ -506,6 +506,52 @@ pub(crate) fn analyze(
                 }
             }
         }
+        StrId::PREG_MATCH => {
+            // preg_match("literal pattern", $haystack) can be rewritten to the
+            // type-safe Regex\matches($haystack, re"literal pattern").
+            if expr.2.len() == 2 {
+                let first_arg = expr.2[0].to_expr_ref();
+
+                if matches!(first_arg.2, aast::Expr_::String(..)) {
+                    let issue = Issue::new(
+                        IssueKind::PHPStandardLibrary,
+                        "Use HH\\Lib\\Regex\\matches instead of preg_match".to_string(),
+                        statements_analyzer.get_hpos(pos),
+                        &context.function_context.calling_functionlike_id,
+                    );
+
+                    if statements_analyzer.should_autofix(context, analysis_data, &issue) {
+                        let file_contents =
+                            &statements_analyzer.file_analyzer.file_source.file_contents;
+                        let second_arg = expr.2[1].to_expr_ref();
+
+                        // Raw source of the pattern literal with its surrounding
+                        // quotes.
+                        let pattern_src = &file_contents
+                            [first_arg.pos().start_offset()..first_arg.pos().end_offset()];
+
+                        // Raw source of the haystack expression preserves arbitrary
+                        // expressions (variables, calls, etc.) exactly.
+                        let haystack_src = &file_contents
+                            [second_arg.pos().start_offset()..second_arg.pos().end_offset()];
+
+                        analysis_data.add_replacement(
+                            (pos.start_offset() as u32, pos.end_offset() as u32),
+                            Replacement::Substitute(format!(
+                                "\\HH\\Lib\\Regex\\matches({}, re{})",
+                                haystack_src, pattern_src
+                            )),
+                        );
+                    } else {
+                        analysis_data.maybe_add_issue(
+                            issue,
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
+                        );
+                    }
+                }
+            }
+        }
         StrId::ASIO_JOIN => {
             if context.inside_async {
                 let issue = Issue::new(

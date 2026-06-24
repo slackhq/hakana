@@ -276,7 +276,7 @@ fn analyze_loaded_ast(
         file_path,
         hh_fixmes: &aast.1.fixmes,
         comments: &aast.1.comments,
-        file_contents: if !config.migration_symbols.is_empty() {
+        file_contents: if !config.migration_symbols.is_empty() || !config.issues_to_fix.is_empty() {
             match fs::read_to_string(str_path) {
                 Ok(str_file) => str_file,
                 Err(_) => panic!("Could not read {}", str_path),
