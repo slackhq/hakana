@@ -19,7 +19,7 @@ final class ResultError<+T> extends Result<nothing, T> {
 }
 
 async function foo<T>((function():Awaitable<Result<T, mixed>>) $one, (function():Awaitable<Result<T, mixed>>) $two): Awaitable<Result<?T, mixed>> {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         return await $one();
     }
     return await $two();

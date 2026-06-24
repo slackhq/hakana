@@ -9,7 +9,7 @@ while (rand(0, 1)) {
         default:
             echo $a;
 
-            if (rand(0, 1)) {
+            if (rand(0, 1) !== 0) {
                 $a = 5;
                 break;
             }

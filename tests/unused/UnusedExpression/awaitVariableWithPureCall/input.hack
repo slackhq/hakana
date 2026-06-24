@@ -14,7 +14,7 @@ async function foo(): Awaitable<Box<string>> {
 async function bar(): Awaitable<void> {
     $result = await foo();
     $val = $result->get();
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         echo $val;
     }
 }

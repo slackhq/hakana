@@ -5,7 +5,7 @@ function analyse(): int {
         if ($state === 3) {
             echo "here";
         } else if ($state === 2) {
-            if (rand(0, 1)) {
+            if (rand(0, 1) !== 0) {
                 $state = 3;
             }
         } else {

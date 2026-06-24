@@ -3,7 +3,7 @@ type CoolType = ?A;
 final class A {}
 
 function foo(): CoolType {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         return new A();
     }
     

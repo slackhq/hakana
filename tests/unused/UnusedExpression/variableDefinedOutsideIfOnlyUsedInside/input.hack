@@ -53,7 +53,7 @@ function test_defined_inside_if(): void {
 }
 
 function test_foreach_optimization(vec<int> $ints): void {
-    $x = rand(0, 1) ? 'a' : 'b';
+    $x = rand(0, 1) !== 0 ? 'a' : 'b';
     foreach ($ints as $item) {
         if (rand() > 0) {
             echo $x.$item;
@@ -71,7 +71,7 @@ function test_while_optimization(): void {
 }
 
 function test_call_with_pure_outputs(): void {
-    $x = rand(0, 1) ? 'a' : 'b';
+    $x = rand(0, 1) !== 0 ? 'a' : 'b';
     if (rand() > 0) {
         echo $x;
     }

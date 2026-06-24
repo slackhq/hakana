@@ -12,7 +12,7 @@ function bar(A $a): void {
     $a->foo = null;
 
     while (rand(0, 1)) {
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             $a->setFoo();
         } else {
             if ($a->foo !== null) {}

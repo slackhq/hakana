@@ -6,8 +6,8 @@ final class C {
 const A = 1;
 const B = -1;
 
-$i = rand(0, 1) ? A : B;
-if (rand(0, 1)) {
+$i = rand(0, 1) !== 0 ? A : B;
+if (rand(0, 1) !== 0) {
     $i = 0;
 }
 
@@ -17,9 +17,9 @@ if ($i === A) {
     echo "here";
 }
 
-$i = rand(0, 1) ? C::A : C::B;
+$i = rand(0, 1) !== 0 ? C::A : C::B;
 
-if (rand(0, 1)) {
+if (rand(0, 1) !== 0) {
     $i = 0;
 }
 

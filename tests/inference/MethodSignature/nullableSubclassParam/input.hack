@@ -1,6 +1,6 @@
 abstract class A {
     public function foo(string $s): ?string {
-        return rand(0, 1) ? $s : null;
+        return rand(0, 1) !== 0 ? $s : null;
     }
 }
 
