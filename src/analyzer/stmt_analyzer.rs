@@ -454,6 +454,12 @@ fn has_unused_must_use(
                         }
                     }
                     FunctionLikeIdentifier::Method(method_class, method_name) => {
+                        // A direct constructor call (e.g. parent::__construct()) does not
+                        // return a usable value, so the MustUse attribute does not apply.
+                        if method_name == StrId::CONSTRUCT {
+                            return None;
+                        }
+
                         let resolved_method_class = match method_class {
                             StrId::SELF | StrId::STATIC => context.function_context.calling_class,
                             StrId::PARENT => context
