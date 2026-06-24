@@ -2,7 +2,7 @@ final class A {
     public ?A $a;
 
     public function __construct() {
-        $this->a = rand(0, 1) ? new A() : null;
+        $this->a = rand(0, 1) !== 0 ? new A() : null;
     }
 }
 

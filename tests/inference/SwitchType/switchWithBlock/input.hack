@@ -1,5 +1,5 @@
 function foo(): void {
-    $letter = rand(0, 1) ? 'a' : (rand(0, 1) ? 'b' : (rand(0, 1) ? 'c' : 'd'));
+    $letter = rand(0, 1) !== 0 ? 'a' : (rand(0, 1) !== 0 ? 'b' : (rand(0, 1) !== 0 ? 'c' : 'd'));
     switch ($letter) {
     	case 'a':
         	{}

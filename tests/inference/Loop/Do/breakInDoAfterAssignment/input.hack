@@ -3,7 +3,7 @@ $a = null;
 do {
     $a = vec['hello'];
     
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         break;
     }
 } while (rand(0, 1));

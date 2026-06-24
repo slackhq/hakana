@@ -4,7 +4,7 @@ function foo(mystring ...$rest):void {}
 
 $rest = vec["zzz"];
 
-if (rand(0,1)) {
+if (rand(0,1) !== 0) {
     $rest[] = "xxx";
 }
 

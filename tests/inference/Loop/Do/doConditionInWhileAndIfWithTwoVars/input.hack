@@ -1,6 +1,6 @@
 function foo(bool $b): void {
     do {
-        $s = rand(0, 1);
+        $s = rand(0, 1) !== 0;
     } while (!$b && $s);
 
     if ($b) {}
@@ -8,7 +8,7 @@ function foo(bool $b): void {
 
 function bar(bool $b): void {
     do {
-        $s = rand(0, 1);
+        $s = rand(0, 1) !== 0;
         if (!$b && $s) {
             // do something
         }
