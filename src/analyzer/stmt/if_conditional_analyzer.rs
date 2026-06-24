@@ -5,15 +5,13 @@ use crate::{
     scope::{BlockContext, if_scope::IfScope},
     scope_analyzer::ScopeAnalyzer,
     stmt_analyzer::AnalysisError,
+    truthiness_analyzer,
 };
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
-    t_atomic::{TAtomic, TNamedObject},
-    t_union::TUnion,
 };
-use hakana_str::StrId;
-use oxidized::{aast, ast, ast_defs::Pos};
+use oxidized::{aast, ast};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -193,15 +191,12 @@ pub(crate) fn analyze(
         })
         .collect::<FxHashSet<_>>();
 
-    if let Some(cond_type) = analysis_data.get_rc_expr_type(cond.pos()).cloned() {
-        handle_paradoxical_condition(
-            statements_analyzer,
-            analysis_data,
-            cond.pos(),
-            &externally_applied_context,
-            &cond_type,
-        );
-    }
+    handle_paradoxical_condition(
+        statements_analyzer,
+        analysis_data,
+        cond,
+        &externally_applied_context,
+    );
 
     cond_referenced_var_ids.retain(|k| !assigned_in_conditional_var_ids.contains_key(k));
 
@@ -310,10 +305,14 @@ pub(crate) fn add_branch_dataflow(
 pub(crate) fn handle_paradoxical_condition(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    pos: &Pos,
+    expr: &aast::Expr<(), ()>,
     context: &BlockContext,
-    expr_type: &TUnion,
 ) {
+    let pos = expr.pos();
+    let Some(expr_type) = analysis_data.get_rc_expr_type(pos).cloned() else {
+        return;
+    };
+
     if expr_type.is_always_falsy() {
         analysis_data.maybe_add_issue(
             Issue::new(
@@ -344,43 +343,10 @@ pub(crate) fn handle_paradoxical_condition(
         );
     }
 
-    if !expr_type.is_bool()
-        && expr_type.is_nullable()
-        && expr_type.types.iter().all(|t| {
-            matches!(
-                t,
-                TAtomic::TNull | TAtomic::TObject | TAtomic::TNamedObject(..)
-            ) && !matches!(
-                t,
-                TAtomic::TNamedObject(TNamedObject {
-                    name: StrId::CONTAINER
-                        | StrId::KEYED_CONTAINER
-                        | StrId::ANY_ARRAY
-                        | StrId::TRAVERSABLE
-                        | StrId::KEYED_TRAVERSABLE,
-                    ..
-                })
-            )
-        })
-        && !analysis_data
-            .insertions
-            .contains_key(&(pos.end_offset() as u32))
-    {
-        let issue = Issue::new(
-            IssueKind::NonBoolCondition,
-            "Only bool values can be used as a condition".to_string(),
-            statements_analyzer.get_hpos(pos),
-            &context.function_context.calling_functionlike_id,
-        );
-
-        if statements_analyzer.should_autofix(context, analysis_data, &issue) {
-            analysis_data.insert_at(pos.end_offset() as u32, " is nonnull".to_string());
-        } else {
-            analysis_data.maybe_add_issue(
-                issue,
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-        }
-    }
+    truthiness_analyzer::check_implicit_boolean_conversion(
+        statements_analyzer,
+        analysis_data,
+        context,
+        expr,
+    );
 }

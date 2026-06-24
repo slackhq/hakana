@@ -1,5 +1,5 @@
 function foo(inout dict<string, string> $d): void {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         $d["a"] = HH\global_get('_GET')["a"];
     }
 }

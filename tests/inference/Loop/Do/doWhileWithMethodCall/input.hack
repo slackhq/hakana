@@ -1,6 +1,6 @@
 final class A {
     public function getParent(): ?A {
-        return rand(0, 1) ? new A() : null;
+        return rand(0, 1) !== 0 ? new A() : null;
     }
 }
 

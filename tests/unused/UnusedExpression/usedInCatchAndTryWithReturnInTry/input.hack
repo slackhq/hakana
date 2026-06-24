@@ -12,7 +12,7 @@ function foo() : ?string {
 }
 
 function dangerous() : string {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         throw new \Exception("bad");
     }
     return "hello";

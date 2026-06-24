@@ -18,7 +18,7 @@ final class A {
     public function deleteUser(AsyncMysqlConnection $conn, string $userId, string $userId2) : void {
         $conn->query("delete from users where user_id = " . $userId);
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             $conn->query("delete from users where user_id = " . $userId2);
         }
     }

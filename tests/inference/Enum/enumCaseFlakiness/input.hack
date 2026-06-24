@@ -16,7 +16,7 @@ final class Bar {
             return;
         }
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             /* HAKANA_FIXME[RedundantTruthinessCheck] Type true is always truthy */
             if ($event_type === EventType::CALL_PARTICIPANT_DROPPED && self::ENABLE_STALE_ATTENDEE_DELETION) {
                 echo 'here';

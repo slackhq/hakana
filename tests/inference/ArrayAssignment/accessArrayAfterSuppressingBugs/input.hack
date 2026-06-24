@@ -6,4 +6,4 @@ foreach (vec["one", "two", "three"] as $key) {
 
 $a["four"] = true;
 
-if ($a["one"]) {}
+if ($a["one"] !== 0) {}

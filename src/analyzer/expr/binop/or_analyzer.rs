@@ -69,15 +69,7 @@ pub(crate) fn analyze<'expr>(
             context.remove_var_from_conflicting_clauses(var_id, None, None, analysis_data);
         }
 
-        if let Some(cond_type) = analysis_data.get_rc_expr_type(left.pos()).cloned() {
-            handle_paradoxical_condition(
-                statements_analyzer,
-                analysis_data,
-                left.pos(),
-                context,
-                &cond_type,
-            );
-        }
+        handle_paradoxical_condition(statements_analyzer, analysis_data, left, context);
 
         let cloned_vars = context.locals.clone();
         for (var_id, left_type) in &left_context.locals {
@@ -239,15 +231,7 @@ pub(crate) fn analyze<'expr>(
 
     right_context.if_body_context = tmp_if_body_context;
 
-    if let Some(cond_type) = analysis_data.get_rc_expr_type(right.pos()).cloned() {
-        handle_paradoxical_condition(
-            statements_analyzer,
-            analysis_data,
-            right.pos(),
-            context,
-            &cond_type,
-        );
-    }
+    handle_paradoxical_condition(statements_analyzer, analysis_data, right, context);
 
     let mut right_referenced_var_ids = right_context.cond_referenced_var_ids.clone();
     right_context

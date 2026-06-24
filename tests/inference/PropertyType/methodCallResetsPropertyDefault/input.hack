@@ -11,8 +11,8 @@ final class A
 function bar(A $a): void {
     $a->foo = null;
 
-    if (rand(0, 1)) {
-        if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
+        if (rand(0, 1) !== 0) {
             $a->setFoo();
         }
         

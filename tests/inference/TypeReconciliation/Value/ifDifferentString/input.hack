@@ -1,8 +1,8 @@
 $foo = "bar";
 
-if (rand(0, 1)) {
+if (rand(0, 1) !== 0) {
     $foo = "bat";
-} else if (rand(0, 1)) {
+} else if (rand(0, 1) !== 0) {
     $foo = "baz";
 }
 

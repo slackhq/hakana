@@ -3,7 +3,7 @@ function breakUpPathIntoParts(): void {
 
     while (rand(0, 1)) {
         if ($b) {
-            if (rand(0, 1)) {
+            if (rand(0, 1) !== 0) {
                 $b = 0;
             }
 

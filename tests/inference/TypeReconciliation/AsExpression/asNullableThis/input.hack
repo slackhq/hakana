@@ -1,5 +1,5 @@
 function maybeGetA(): ?A {
-    return rand(0, 1) ? new B() : new C();
+    return rand(0, 1) !== 0 ? new B() : new C();
 }
 
 abstract class A {}

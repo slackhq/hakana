@@ -1,5 +1,5 @@
 function dangerous(): string {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         throw new \Exception("bad");
     }
 
@@ -9,7 +9,7 @@ function dangerous(): string {
 function callDangerous(): void {
     $s = null;
 
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         $s = "hello";
     } else {
         try {

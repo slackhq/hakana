@@ -2,7 +2,7 @@ function foo(): void {
     $p1 = 0;
 
     while (rand(0, 1)) {
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             if ($p1 === 0) {
                 bar($p1);
             } else {
@@ -10,7 +10,7 @@ function foo(): void {
             }
         }
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             $p1 = $p1 - 1;
         }
     }

@@ -5,7 +5,7 @@ async function foo(): Awaitable<keyset<int>> {
 
 async function bar(): Awaitable<void> {
     $result = await foo();
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         takesKeyset($result);
     }
 }

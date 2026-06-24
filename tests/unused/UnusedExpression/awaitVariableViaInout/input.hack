@@ -16,7 +16,7 @@ function takesBox(inout Box<string> $_b): void {}
 async function bar(): Awaitable<void> {
     $result = await foo();
     takesBox(inout $result);
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         echo $result->get();
     }
 }

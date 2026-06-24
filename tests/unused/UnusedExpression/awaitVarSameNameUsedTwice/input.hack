@@ -5,10 +5,10 @@ async function foo(): Awaitable<string> {
 
 async function bar(): Awaitable<void> {
     $res = await foo();
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         echo $res;
     }
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         $res = await foo();
         echo $res;
     }

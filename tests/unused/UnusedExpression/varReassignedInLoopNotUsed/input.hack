@@ -7,13 +7,13 @@ function processFiles(): vec<string> {
     foreach ($ret as $file) {
         // This use of $ret comes from the assignment before the loop
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             // First reassignment - should not error
             $ret = vec['downloaded'];
             bar($ret[0]);
         }
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             // Second reassignment - should not error
             // Even though there's a use of $ret at the top (foreach),
             // that use comes from the pre-loop assignment, not from
