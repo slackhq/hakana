@@ -1,11 +1,14 @@
 use std::{error::Error, fs::File, io::BufReader, path::Path};
 
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Default)]
 pub struct TestConfig {
     pub max_changes_allowed: Option<usize>,
     pub strict_falsable_types: Option<bool>,
+    #[serde(default)]
+    pub plugins: FxHashMap<String, serde_json::Value>,
 }
 
 pub(crate) fn read_from_file(path: &Path) -> Result<TestConfig, Box<dyn Error>> {
