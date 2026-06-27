@@ -19,6 +19,8 @@ pub struct JsonConfig {
     pub test_files: Vec<String>,
     #[serde(default)]
     pub strict_falsable_types: bool,
+    #[serde(default)]
+    pub plugins: FxHashMap<String, serde_json::Value>,
 }
 
 #[derive(Deserialize, Debug, Default)]
