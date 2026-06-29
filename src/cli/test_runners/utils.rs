@@ -45,6 +45,9 @@ pub fn augment_with_local_config(dir: &str, analysis_config: &mut config::Config
         if let Some(strict_falsable_types) = test_config.strict_falsable_types {
             analysis_config.strict_falsable_types = strict_falsable_types;
         }
+        if !test_config.plugins.is_empty() {
+            analysis_config.plugin_config = test_config.plugins;
+        }
     }
 }
 
