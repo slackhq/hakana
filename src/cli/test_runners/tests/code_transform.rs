@@ -5,8 +5,9 @@ use rustc_hash::FxHashSet;
 use std::fs;
 use std::sync::Arc;
 
-use crate::test_runners::integration_test::{IntegrationTest, TestContext, TestResult};
-use crate::test_runners::utils::{augment_with_local_config, default_config_for_test, format_diff};
+use crate::test_runners::integration_test::{IntegrationTest, TestArtifacts, TestContext};
+use crate::test_runners::outputs::ExactSnapshot;
+use crate::test_runners::utils::{augment_with_local_config, default_config_for_test};
 
 /// Handles code-transformation tests under `tests/fix/`, `tests/migrations/`,
 /// `tests/add-fixmes/`, and `tests/remove-unused-fixmes/`.
@@ -16,7 +17,7 @@ use crate::test_runners::utils::{augment_with_local_config, default_config_for_t
 pub struct CodeTransformTest;
 
 impl IntegrationTest for CodeTransformTest {
-    fn run(&self, ctx: TestContext) -> TestResult {
+    fn run(&self, ctx: TestContext) -> Result<TestArtifacts, String> {
         let cwd = &ctx.cwd;
 
         let mut analysis_config = default_config_for_test(&ctx.dir, ctx.hooks_provider);
@@ -61,9 +62,8 @@ impl IntegrationTest for CodeTransformTest {
         let output_file = format!("{}/output.txt", ctx.dir);
         let actual_file = format!("{}/actual.txt", ctx.dir);
         let input_contents = fs::read_to_string(&input_file).unwrap();
-        let expected_output_contents = fs::read_to_string(output_file).unwrap();
 
-        let mut result = result.unwrap();
+        let mut result = result.map_err(|error| error.to_string())?;
 
         let time_in_analysis = result.0.time_in_analysis;
 
@@ -79,18 +79,18 @@ impl IntegrationTest for CodeTransformTest {
             input_contents
         };
 
+        // `actual.txt` is always written as a debugging aid for inspecting the
+        // transform's output regardless of pass/fail.
         fs::write(actual_file, &output_contents).unwrap();
 
-        if output_contents == expected_output_contents {
-            TestResult::pass(Some(result.1), Some(result.0), time_in_analysis)
-        } else {
-            TestResult::fail(
-                ctx.dir,
-                format_diff(&expected_output_contents, &output_contents),
-                Some(result.1),
-                Some(result.0),
-                time_in_analysis,
-            )
-        }
+        Ok(TestArtifacts::new(
+            Some(result.1),
+            Some(result.0),
+            time_in_analysis,
+            vec![Box::new(ExactSnapshot {
+                path: output_file,
+                actual: output_contents,
+            })],
+        ))
     }
 }

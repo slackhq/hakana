@@ -36,6 +36,11 @@ pub fn get_subcommand() -> Command<'static> {
                 .required(false)
                 .help("How many times to repeat the test (useful for profiling)"),
         )
+        .arg(
+            arg!(--"update-snapshots")
+                .required(false)
+                .help("Rewrite expectation files for tests whose output changed"),
+        )
         .arg(arg!(<TEST> "The test to run"))
         .arg_required_else_help(true)
 }
@@ -73,5 +78,6 @@ pub fn handle(
         header,
         repeat,
         random_seed,
+        sub_matches.is_present("update-snapshots"),
     );
 }

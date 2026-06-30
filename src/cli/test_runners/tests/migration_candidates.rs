@@ -2,10 +2,10 @@ use hakana_analyzer::custom_hook::CustomHook;
 use hakana_str::Interner;
 use rustc_hash::FxHashSet;
 
-use std::fs;
 use std::sync::Arc;
 
-use crate::test_runners::integration_test::{IntegrationTest, TestContext, TestResult};
+use crate::test_runners::integration_test::{IntegrationTest, TestArtifacts, TestContext};
+use crate::test_runners::outputs::CandidatesSnapshot;
 use crate::test_runners::utils::{augment_with_local_config, default_config_for_test};
 
 /// Validates migration-candidate detection for `tests/migration-candidates/` directories.
@@ -16,7 +16,7 @@ use crate::test_runners::utils::{augment_with_local_config, default_config_for_t
 pub struct MigrationCandidatesTest;
 
 impl IntegrationTest for MigrationCandidatesTest {
-    fn run(&self, ctx: TestContext) -> TestResult {
+    fn run(&self, ctx: TestContext) -> Result<TestArtifacts, String> {
         let cwd = &ctx.cwd;
 
         let mut analysis_config = default_config_for_test(&ctx.dir, ctx.hooks_provider);
@@ -57,14 +57,7 @@ impl IntegrationTest for MigrationCandidatesTest {
             || {},
         );
 
-        let candidates_file = format!("{}/candidates.txt", ctx.dir);
-        let expected_candidates = fs::read_to_string(candidates_file)
-            .unwrap()
-            .lines()
-            .map(String::from)
-            .collect::<Vec<String>>();
-
-        let result = result.unwrap();
+        let result = result.map_err(|error| error.to_string())?;
 
         let time_in_analysis = result.0.time_in_analysis;
 
@@ -77,41 +70,16 @@ impl IntegrationTest for MigrationCandidatesTest {
             }
         }
 
-        let missing_candidates = expected_candidates
-            .iter()
-            .filter(|item| !migration_candidates.contains(item))
-            .cloned()
-            .collect::<Vec<String>>();
-        let unexpected_candidates = migration_candidates
-            .iter()
-            .filter(|item| !expected_candidates.contains(item))
-            .cloned()
-            .collect::<Vec<String>>();
+        let candidates_file = format!("{}/candidates.txt", ctx.dir);
 
-        let mut diagnostics = vec![];
-        if !unexpected_candidates.is_empty() {
-            diagnostics.push(format!(
-                "Found unexpected candidates: {}",
-                unexpected_candidates.join("\n")
-            ));
-        }
-        if !missing_candidates.is_empty() {
-            diagnostics.push(format!(
-                "Missing expected candidates: {}",
-                missing_candidates.join("\n")
-            ));
-        }
-
-        if diagnostics.is_empty() {
-            TestResult::pass(Some(result.1), Some(result.0), time_in_analysis)
-        } else {
-            TestResult::fail(
-                ctx.dir,
-                diagnostics.join("\n"),
-                Some(result.1),
-                Some(result.0),
-                time_in_analysis,
-            )
-        }
+        Ok(TestArtifacts::new(
+            Some(result.1),
+            Some(result.0),
+            time_in_analysis,
+            vec![Box::new(CandidatesSnapshot {
+                path: candidates_file,
+                actual: migration_candidates,
+            })],
+        ))
     }
 }

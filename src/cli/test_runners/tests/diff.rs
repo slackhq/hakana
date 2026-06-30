@@ -5,10 +5,13 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::test_runners::integration_test::{IntegrationTest, TestContext, TestResult};
+use crate::test_runners::integration_test::{
+    IntegrationTest, TestArtifacts, TestContext, TestOutput,
+};
+use crate::test_runners::outputs::{IssueSnapshot, JsonValueSnapshot};
 use crate::test_runners::utils::{
-    augment_with_local_config, compare_issues_to_expected, copy_recursively,
-    default_config_for_test, format_diff, generate_definition_locations_json,
+    augment_with_local_config, copy_recursively, default_config_for_test,
+    generate_definition_locations_json,
 };
 
 /// Runs incremental (diff) analysis tests under `tests/diff/`.
@@ -21,7 +24,7 @@ use crate::test_runners::utils::{
 pub struct DiffTest;
 
 impl IntegrationTest for DiffTest {
-    fn run(&self, ctx: TestContext) -> TestResult {
+    fn run(&self, ctx: TestContext) -> Result<TestArtifacts, String> {
         let cwd = &ctx.cwd;
 
         log::debug!("running test {}", ctx.dir);
@@ -102,13 +105,7 @@ impl IntegrationTest for DiffTest {
                     previous_analysis_result = Some(run_result.0);
                 }
                 Err(error) => {
-                    return TestResult::fail(
-                        ctx.dir,
-                        error.to_string(),
-                        None,
-                        None,
-                        std::time::Duration::default(),
-                    );
+                    return Err(error.to_string());
                 }
             }
         }
@@ -131,42 +128,25 @@ impl IntegrationTest for DiffTest {
         let definition_locations_json =
             generate_definition_locations_json(&analysis_result, &run_data.interner);
         let definition_locations_path = ctx.dir.clone() + "/definition_locations.json";
+        let definition_locations = serde_json::from_str(&definition_locations_json)
+            .map_err(|e| format!("Failed to serialize definition locations: {}", e))?;
 
-        if Path::new(&definition_locations_path).exists() {
-            let expected_definition_locations = fs::read_to_string(&definition_locations_path)
-                .unwrap()
-                .trim()
-                .to_string();
+        let outputs: Vec<Box<dyn TestOutput>> = vec![
+            Box::new(JsonValueSnapshot {
+                path: definition_locations_path,
+                actual: definition_locations,
+            }),
+            Box::new(IssueSnapshot {
+                dir: ctx.dir,
+                actual: test_output,
+            }),
+        ];
 
-            if expected_definition_locations.trim() != definition_locations_json.trim() {
-                return TestResult::fail(
-                    ctx.dir,
-                    format_diff(&expected_definition_locations, &definition_locations_json),
-                    Some(run_data),
-                    Some(analysis_result),
-                    std::time::Duration::default(),
-                );
-            }
-        } else if let Err(e) = fs::write(&definition_locations_path, definition_locations_json) {
-            eprintln!("Warning: Failed to write definition_locations.json: {}", e);
-        }
-
-        let (passed, diagnostic) = compare_issues_to_expected(&ctx.dir, &test_output);
-
-        if passed {
-            TestResult::pass(
-                Some(run_data),
-                Some(analysis_result),
-                std::time::Duration::default(),
-            )
-        } else {
-            TestResult::fail(
-                ctx.dir,
-                diagnostic.unwrap_or_default(),
-                Some(run_data),
-                Some(analysis_result),
-                std::time::Duration::default(),
-            )
-        }
+        Ok(TestArtifacts::new(
+            Some(run_data),
+            Some(analysis_result),
+            std::time::Duration::default(),
+            outputs,
+        ))
     }
 }

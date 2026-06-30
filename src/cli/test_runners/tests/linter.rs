@@ -1,8 +1,10 @@
 use std::fs;
 use std::path::Path;
 
-use crate::test_runners::integration_test::{IntegrationTest, TestContext, TestResult};
-use crate::test_runners::utils::format_diff;
+use crate::test_runners::integration_test::{
+    IntegrationTest, TestArtifacts, TestContext, TestOutput,
+};
+use crate::test_runners::outputs::{ExactSnapshot, JsonValueSnapshot};
 
 /// Runs HHAST-style linter tests under `tests/hhast_tests/`.
 ///
@@ -13,17 +15,14 @@ use crate::test_runners::utils::format_diff;
 pub struct LinterTest;
 
 impl IntegrationTest for LinterTest {
-    fn run(&self, ctx: TestContext) -> TestResult {
+    fn run(&self, ctx: TestContext) -> Result<TestArtifacts, String> {
         let provided_linters = ctx.hooks_provider.get_linters_for_test(&ctx.dir);
 
         if provided_linters.is_empty() {
-            return TestResult::fail(
-                ctx.dir.clone(),
-                format!("No matching linter found for directory: {}", ctx.dir),
-                None,
-                None,
-                std::time::Duration::default(),
-            );
+            return Err(format!(
+                "No matching linter found for directory: {}",
+                ctx.dir
+            ));
         }
 
         let linters: Vec<&dyn hakana_lint::Linter> = provided_linters
@@ -60,13 +59,7 @@ impl IntegrationTest for LinterTest {
             let entries = match fs::read_dir(&ctx.dir) {
                 Ok(entries) => entries,
                 Err(e) => {
-                    return TestResult::fail(
-                        ctx.dir,
-                        format!("Failed to read directory: {}", e),
-                        None,
-                        None,
-                        std::time::Duration::default(),
-                    );
+                    return Err(format!("Failed to read directory: {}", e));
                 }
             };
 
@@ -83,19 +76,13 @@ impl IntegrationTest for LinterTest {
         };
 
         if in_files.is_empty() {
-            return TestResult::fail(
-                ctx.dir,
-                "No .in files found".to_string(),
-                None,
-                None,
-                std::time::Duration::default(),
-            );
+            return Err("No .in files found".to_string());
         }
 
         let mut in_files = in_files;
         in_files.sort();
-        let mut all_passed = true;
-        let mut errors_output = String::new();
+
+        let mut outputs: Vec<Box<dyn TestOutput>> = vec![];
 
         for in_path in in_files {
             let test_name = in_path.file_name().unwrap().to_string_lossy().to_string();
@@ -103,43 +90,20 @@ impl IntegrationTest for LinterTest {
             let input_contents = match fs::read_to_string(&in_path) {
                 Ok(contents) => contents,
                 Err(e) => {
-                    errors_output.push_str(&format!(
-                        "\n=== {} ===\nFailed to read input file: {}\n",
+                    return Err(format!(
+                        "=== {} ===\nFailed to read input file: {}",
                         test_name, e
                     ));
-                    all_passed = false;
-                    continue;
                 }
             };
 
             let expect_path = in_path.to_string_lossy().replace(".in", ".expect");
-            let expected_errors: Vec<serde_json::Value> = if Path::new(&expect_path).exists() {
-                match fs::read_to_string(&expect_path) {
-                    Ok(json_str) => match serde_json::from_str(&json_str) {
-                        Ok(json) => json,
-                        Err(e) => {
-                            errors_output.push_str(&format!(
-                                "\n=== {} ===\nFailed to parse .expect file: {}\n",
-                                test_name, e
-                            ));
-                            all_passed = false;
-                            continue;
-                        }
-                    },
-                    Err(_) => vec![],
-                }
-            } else {
-                vec![]
-            };
 
             let result =
                 match hakana_lint::run_linters(&in_path, &input_contents, &linters, &config) {
                     Ok(r) => r,
                     Err(e) => {
-                        errors_output
-                            .push_str(&format!("\n=== {} ===\nLinter error: {}\n", test_name, e));
-                        all_passed = false;
-                        continue;
+                        return Err(format!("=== {} ===\nLinter error: {}", test_name, e));
                     }
                 };
 
@@ -166,33 +130,14 @@ impl IntegrationTest for LinterTest {
                 })
                 .collect();
 
-            if expected_errors != actual_errors_json {
-                errors_output.push_str(&format!("\n=== {} ===\n", test_name));
-
-                let expected_json_str = serde_json::to_string_pretty(&expected_errors)
-                    .unwrap_or_else(|_| format!("{:?}", expected_errors));
-                let actual_json_str = serde_json::to_string_pretty(&actual_errors_json)
-                    .unwrap_or_else(|_| format!("{:?}", actual_errors_json));
-
-                errors_output.push_str(&format_diff(&expected_json_str, &actual_json_str));
-                all_passed = false;
-            }
+            outputs.push(Box::new(JsonValueSnapshot {
+                path: expect_path,
+                actual: serde_json::Value::Array(actual_errors_json),
+            }));
 
             // Test autofix if .autofix.expect file exists
             let autofix_expect_path = in_path.to_string_lossy().replace(".in", ".autofix.expect");
             if Path::new(&autofix_expect_path).exists() {
-                let expected_autofix = match fs::read_to_string(&autofix_expect_path) {
-                    Ok(content) => content,
-                    Err(e) => {
-                        errors_output.push_str(&format!(
-                            "\n=== {} ===\nFailed to read .autofix.expect file: {}\n",
-                            test_name, e
-                        ));
-                        all_passed = false;
-                        continue;
-                    }
-                };
-
                 let autofix_config = hakana_lint::LintConfig {
                     allow_auto_fix: true,
                     apply_auto_fix: true,
@@ -211,12 +156,10 @@ impl IntegrationTest for LinterTest {
                 ) {
                     Ok(r) => r,
                     Err(e) => {
-                        errors_output.push_str(&format!(
-                            "\n=== {} ===\nAutofix linter error: {}\n",
+                        return Err(format!(
+                            "=== {} ===\nAutofix linter error: {}",
                             test_name, e
                         ));
-                        all_passed = false;
-                        continue;
                     }
                 };
 
@@ -224,42 +167,16 @@ impl IntegrationTest for LinterTest {
                     .modified_source
                     .unwrap_or(input_contents.clone());
 
-                if expected_autofix != actual_autofix {
-                    errors_output.push_str(&format!("\n=== {} (autofix) ===\n", test_name));
-                    errors_output.push_str(&format_diff(&expected_autofix, &actual_autofix));
-                    all_passed = false;
-                }
+                outputs.push(Box::new(ExactSnapshot {
+                    path: autofix_expect_path,
+                    actual: actual_autofix,
+                }));
 
                 // Check for file operations if .autofix.files.expect exists
                 let files_expect_path = in_path
                     .to_string_lossy()
                     .replace(".in", ".autofix.files.expect");
                 if Path::new(&files_expect_path).exists() {
-                    let expected_files_json = match fs::read_to_string(&files_expect_path) {
-                        Ok(content) => content,
-                        Err(e) => {
-                            errors_output.push_str(&format!(
-                                "\n=== {} ===\nFailed to read .autofix.files.expect: {}\n",
-                                test_name, e
-                            ));
-                            all_passed = false;
-                            continue;
-                        }
-                    };
-
-                    let expected_files: serde_json::Value =
-                        match serde_json::from_str(&expected_files_json) {
-                            Ok(json) => json,
-                            Err(e) => {
-                                errors_output.push_str(&format!(
-                                    "\n=== {} ===\nFailed to parse .autofix.files.expect: {}\n",
-                                    test_name, e
-                                ));
-                                all_passed = false;
-                                continue;
-                            }
-                        };
-
                     let mut actual_files = serde_json::json!({});
                     for file_op in &autofix_result.file_operations {
                         let file_name = file_op.path.to_string_lossy().to_string();
@@ -268,29 +185,19 @@ impl IntegrationTest for LinterTest {
                         }
                     }
 
-                    if expected_files != actual_files {
-                        errors_output
-                            .push_str(&format!("\n=== {} (autofix files) ===\n", test_name));
-                        errors_output.push_str(&format_diff(
-                            &serde_json::to_string_pretty(&expected_files).unwrap(),
-                            &serde_json::to_string_pretty(&actual_files).unwrap(),
-                        ));
-                        all_passed = false;
-                    }
+                    outputs.push(Box::new(JsonValueSnapshot {
+                        path: files_expect_path,
+                        actual: actual_files,
+                    }));
                 }
             }
         }
 
-        if all_passed {
-            TestResult::pass(None, None, std::time::Duration::default())
-        } else {
-            TestResult::fail(
-                ctx.dir,
-                errors_output,
-                None,
-                None,
-                std::time::Duration::default(),
-            )
-        }
+        Ok(TestArtifacts::new(
+            None,
+            None,
+            std::time::Duration::default(),
+            outputs,
+        ))
     }
 }
