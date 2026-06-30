@@ -20,57 +20,72 @@ pub struct TestContext<'a> {
     pub hooks_provider: &'a dyn HooksProvider,
 }
 
-/// Outcome of a single integration test execution.
-pub struct TestResult {
-    /// (`"."` pass, `"F"` fail, `"S"` skipped)
-    pub status_char: String,
+/// One snapshot a test produces, together with the rules for verifying it
+/// against — and rewriting — its committed expectation file.
+///
+/// A single test may produce several of these (e.g. `diff` checks both
+/// `output.txt` and `definition_locations.json`, and the linter checks one
+/// snapshot per `.in` file). The runner verifies each and, when
+/// `--update-snapshots` is passed, rewrites the ones that don't match.
+pub trait TestOutput {
+    /// Path to the committed expectation file this output is compared against.
+    /// The runner reports it alongside any failure so multi-snapshot tests make
+    /// clear which file didn't match.
+    fn expect_path(&self) -> String;
+
+    /// `Ok(())` if the actual output matches the committed expectation,
+    /// otherwise `Err(diagnostic)` describing the mismatch.
+    fn verify(&self) -> Result<(), String>;
+
+    /// Rewrite the expectation file with the actual output (for
+    /// `--update-snapshots`). Returns `Err` for outputs that cannot be
+    /// regenerated so the runner still reports
+    /// them as failures even in update mode.
+    fn update(&self) -> Result<(), String>;
+}
+
+/// Artifacts produced by a single integration test execution.
+///
+/// `scan_data`/`analysis_result` are threaded to the next test when codebase
+/// reuse is enabled. `outputs` holds the snapshot comparisons the runner should
+/// verify (empty means there is nothing to compare). `skipped` preserves the
+/// `"S"` status char for skipped tests.
+pub struct TestArtifacts {
     pub scan_data: Option<SuccessfulScanData>,
     pub analysis_result: Option<AnalysisResult>,
     pub time_in_analysis: Duration,
-    pub diagnostic: Option<(String, String)>,
+    pub outputs: Vec<Box<dyn TestOutput>>,
+    pub skipped: bool,
 }
 
-impl TestResult {
-    pub fn pass(
+impl TestArtifacts {
+    /// Artifacts for a regular test with a set of snapshot outputs to verify.
+    pub fn new(
         scan_data: Option<SuccessfulScanData>,
         analysis_result: Option<AnalysisResult>,
         time_in_analysis: Duration,
+        outputs: Vec<Box<dyn TestOutput>>,
     ) -> Self {
-        TestResult {
-            status_char: ".".to_string(),
+        TestArtifacts {
             scan_data,
             analysis_result,
             time_in_analysis,
-            diagnostic: None,
+            outputs,
+            skipped: false,
         }
     }
 
-    pub fn fail(
-        dir: String,
-        diagnostic: String,
-        scan_data: Option<SuccessfulScanData>,
-        analysis_result: Option<AnalysisResult>,
-        time_in_analysis: Duration,
-    ) -> Self {
-        TestResult {
-            status_char: "F".to_string(),
-            scan_data,
-            analysis_result,
-            time_in_analysis,
-            diagnostic: Some((dir, diagnostic)),
-        }
-    }
-
+    /// Artifacts for a skipped test (renders as `"S"`, threads scan data along).
     pub fn skipped(
         scan_data: Option<SuccessfulScanData>,
         analysis_result: Option<AnalysisResult>,
     ) -> Self {
-        TestResult {
-            status_char: "S".to_string(),
+        TestArtifacts {
             scan_data,
             analysis_result,
             time_in_analysis: Duration::default(),
-            diagnostic: None,
+            outputs: vec![],
+            skipped: true,
         }
     }
 }
@@ -81,7 +96,11 @@ impl TestResult {
 /// this trait. The test runner selects the appropriate implementation based
 /// on directory-name conventions and delegates execution via [`IntegrationTest::run`].
 pub trait IntegrationTest {
-    fn run(&self, ctx: TestContext) -> TestResult;
+    /// Run the test, returning its artifacts (snapshots to verify) on success,
+    /// or `Err(diagnostic)` for a hard scan/analysis failure that has no
+    /// snapshot to compare. A hard error always fails the test, even under
+    /// `--update-snapshots`.
+    fn run(&self, ctx: TestContext) -> Result<TestArtifacts, String>;
 }
 
 /// Determine what type of integration test to run for a given directory.

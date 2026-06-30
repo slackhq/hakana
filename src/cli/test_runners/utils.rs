@@ -5,7 +5,6 @@ use hakana_code_info::data_flow::graph::WholeProgramKind;
 use hakana_code_info::issue::IssueKind;
 use hakana_str::{Interner, StrId};
 use rustc_hash::FxHashSet;
-use similar::{ChangeTag, TextDiff};
 
 use std::fs;
 use std::io;
@@ -13,22 +12,6 @@ use std::path::Path;
 use std::str::FromStr;
 
 use super::test_runner::HooksProvider;
-
-pub fn format_diff(expected: &str, actual: &str) -> String {
-    let diff = TextDiff::from_lines(expected, actual);
-    let mut output = String::new();
-
-    for change in diff.iter_all_changes() {
-        let sign = match change.tag() {
-            ChangeTag::Delete => "-",
-            ChangeTag::Insert => "+",
-            ChangeTag::Equal => " ",
-        };
-        output.push_str(&format!("{}{}", sign, change));
-    }
-
-    output
-}
 
 pub fn augment_with_local_config(dir: &str, analysis_config: &mut config::Config) {
     let config_path_str = format!("{}/config.json", dir);
@@ -200,46 +183,4 @@ pub fn default_config_for_test(dir: &str, hooks_provider: &dyn HooksProvider) ->
     }
 
     analysis_config
-}
-
-pub fn compare_issues_to_expected(dir: &str, test_output: &[String]) -> (bool, Option<String>) {
-    let expected_output_path = dir.to_string() + "/output.txt";
-    let expected_output = if Path::new(&expected_output_path).exists() {
-        let expected = fs::read_to_string(expected_output_path)
-            .unwrap()
-            .trim()
-            .to_string();
-        Some(expected)
-    } else {
-        None
-    };
-
-    let passed = if let Some(expected_output) = &expected_output {
-        if expected_output == test_output.join("").trim() {
-            true
-        } else {
-            !expected_output.is_empty()
-                && test_output.len() == 1
-                && expected_output
-                    .as_bytes()
-                    .iter()
-                    .filter(|&&c| c == b'\n')
-                    .count()
-                    == 0
-                && test_output.iter().any(|s| s.contains(expected_output))
-        }
-    } else {
-        test_output.is_empty()
-    };
-
-    if passed {
-        (true, None)
-    } else {
-        let diagnostic = if let Some(expected_output) = &expected_output {
-            format_diff(expected_output, &test_output.join(""))
-        } else {
-            format_diff("", &test_output.join(""))
-        };
-        (false, Some(diagnostic))
-    }
 }

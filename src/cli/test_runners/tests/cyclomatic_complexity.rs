@@ -3,10 +3,9 @@ use rustc_hash::FxHashSet;
 
 use std::sync::Arc;
 
-use crate::test_runners::integration_test::{IntegrationTest, TestContext, TestResult};
-use crate::test_runners::utils::{
-    augment_with_local_config, compare_issues_to_expected, default_config_for_test,
-};
+use crate::test_runners::integration_test::{IntegrationTest, TestArtifacts, TestContext};
+use crate::test_runners::outputs::IssueSnapshot;
+use crate::test_runners::utils::{augment_with_local_config, default_config_for_test};
 
 /// Runs cyclomatic complexity analysis on `tests/cyclomatic-complexity/` directories.
 ///
@@ -15,7 +14,7 @@ use crate::test_runners::utils::{
 pub struct CyclomaticComplexityTest;
 
 impl IntegrationTest for CyclomaticComplexityTest {
-    fn run(&self, ctx: TestContext) -> TestResult {
+    fn run(&self, ctx: TestContext) -> Result<TestArtifacts, String> {
         let cwd = &ctx.cwd;
 
         let mut analysis_config = default_config_for_test(&ctx.dir, ctx.hooks_provider);
@@ -61,27 +60,17 @@ impl IntegrationTest for CyclomaticComplexityTest {
                     .map(|c| c.to_string(&run_data.interner) + "\n")
                     .collect();
 
-                let (passed, diagnostic) = compare_issues_to_expected(&ctx.dir, &output);
-
-                if passed {
-                    TestResult::pass(None, None, time_in_analysis)
-                } else {
-                    TestResult::fail(
-                        ctx.dir,
-                        diagnostic.unwrap_or_default(),
-                        None,
-                        None,
-                        time_in_analysis,
-                    )
-                }
+                Ok(TestArtifacts::new(
+                    None,
+                    None,
+                    time_in_analysis,
+                    vec![Box::new(IssueSnapshot {
+                        dir: ctx.dir,
+                        actual: output,
+                    })],
+                ))
             }
-            Err(error) => TestResult::fail(
-                ctx.dir,
-                error.to_string(),
-                None,
-                None,
-                std::time::Duration::default(),
-            ),
+            Err(error) => Err(error.to_string()),
         }
     }
 }

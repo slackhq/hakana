@@ -33,6 +33,7 @@ impl TestRunner {
         build_checksum: &str,
         repeat: u16,
         random_seed: Option<u64>,
+        update_snapshots: bool,
     ) {
         let candidate_test_folders = match get_all_test_folders(test_or_test_dir.clone()) {
             Ok(folders) => folders,
@@ -44,6 +45,7 @@ impl TestRunner {
         };
 
         let mut test_diagnostics = vec![];
+        let mut updated_count = 0usize;
 
         let starter_data =
             if candidate_test_folders.len() > 1 && !test_or_test_dir.ends_with("/diff") {
@@ -100,6 +102,7 @@ impl TestRunner {
                 let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
                 let test = select_test_type(&test_folder);
+                let dir = test_folder.clone();
                 let ctx = TestContext {
                     dir: test_folder,
                     cwd,
@@ -109,24 +112,84 @@ impl TestRunner {
                     previous_analysis_result,
                     hooks_provider: &*self.0,
                 };
-                let result = test.run(ctx);
+                let status_char = match test.run(ctx) {
+                    Err(diagnostic) => {
+                        // A hard scan/analysis error: no snapshot to compare, so
+                        // it always fails — even under --update-snapshots. Drop
+                        // any reusable codebase so the next test starts fresh.
+                        last_scan_data = None;
+                        last_analysis_result = None;
+                        test_diagnostics.push((dir.clone(), diagnostic));
+                        *had_error = true;
+                        "F"
+                    }
+                    Ok(artifacts) => {
+                        time_in_analysis += artifacts.time_in_analysis;
+                        last_scan_data = artifacts.scan_data;
+                        last_analysis_result = artifacts.analysis_result;
 
-                time_in_analysis += result.time_in_analysis;
+                        if artifacts.skipped {
+                            "S"
+                        } else {
+                            let mut failed = false;
+                            let mut updated_this_test = false;
 
-                if let Some(diagnostic) = result.diagnostic {
-                    test_diagnostics.push(diagnostic);
-                    *had_error = true;
-                }
+                            for output in &artifacts.outputs {
+                                if let Err(diagnostic) = output.verify() {
+                                    if update_snapshots {
+                                        match output.update() {
+                                            Ok(()) => {
+                                                updated_count += 1;
+                                                updated_this_test = true;
+                                            }
+                                            Err(e) => {
+                                                test_diagnostics.push((
+                                                    dir.clone(),
+                                                    format!(
+                                                        "=== {} ===\n{}",
+                                                        output.expect_path(),
+                                                        e
+                                                    ),
+                                                ));
+                                                failed = true;
+                                            }
+                                        }
+                                    } else {
+                                        test_diagnostics.push((
+                                            dir.clone(),
+                                            format!(
+                                                "=== {} ===\n{}",
+                                                output.expect_path(),
+                                                diagnostic
+                                            ),
+                                        ));
+                                        failed = true;
+                                    }
+                                }
+                            }
 
-                last_scan_data = result.scan_data;
-                last_analysis_result = result.analysis_result;
+                            if failed {
+                                *had_error = true;
+                                "F"
+                            } else if updated_this_test {
+                                "U"
+                            } else {
+                                "."
+                            }
+                        }
+                    }
+                };
 
-                print!("{}", result.status_char);
+                print!("{}", status_char);
                 io::stdout().flush().unwrap();
             }
         }
 
         println!("\n\nTotal analysis time:  {:.2?}", time_in_analysis);
+
+        if update_snapshots && updated_count > 0 {
+            println!("Updated {} snapshot(s)", updated_count);
+        }
 
         println!(
             "\n{}",
