@@ -1,4 +1,4 @@
-if (rand(0,1)) {
+if (rand(0,1) !== 0) {
   $a = dict["a" =>  1];
 } else {
   $a = vec[2, 3];

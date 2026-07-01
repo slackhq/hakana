@@ -2,7 +2,7 @@ function foo(): int {
 	$ref = new HH\Lib\Ref(0);
 
 	$a = () ==> {
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             $ref->value++;
         }
 	};

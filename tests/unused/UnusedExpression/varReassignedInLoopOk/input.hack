@@ -5,13 +5,13 @@ function foo(): void {
     while (rand(0, 1)) {
         bar($c);
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             // this reassignment is ok as variable was not previously used in loop
             $b = 'goodbye again';
             bar($b);
         }
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             // this reassignment is fine because we're not referencing it within this block
             $c = 'goodbye';
         }

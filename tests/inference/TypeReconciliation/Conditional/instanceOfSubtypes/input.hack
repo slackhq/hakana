@@ -12,6 +12,6 @@ function makeC(): C {
   return new D();
 }
 
-$a = rand(0, 1) ? makeA() : makeC();
+$a = rand(0, 1) !== 0 ? makeA() : makeC();
 
 if ($a is B || $a is D) { }

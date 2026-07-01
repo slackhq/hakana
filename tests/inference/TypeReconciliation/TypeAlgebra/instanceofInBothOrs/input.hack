@@ -5,8 +5,8 @@ final class C extends A {}
 function takesA(A $a): void {}
 
 function foo(?A $a): void {
-    if (($a is B && rand(0, 1))
-        || ($a is C && rand(0, 1))
+    if (($a is B && rand(0, 1) !== 0)
+        || ($a is C && rand(0, 1) !== 0)
     ) {
         takesA($a);
     }

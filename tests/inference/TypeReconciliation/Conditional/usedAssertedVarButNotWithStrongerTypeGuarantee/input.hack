@@ -1,5 +1,5 @@
 function broken(bool $b, ?User $u) : void {
-    if ($b || (rand(0, 1) && (!$u || takesUser($u)))) {
+    if ($b || (rand(0, 1) !== 0 && (!$u || takesUser($u)))) {
         return;
     }
 

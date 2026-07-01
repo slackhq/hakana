@@ -6,14 +6,14 @@ final class B extends Base {
 }
 
 function foo(Base $base): void {
-    if ((!$base is A || $base is AChild) && $base is B && rand(0, 1)) {
+    if ((!$base is A || $base is AChild) && $base is B && rand(0, 1) !== 0) {
         echo $base->s;
     }
 }
 
 function bar(Base $base): void {
     if (!$base is A || $base is AChild) {
-        if ($base is B && rand(0, 1)) {
+        if ($base is B && rand(0, 1) !== 0) {
             echo $base->s;
         }
     }

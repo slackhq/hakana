@@ -6,7 +6,7 @@ final class A {
     public function getAppendedUserId() : string {
         $userId = $this->getUserId();
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             $userId .= "aaa";
         } else {
             $userId .= "bb";

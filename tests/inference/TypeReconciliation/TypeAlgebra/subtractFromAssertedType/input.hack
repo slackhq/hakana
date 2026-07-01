@@ -2,7 +2,7 @@ final class A {}
 final class B {}
 
 function foo(?A $foo, B $other): ?A {
-  if (rand(0, 1)) {
+  if (rand(0, 1) !== 0) {
     $foo = $other;
   }
   if ($foo is A || !($foo is B)) {

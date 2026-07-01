@@ -2,7 +2,7 @@ function foo(): void {
     try {
         while (true) {
             bar();
-            if (rand(0, 1)) {
+            if (rand(0, 1) !== 0) {
                 break;
             }
         }
@@ -20,7 +20,7 @@ function baz(): void {
         while (true) {
             bar();
             while (true) {
-                if (rand(0, 1)) {
+                if (rand(0, 1) !== 0) {
                     break;
                 }
             }

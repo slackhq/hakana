@@ -7,7 +7,7 @@ function foo(
 ): void {
     if (!$t) {
         $t = new T();
-    } else if (rand(0, 1)) {
+    } else if (rand(0, 1) !== 0) {
         //
     }
 

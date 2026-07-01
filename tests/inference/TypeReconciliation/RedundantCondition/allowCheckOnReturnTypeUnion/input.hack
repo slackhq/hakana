@@ -1,5 +1,5 @@
 function returnsInt(): arraykey {
-    return rand(0, 1) ? 1 : "hello";
+    return rand(0, 1) !== 0 ? 1 : "hello";
 }
 
 if (is_int(returnsInt())) {}

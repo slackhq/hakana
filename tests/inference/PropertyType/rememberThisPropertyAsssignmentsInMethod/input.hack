@@ -9,7 +9,7 @@ final class A {
     }
 
     public function maybeChange() : void {
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             $this->foo = true;
         }
     }

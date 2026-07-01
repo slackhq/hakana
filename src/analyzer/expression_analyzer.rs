@@ -314,7 +314,7 @@ pub(crate) fn analyze(
             unop_analyzer::analyze(
                 statements_analyzer,
                 (unop, inner_expr),
-                &expr.1,
+                &expr,
                 analysis_data,
                 context,
             )?;

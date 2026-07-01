@@ -1,3 +1,3 @@
 function bar(float $f) : void {
-    if (!$f) {}
+    if ($f === 0.0) {}
 }

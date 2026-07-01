@@ -1,6 +1,6 @@
 $a = true;
 
-if (rand(0, 1)) {
+if (rand(0, 1) !== 0) {
     $a = false;
 }
 

@@ -5,6 +5,6 @@ function foo(): void {
             $b = $a;
         }
 
-        $a = rand(0, 1) ? 'hello' : null;
+        $a = rand(0, 1) !== 0 ? 'hello' : null;
     } while (rand(0, 1));
 }

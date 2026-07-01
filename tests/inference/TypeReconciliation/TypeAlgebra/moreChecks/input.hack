@@ -4,7 +4,7 @@ function foo(?string $b, ?int $c): arraykey {
     }
 
     if ($b !== null && $c !== null) {
-        return rand(0, 1) ? $b : $c;
+        return rand(0, 1) !== 0 ? $b : $c;
     }
 
     if ($b !== null) {

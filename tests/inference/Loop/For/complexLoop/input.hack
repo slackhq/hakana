@@ -5,13 +5,13 @@ function foo(dict<int, string> $tokens): void {
     $quote = null;
 
     foreach ($tokens as $token) {
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             continue;
         }
 
         if ($quote === null) {}
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             $quote = $token;
         }
 

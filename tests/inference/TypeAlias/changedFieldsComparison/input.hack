@@ -12,7 +12,7 @@ function bar(): foo_t {
 
 function foo(): void {
 	$output = bar();
-	$output['a'] = \rand(0, 1) ? 5 : null;
+	$output['a'] = \rand(0, 1) !== 0 ? 5 : null;
 	
 	if ($output is foo_t) {}
 }

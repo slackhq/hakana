@@ -7,7 +7,7 @@ abstract class ParentClassDefinesVar extends GrandParentClassDoesNotDefine {
 
     public function __construct() {
         $this->val = "hello";
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             parent::__construct();
         }
     }

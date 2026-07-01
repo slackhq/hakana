@@ -456,6 +456,7 @@ fn main() -> Result<()> {
         "preg_match",
         "preg_match_all",
         "preg_match_all_with_matches",
+        "preg_match_all_with_matches_and_error",
         "preg_match_with_error",
         "preg_match_with_matches",
         "preg_match_with_matches_and_error",

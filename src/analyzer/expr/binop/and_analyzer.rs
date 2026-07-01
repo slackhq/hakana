@@ -39,15 +39,7 @@ pub(crate) fn analyze<'expr>(
         true,
     )?;
 
-    if let Some(cond_type) = analysis_data.get_rc_expr_type(left.pos()).cloned() {
-        handle_paradoxical_condition(
-            statements_analyzer,
-            analysis_data,
-            left.pos(),
-            context,
-            &cond_type,
-        );
-    }
+    handle_paradoxical_condition(statements_analyzer, analysis_data, left, context);
 
     let left_cond_id = (
         left.pos().start_offset() as u32,
@@ -160,15 +152,7 @@ pub(crate) fn analyze<'expr>(
         true,
     )?;
 
-    if let Some(cond_type) = analysis_data.get_rc_expr_type(right.pos()).cloned() {
-        handle_paradoxical_condition(
-            statements_analyzer,
-            analysis_data,
-            right.pos(),
-            context,
-            &cond_type,
-        );
-    }
+    handle_paradoxical_condition(statements_analyzer, analysis_data, right, context);
 
     context.cond_referenced_var_ids = left_context.cond_referenced_var_ids;
     context

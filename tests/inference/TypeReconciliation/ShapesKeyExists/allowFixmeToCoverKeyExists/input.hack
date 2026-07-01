@@ -8,7 +8,7 @@ function blat(vec<shape('val' => int)> $y): void {
             /*HH_FIXME[4249]*/
             Shapes::keyExists($x, 'val') &&
             $x['val'] == 5 &&
-            \rand(0, 1)
+            \rand(0, 1) !== 0
         ) {}
     }
 }

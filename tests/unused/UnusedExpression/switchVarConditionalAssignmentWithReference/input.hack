@@ -1,6 +1,6 @@
 switch (rand(0, 4)) {
     case 0:
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             $a = 0;
             break;
         }

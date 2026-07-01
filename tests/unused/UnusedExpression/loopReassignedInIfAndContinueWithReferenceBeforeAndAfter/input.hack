@@ -3,7 +3,7 @@ $a = 5;
 echo $a;
 
 while (rand(0, 1)) {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         $a = 7;
         continue;
     }

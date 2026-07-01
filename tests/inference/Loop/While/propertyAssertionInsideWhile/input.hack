@@ -48,11 +48,11 @@ final class Foo {
     }
 
     public function alter() : void {
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             $a = $this->a;
             array_pop(inout $a);
             $this->a = $a;
-        } else if (rand(0, 1)) {
+        } else if (rand(0, 1) !== 0) {
             $b = $this->b;
             array_pop(inout $b);
             $this->b = $b;

@@ -6,7 +6,7 @@ function takesA(A $a): void {}
 
 function foo(?A $a): void {
     if ($a is B
-        || ($a is C && rand(0, 1))
+        || ($a is C && rand(0, 1) !== 0)
     ) {
         takesA($a);
     }

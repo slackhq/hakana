@@ -1,6 +1,6 @@
 $a = (string) 5;
 
-if (rand(0, 1)) {
+if (rand(0, 1) !== 0) {
     $a = (string) 6;
 }
 
