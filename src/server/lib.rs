@@ -338,6 +338,9 @@ impl Server {
                     Message::Status(_) => handler.handle_status(),
                     Message::Shutdown(_) => handler.handle_shutdown().await,
                     Message::GotoDefinition(req) => handler.handle_goto_definition(req),
+                    Message::GotoDefinitionByName(req) => {
+                        handler.handle_goto_definition_by_name(req)
+                    }
                     Message::FindReferences(req) => handler.handle_find_references(req),
                     Message::FindSymbolReferences(req) => {
                         handler.handle_find_symbol_references(req)

@@ -14,6 +14,7 @@ pub enum MessageType {
     FileChangedNotification = 0x05,
     GetIssuesRequest = 0x06,
     FindSymbolReferencesRequest = 0x07,
+    GotoDefinitionByNameRequest = 0x08,
     StatusRequest = 0x10,
     ShutdownRequest = 0x0F,
 
@@ -43,6 +44,7 @@ impl TryFrom<u8> for MessageType {
             0x05 => Ok(Self::FileChangedNotification),
             0x06 => Ok(Self::GetIssuesRequest),
             0x07 => Ok(Self::FindSymbolReferencesRequest),
+            0x08 => Ok(Self::GotoDefinitionByNameRequest),
             0x10 => Ok(Self::StatusRequest),
             0x0F => Ok(Self::ShutdownRequest),
             0x81 => Ok(Self::AnalyzeResponse),
@@ -174,6 +176,13 @@ pub struct GotoDefinitionRequest {
     pub file_path: String,
     pub line: u32,
     pub column: u32,
+}
+
+/// Request for goto-definition by fully-qualified symbol name.
+#[derive(Debug, Clone)]
+pub struct GotoDefinitionByNameRequest {
+    /// The fully-qualified symbol name (e.g., "Namespace\\Class::method").
+    pub symbol_name: String,
 }
 
 /// Response with definition location.
@@ -344,6 +353,7 @@ pub enum Message {
     Analyze(AnalyzeRequest),
     SecurityCheck(SecurityCheckRequest),
     GotoDefinition(GotoDefinitionRequest),
+    GotoDefinitionByName(GotoDefinitionByNameRequest),
     FindReferences(FindReferencesRequest),
     FindSymbolReferences(FindSymbolReferencesRequest),
     FileChanged(Vec<FileChange>),
@@ -370,6 +380,7 @@ impl Message {
             Self::Analyze(_) => MessageType::AnalyzeRequest,
             Self::SecurityCheck(_) => MessageType::SecurityCheckRequest,
             Self::GotoDefinition(_) => MessageType::GotoDefinitionRequest,
+            Self::GotoDefinitionByName(_) => MessageType::GotoDefinitionByNameRequest,
             Self::FindReferences(_) => MessageType::FindReferencesRequest,
             Self::FindSymbolReferences(_) => MessageType::FindSymbolReferencesRequest,
             Self::FileChanged(_) => MessageType::FileChangedNotification,
@@ -395,6 +406,7 @@ impl Message {
             Self::Analyze(_)
                 | Self::SecurityCheck(_)
                 | Self::GotoDefinition(_)
+                | Self::GotoDefinitionByName(_)
                 | Self::FindReferences(_)
                 | Self::FindSymbolReferences(_)
                 | Self::FileChanged(_)

@@ -465,6 +465,13 @@ impl CodebaseInfo {
             return Some(name_pos);
         }
 
+        // Fall back to top-level/global constants (e.g. `NS\SOME_CONST`).
+        if *member_name == StrId::EMPTY
+            && let Some(constant_info) = self.constant_infos.get(classlike_name)
+        {
+            return Some(constant_info.pos);
+        }
+
         None
     }
 

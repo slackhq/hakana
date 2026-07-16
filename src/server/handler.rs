@@ -7,8 +7,8 @@ use hakana_orchestrator::file::FileStatus;
 use hakana_protocol::GetIssuesResponse;
 use hakana_protocol::{
     AckResponse, FindReferencesRequest, FindReferencesResponse, FindSymbolReferencesRequest,
-    FindSymbolReferencesResponse, GotoDefinitionRequest, GotoDefinitionResponse, Message,
-    ProtocolIssue, ReferenceLocation, StatusResponse,
+    FindSymbolReferencesResponse, GotoDefinitionByNameRequest, GotoDefinitionRequest,
+    GotoDefinitionResponse, Message, ProtocolIssue, ReferenceLocation, StatusResponse,
 };
 use log::info;
 use rustc_hash::FxHashMap;
@@ -137,6 +137,48 @@ impl RequestHandler {
             end_line: None,
             end_column: None,
         })
+    }
+
+    /// Handle a goto-definition request by fully-qualified symbol name.
+    pub fn handle_goto_definition_by_name(&self, req: GotoDefinitionByNameRequest) -> Message {
+        use hakana_code_info::symbol_references_utils::resolve_symbol_name;
+
+        let not_found = || {
+            Message::GotoDefinitionResult(GotoDefinitionResponse {
+                found: false,
+                file_path: None,
+                start_line: None,
+                start_column: None,
+                end_line: None,
+                end_column: None,
+            })
+        };
+
+        let state = self.state.lock().unwrap();
+        let scan_data = match state.scan_data() {
+            Some(sd) => sd,
+            None => return not_found(),
+        };
+
+        let (symbol_id, member_id) =
+            match resolve_symbol_name(&req.symbol_name, &scan_data.interner) {
+                Some(ids) => ids,
+                None => return not_found(),
+            };
+
+        if let Some(pos) = scan_data.codebase.get_symbol_pos(&symbol_id, &member_id) {
+            let def_file_path = scan_data.interner.lookup(&pos.file_path.0);
+            return Message::GotoDefinitionResult(GotoDefinitionResponse {
+                found: true,
+                file_path: Some(def_file_path.to_string()),
+                start_line: Some(pos.start_line),
+                start_column: Some(pos.start_column),
+                end_line: Some(pos.end_line),
+                end_column: Some(pos.end_column),
+            });
+        }
+
+        not_found()
     }
 
     /// Handle a find-references request.

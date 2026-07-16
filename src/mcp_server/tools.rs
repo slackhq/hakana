@@ -46,29 +46,28 @@ impl Tool {
     pub fn goto_definition_definition() -> Self {
         Tool {
             name: "goto_definition".to_string(),
-            description: "Go to the definition of a symbol at a specific location in a file. \
-                Given a file path, line, and column, returns the location where the symbol \
-                at that position is defined. Useful for navigating from usages to definitions \
-                of functions, classes, methods, properties, and other symbols."
+            description: "Go to the definition of a symbol given its fully-qualified name. \
+                Returns the file path and location where the symbol is defined. Supports \
+                functions, classes, methods, properties, constants, class constants, and \
+                type aliases."
                 .to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
-                    "file_path": {
+                    "symbol_name": {
                         "type": "string",
-                        "description": "The relative path to the file (relative to project root). \
-                            Example: 'src/MyClass.hack'"
-                    },
-                    "line": {
-                        "type": "integer",
-                        "description": "The 1-indexed line number where the symbol is located"
-                    },
-                    "column": {
-                        "type": "integer",
-                        "description": "The 1-indexed column number where the symbol is located"
+                        "description": "The fully-qualified name of the symbol to locate. \
+                            Examples:\n\
+                            - Function: 'MyNamespace\\myFunction'\n\
+                            - Class: 'MyNamespace\\MyClass'\n\
+                            - Method: 'MyNamespace\\MyClass::myMethod'\n\
+                            - Property: 'MyNamespace\\MyClass::$propertyName'\n\
+                            - Class constant: 'MyNamespace\\MyClass::CONSTANT_NAME'\n\
+                            - Global constant: 'MyNamespace\\CONSTANT_NAME'\n\
+                            - Type alias: 'MyNamespace\\MyTypeAlias'"
                     }
                 },
-                "required": ["file_path", "line", "column"]
+                "required": ["symbol_name"]
             }),
         }
     }
