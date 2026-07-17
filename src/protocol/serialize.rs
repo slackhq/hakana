@@ -617,6 +617,21 @@ impl Deserialize for FindReferencesResponse {
     }
 }
 
+// GotoDefinitionByNameRequest
+
+impl Serialize for GotoDefinitionByNameRequest {
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        write_string(buf, &self.symbol_name);
+    }
+}
+
+impl Deserialize for GotoDefinitionByNameRequest {
+    fn deserialize(data: &[u8]) -> Result<(Self, &[u8]), ProtocolError> {
+        let (symbol_name, rest) = read_string(data)?;
+        Ok((Self { symbol_name }, rest))
+    }
+}
+
 // FindSymbolReferencesRequest
 
 impl Serialize for FindSymbolReferencesRequest {
@@ -864,6 +879,7 @@ impl Serialize for Message {
             Self::Analyze(req) => req.serialize(buf),
             Self::SecurityCheck(req) => req.serialize(buf),
             Self::GotoDefinition(req) => req.serialize(buf),
+            Self::GotoDefinitionByName(req) => req.serialize(buf),
             Self::FindReferences(req) => req.serialize(buf),
             Self::FindSymbolReferences(req) => req.serialize(buf),
             Self::FileChanged(changes) => {
@@ -906,6 +922,10 @@ impl Message {
             MessageType::GotoDefinitionRequest => {
                 let (req, _) = GotoDefinitionRequest::deserialize(data)?;
                 Self::GotoDefinition(req)
+            }
+            MessageType::GotoDefinitionByNameRequest => {
+                let (req, _) = GotoDefinitionByNameRequest::deserialize(data)?;
+                Self::GotoDefinitionByName(req)
             }
             MessageType::FindReferencesRequest => {
                 let (req, _) = FindReferencesRequest::deserialize(data)?;

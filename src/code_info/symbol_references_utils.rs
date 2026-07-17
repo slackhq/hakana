@@ -46,6 +46,27 @@ fn format_symbol_name(symbol_id: StrId, member_id: StrId, interner: &Interner) -
     }
 }
 
+/// Resolve a fully-qualified symbol name to its interned `(symbol_id, member_id)`.
+///
+/// Supported forms mirror the MCP tooling:
+/// - `NS\Class`, `NS\func`, `NS\TypeAlias`, `NS\CONST` -> `(id, StrId::EMPTY)`
+/// - `NS\Class::method`, `NS\Class::CONST`, `NS\Class::$prop` -> `(class_id, member_id)`
+///
+/// The leading `$` on property names is stripped before interning. Returns `None`
+/// if any component is not present in the interner.
+pub fn resolve_symbol_name(symbol_name: &str, interner: &Interner) -> Option<(StrId, StrId)> {
+    if let Some(idx) = symbol_name.rfind("::") {
+        let class_name = &symbol_name[..idx];
+        let member_name = symbol_name[idx + 2..].trim_start_matches('$');
+        let symbol_id = interner.get(class_name)?;
+        let member_id = interner.get(member_name)?;
+        Some((symbol_id, member_id))
+    } else {
+        let symbol_id = interner.get(symbol_name)?;
+        Some((symbol_id, StrId::EMPTY))
+    }
+}
+
 /// Get all references grouped by symbol name.
 ///
 /// Returns a map from symbol name to list of reference locations.

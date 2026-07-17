@@ -1,7 +1,7 @@
 use crate::tools::Tool;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_protocol::{
-    ClientSocket, FindSymbolReferencesRequest, GotoDefinitionRequest, Message, SocketPath,
+    ClientSocket, FindSymbolReferencesRequest, GotoDefinitionByNameRequest, Message, SocketPath,
     StatusRequest,
 };
 use serde::{Deserialize, Serialize};
@@ -383,9 +383,7 @@ impl McpServer {
 
         #[derive(Deserialize)]
         struct GotoDefinitionParams {
-            file_path: String,
-            line: u32,
-            column: u32,
+            symbol_name: String,
         }
 
         let params: GotoDefinitionParams = match serde_json::from_value(arguments) {
@@ -406,19 +404,14 @@ impl McpServer {
             }
         };
 
-        let request = Message::GotoDefinition(GotoDefinitionRequest {
-            file_path: params.file_path.clone(),
-            line: params.line,
-            column: params.column,
+        let request = Message::GotoDefinitionByName(GotoDefinitionByNameRequest {
+            symbol_name: params.symbol_name.clone(),
         });
 
         match client.request(&request).await {
             Ok(Message::GotoDefinitionResult(response)) => {
                 let content = if !response.found {
-                    format!(
-                        "No definition found at {}:{}:{}",
-                        params.file_path, params.line, params.column
-                    )
+                    format!("No definition found for symbol: {}", params.symbol_name)
                 } else {
                     let file_path = response.file_path.unwrap_or_default();
                     let start_line = response.start_line.unwrap_or(0);
