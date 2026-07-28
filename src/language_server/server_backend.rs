@@ -1,13 +1,21 @@
+use std::ffi::OsStr;
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use crate::server_client;
 use hakana_analyzer::config::Config;
 use hakana_code_info::issue::IssueKind;
-use rustc_hash::{FxHashMap, FxHashSet};
+
+use rustc_hash::FxHashMap;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
+
+enum DiagnosticsEvent {
+    Analysis(FxHashMap<Url, Vec<Diagnostic>>),
+    Edit(Url, Vec<TextDocumentContentChangeEvent>),
+}
 
 #[derive(Debug)]
 pub struct ServerBasedBackend {
@@ -15,6 +23,7 @@ pub struct ServerBasedBackend {
     analysis_config: Arc<Config>,
     server_conn: Arc<server_client::ServerConnection>,
     shutdown_tx: Arc<Mutex<Option<tokio::sync::oneshot::Sender<bool>>>>,
+    diagnostics_tx: Arc<Mutex<Option<tokio::sync::mpsc::UnboundedSender<DiagnosticsEvent>>>>,
 }
 
 /// Issue kinds that duplicate equivalent Hack typechecker issues
@@ -33,8 +42,116 @@ impl ServerBasedBackend {
             analysis_config: Arc::new(analysis_config),
             server_conn: Arc::new(server_conn),
             shutdown_tx: Arc::new(Mutex::new(None)),
+            diagnostics_tx: Arc::new(Mutex::new(None)),
         }
     }
+
+    /// Update existing diagnostics after a file is changed in the editor.
+    fn apply_content_changes(
+        diagnostics: &mut Vec<Diagnostic>,
+        content_changes: &[TextDocumentContentChangeEvent],
+    ) -> bool {
+        let mut diagnostics_changed = false;
+
+        for content_change in content_changes {
+            // For full document replacements, clear out all diagnostics.
+            let Some(edit_range) = content_change.range else {
+                diagnostics_changed |= !diagnostics.is_empty();
+                diagnostics.clear();
+                continue;
+            };
+
+            let replacement_end = Self::position_after_text(edit_range.start, &content_change.text);
+
+            // Keep diagnostics outside the edit range, shifting their positions as needed
+            // to account for the changed content.
+            diagnostics.retain_mut(|diagnostic| {
+                if Self::ranges_overlap(diagnostic.range, edit_range) {
+                    diagnostics_changed = true;
+                    return false;
+                }
+
+                if diagnostic.range.start >= edit_range.end {
+                    let translated_range = Range {
+                        start: Self::translate_position(
+                            diagnostic.range.start,
+                            edit_range.end,
+                            replacement_end,
+                        ),
+                        end: Self::translate_position(
+                            diagnostic.range.end,
+                            edit_range.end,
+                            replacement_end,
+                        ),
+                    };
+
+                    diagnostics_changed |= translated_range != diagnostic.range;
+                    diagnostic.range = translated_range;
+                }
+
+                true
+            });
+        }
+
+        diagnostics_changed
+    }
+
+    /// Determine whether two ranges overlap.
+    fn ranges_overlap(diagnostic_range: Range, edit_range: Range) -> bool {
+        if edit_range.start == edit_range.end {
+            diagnostic_range.start <= edit_range.start && edit_range.start < diagnostic_range.end
+        } else {
+            diagnostic_range.start < edit_range.end && edit_range.start < diagnostic_range.end
+        }
+    }
+
+    /// Compute the end position of an edit.
+    fn position_after_text(start: Position, text: &str) -> Position {
+        let line_count = text.bytes().filter(|byte| *byte == b'\n').count() as u32;
+
+        if line_count == 0 {
+            return Position {
+                line: start.line,
+                character: start
+                    .character
+                    .saturating_add(text.encode_utf16().count() as u32),
+            };
+        }
+
+        Position {
+            line: start.line.saturating_add(line_count),
+            character: text
+                .rsplit_once('\n')
+                .map_or(0, |(_, last_line)| last_line.encode_utf16().count() as u32),
+        }
+    }
+
+    /// Shift an existing in-editor position based on the end position of the text range replaced by an edit
+    /// and the end position of its replacement.
+    fn translate_position(
+        position: Position,
+        replaced_range_end: Position,
+        replacement_end: Position,
+    ) -> Position {
+        if position.line == replaced_range_end.line {
+            Position {
+                line: replacement_end.line,
+                character: replacement_end.character.saturating_add(
+                    position
+                        .character
+                        .saturating_sub(replaced_range_end.character),
+                ),
+            }
+        } else {
+            Position {
+                line: replacement_end
+                    .line
+                    .saturating_add(position.line.saturating_sub(replaced_range_end.line)),
+                character: position.character,
+            }
+        }
+    }
+
     /// Perform analysis by querying the hakana server.
     async fn do_analysis_via_server(
         client: &Arc<Client>,
@@ -148,10 +265,10 @@ impl LanguageServer for ServerBasedBackend {
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
                     TextDocumentSyncOptions {
                         open_close: Some(true),
-                        change: Some(TextDocumentSyncKind::NONE),
+                        change: Some(TextDocumentSyncKind::INCREMENTAL),
                         will_save: Some(false),
                         will_save_wait_until: Some(false),
-                        save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                        save: Some(TextDocumentSyncSaveOptions::Supported(false)),
                     },
                 )),
                 definition_provider: Some(OneOf::Left(true)),
@@ -161,8 +278,26 @@ impl LanguageServer for ServerBasedBackend {
         })
     }
 
-    async fn did_save(&self, _params: DidSaveTextDocumentParams) {
-        // handled by the server
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let file_uri = params.text_document.uri;
+
+        static SUPPORTED_EXTENSIONS: [&str; 2] = ["php", "hack"];
+
+        // Clear diagnostics on changed lines in PHP/Hack files
+        // so that we don't show stale diagnostics until they're saved
+        // and analysis results come back.
+        if let Some(file_ext) = Path::new(file_uri.path())
+            .extension()
+            .and_then(&OsStr::to_str)
+            && SUPPORTED_EXTENSIONS.contains(&file_ext)
+            && let Some(diagnostics_tx) = self
+                .diagnostics_tx
+                .lock()
+                .ok()
+                .and_then(|tx| tx.as_ref().cloned())
+        {
+            let _ = diagnostics_tx.send(DiagnosticsEvent::Edit(file_uri, params.content_changes));
+        }
     }
 
     async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
@@ -176,46 +311,103 @@ impl LanguageServer for ServerBasedBackend {
         let client = self.client.clone();
         let config = self.analysis_config.clone();
         let conn = self.server_conn.clone();
+        let (diagnostics_tx, mut diagnostics_rx) = tokio::sync::mpsc::unbounded_channel();
+        let _ = self
+            .diagnostics_tx
+            .lock()
+            .unwrap()
+            .insert(diagnostics_tx.clone());
 
         tokio::spawn(async move {
             client
                 .log_message(MessageType::INFO, "started watching for diagnostics")
                 .await;
 
-            let mut files_with_errors: FxHashSet<Url> = FxHashSet::default();
+            let analysis_client = client.clone();
+            let analysis_config = config.clone();
+            let analysis_conn = conn.clone();
+            let analysis_handle = tokio::spawn(async move {
+                // On startup, allow populating initial diagnostics from warm server state if
+                // it exists, then block until subsequent analysis runs.
+                let mut block_until_next_analysis = false;
 
-            // On startup, allow populating initial diagnostics from warm server state if exists,
-            // then block until subsequent analysis runs.
-            let mut block_until_next_analysis = false;
+                loop {
+                    let all_diagnostics = Self::do_analysis_via_server(
+                        &analysis_client,
+                        &analysis_config,
+                        &analysis_conn,
+                        block_until_next_analysis,
+                    )
+                    .await;
+                    block_until_next_analysis = true;
+
+                    if diagnostics_tx
+                        .send(DiagnosticsEvent::Analysis(all_diagnostics))
+                        .is_err()
+                    {
+                        analysis_client
+                            .log_message(
+                                MessageType::ERROR,
+                                "error reporting diagnostics from server",
+                            )
+                            .await;
+                        break;
+                    }
+                }
+            });
+
+            let mut diagnostics_by_file: FxHashMap<Url, Vec<Diagnostic>> = FxHashMap::default();
 
             loop {
                 tokio::select! {
-                    all_diagnostics = Self::do_analysis_via_server(&client, &config, &conn, block_until_next_analysis) => {
-                        block_until_next_analysis = true;
-                        let mut new_files_with_errors = FxHashSet::default();
+                    Some(event) = diagnostics_rx.recv() => {
+                        match event {
+                            DiagnosticsEvent::Analysis(all_diagnostics) => {
+                                for old_uri in diagnostics_by_file.keys() {
+                                    if !all_diagnostics.contains_key(old_uri) {
+                                        client
+                                            .publish_diagnostics(old_uri.clone(), vec![], None)
+                                            .await;
+                                    }
+                                }
 
-                        for (uri, diagnostics) in all_diagnostics {
-                            client
-                                .publish_diagnostics(uri.clone(), diagnostics, None)
-                                .await;
-                            new_files_with_errors.insert(uri);
-                        }
+                                for (uri, diagnostics) in &all_diagnostics {
+                                    client
+                                        .publish_diagnostics(
+                                            uri.clone(),
+                                            diagnostics.clone(),
+                                            None,
+                                        )
+                                        .await;
+                                }
 
-                        for old_uri in files_with_errors.iter() {
-                            if !new_files_with_errors.contains(old_uri) {
+                                diagnostics_by_file = all_diagnostics;
+
                                 client
-                                    .publish_diagnostics(old_uri.clone(), vec![], None)
+                                    .log_message(MessageType::INFO, "Diagnostics sent")
                                     .await;
                             }
+                            DiagnosticsEvent::Edit(file_uri, content_changes) => {
+                                let Some(diagnostics) = diagnostics_by_file.get_mut(&file_uri)
+                                else {
+                                    continue;
+                                };
+
+                                if Self::apply_content_changes(diagnostics, &content_changes) {
+                                    let diagnostics = diagnostics.clone();
+                                    if diagnostics.is_empty() {
+                                        diagnostics_by_file.remove(&file_uri);
+                                    }
+
+                                    client
+                                        .publish_diagnostics(file_uri, diagnostics, None)
+                                        .await;
+                                }
+                            }
                         }
-
-                        files_with_errors = new_files_with_errors;
-
-                        client
-                            .log_message(MessageType::INFO, "Diagnostics sent")
-                            .await;
                     }
                     _ = &mut shutdown_rx => {
+                        analysis_handle.abort();
                         break;
                     }
                 }
@@ -334,5 +526,153 @@ impl LanguageServer for ServerBasedBackend {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn position(line: u32, character: u32) -> Position {
+        Position { line, character }
+    }
+
+    fn range(start_line: u32, start_character: u32, end_line: u32, end_character: u32) -> Range {
+        Range {
+            start: position(start_line, start_character),
+            end: position(end_line, end_character),
+        }
+    }
+
+    fn diagnostic(range: Range) -> Diagnostic {
+        Diagnostic::new(
+            range,
+            None,
+            None,
+            Some("Hakana".to_string()),
+            "test diagnostic".to_string(),
+            None,
+            None,
+        )
+    }
+
+    fn content_change(range: Option<Range>, text: &str) -> TextDocumentContentChangeEvent {
+        TextDocumentContentChangeEvent {
+            range,
+            range_length: None,
+            text: text.to_string(),
+        }
+    }
+
+    #[test]
+    fn removes_only_overlapping_diagnostics() {
+        let retained_range = range(4, 0, 4, 4);
+        let mut diagnostics = vec![diagnostic(range(1, 2, 1, 5)), diagnostic(retained_range)];
+
+        let changed = ServerBasedBackend::apply_content_changes(
+            &mut diagnostics,
+            &[content_change(Some(range(1, 3, 1, 4)), "x")],
+        );
+
+        assert!(changed);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].range, retained_range);
+    }
+
+    #[test]
+    fn preserves_diagnostics_at_edit_boundaries() {
+        let before_range = range(1, 0, 1, 2);
+        let mut diagnostics = vec![diagnostic(before_range), diagnostic(range(1, 4, 1, 6))];
+
+        let changed = ServerBasedBackend::apply_content_changes(
+            &mut diagnostics,
+            &[content_change(Some(range(1, 2, 1, 4)), "x")],
+        );
+
+        assert!(changed);
+        assert_eq!(diagnostics.len(), 2);
+        assert_eq!(diagnostics[0].range, before_range);
+        assert_eq!(diagnostics[1].range, range(1, 3, 1, 5));
+    }
+
+    #[test]
+    fn insertion_overlaps_inside_but_not_at_end() {
+        let diagnostic_range = range(2, 2, 2, 6);
+        let mut diagnostics = vec![diagnostic(diagnostic_range)];
+
+        let changed = ServerBasedBackend::apply_content_changes(
+            &mut diagnostics,
+            &[content_change(Some(range(2, 6, 2, 6)), "x")],
+        );
+
+        assert!(!changed);
+        assert_eq!(diagnostics[0].range, diagnostic_range);
+
+        let changed = ServerBasedBackend::apply_content_changes(
+            &mut diagnostics,
+            &[content_change(Some(range(2, 4, 2, 4)), "x")],
+        );
+
+        assert!(changed);
+        assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn translates_surviving_ranges_with_utf16_offsets() {
+        let mut diagnostics = vec![diagnostic(range(1, 5, 1, 9))];
+
+        let changed = ServerBasedBackend::apply_content_changes(
+            &mut diagnostics,
+            &[content_change(Some(range(1, 2, 1, 2)), "😀")],
+        );
+
+        assert!(changed);
+        assert_eq!(diagnostics[0].range, range(1, 7, 1, 11));
+    }
+
+    #[test]
+    fn translates_surviving_ranges_across_lines() {
+        let mut diagnostics = vec![
+            diagnostic(range(2, 8, 2, 12)),
+            diagnostic(range(4, 3, 4, 7)),
+        ];
+
+        let changed = ServerBasedBackend::apply_content_changes(
+            &mut diagnostics,
+            &[content_change(Some(range(1, 3, 2, 4)), "x\nyz")],
+        );
+
+        assert!(changed);
+        assert_eq!(diagnostics[0].range, range(2, 6, 2, 10));
+        assert_eq!(diagnostics[1].range, range(4, 3, 4, 7));
+    }
+
+    #[test]
+    fn applies_multiple_changes_in_order() {
+        let mut diagnostics = vec![diagnostic(range(2, 5, 2, 8))];
+
+        let changed = ServerBasedBackend::apply_content_changes(
+            &mut diagnostics,
+            &[
+                content_change(Some(range(0, 0, 0, 0)), "\n"),
+                content_change(Some(range(3, 6, 3, 7)), ""),
+            ],
+        );
+
+        assert!(changed);
+        assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn full_document_change_clears_all_diagnostics() {
+        let mut diagnostics = vec![diagnostic(range(1, 0, 1, 4)), diagnostic(range(3, 0, 3, 4))];
+
+        let changed = ServerBasedBackend::apply_content_changes(
+            &mut diagnostics,
+            &[content_change(None, "replacement contents")],
+        );
+
+        assert!(changed);
+        assert!(diagnostics.is_empty());
     }
 }
