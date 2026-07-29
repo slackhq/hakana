@@ -1,1 +1,0 @@
-ERROR: PHPStandardLibrary - input.hack:3:10 - Use HH\Lib\Regex\matches instead of preg_match
