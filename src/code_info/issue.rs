@@ -162,7 +162,7 @@ pub enum IssueKind {
     VariableDefinedOutsideIf,
 }
 
-static AUTOFIXABLE_ISSUES: [IssueKind; 25] = [
+static AUTOFIXABLE_ISSUES: [IssueKind; 24] = [
     IssueKind::UnusedClass,
     IssueKind::UnusedTypeDefinition,
     IssueKind::UnusedFunction,
@@ -187,7 +187,6 @@ static AUTOFIXABLE_ISSUES: [IssueKind; 25] = [
     IssueKind::NonBoolCondition,
     IssueKind::MissingIndirectServiceCallsAttribute,
     IssueKind::RedundantIssetCheck,
-    IssueKind::PHPStandardLibrary,
 ];
 
 impl IssueKind {
