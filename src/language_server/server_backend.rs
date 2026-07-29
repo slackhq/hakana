@@ -1,7 +1,9 @@
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use crate::server_client;
 use hakana_analyzer::config::Config;
+use hakana_code_info::issue::IssueKind;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
@@ -14,6 +16,11 @@ pub struct ServerBasedBackend {
     server_conn: Arc<server_client::ServerConnection>,
     shutdown_tx: Arc<Mutex<Option<tokio::sync::oneshot::Sender<bool>>>>,
 }
+
+/// Issue kinds that duplicate equivalent Hack typechecker issues
+/// and should therefore not be reported as an LSP diagnostic.
+static EXCLUDED_ISSUE_KINDS: [IssueKind; 2] =
+    [IssueKind::UndefinedVariable, IssueKind::TooFewArguments];
 
 impl ServerBasedBackend {
     pub fn new(
@@ -60,6 +67,14 @@ impl ServerBasedBackend {
                 let mut all_diagnostics = FxHashMap::default();
 
                 for issue in response.issues {
+                    // Don't report issues that have close typechecker equivalents in LSP diagnostics
+                    // to reduce clutter.
+                    if let Ok(issue_kind) = IssueKind::from_str(&issue.kind)
+                        && EXCLUDED_ISSUE_KINDS.contains(&issue_kind)
+                    {
+                        continue;
+                    }
+
                     let file_path = format!("{}/{}", analysis_config.root_dir, issue.file_path);
 
                     let diagnostic = Diagnostic::new(
