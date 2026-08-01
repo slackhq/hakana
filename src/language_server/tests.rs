@@ -1,10 +1,12 @@
-use crate::serve;
+use crate::{file_event_to_status, serve};
+use hakana_orchestrator::file::FileStatus;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, DuplexStream};
 use tokio::time::{Duration, timeout};
+use tower_lsp::lsp_types::{FileChangeType, FileEvent, Url};
 
 /// Helper struct to manage the language server process
 struct LanguageServer {
@@ -138,6 +140,34 @@ fn get_project_root() -> PathBuf {
 
 fn get_test_directory() -> PathBuf {
     get_project_root().join("tests/goto-definition/classDefinition")
+}
+
+#[test]
+fn file_change_uri_is_converted_to_a_filesystem_path() {
+    let path = PathBuf::from("/tmp/hakana project/input.hack");
+    let event = FileEvent {
+        uri: Url::from_file_path(&path).unwrap(),
+        typ: FileChangeType::CHANGED,
+    };
+
+    let (changed_path, status) = file_event_to_status(event).unwrap();
+
+    assert_eq!(changed_path, path.to_string_lossy());
+    assert!(matches!(status, FileStatus::Modified(0, 0)));
+}
+
+#[test]
+fn deleted_directory_with_extension_is_invalidated() {
+    let path = PathBuf::from("/tmp/hakana/generated.v2");
+    let event = FileEvent {
+        uri: Url::from_file_path(&path).unwrap(),
+        typ: FileChangeType::DELETED,
+    };
+
+    let (changed_path, status) = file_event_to_status(event).unwrap();
+
+    assert_eq!(changed_path, path.to_string_lossy());
+    assert!(matches!(status, FileStatus::DeletedDir));
 }
 
 #[tokio::test]

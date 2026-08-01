@@ -1,0 +1,2 @@
+ERROR: DuplicateClassDefinition - shared.hack:1:1 - Class/interface/trait/enum `B` is also defined in: tests/diff/preserveOverlappingDuplicateDefinition/workdir/third.hack
+ERROR: DuplicateClassDefinition - third.hack:1:1 - Class/interface/trait/enum `B` is also defined in: tests/diff/preserveOverlappingDuplicateDefinition/workdir/shared.hack

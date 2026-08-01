@@ -65,6 +65,32 @@ impl Backend {
     }
 }
 
+fn file_event_to_status(file_event: FileEvent) -> Option<(String, FileStatus)> {
+    let file_path = file_event.uri.to_file_path().ok()?;
+    let is_git_path = file_path
+        .components()
+        .any(|component| component.as_os_str() == ".git");
+    let is_source_file = file_path
+        .extension()
+        .is_some_and(|extension| extension == "php" || extension == "hack" || extension == "hhi");
+    let file_path = file_path.to_string_lossy().into_owned();
+
+    let status = if is_source_file {
+        match file_event.typ {
+            FileChangeType::CREATED => FileStatus::Added(0, 0),
+            FileChangeType::CHANGED => FileStatus::Modified(0, 0),
+            FileChangeType::DELETED => FileStatus::Deleted,
+            _ => return None,
+        }
+    } else if !is_git_path && file_event.typ == FileChangeType::DELETED {
+        FileStatus::DeletedDir
+    } else {
+        return None;
+    };
+
+    Some((file_path, status))
+}
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
@@ -137,30 +163,8 @@ impl LanguageServer for Backend {
             .await;
 
         for file_event in params.changes {
-            let change_type = file_event.typ;
-            let file_path = file_event.uri.path().to_string();
-
-            if file_path.ends_with(".php")
-                || file_path.ends_with(".hack")
-                || file_path.ends_with(".hhi")
-            {
-                match change_type {
-                    FileChangeType::CREATED => {
-                        new_file_statuses.insert(file_path, FileStatus::Added(0, 0));
-                    }
-                    FileChangeType::CHANGED => {
-                        new_file_statuses.insert(file_path, FileStatus::Modified(0, 0));
-                    }
-                    FileChangeType::DELETED => {
-                        new_file_statuses.insert(file_path, FileStatus::Deleted);
-                    }
-                    _ => {}
-                }
-            } else if Path::new(&file_path).extension().is_none()
-                && !file_path.contains("/.git/")
-                && let FileChangeType::DELETED = change_type
-            {
-                new_file_statuses.insert(file_path, FileStatus::DeletedDir);
+            if let Some((file_path, status)) = file_event_to_status(file_event) {
+                new_file_statuses.insert(file_path, status);
             }
         }
 
@@ -207,7 +211,10 @@ impl LanguageServer for Backend {
     ) -> Result<Option<GotoDefinitionResponse>> {
         let position = params.text_document_position_params.position;
         let uri = params.text_document_position_params.text_document.uri;
-        let file_path = uri.path().to_string();
+        let Ok(file_path) = uri.to_file_path() else {
+            return Ok(None);
+        };
+        let file_path = file_path.to_string_lossy().into_owned();
 
         let scan_data_guard = self.previous_scan_data.read().await;
         let analysis_result_guard = self.previous_analysis_result.read().await;

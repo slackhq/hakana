@@ -30,9 +30,9 @@ impl VirtualFileSystem {
         config: &Config,
         files_to_analyze: &mut Vec<String>,
     ) {
-        let deleted_folders = language_server_changes
+        let deleted_paths = language_server_changes
             .iter()
-            .filter(|(_, v)| matches!(v, FileStatus::DeletedDir))
+            .filter(|(_, v)| matches!(v, FileStatus::Deleted | FileStatus::DeletedDir))
             .map(|(k, _)| k)
             .collect::<Vec<_>>();
 
@@ -41,14 +41,14 @@ impl VirtualFileSystem {
         for file in self.file_hashes_and_times.keys() {
             let str_path = interner.lookup(&file.0).to_string();
 
-            let in_deleted_folder = deleted_folders
+            let in_deleted_folder = deleted_paths
                 .iter()
-                .any(|f| str_path.starts_with(&(f.to_string() + "/")));
+                .any(|deleted_path| Path::new(&str_path).starts_with(deleted_path));
 
             if in_deleted_folder {
                 deleted_files.push(*file);
             } else if let Some(file_status) = language_server_changes.get(&str_path) {
-                if let FileStatus::Deleted = file_status {
+                if matches!(file_status, FileStatus::Deleted | FileStatus::DeletedDir) {
                     deleted_files.push(*file);
                 }
             } else {
@@ -305,5 +305,35 @@ pub fn get_file_contents_hash(file_path: &String) -> Result<u64, std::io::Error>
     match fs::read_to_string(file_path) {
         Ok(file_contents) => Ok(xxhash_rust::xxh3::xxh3_64(file_contents.as_bytes())),
         Err(error) => Err(error),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deleted_file_status_also_removes_files_below_that_path() {
+        let root = Path::new("project").join("generated.php");
+        let child = root.join("child.hack");
+        let root = root.to_string_lossy().into_owned();
+        let child = child.to_string_lossy().into_owned();
+        let mut interner = Interner::default();
+        let child_id = FilePath(interner.intern(child));
+        let mut file_system = VirtualFileSystem::default();
+        file_system.file_hashes_and_times.insert(child_id, (1, 1));
+
+        let mut changes = FxHashMap::default();
+        changes.insert(root.to_string(), FileStatus::Deleted);
+
+        file_system.apply_language_server_changes(
+            changes,
+            &mut Vec::new(),
+            &mut interner,
+            &Config::new("project".to_string(), FxHashSet::default()),
+            &mut Vec::new(),
+        );
+
+        assert!(file_system.file_hashes_and_times.is_empty());
     }
 }

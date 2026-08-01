@@ -1218,6 +1218,14 @@ fn get_classlike_storage(
     name_pos: HPos,
 ) -> Result<ClassLikeInfo, bool> {
     if codebase.classlike_infos.contains_key(class_name) {
+        let definitions = codebase
+            .classlike_infos_defs
+            .entry(*class_name)
+            .or_default();
+        if !definitions.contains(&definition_pos.file_path) {
+            definitions.push(definition_pos.file_path);
+        }
+
         Err(false)
     } else {
         Ok(ClassLikeInfo::new(

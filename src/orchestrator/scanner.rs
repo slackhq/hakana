@@ -60,6 +60,7 @@ pub struct ScanFilesResult {
     pub codebase_diff: CodebaseDiff,
     pub files_to_analyze: Vec<String>,
     pub invalid_files: FxHashSet<FilePath>,
+    pub force_full_analysis: bool,
 }
 
 pub fn scan_files(
@@ -174,10 +175,10 @@ pub fn scan_files(
 
     debug!("File discovery took {:.2?}", file_discovery_elapsed);
 
-    let file_statuses =
+    let mut file_statuses =
         file_system.get_file_statuses(&files_to_scan, &interner, &existing_file_system);
 
-    let changed_files = file_statuses
+    let mut changed_files = file_statuses
         .iter()
         .filter(|(_, v)| !matches!(v, FileStatus::Unchanged(..)))
         .map(|(k, _)| *k)
@@ -197,6 +198,25 @@ pub fn scan_files(
     {
         resolved_names = cached_resolved_names
     };
+
+    let had_duplicate_definitions = codebase.has_duplicates();
+    add_duplicate_definition_files(&codebase, &mut changed_files);
+    let force_full_analysis = had_duplicate_definitions && !changed_files.is_empty();
+
+    for changed_file in &changed_files {
+        let Some(status) = file_statuses.get_mut(changed_file) else {
+            continue;
+        };
+
+        let unchanged_hash_and_time = match status {
+            FileStatus::Unchanged(hash, modified_time) => Some((*hash, *modified_time)),
+            _ => None,
+        };
+
+        if let Some((hash, modified_time)) = unchanged_hash_and_time {
+            *status = FileStatus::Modified(hash, modified_time);
+        }
+    }
 
     let load_from_cache_elapsed = load_from_cache_now.elapsed();
 
@@ -236,14 +256,12 @@ pub fn scan_files(
         let mut codebase_diff = get_diff(&codebase.files, &codebase.files);
 
         for (target_file, status) in &file_statuses {
-            if let FileStatus::Deleted = status
-                && let Some(deleted_file_info) = existing_changed_files.get(target_file)
-            {
-                for node in &deleted_file_info.ast_nodes {
-                    codebase_diff
-                        .add_or_delete
-                        .insert((node.name, StrId::EMPTY));
-                }
+            if let FileStatus::Deleted = status {
+                add_deleted_file_to_diff(
+                    &mut codebase_diff,
+                    *target_file,
+                    existing_changed_files.get(target_file),
+                );
             }
         }
 
@@ -446,6 +464,7 @@ pub fn scan_files(
         files_to_analyze,
         file_system,
         invalid_files: invalid_files.into_iter().collect(),
+        force_full_analysis,
     })
 }
 
@@ -553,6 +572,55 @@ pub(crate) fn scan_file(
     Ok(resolved_names)
 }
 
+fn add_duplicate_definition_files(
+    codebase: &CodebaseInfo,
+    changed_files: &mut FxHashSet<FilePath>,
+) {
+    loop {
+        let mut duplicate_definition_files = Vec::new();
+
+        for definitions in codebase
+            .classlike_infos_defs
+            .values()
+            .chain(codebase.functionlike_infos_defs.values())
+            .chain(codebase.type_definitions_defs.values())
+            .chain(codebase.constant_infos_defs.values())
+        {
+            if definitions.len() > 1
+                && definitions
+                    .iter()
+                    .any(|file_path| changed_files.contains(file_path))
+            {
+                duplicate_definition_files.extend(definitions.iter().copied());
+            }
+        }
+
+        let previous_len = changed_files.len();
+        changed_files.extend(duplicate_definition_files);
+        if changed_files.len() == previous_len {
+            break;
+        }
+    }
+}
+
+fn add_deleted_file_to_diff(
+    codebase_diff: &mut CodebaseDiff,
+    target_file: FilePath,
+    deleted_file_info: Option<&FileInfo>,
+) {
+    if let Some(deleted_file_info) = deleted_file_info {
+        for node in &deleted_file_info.ast_nodes {
+            codebase_diff
+                .add_or_delete
+                .insert((node.name, StrId::EMPTY));
+        }
+    }
+
+    codebase_diff
+        .deletion_ranges_map
+        .insert(target_file, vec![(0, u32::MAX)]);
+}
+
 fn invalidate_changed_codebase_elements(
     codebase: &mut CodebaseInfo,
     changed_files: &FxHashSet<FilePath>,
@@ -617,4 +685,48 @@ fn invalidate_changed_codebase_elements(
     codebase
         .functionlike_infos
         .retain(|k, _| !closures_to_remove.contains(&k.0));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn changing_one_duplicate_definition_invalidates_every_defining_file() {
+        let first_symbol = StrId(100);
+        let second_symbol = StrId(104);
+        let first_file = FilePath(StrId(101));
+        let second_file = FilePath(StrId(102));
+        let third_file = FilePath(StrId(103));
+        let unrelated_file = FilePath(StrId(105));
+
+        let mut codebase = CodebaseInfo::new();
+        codebase
+            .classlike_infos_defs
+            .insert(first_symbol, vec![first_file, second_file]);
+        codebase
+            .classlike_infos_defs
+            .insert(second_symbol, vec![second_file, third_file]);
+
+        let mut changed_files = FxHashSet::from_iter([first_file, unrelated_file]);
+        add_duplicate_definition_files(&codebase, &mut changed_files);
+
+        assert_eq!(
+            changed_files,
+            FxHashSet::from_iter([first_file, second_file, third_file, unrelated_file])
+        );
+    }
+
+    #[test]
+    fn deleted_file_diff_invalidates_all_cached_ranges() {
+        let target_file = FilePath(StrId(100));
+        let mut codebase_diff = CodebaseDiff::default();
+
+        add_deleted_file_to_diff(&mut codebase_diff, target_file, None);
+
+        assert_eq!(
+            codebase_diff.deletion_ranges_map.get(&target_file),
+            Some(&vec![(0, u32::MAX)])
+        );
+    }
 }

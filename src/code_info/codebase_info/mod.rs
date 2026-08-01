@@ -514,6 +514,42 @@ impl CodebaseInfo {
     }
 
     pub fn extend(&mut self, other: CodebaseInfo) {
+        for (name, file_paths) in other.classlike_infos_defs {
+            let defs = self.classlike_infos_defs.entry(name).or_default();
+            for file_path in file_paths {
+                if !defs.contains(&file_path) {
+                    defs.push(file_path);
+                }
+            }
+        }
+
+        for (key, file_paths) in other.functionlike_infos_defs {
+            let defs = self.functionlike_infos_defs.entry(key).or_default();
+            for file_path in file_paths {
+                if !defs.contains(&file_path) {
+                    defs.push(file_path);
+                }
+            }
+        }
+
+        for (name, file_paths) in other.type_definitions_defs {
+            let defs = self.type_definitions_defs.entry(name).or_default();
+            for file_path in file_paths {
+                if !defs.contains(&file_path) {
+                    defs.push(file_path);
+                }
+            }
+        }
+
+        for (name, file_paths) in other.constant_infos_defs {
+            let defs = self.constant_infos_defs.entry(name).or_default();
+            for file_path in file_paths {
+                if !defs.contains(&file_path) {
+                    defs.push(file_path);
+                }
+            }
+        }
+
         // Track classlike definitions and detect duplicates
         for (name, info) in other.classlike_infos {
             let file_path = info.def_location.file_path;
@@ -659,5 +695,29 @@ impl CodebaseInfo {
             // Duplicate - don't insert
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extend_preserves_duplicate_definition_paths_from_one_scanner() {
+        let symbol = StrId(100);
+        let first_file = FilePath(StrId(101));
+        let second_file = FilePath(StrId(102));
+        let mut scanned_codebase = CodebaseInfo::new();
+        scanned_codebase
+            .classlike_infos_defs
+            .insert(symbol, vec![first_file, second_file]);
+
+        let mut codebase = CodebaseInfo::new();
+        codebase.extend(scanned_codebase);
+
+        assert_eq!(
+            codebase.classlike_infos_defs.get(&symbol),
+            Some(&vec![first_file, second_file])
+        );
     }
 }

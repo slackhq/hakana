@@ -150,6 +150,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         file_system,
         mut files_to_analyze,
         invalid_files,
+        force_full_analysis,
     } = scan_files(
         &all_scanned_dirs,
         cache_dir,
@@ -188,7 +189,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
             .unwrap_or_else(|_| panic!("Could not write aast manifest {}", &aast_manifest_path));
     }
 
-    let mut cached_analysis = if config.ast_diff {
+    let mut cached_analysis = if config.ast_diff && !force_full_analysis {
         mark_safe_symbols_from_diff(
             codebase_diff,
             &codebase,
