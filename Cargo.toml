@@ -55,6 +55,9 @@ exclude = ["third-party"]
 [profile.release]
 debug = true
 
+[profile.release.package.js_interop]
+opt-level = "s"
+
 [build-dependencies]
 anyhow = { version = "1.0", default-features = false }
 vergen-git2 = { version = "9.1.0", features = ["build"] }

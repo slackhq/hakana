@@ -21,7 +21,3 @@ rustc-hash = "1.1.0"
 # disabled by setting it to `false`
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
-
-[profile.release]
-opt-level = "s"
-lto = true

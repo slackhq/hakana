@@ -78,11 +78,12 @@ impl TestRunner {
 
         for _ in 0..(repeat + 1) {
             for test_folder in test_folders.clone() {
-                // Only create cache directory for non-hhast tests and actual directories
+                // HHAST test entries are files rather than test directories.
                 let cache_dir =
                     if !test_folder.contains("/hhast_tests/") && Path::new(&test_folder).is_dir() {
                         let cache_dir = format!("{}/.hakana_cache", test_folder);
-                        if !Path::new(&cache_dir).is_dir() && fs::create_dir(&cache_dir).is_err() {
+                        remove_cache_dir(&cache_dir);
+                        if use_cache && fs::create_dir(&cache_dir).is_err() {
                             panic!("could not create aast cache directory");
                         }
                         Some(cache_dir)
@@ -112,7 +113,13 @@ impl TestRunner {
                     previous_analysis_result,
                     hooks_provider: &*self.0,
                 };
-                let status_char = match test.run(ctx) {
+                let test_result = test.run(ctx);
+
+                if let Some(cache_dir) = &cache_dir {
+                    remove_cache_dir(cache_dir);
+                }
+
+                let status_char = match test_result {
                     Err(diagnostic) => {
                         // A hard scan/analysis error: no snapshot to compare, so
                         // it always fails — even under --update-snapshots. Drop
@@ -199,6 +206,14 @@ impl TestRunner {
                 .collect::<Vec<_>>()
                 .join("\n\n")
         );
+    }
+}
+
+fn remove_cache_dir(cache_dir: &str) {
+    if let Err(error) = fs::remove_dir_all(cache_dir)
+        && error.kind() != io::ErrorKind::NotFound
+    {
+        panic!("could not remove test cache directory {cache_dir}: {error}");
     }
 }
 

@@ -29,11 +29,6 @@ impl IntegrationTest for DiffTest {
 
         log::debug!("running test {}", ctx.dir);
 
-        if let Some(cache_dir) = ctx.cache_dir {
-            fs::remove_dir_all(cache_dir).unwrap();
-            fs::create_dir(cache_dir).unwrap();
-        }
-
         let workdir_base = ctx.dir.clone() + "/workdir";
 
         let mut folders = vec![(ctx.dir.clone() + "/a", false)];
