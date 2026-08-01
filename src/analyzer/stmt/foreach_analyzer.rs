@@ -1,7 +1,7 @@
 use super::{control_analyzer::BreakContext, loop_analyzer};
 use crate::{
     expr::{
-        binop::assignment_analyzer, expression_identifier,
+        binop::assignment_analyzer, call::class_template_param_collector, expression_identifier,
         fetch::array_fetch_analyzer::add_array_fetch_dataflow,
     },
     expression_analyzer,
@@ -541,7 +541,73 @@ fn check_iterator_type(
                         ));
                     }
                 }
-                _ => {}
+                _ => {
+                    let Some(classlike_storage) = codebase.classlike_infos.get(name) else {
+                        continue;
+                    };
+
+                    let (ancestor_name, keyed) = if is_async
+                        && classlike_storage
+                            .template_extended_params
+                            .contains_key(&StrId::ASYNC_KEYED_ITERATOR)
+                    {
+                        (StrId::ASYNC_KEYED_ITERATOR, true)
+                    } else if is_async
+                        && classlike_storage
+                            .template_extended_params
+                            .contains_key(&StrId::ASYNC_ITERATOR)
+                    {
+                        (StrId::ASYNC_ITERATOR, false)
+                    } else if classlike_storage
+                        .template_extended_params
+                        .contains_key(&StrId::KEYED_TRAVERSABLE)
+                    {
+                        (StrId::KEYED_TRAVERSABLE, true)
+                    } else if classlike_storage
+                        .template_extended_params
+                        .contains_key(&StrId::TRAVERSABLE)
+                    {
+                        (StrId::TRAVERSABLE, false)
+                    } else {
+                        continue;
+                    };
+
+                    let extended_params = classlike_storage
+                        .template_extended_params
+                        .get(&ancestor_name)
+                        .unwrap();
+                    let mut localized_params = extended_params.values().map(|param| {
+                        class_template_param_collector::resolve_template_param(
+                            codebase,
+                            param,
+                            classlike_storage,
+                            type_params,
+                        )
+                        .unwrap_or_else(|| (**param).clone())
+                    });
+
+                    let first_param = localized_params.next().unwrap_or(get_mixed_any());
+                    let (ancestor_key_type, ancestor_value_type) = if keyed {
+                        (
+                            first_param,
+                            localized_params.next().unwrap_or(get_mixed_any()),
+                        )
+                    } else {
+                        (get_arraykey(true), first_param)
+                    };
+
+                    has_valid_iterator = true;
+                    key_type = Some(combine_optional_union_types(
+                        key_type.as_ref(),
+                        Some(&ancestor_key_type),
+                        codebase,
+                    ));
+                    value_type = Some(combine_optional_union_types(
+                        value_type.as_ref(),
+                        Some(&ancestor_value_type),
+                        codebase,
+                    ));
+                }
             }
         }
     }

@@ -9,7 +9,8 @@ use hakana_code_info::ttype::get_null;
 use hakana_code_info::ttype::template::TemplateBound;
 use hakana_code_info::ttype::template::standin_type_replacer::{self, StandinOpts};
 use hakana_code_info::ttype::{
-    add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
+    add_union_type, get_arraykey, get_dict, get_mixed_any, get_nothing,
+    intersect_union_types_simple, template::TemplateResult,
 };
 use hakana_code_info::var_name::VarName;
 use hakana_code_info::{EFFECT_WRITE_LOCAL, GenericParent, VarId};
@@ -201,7 +202,7 @@ pub(crate) fn analyze(
             })
         );
 
-    let class_template_params = if solve_class_templates_from_args
+    let mut class_template_params = if solve_class_templates_from_args
         || (classlike_name == StrId::VECTOR && *method_name == StrId::FROM_ITEMS)
     {
         None
@@ -213,6 +214,24 @@ pub(crate) fn analyze(
             Some(lhs_type_part),
         )
     };
+
+    if !functionlike_storage.where_constraints.is_empty()
+        && let Some(class_template_params) = &mut class_template_params
+    {
+        for (template_name, where_type) in &functionlike_storage.where_constraints {
+            if where_type.has_template_types() {
+                continue;
+            }
+
+            if let Some(template_map) = class_template_params.get_mut(template_name)
+                && let Some(template_type) =
+                    template_map.get_mut(&GenericParent::ClassLike(declaring_method_id.0))
+            {
+                *template_type = intersect_union_types_simple(template_type, where_type, codebase)
+                    .unwrap_or(get_nothing());
+            }
+        }
+    }
 
     let mut functionlike_template_types = functionlike_storage.template_types.clone();
 

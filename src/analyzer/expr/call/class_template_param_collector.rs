@@ -245,7 +245,7 @@ fn expand_nested_type_params(
     static_classlike_name: &StrId,
     static_template_types: &Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
 ) {
-    let mut expand_in_place = |union: &mut TUnion| {
+    let expand_in_place = |union: &mut TUnion| {
         if union.has_template_types() {
             *union = TUnion::new(expand_type(
                 &Arc::new(union.clone()),

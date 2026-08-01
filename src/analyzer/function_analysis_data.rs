@@ -582,7 +582,10 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
             issue_kind,
             IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess
         ),
-        4064 => matches!(issue_kind, IssueKind::PossiblyNullPropertyFetch),
+        4064 => matches!(
+            issue_kind,
+            IssueKind::PossiblyNullPropertyFetch | IssueKind::PossibleMethodCallOnNull
+        ),
         4005 => matches!(issue_kind, IssueKind::MixedArrayAccess),
         2049 => matches!(
             issue_kind,
