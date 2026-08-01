@@ -1469,6 +1469,24 @@ pub(crate) fn intersect_atomic_with_atomic(
             TAtomic::TTypeAlias {
                 as_type: Some(type_1_as),
                 name,
+                ..
+            },
+            TAtomic::TEnum { .. },
+        ) if name != &StrId::MEMBER_OF => {
+            return intersect_union_with_atomic(
+                statements_analyzer,
+                analysis_data,
+                type_1_as,
+                type_2_atomic,
+                pos,
+                did_remove_type,
+            )
+            .map(|_| type_2_atomic.clone());
+        }
+        (
+            TAtomic::TTypeAlias {
+                as_type: Some(type_1_as),
+                name,
                 type_params,
                 newtype,
             },

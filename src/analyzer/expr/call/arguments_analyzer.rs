@@ -212,7 +212,7 @@ pub(crate) fn check_arguments_match(
 
     for (template_name, type_map) in &template_result.lower_bounds {
         for (class, lower_bounds) in type_map {
-            if lower_bounds.len() == 1 {
+            if lower_bounds.len() == 1 && matches!(class, GenericParent::ClassLike(_)) {
                 class_generic_params
                     .entry(*template_name)
                     .or_insert_with(Vec::new)

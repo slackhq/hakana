@@ -10,7 +10,7 @@ use std::env;
 use std::fs;
 use std::io;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use super::integration_test::{TestContext, select_test_type};
@@ -35,6 +35,10 @@ impl TestRunner {
         random_seed: Option<u64>,
         update_snapshots: bool,
     ) {
+        let root_cache_dir = env::current_dir().unwrap().join(".hakana_cache");
+        remove_cache_dir(&root_cache_dir);
+        let _root_cache_cleanup = CacheDirCleanup(root_cache_dir);
+
         let candidate_test_folders = match get_all_test_folders(test_or_test_dir.clone()) {
             Ok(folders) => folders,
             Err(error) => {
@@ -209,11 +213,23 @@ impl TestRunner {
     }
 }
 
-fn remove_cache_dir(cache_dir: &str) {
+struct CacheDirCleanup(PathBuf);
+
+impl Drop for CacheDirCleanup {
+    fn drop(&mut self) {
+        remove_cache_dir(&self.0);
+    }
+}
+
+fn remove_cache_dir(cache_dir: impl AsRef<Path>) {
+    let cache_dir = cache_dir.as_ref();
     if let Err(error) = fs::remove_dir_all(cache_dir)
         && error.kind() != io::ErrorKind::NotFound
     {
-        panic!("could not remove test cache directory {cache_dir}: {error}");
+        panic!(
+            "could not remove test cache directory {}: {error}",
+            cache_dir.display()
+        );
     }
 }
 

@@ -199,8 +199,14 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             results.push(if has_loop_variable {
                 match (&e1_type_atomic, &e2_type_atomic) {
                     (
-                        TAtomic::TInt | TAtomic::TLiteralInt { .. } | TAtomic::TNothing,
-                        TAtomic::TInt | TAtomic::TLiteralInt { .. } | TAtomic::TNothing,
+                        TAtomic::TInt
+                        | TAtomic::TLiteralInt { .. }
+                        | TAtomic::TNothing
+                        | TAtomic::TMixedFromLoopIsset,
+                        TAtomic::TInt
+                        | TAtomic::TLiteralInt { .. }
+                        | TAtomic::TNothing
+                        | TAtomic::TMixedFromLoopIsset,
                     ) => match operator {
                         oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
                         _ => TAtomic::TInt,
@@ -266,10 +272,10 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                         TAtomic::TLiteralInt { value: e2_value },
                     ) => match operator {
                         oxidized::ast_defs::Bop::Plus => TAtomic::TLiteralInt {
-                            value: e1_value + e2_value,
+                            value: e1_value.wrapping_add(*e2_value),
                         },
                         oxidized::ast_defs::Bop::Minus => TAtomic::TLiteralInt {
-                            value: e1_value - e2_value,
+                            value: e1_value.wrapping_sub(*e2_value),
                         },
                         oxidized::ast_defs::Bop::Amp => TAtomic::TLiteralInt {
                             value: e1_value & e2_value,
@@ -302,8 +308,14 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                         _ => TAtomic::TInt,
                     },
                     (
-                        TAtomic::TInt | TAtomic::TLiteralInt { .. },
-                        TAtomic::TInt | TAtomic::TLiteralInt { .. },
+                        TAtomic::TInt
+                        | TAtomic::TLiteralInt { .. }
+                        | TAtomic::TNothing
+                        | TAtomic::TMixedFromLoopIsset,
+                        TAtomic::TInt
+                        | TAtomic::TLiteralInt { .. }
+                        | TAtomic::TNothing
+                        | TAtomic::TMixedFromLoopIsset,
                     ) => match operator {
                         oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
                         _ => TAtomic::TInt,

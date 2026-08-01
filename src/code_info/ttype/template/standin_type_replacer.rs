@@ -63,12 +63,13 @@ pub fn replace(
     let mut original_atomic_types = union_type.types.clone();
 
     let mut input_type = input_type.cloned();
-
-    if let Some(ref mut input_type) = input_type
-        && original_atomic_types.len() > 1
+    let has_nullable_template = original_atomic_types.len() > 1
         && original_atomic_types
             .iter()
-            .any(|t| matches!(t, TAtomic::TNull))
+            .any(|t| matches!(t, TAtomic::TNull));
+
+    if let Some(ref mut input_type) = input_type
+        && has_nullable_template
         && input_type.is_mixed()
     {
         original_atomic_types.retain(|t| !matches!(t, TAtomic::TNull));
@@ -99,14 +100,22 @@ pub fn replace(
         }
     } else if let Some(ref input_type_inner) = input_type
         && matches!(input_type_inner.get_single(), TAtomic::TNull)
-        && original_atomic_types.len() > 1
-        && original_atomic_types
-            .iter()
-            .any(|t| matches!(t, TAtomic::TNull))
+        && has_nullable_template
     {
         // a null input is wholly absorbed by the null part of `?T`,
         // so it should not bind the template
         return union_type.clone();
+    }
+
+    if has_nullable_template && let Some(ref mut input_type) = input_type {
+        for atomic_type in &mut input_type.types {
+            if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = atomic_type
+                && as_type.types.len() > 1
+                && as_type.types.iter().any(|t| matches!(t, TAtomic::TNull))
+            {
+                as_type.remove_type(&TAtomic::TNull);
+            }
+        }
     }
 
     let mut had_template = false;

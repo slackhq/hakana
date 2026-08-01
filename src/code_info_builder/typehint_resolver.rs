@@ -158,17 +158,27 @@ fn get_classname_type_from_hint(
             ..
         }) = as_type
         {
+            let mut nonnull_as_types = as_type
+                .types
+                .iter()
+                .filter(|atomic| !matches!(atomic, TAtomic::TNull));
+            let first_nonnull_as_type = nonnull_as_types.next();
+            let classname_as_type = match (first_nonnull_as_type, nonnull_as_types.next()) {
+                (Some(atomic), None) => atomic.clone(),
+                _ => TAtomic::TObject,
+            };
+
             if is_class_ptr {
                 TAtomic::TGenericClassPtr {
                     param_name,
                     defining_entity,
-                    as_type: Box::new(as_type.get_single_owned()),
+                    as_type: Box::new(classname_as_type),
                 }
             } else {
                 TAtomic::TGenericClassname {
                     param_name,
                     defining_entity,
-                    as_type: Box::new(as_type.get_single_owned()),
+                    as_type: Box::new(classname_as_type),
                 }
             }
         } else if is_class_ptr {
@@ -543,7 +553,7 @@ pub fn get_type_from_hint(
 
             match applied_type_str {
                 "int" => TAtomic::TInt,
-                "string" => TAtomic::TString,
+                "string" | "HH\\string" => TAtomic::TString,
                 "arraykey" => TAtomic::TArraykey { from_any: false },
                 "bool" => TAtomic::TBool,
                 "float" => TAtomic::TFloat,
@@ -555,7 +565,7 @@ pub fn get_type_from_hint(
                 "num" => TAtomic::TNum,
                 "mixed" => TAtomic::TMixed,
                 "dynamic" => TAtomic::TMixedWithFlags(true, false, false, false),
-                "vec" | "HH\\varray" | "varray" => {
+                "vec" | "HH\\vec" | "HH\\varray" | "varray" => {
                     if let Some(first) = extra_info.first() {
                         get_vec_type_from_hint(
                             first,
@@ -574,7 +584,7 @@ pub fn get_type_from_hint(
                         })
                     }
                 }
-                "dict" | "HH\\darray" | "darray" => get_dict_type_from_hints(
+                "dict" | "HH\\dict" | "HH\\darray" | "darray" => get_dict_type_from_hints(
                     extra_info.first(),
                     extra_info.get(1),
                     classlike_name,
@@ -582,7 +592,7 @@ pub fn get_type_from_hint(
                     resolved_names,
                     file_path,
                 ),
-                "keyset" => {
+                "keyset" | "HH\\keyset" => {
                     if let Some(param) = extra_info.first() {
                         get_keyset_type_from_hint(
                             param,
@@ -899,6 +909,7 @@ pub fn get_type_references_from_hint(
             match applied_type.as_str() {
                 "int"
                 | "string"
+                | "HH\\string"
                 | "arraykey"
                 | "bool"
                 | "float"
@@ -918,6 +929,8 @@ pub fn get_type_references_from_hint(
                 | "HH\\dict"
                 | "HH\\darray"
                 | "darray"
+                | "keyset"
+                | "HH\\keyset"
                 | "classname"
                 | "typename"
                 | "vec_or_dict"
