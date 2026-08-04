@@ -498,6 +498,16 @@ fn intersect_atomic_with_atomic_simple(
         (_, TAtomic::TObject) => {
             return None;
         }
+        (
+            enum_type @ (TAtomic::TEnum { .. } | TAtomic::TEnumLiteralCase { .. }),
+            TAtomic::TArraykey { .. },
+        )
+        | (
+            TAtomic::TArraykey { .. },
+            enum_type @ (TAtomic::TEnum { .. } | TAtomic::TEnumLiteralCase { .. }),
+        ) => {
+            return Some(enum_type.clone());
+        }
         (type_1_atomic, TAtomic::TArraykey { .. }) => {
             if type_1_atomic.is_mixed() {
                 return Some(TAtomic::TArraykey { from_any: false });
