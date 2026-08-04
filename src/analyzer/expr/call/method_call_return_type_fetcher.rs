@@ -198,6 +198,21 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
                 return Some(false_or_domelement);
             }
         }
+        StrId::DOMNAMED_NODE_MAP => {
+            let method_name = interner.lookup(&method_id.1);
+            if matches!(method_name, "item" | "getNamedItem") {
+                return Some(TUnion::new(vec![
+                    TAtomic::TNamedObject(TNamedObject {
+                        name: StrId::DOMNODE,
+                        type_params: None,
+                        is_this: false,
+                        remapped_params: false,
+                    }),
+                    TAtomic::TFalse,
+                    TAtomic::TNull,
+                ]));
+            }
+        }
         StrId::SIMPLE_XML_ELEMENT => match interner.lookup(&method_id.1) {
             "children" | "attributes" | "addChild" => {
                 let null_or_simplexmlelement = TUnion::new(vec![
