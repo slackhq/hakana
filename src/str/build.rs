@@ -20,6 +20,7 @@ fn main() -> Result<()> {
         "<data attribute>",
         "Codegen",
         "DOMDocument",
+        "DOMNode",
         "DateTime",
         "DateTimeImmutable",
         "Error",
