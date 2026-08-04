@@ -15,6 +15,7 @@ pub enum MessageType {
     GetIssuesRequest = 0x06,
     FindSymbolReferencesRequest = 0x07,
     GotoDefinitionByNameRequest = 0x08,
+    GetMigrationCandidatesRequest = 0x09,
     StatusRequest = 0x10,
     ShutdownRequest = 0x0F,
 
@@ -25,6 +26,7 @@ pub enum MessageType {
     FindReferencesResponse = 0x84,
     GetIssuesResponse = 0x85,
     FindSymbolReferencesResponse = 0x86,
+    GetMigrationCandidatesResponse = 0x87,
     StatusResponse = 0x90,
     AckResponse = 0x8F,
 
@@ -45,6 +47,7 @@ impl TryFrom<u8> for MessageType {
             0x06 => Ok(Self::GetIssuesRequest),
             0x07 => Ok(Self::FindSymbolReferencesRequest),
             0x08 => Ok(Self::GotoDefinitionByNameRequest),
+            0x09 => Ok(Self::GetMigrationCandidatesRequest),
             0x10 => Ok(Self::StatusRequest),
             0x0F => Ok(Self::ShutdownRequest),
             0x81 => Ok(Self::AnalyzeResponse),
@@ -53,6 +56,7 @@ impl TryFrom<u8> for MessageType {
             0x84 => Ok(Self::FindReferencesResponse),
             0x85 => Ok(Self::GetIssuesResponse),
             0x86 => Ok(Self::FindSymbolReferencesResponse),
+            0x87 => Ok(Self::GetMigrationCandidatesResponse),
             0x90 => Ok(Self::StatusResponse),
             0x8F => Ok(Self::AckResponse),
             0xFF => Ok(Self::ErrorResponse),
@@ -268,6 +272,28 @@ pub struct GetIssuesResponse {
     pub phase: String,
 }
 
+/// Request for the migration candidates of a given migration.
+#[derive(Debug, Clone, Default)]
+pub struct GetMigrationCandidatesRequest {
+    /// The migration name (matched against each hook's `get_migration_name()`).
+    pub migration: String,
+    /// Only return candidates whose definition path matches this glob pattern.
+    pub filter: Option<String>,
+    /// Whether to wait until the next analysis run.
+    pub block_until_next_analysis: bool,
+}
+
+/// Response with the migration candidates.
+#[derive(Debug, Clone)]
+pub struct GetMigrationCandidatesResponse {
+    /// Whether analysis is complete (false = still in progress).
+    pub analysis_complete: bool,
+    /// Whether the migration name was recognised by the server.
+    pub migration_recognized: bool,
+    /// Candidate symbol names (bare name or `ClassName::memberName`).
+    pub candidates: Vec<String>,
+}
+
 /// Request for server status.
 #[derive(Debug, Clone, Copy)]
 pub struct StatusRequest;
@@ -358,6 +384,7 @@ pub enum Message {
     FindSymbolReferences(FindSymbolReferencesRequest),
     FileChanged(Vec<FileChange>),
     GetIssues(GetIssuesRequest),
+    GetMigrationCandidates(GetMigrationCandidatesRequest),
     Status(StatusRequest),
     Shutdown(ShutdownRequest),
 
@@ -368,6 +395,7 @@ pub enum Message {
     FindReferencesResult(FindReferencesResponse),
     FindSymbolReferencesResult(FindSymbolReferencesResponse),
     GetIssuesResult(GetIssuesResponse),
+    GetMigrationCandidatesResult(GetMigrationCandidatesResponse),
     StatusResult(StatusResponse),
     Ack(AckResponse),
     Error(ErrorResponse),
@@ -385,6 +413,7 @@ impl Message {
             Self::FindSymbolReferences(_) => MessageType::FindSymbolReferencesRequest,
             Self::FileChanged(_) => MessageType::FileChangedNotification,
             Self::GetIssues(_) => MessageType::GetIssuesRequest,
+            Self::GetMigrationCandidates(_) => MessageType::GetMigrationCandidatesRequest,
             Self::Status(_) => MessageType::StatusRequest,
             Self::Shutdown(_) => MessageType::ShutdownRequest,
             Self::AnalyzeResult(_) => MessageType::AnalyzeResponse,
@@ -393,6 +422,7 @@ impl Message {
             Self::FindReferencesResult(_) => MessageType::FindReferencesResponse,
             Self::FindSymbolReferencesResult(_) => MessageType::FindSymbolReferencesResponse,
             Self::GetIssuesResult(_) => MessageType::GetIssuesResponse,
+            Self::GetMigrationCandidatesResult(_) => MessageType::GetMigrationCandidatesResponse,
             Self::StatusResult(_) => MessageType::StatusResponse,
             Self::Ack(_) => MessageType::AckResponse,
             Self::Error(_) => MessageType::ErrorResponse,
@@ -411,6 +441,7 @@ impl Message {
                 | Self::FindSymbolReferences(_)
                 | Self::FileChanged(_)
                 | Self::GetIssues(_)
+                | Self::GetMigrationCandidates(_)
                 | Self::Status(_)
                 | Self::Shutdown(_)
         )

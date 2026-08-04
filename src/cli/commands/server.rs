@@ -38,6 +38,7 @@ pub async fn handle(
     threads: u8,
     header: &str,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
+    migration_hooks: Vec<Box<dyn CustomHook>>,
 ) {
     use hakana_protocol::{Message, ShutdownRequest, SocketPath, StatusRequest};
     use hakana_server::{Server, ServerConfig};
@@ -98,12 +99,15 @@ pub async fn handle(
         .unwrap_or_else(|| format!("{}/hakana.json", root_dir));
 
     let plugins: Vec<Arc<dyn CustomHook>> = analysis_hooks.into_iter().map(Arc::from).collect();
+    let migration_hooks: Vec<Arc<dyn CustomHook>> =
+        migration_hooks.into_iter().map(Arc::from).collect();
 
     let server_config = ServerConfig {
         root_dir: root_dir.to_string(),
         threads,
         config_path: Some(config_path),
         plugins,
+        migration_hooks,
         header: header.to_string(),
         chaos_monkey: None,
     };
