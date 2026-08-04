@@ -541,6 +541,24 @@ fn check_iterator_type(
                         ));
                     }
                 }
+                StrId::DOMNAMED_NODE_MAP => {
+                    has_valid_iterator = true;
+                    key_type = Some(combine_optional_union_types(
+                        key_type.as_ref(),
+                        Some(&get_arraykey(true)),
+                        codebase,
+                    ));
+                    value_type = Some(TUnion::new(vec![
+                        TAtomic::TNamedObject(TNamedObject {
+                            name: StrId::DOMNODE,
+                            type_params: None,
+                            is_this: false,
+                            remapped_params: false,
+                        }),
+                        TAtomic::TFalse,
+                        TAtomic::TNull,
+                    ]));
+                }
                 _ => {
                     let Some(classlike_storage) = codebase.classlike_infos.get(name) else {
                         continue;
