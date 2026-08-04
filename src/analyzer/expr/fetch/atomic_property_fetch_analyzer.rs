@@ -217,6 +217,20 @@ pub(crate) fn analyze(
     Ok(())
 }
 
+fn get_special_property_type(
+    statements_analyzer: &StatementsAnalyzer,
+    classlike_name: &StrId,
+    property_name: &StrId,
+) -> Option<TUnion> {
+    if *classlike_name == StrId::DOMNODE
+        && statements_analyzer.interner.lookup(property_name) == "localName"
+    {
+        return Some(TUnion::new(vec![TAtomic::TNull, TAtomic::TString]));
+    }
+
+    None
+}
+
 fn get_class_property_type(
     statements_analyzer: &StatementsAnalyzer,
     classlike_name: &StrId,
@@ -226,7 +240,9 @@ fn get_class_property_type(
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     let codebase = statements_analyzer.codebase;
-    let class_property_type = codebase.get_property_type(classlike_name, property_name);
+    let class_property_type =
+        get_special_property_type(statements_analyzer, classlike_name, property_name)
+            .or_else(|| codebase.get_property_type(classlike_name, property_name));
 
     let class_storage = codebase.classlike_infos.get(classlike_name).unwrap();
     let declaring_class_storage = codebase
