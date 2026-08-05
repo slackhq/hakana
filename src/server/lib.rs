@@ -30,6 +30,10 @@ pub struct ServerConfig {
     pub threads: u8,
     pub config_path: Option<String>,
     pub plugins: Vec<Arc<dyn CustomHook>>,
+    /// Migration hooks, consulted only when computing migration candidates.
+    /// These are intentionally kept out of the analysis hooks so the warm
+    /// analysis stays in normal (non-migration) mode.
+    pub migration_hooks: Vec<Arc<dyn CustomHook>>,
     pub header: String,
     pub chaos_monkey: Option<Arc<dyn Fn() + Send + Sync>>,
 }
@@ -41,6 +45,7 @@ impl ServerConfig {
             threads: 8,
             config_path: None,
             plugins: Vec::new(),
+            migration_hooks: Vec::new(),
             header: String::new(),
             chaos_monkey: None,
         }
@@ -335,6 +340,11 @@ impl Server {
                     Message::GetIssues(req) => {
                         handler.handle_get_issues(&mut analysis_rx, req).await
                     }
+                    Message::GetMigrationCandidates(req) => {
+                        handler
+                            .handle_get_migration_candidates(&mut analysis_rx, req)
+                            .await
+                    }
                     Message::Status(_) => handler.handle_status(),
                     Message::Shutdown(_) => handler.handle_shutdown().await,
                     Message::GotoDefinition(req) => handler.handle_goto_definition(req),
@@ -452,7 +462,13 @@ fn run_analysis(
 
 #[cfg(test)]
 mod tests {
-    use hakana_protocol::{ClientSocket, GetIssuesRequest, Message};
+    use hakana_analyzer::custom_hook::{CustomHook, InternalHook};
+    use hakana_code_info::analysis_result::AnalysisResult;
+    use hakana_code_info::codebase_info::CodebaseInfo;
+    use hakana_protocol::{
+        ClientSocket, GetIssuesRequest, GetMigrationCandidatesRequest, Message,
+    };
+    use hakana_str::Interner;
     use std::{
         path::PathBuf,
         sync::{Arc, atomic::AtomicBool},
@@ -463,6 +479,28 @@ mod tests {
         Server, ServerConfig,
         watchman::{self, WatchmanEvent},
     };
+
+    /// A migration hook whose `get_candidates` returns a fixed list, used to exercise
+    /// the server-side migration-candidate path.
+    #[derive(Debug)]
+    struct StubMigrationHook;
+
+    impl InternalHook for StubMigrationHook {
+        fn get_migration_name(&self) -> Option<&str> {
+            Some("stub-migration")
+        }
+
+        fn get_candidates(
+            &self,
+            _codebase: &CodebaseInfo,
+            _interner: &Interner,
+            _analysis_result: &AnalysisResult,
+        ) -> Vec<String> {
+            vec!["main".to_string()]
+        }
+    }
+
+    impl CustomHook for StubMigrationHook {}
 
     #[tokio::test]
     async fn handles_file_changes_during_analysis() -> std::io::Result<()> {
@@ -488,6 +526,7 @@ mod tests {
             threads: 2,
             config_path: Some(config_path.to_str().unwrap().to_string()),
             plugins: vec![],
+            migration_hooks: vec![],
             header: "".to_string(),
             chaos_monkey: Some(Arc::new(move || {
                 // Simulate a file change between the first scan and first analysis
@@ -552,6 +591,117 @@ mod tests {
             )
         } else {
             panic!("Expected GetIssuesResult, got {:?}", response);
+        }
+
+        shutdown_tx
+            .send(true)
+            .await
+            .expect("failed to shutdown server");
+
+        server_task.await.expect("failed to join server task");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn serves_migration_candidates() -> std::io::Result<()> {
+        let tmp = tempfile::Builder::new()
+            .prefix("hakana-test")
+            .tempdir()
+            .expect("failed to create temp dir");
+        let hack_file = tmp.path().join("index.hack");
+        let config_path = tmp.path().join("hakana.json");
+        fs::write(hack_file.clone(), "function main(): void {}")
+            .await
+            .expect("failed to create test file");
+        fs::write(config_path.clone(), "{}")
+            .await
+            .expect("failed to create test file");
+
+        let server_config = ServerConfig {
+            root_dir: tmp.path().to_str().unwrap().to_string(),
+            threads: 2,
+            config_path: Some(config_path.to_str().unwrap().to_string()),
+            plugins: vec![],
+            migration_hooks: vec![Arc::new(StubMigrationHook)],
+            header: "".to_string(),
+            chaos_monkey: None,
+        };
+
+        let mut watchman_handle = watchman::start_subscription(
+            PathBuf::from(&server_config.root_dir),
+            vec![],
+            server_config.config_path.as_ref().map(&PathBuf::from),
+        )
+        .await;
+
+        let mut server = Server::new(server_config).expect("failed to create server");
+
+        let socket_path = server.socket_path().clone();
+        let shutdown_tx = server.shutdown_tx.clone();
+
+        let server_task =
+            tokio::spawn(async move { server.run().await.expect("failed to run server") });
+
+        while let Some(event) = watchman_handle.recv().await {
+            if matches!(event, WatchmanEvent::FileChanges(..)) {
+                break;
+            }
+        }
+
+        let mut client = ClientSocket::connect(&socket_path)
+            .await
+            .expect("failed to connect");
+
+        // A recognised migration returns the hook's candidates, waiting for analysis.
+        let request = Message::GetMigrationCandidates(GetMigrationCandidatesRequest {
+            migration: "stub-migration".to_string(),
+            filter: None,
+            block_until_next_analysis: false,
+        });
+
+        let response = loop {
+            let mut client = ClientSocket::connect(&socket_path)
+                .await
+                .expect("failed to connect");
+            let response = client
+                .request(&request)
+                .await
+                .expect("failed to send request");
+            if let Message::GetMigrationCandidatesResult(ref result) = response
+                && !result.analysis_complete
+            {
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+            break response;
+        };
+
+        if let Message::GetMigrationCandidatesResult(result) = response {
+            assert!(result.analysis_complete);
+            assert!(result.migration_recognized);
+            assert_eq!(vec!["main".to_string()], result.candidates);
+        } else {
+            panic!("Expected GetMigrationCandidatesResult, got {:?}", response);
+        }
+
+        // An unrecognised migration reports migration_recognized = false.
+        let unknown = client
+            .request(&Message::GetMigrationCandidates(
+                GetMigrationCandidatesRequest {
+                    migration: "does-not-exist".to_string(),
+                    filter: None,
+                    block_until_next_analysis: false,
+                },
+            ))
+            .await
+            .expect("failed to send request");
+
+        if let Message::GetMigrationCandidatesResult(result) = unknown {
+            assert!(!result.migration_recognized);
+            assert!(result.candidates.is_empty());
+        } else {
+            panic!("Expected GetMigrationCandidatesResult, got {:?}", unknown);
         }
 
         shutdown_tx

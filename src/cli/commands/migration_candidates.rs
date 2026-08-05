@@ -1,6 +1,8 @@
 use clap::{Command, arg};
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
+use hakana_language_server::server_client::ServerConnection;
+use hakana_protocol::{ClientSocket, GetMigrationCandidatesRequest, Message, SocketPath};
 use hakana_str::{Interner, StrId};
 use rustc_hash::FxHashSet;
 use std::path::Path;
@@ -36,13 +38,23 @@ pub fn get_subcommand() -> Command<'static> {
                 .help("Only return migration candidates matching this glob expression"),
         )
         .arg(
+            arg!(--"standalone")
+                .required(false)
+                .help("Run analysis directly without connecting to server (default for CI)"),
+        )
+        .arg(
+            arg!(--"with-server")
+                .required(false)
+                .help("Use server mode: connect to existing server or spawn one if needed"),
+        )
+        .arg(
             arg!(--"debug")
                 .required(false)
                 .help("Add output for debugging"),
         )
 }
 
-pub fn handle(
+pub async fn handle(
     sub_matches: &clap::ArgMatches,
     root_dir: &str,
     all_custom_issues: FxHashSet<String>,
@@ -55,6 +67,136 @@ pub fn handle(
 ) {
     let migration_name = sub_matches.value_of("migration").unwrap().to_string();
 
+    // Validate the filter glob up front so an invalid pattern fails identically
+    // regardless of whether we run against a server or standalone.
+    let filter = sub_matches
+        .value_of("filter")
+        .map(|f| glob::Pattern::new(f).expect(&format!("Invalid filter pattern {}", f)));
+
+    // Prefer a running server unless --standalone was passed. This mirrors the
+    // behavior of the `analyze` command.
+    let standalone = sub_matches.is_present("standalone");
+    let with_server = sub_matches.is_present("with-server");
+    let project_root = Path::new(root_dir);
+    let socket_path = SocketPath::for_project(project_root);
+    let use_server = if standalone {
+        false
+    } else if with_server {
+        if !socket_path.server_exists() {
+            ServerConnection::connect_or_spawn(project_root, None)
+                .await
+                .inspect_err(|e| {
+                    println!(
+                        "Failed to spawn server: {}. Falling back to standalone analysis.",
+                        e
+                    )
+                })
+                .is_ok()
+        } else {
+            true
+        }
+    } else {
+        socket_path.server_exists()
+    };
+
+    if use_server
+        && handle_via_server(
+            &socket_path,
+            &migration_name,
+            sub_matches.value_of("filter"),
+        )
+        .await
+    {
+        return;
+    }
+
+    handle_standalone(
+        migration_name,
+        filter,
+        all_custom_issues,
+        migration_hooks,
+        config_path,
+        cwd,
+        threads,
+        show_progress,
+        header,
+        root_dir,
+    );
+}
+
+/// Request migration candidates from a running server. Returns `true` if the request
+/// completed (whether or not candidates were found); `false` if we should fall back to
+/// a standalone analysis (e.g. the connection dropped).
+async fn handle_via_server(
+    socket_path: &SocketPath,
+    migration_name: &str,
+    filter: Option<&str>,
+) -> bool {
+    use std::time::Duration;
+
+    let request = Message::GetMigrationCandidates(GetMigrationCandidatesRequest {
+        migration: migration_name.to_string(),
+        filter: filter.map(|f| f.to_string()),
+        block_until_next_analysis: false,
+    });
+
+    loop {
+        let mut client = match ClientSocket::connect(socket_path).await {
+            Ok(c) => c,
+            Err(e) => {
+                println!("Error connecting to server: {}", e);
+                return false;
+            }
+        };
+
+        match client.request(&request).await {
+            Ok(Message::GetMigrationCandidatesResult(result)) => {
+                if !result.analysis_complete {
+                    // Analysis is still running; wait and retry.
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
+
+                if !result.migration_recognized {
+                    println!("Migration {} not recognised", migration_name);
+                    exit(1);
+                }
+
+                tty_println!("\nSymbols to migrate:\n");
+                for candidate in result.candidates {
+                    println!("{}", candidate);
+                }
+                return true;
+            }
+            Ok(Message::Error(err)) => {
+                println!("Server error: {} - {}", err.code as u32, err.message);
+                exit(1);
+            }
+            Ok(_) => {
+                println!("Unexpected response from server");
+                exit(1);
+            }
+            Err(e) => {
+                println!("Error communicating with server: {}", e);
+                return false;
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_standalone(
+    migration_name: String,
+    filter: Option<glob::Pattern>,
+    all_custom_issues: FxHashSet<String>,
+    migration_hooks: Vec<Box<dyn CustomHook>>,
+    config_path: Option<&Path>,
+    cwd: &String,
+    threads: u8,
+    show_progress: bool,
+    header: &str,
+    root_dir: &str,
+) {
     let mut config = config::Config::new(root_dir.to_string(), all_custom_issues);
     config.hooks = migration_hooks
         .into_iter()
@@ -88,10 +230,6 @@ pub fn handle(
     config.allowed_issues = None;
 
     let config = Arc::new(config);
-
-    let filter = sub_matches
-        .value_of("filter")
-        .map(|f| glob::Pattern::new(f).expect(&format!("Invalid filter pattern {}", f)));
 
     let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),

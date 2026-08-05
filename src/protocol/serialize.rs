@@ -758,6 +758,67 @@ impl Deserialize for GetIssuesResponse {
     }
 }
 
+// GetMigrationCandidatesRequest
+
+impl Serialize for GetMigrationCandidatesRequest {
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        write_string(buf, &self.migration);
+        write_option_string(buf, &self.filter);
+        write_bool(buf, self.block_until_next_analysis);
+    }
+}
+
+impl Deserialize for GetMigrationCandidatesRequest {
+    fn deserialize(data: &[u8]) -> Result<(Self, &[u8]), ProtocolError> {
+        let (migration, rest) = read_string(data)?;
+        let (filter, rest) = read_option_string(rest)?;
+        let (block_until_next_analysis, rest) = read_bool(rest)?;
+        Ok((
+            Self {
+                migration,
+                filter,
+                block_until_next_analysis,
+            },
+            rest,
+        ))
+    }
+}
+
+// GetMigrationCandidatesResponse
+
+impl Serialize for GetMigrationCandidatesResponse {
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        write_bool(buf, self.analysis_complete);
+        write_bool(buf, self.migration_recognized);
+        write_u32(buf, self.candidates.len() as u32);
+        for candidate in &self.candidates {
+            write_string(buf, candidate);
+        }
+    }
+}
+
+impl Deserialize for GetMigrationCandidatesResponse {
+    fn deserialize(data: &[u8]) -> Result<(Self, &[u8]), ProtocolError> {
+        let (analysis_complete, rest) = read_bool(data)?;
+        let (migration_recognized, rest) = read_bool(rest)?;
+        let (len, mut rest) = read_u32(rest)?;
+        let mut candidates = Vec::with_capacity(len as usize);
+        for _ in 0..len {
+            let (candidate, r) = read_string(rest)?;
+            candidates.push(candidate);
+            rest = r;
+        }
+        Ok((
+            Self {
+                analysis_complete,
+                migration_recognized,
+                candidates,
+            },
+            rest,
+        ))
+    }
+}
+
 // StatusRequest (empty)
 
 impl Serialize for StatusRequest {
@@ -889,6 +950,7 @@ impl Serialize for Message {
                 }
             }
             Self::GetIssues(req) => req.serialize(buf),
+            Self::GetMigrationCandidates(req) => req.serialize(buf),
             Self::Status(req) => req.serialize(buf),
             Self::Shutdown(req) => req.serialize(buf),
             Self::AnalyzeResult(res) => res.serialize(buf),
@@ -897,6 +959,7 @@ impl Serialize for Message {
             Self::FindReferencesResult(res) => res.serialize(buf),
             Self::FindSymbolReferencesResult(res) => res.serialize(buf),
             Self::GetIssuesResult(res) => res.serialize(buf),
+            Self::GetMigrationCandidatesResult(res) => res.serialize(buf),
             Self::StatusResult(res) => res.serialize(buf),
             Self::Ack(res) => res.serialize(buf),
             Self::Error(res) => res.serialize(buf),
@@ -949,6 +1012,10 @@ impl Message {
                 let (req, _) = GetIssuesRequest::deserialize(data)?;
                 Self::GetIssues(req)
             }
+            MessageType::GetMigrationCandidatesRequest => {
+                let (req, _) = GetMigrationCandidatesRequest::deserialize(data)?;
+                Self::GetMigrationCandidates(req)
+            }
             MessageType::StatusRequest => {
                 let (req, _) = StatusRequest::deserialize(data)?;
                 Self::Status(req)
@@ -980,6 +1047,10 @@ impl Message {
             MessageType::GetIssuesResponse => {
                 let (res, _) = GetIssuesResponse::deserialize(data)?;
                 Self::GetIssuesResult(res)
+            }
+            MessageType::GetMigrationCandidatesResponse => {
+                let (res, _) = GetMigrationCandidatesResponse::deserialize(data)?;
+                Self::GetMigrationCandidatesResult(res)
             }
             MessageType::StatusResponse => {
                 let (res, _) = StatusResponse::deserialize(data)?;
@@ -1166,6 +1237,52 @@ mod tests {
         let encoded = encode_message(&msg);
         let (decoded, _) = decode_message(&encoded).unwrap();
         assert!(matches!(decoded, Message::Status(_)));
+    }
+
+    #[test]
+    fn test_roundtrip_migration_candidates_request() {
+        let req = GetMigrationCandidatesRequest {
+            migration: "my-migration".to_string(),
+            filter: Some("src/**/*.hack".to_string()),
+            block_until_next_analysis: true,
+        };
+
+        let msg = Message::GetMigrationCandidates(req.clone());
+        let encoded = encode_message(&msg);
+        let (decoded, rest) = decode_message(&encoded).unwrap();
+        assert!(rest.is_empty());
+
+        if let Message::GetMigrationCandidates(decoded_req) = decoded {
+            assert_eq!(decoded_req.migration, req.migration);
+            assert_eq!(decoded_req.filter, req.filter);
+            assert_eq!(
+                decoded_req.block_until_next_analysis,
+                req.block_until_next_analysis
+            );
+        } else {
+            panic!("Expected GetMigrationCandidatesRequest");
+        }
+    }
+
+    #[test]
+    fn test_roundtrip_migration_candidates_response() {
+        let res = GetMigrationCandidatesResponse {
+            analysis_complete: true,
+            migration_recognized: true,
+            candidates: vec!["Foo::bar".to_string(), "Baz".to_string()],
+        };
+
+        let msg = Message::GetMigrationCandidatesResult(res.clone());
+        let encoded = encode_message(&msg);
+        let (decoded, _) = decode_message(&encoded).unwrap();
+
+        if let Message::GetMigrationCandidatesResult(decoded_res) = decoded {
+            assert_eq!(decoded_res.analysis_complete, res.analysis_complete);
+            assert_eq!(decoded_res.migration_recognized, res.migration_recognized);
+            assert_eq!(decoded_res.candidates, res.candidates);
+        } else {
+            panic!("Expected GetMigrationCandidatesResponse");
+        }
     }
 
     #[test]

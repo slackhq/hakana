@@ -1205,6 +1205,7 @@ dependencies = [
 name = "hakana-server"
 version = "0.1.0"
 dependencies = [
+ "glob",
  "hakana-analyzer",
  "hakana-code-info",
  "hakana-orchestrator",
