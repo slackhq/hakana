@@ -465,9 +465,7 @@ mod tests {
     use hakana_analyzer::custom_hook::{CustomHook, InternalHook};
     use hakana_code_info::analysis_result::AnalysisResult;
     use hakana_code_info::codebase_info::CodebaseInfo;
-    use hakana_protocol::{
-        ClientSocket, GetIssuesRequest, GetMigrationCandidatesRequest, Message,
-    };
+    use hakana_protocol::{ClientSocket, GetIssuesRequest, GetMigrationCandidatesRequest, Message};
     use hakana_str::Interner;
     use std::{
         path::PathBuf,
@@ -628,13 +626,6 @@ mod tests {
             chaos_monkey: None,
         };
 
-        let mut watchman_handle = watchman::start_subscription(
-            PathBuf::from(&server_config.root_dir),
-            vec![],
-            server_config.config_path.as_ref().map(&PathBuf::from),
-        )
-        .await;
-
         let mut server = Server::new(server_config).expect("failed to create server");
 
         let socket_path = server.socket_path().clone();
@@ -642,12 +633,6 @@ mod tests {
 
         let server_task =
             tokio::spawn(async move { server.run().await.expect("failed to run server") });
-
-        while let Some(event) = watchman_handle.recv().await {
-            if matches!(event, WatchmanEvent::FileChanges(..)) {
-                break;
-            }
-        }
 
         let mut client = ClientSocket::connect(&socket_path)
             .await
