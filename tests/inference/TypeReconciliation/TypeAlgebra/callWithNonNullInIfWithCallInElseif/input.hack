@@ -5,7 +5,7 @@ function sayHello(?int $a, ?int $b): void {
 
     if ($a !== null) {
         takesInt($a);
-    } else if (rand(0, 1)) {
+    } else if (rand(0, 1) !== 0) {
         takesInt($b);
     }
 }

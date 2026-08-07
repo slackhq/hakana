@@ -1,3 +1,3 @@
 function foo(int $a, int $b): bool {
-    return $a || $b;
+    return $a !== 0 || $b !== 0;
 }

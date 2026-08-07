@@ -1,6 +1,6 @@
 abstract class A {
   public function getStr(): ?string {
-    return rand(0, 1) ? "a" : null;
+    return rand(0, 1) !== 0 ? "a" : null;
   }
 }
 

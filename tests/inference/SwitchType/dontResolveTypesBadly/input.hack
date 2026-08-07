@@ -12,6 +12,6 @@ switch (rand(0,1)) {
 
 final class A {
     public function maybeReturnsDT(): ?\DateTimeInterface {
-        return rand(0,1) ? new \DateTime("now") : null;
+        return rand(0,1) !== 0 ? new \DateTime("now") : null;
     }
 }

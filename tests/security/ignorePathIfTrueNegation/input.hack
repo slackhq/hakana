@@ -1,6 +1,6 @@
 <<Hakana\SecurityAnalysis\IgnorePathIfTrue()>>
 function is_dev(): bool {
-    return rand(0, 1) ? true : false;
+    return rand(0, 1) !== 0 ? true : false;
 }
 
 function foo(): void {

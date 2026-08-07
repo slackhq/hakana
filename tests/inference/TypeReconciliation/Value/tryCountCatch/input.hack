@@ -1,7 +1,7 @@
 $errors = vec[];
 
 try {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         throw new Exception("bad");
     }
 } catch (Exception $e) {

@@ -7,7 +7,7 @@ abstract class A {
 final class B extends A {
     <<__Override>>
     public static function aa(): ?string {
-        return rand(0, 1) ? "bar" : null;
+        return rand(0, 1) !== 0 ? "bar" : null;
     }
 }
 

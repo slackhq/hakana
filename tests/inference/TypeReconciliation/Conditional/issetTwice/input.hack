@@ -5,8 +5,8 @@ final class B {
 }
 
 function foo(dict<int, B> $p, int $id) : void {
-    if ((isset($p[$id]) && rand(0, 1))
-        || (!isset($p[$id]) && rand(0, 1))
+    if ((isset($p[$id]) && rand(0, 1) !== 0)
+        || (!isset($p[$id]) && rand(0, 1) !== 0)
     ) {
         isset($p[$id]) ? $p[$id] : new B();
         isset($p[$id]) ? $p[$id]->foo() : "bar";

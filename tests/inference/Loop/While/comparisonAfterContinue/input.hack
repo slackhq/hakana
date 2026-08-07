@@ -1,6 +1,6 @@
 $foo = null;
 while (rand(0, 1)) {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         $foo = 1;
         continue;
     }

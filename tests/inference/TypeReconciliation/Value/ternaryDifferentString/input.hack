@@ -1,10 +1,10 @@
-$foo = rand(0, 1) ? "bar" : "bat";
+$foo = rand(0, 1) !== 0 ? "bar" : "bat";
 
 if ($foo === "bar") {}
 
 if ($foo !== "bar") {}
 
-if (rand(0, 1)) {
+if (rand(0, 1) !== 0) {
     $foo = "baz";
 }
 

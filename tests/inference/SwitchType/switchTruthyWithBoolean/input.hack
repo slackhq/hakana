@@ -1,4 +1,4 @@
-$a = rand(0,1) ? new \DateTime() : null;
+$a = rand(0,1) !== 0 ? new \DateTime() : null;
 
 /* HAKANA_IGNORE[NonExhaustiveSwitchStatement] */
 switch(true) {
