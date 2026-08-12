@@ -56,7 +56,7 @@ jobs:
 
       # Setup Node.js after dependencies are initialized
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
