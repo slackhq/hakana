@@ -2,8 +2,16 @@ name: Build and Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ]
-    paths: ['src/**', 'third-party/**', 'Cargo.toml', 'build.rs', 'init.sh', '.github/workflows/pages.yml']
+    branches: ["main"]
+    paths:
+      [
+        "src/**",
+        "third-party/**",
+        "Cargo.toml",
+        "build.rs",
+        "init.sh",
+        ".github/workflows/pages.yml",
+      ]
   workflow_dispatch:
 
 # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
@@ -37,7 +45,7 @@ jobs:
           # Initialize and update submodules
           git submodule init
           git submodule update
-          
+
           # Apply patch if not already applied
           cd third-party/hhvm
           if ! git diff --quiet; then
@@ -50,7 +58,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '18'
+          node-version: "20"
 
       # Setup Rust nightly toolchain for WebAssembly build
       - name: Setup Rust
@@ -74,8 +82,8 @@ jobs:
         working-directory: src/js_interop/www
         run: |
           # Install npm dependencies
-          npm install
-          
+          npm ci
+
           # Build the web assets (will use WebAssembly from ../pkg)
           npm run build
 
@@ -99,4 +107,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5 
+        uses: actions/deploy-pages@v5
