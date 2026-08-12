@@ -228,7 +228,8 @@ pub async fn init(
                 threads,
                 show_progress,
                 header,
-            );
+            )
+            .await;
         }
         Some(("codegen", sub_matches)) => {
             commands::codegen::handle(
@@ -299,7 +300,15 @@ pub async fn init(
             commands::lint::handle(sub_matches, &root_dir, &mut had_error, custom_linters);
         }
         Some(("server", sub_matches)) => {
-            commands::server::handle(sub_matches, &root_dir, threads, header, analysis_hooks).await;
+            commands::server::handle(
+                sub_matches,
+                &root_dir,
+                threads,
+                header,
+                analysis_hooks,
+                migration_hooks,
+            )
+            .await;
         }
         Some(("cyclomatic-complexity", sub_matches)) => {
             commands::cyclomatic_complexity::handle(

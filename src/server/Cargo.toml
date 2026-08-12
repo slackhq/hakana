@@ -9,6 +9,7 @@ hakana-orchestrator = { path = "../orchestrator" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }
+glob = "0.3"
 log = "0.4"
 rustc-hash = "1.1.0"
 watchman_client = "0.9"

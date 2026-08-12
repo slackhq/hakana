@@ -1,15 +1,18 @@
 //! Request handlers for the hakana server.
 
 use crate::{ServerConfig, ServerState};
+use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_orchestrator::SuccessfulScanData;
 use hakana_orchestrator::file::FileStatus;
 use hakana_protocol::GetIssuesResponse;
 use hakana_protocol::{
     AckResponse, FindReferencesRequest, FindReferencesResponse, FindSymbolReferencesRequest,
-    FindSymbolReferencesResponse, GotoDefinitionByNameRequest, GotoDefinitionRequest,
-    GotoDefinitionResponse, Message, ProtocolIssue, ReferenceLocation, StatusResponse,
+    FindSymbolReferencesResponse, GetMigrationCandidatesResponse, GotoDefinitionByNameRequest,
+    GotoDefinitionRequest, GotoDefinitionResponse, Message, ProtocolIssue, ReferenceLocation,
+    StatusResponse,
 };
+use hakana_str::StrId;
 use log::info;
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, Mutex};
@@ -379,6 +382,120 @@ impl RequestHandler {
             files_analyzed: state.files_analyzed(),
             total_files_to_analyze: state.total_files_to_analyze(),
             phase: "Complete".to_string(),
+        })
+    }
+
+    /// Compute the migration candidates for the requested migration against the warm
+    /// analysis result.
+    ///
+    /// Note: the server's warm analysis always runs in normal mode (`in_migration = false`),
+    /// whereas the standalone `migration-candidates` path runs with `in_migration = true`.
+    /// Because that flag changes some analysis behavior, server-computed candidates may differ
+    /// from the standalone result; use `--standalone` to get the exact migration-mode result.
+    pub async fn handle_get_migration_candidates(
+        &self,
+        analysis_rx: &mut tokio::sync::broadcast::Receiver<
+            Result<Arc<(AnalysisResult, SuccessfulScanData)>, String>,
+        >,
+        req: hakana_protocol::GetMigrationCandidatesRequest,
+    ) -> Message {
+        let hooks: Vec<Arc<dyn CustomHook>> = self
+            .config
+            .migration_hooks
+            .iter()
+            .filter(|h| h.get_migration_name() == Some(req.migration.as_str()))
+            .cloned()
+            .collect();
+
+        if hooks.is_empty() {
+            return Message::GetMigrationCandidatesResult(GetMigrationCandidatesResponse {
+                analysis_complete: true,
+                migration_recognized: false,
+                candidates: vec![],
+            });
+        }
+
+        if !req.block_until_next_analysis {
+            let analysis_data = {
+                let state = self.state.lock().unwrap();
+                state
+                    .analysis_data
+                    .as_ref()
+                    .filter(|_| !state.is_analysis_in_progress())
+                    .cloned()
+            };
+
+            if let Some(analysis_data) = analysis_data {
+                return self.create_migration_candidates_response(&req, &hooks, &analysis_data);
+            }
+        }
+
+        if let Ok(result) = analysis_rx.recv().await
+            && let Ok(result) = result.as_ref()
+        {
+            return self.create_migration_candidates_response(&req, &hooks, result);
+        }
+
+        Message::GetMigrationCandidatesResult(GetMigrationCandidatesResponse {
+            analysis_complete: false,
+            migration_recognized: true,
+            candidates: vec![],
+        })
+    }
+
+    fn create_migration_candidates_response(
+        &self,
+        req: &hakana_protocol::GetMigrationCandidatesRequest,
+        hooks: &[Arc<dyn CustomHook>],
+        result: &Arc<(AnalysisResult, SuccessfulScanData)>,
+    ) -> Message {
+        let (analysis_result, scan_data) = result.as_ref();
+
+        let filter = req
+            .filter
+            .as_ref()
+            .and_then(|f| glob::Pattern::new(f).ok());
+
+        let mut candidates = Vec::new();
+        for hook in hooks {
+            for candidate in
+                hook.get_candidates(&scan_data.codebase, &scan_data.interner, analysis_result)
+            {
+                let (classlike_id, member_id) = if let Some((classlike_name, member_name)) =
+                    candidate.split_once("::")
+                {
+                    (
+                        scan_data.interner.get(classlike_name),
+                        scan_data.interner.get(member_name),
+                    )
+                } else {
+                    (scan_data.interner.get(&candidate), Some(StrId::EMPTY))
+                };
+
+                // If a filter expression is given, only yield candidates that match it.
+                if let Some(classlike_id) = classlike_id
+                    && let Some(member_id) = member_id
+                    && let Some(location) =
+                        scan_data.codebase.get_symbol_pos(&classlike_id, &member_id)
+                {
+                    let relative_definition_path = location
+                        .file_path
+                        .get_relative_path(&scan_data.interner, &self.config.root_dir);
+
+                    if filter
+                        .as_ref()
+                        .is_none_or(|f| f.matches(&relative_definition_path))
+                    {
+                        candidates.push(candidate);
+                    }
+                }
+            }
+        }
+
+        Message::GetMigrationCandidatesResult(GetMigrationCandidatesResponse {
+            analysis_complete: true,
+            migration_recognized: true,
+            candidates,
         })
     }
 
