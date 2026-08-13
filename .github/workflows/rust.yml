@@ -87,4 +87,4 @@ jobs:
       - name: Init repository
         run: ./init.sh
       - name: Run clippy
-        run: cargo clippy
+        run: cargo clippy --locked
