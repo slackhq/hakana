@@ -71,7 +71,7 @@ pub async fn handle(
     // regardless of whether we run against a server or standalone.
     let filter = sub_matches
         .value_of("filter")
-        .map(|f| glob::Pattern::new(f).expect(&format!("Invalid filter pattern {}", f)));
+        .map(|f| glob::Pattern::new(f).unwrap_or_else(|_| panic!("Invalid filter pattern {}", f)));
 
     // Prefer a running server unless --standalone was passed. This mirrors the
     // behavior of the `analyze` command.
@@ -221,12 +221,11 @@ fn handle_standalone(
 
     let mut interner = Interner::default();
 
-    if config_path.exists() {
-        if let Err(error) = config.update_from_file(cwd, config_path, &mut interner) {
+    if config_path.exists()
+        && let Err(error) = config.update_from_file(cwd, config_path, &mut interner) {
             println!("Invalid config: {}", error);
             exit(1);
         }
-    }
     config.allowed_issues = None;
 
     let config = Arc::new(config);

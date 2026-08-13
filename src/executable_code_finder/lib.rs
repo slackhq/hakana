@@ -29,7 +29,7 @@ pub fn scan_files(
     config: &Arc<Config>,
     threads: u8,
     show_progress: bool,
-) -> Result<Vec<ExecutableLines>, ()> {
+) -> Result<Vec<ExecutableLines>, std::convert::Infallible> {
     debug!("{:#?}", scan_dirs);
 
     let mut files_to_scan = vec![];
@@ -404,7 +404,7 @@ fn to_ranges(lines: BTreeSet<u64>) -> Vec<String> {
 
 // Create a single range where the first executable line number is `start`
 // and `i` is the index just *after* that line. Update `i` as we go.
-fn make_range(sorted: &Vec<u64>, start: &u64, i: &mut usize) -> String {
+fn make_range(sorted: &[u64], start: &u64, i: &mut usize) -> String {
     let mut end = start;
 
     while let Some(curr) = sorted.get(*i) {

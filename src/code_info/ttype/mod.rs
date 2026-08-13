@@ -270,7 +270,7 @@ fn deep_generalize_atomic(atomic: &TAtomic, codebase: &CodebaseInfo) -> TAtomic 
             // container element — flatten known items into the value param
             let mut value_param = (*vec.type_param).clone();
             if let Some(known_items) = &vec.known_items {
-                for (_, (_, item_type)) in known_items {
+                for (_, item_type) in known_items.values() {
                     value_param = combine_union_types(&value_param, item_type, codebase, false);
                 }
             }

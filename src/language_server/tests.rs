@@ -116,10 +116,10 @@ impl LanguageServer {
             let response = result?;
 
             // Check if this is the response we're waiting for
-            if let Some(id) = response.get("id") {
-                if id.as_i64() == Some(expected_id) {
-                    return Ok(response);
-                }
+            if let Some(id) = response.get("id")
+                && id.as_i64() == Some(expected_id)
+            {
+                return Ok(response);
             }
 
             // Otherwise continue reading (could be a notification or other response)

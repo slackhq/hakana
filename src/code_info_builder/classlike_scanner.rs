@@ -490,8 +490,8 @@ pub(crate) fn scan(
     let uses_hash = get_uses_hash(all_uses.symbol_uses.get(class_name).unwrap_or(&vec![]));
 
     let mut signature_hash = xxhash_rust::xxh3::xxh3_64(
-        file_source.file_contents[storage.meta_start.start_offset as usize..signature_end as usize]
-            .as_bytes(),
+        &file_source.file_contents.as_bytes()
+            [storage.meta_start.start_offset as usize..signature_end as usize],
     )
     .wrapping_add(uses_hash);
 
@@ -505,16 +505,15 @@ pub(crate) fn scan(
 
                 let attr_uses_hash = get_uses_hash(
                     all_uses
-                        .symbol_member_uses
+                    .symbol_member_uses
                         .get(&(*class_name, attribute_id))
                         .unwrap_or(&vec![]),
                 );
 
                 signature_hash = signature_hash
                     .wrapping_add(xxhash_rust::xxh3::xxh3_64(
-                        file_source.file_contents
-                            [attr_name_pos.start_offset()..attr_name_pos.end_offset()]
-                            .as_bytes(),
+                        &file_source.file_contents.as_bytes()
+                            [attr_name_pos.start_offset()..attr_name_pos.end_offset()],
                     ))
                     .wrapping_add(attr_uses_hash);
             }
@@ -893,8 +892,8 @@ fn visit_xhp_attribute(
         start_colum: stmt_pos.start_column,
         end_column: stmt_pos.end_column,
         signature_hash: xxhash_rust::xxh3::xxh3_64(
-            file_source.file_contents[stmt_pos.start_offset as usize..stmt_pos.end_offset as usize]
-                .as_bytes(),
+            &file_source.file_contents.as_bytes()
+                [stmt_pos.start_offset as usize..stmt_pos.end_offset as usize],
         )
         .wrapping_add(uses_hash),
         body_hash: None,
@@ -1154,8 +1153,8 @@ fn visit_property_declaration(
         start_colum: def_pos.start_column,
         end_column: def_pos.end_column,
         signature_hash: xxhash_rust::xxh3::xxh3_64(
-            file_source.file_contents[def_pos.start_offset as usize..def_pos.end_offset as usize]
-                .as_bytes(),
+            &file_source.file_contents.as_bytes()
+                [def_pos.start_offset as usize..def_pos.end_offset as usize],
         )
         .wrapping_add(uses_hash),
         body_hash: None,

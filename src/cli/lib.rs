@@ -106,10 +106,7 @@ pub async fn init(
             false
         }
         Some((_, sub_matches)) => {
-            if sub_matches.is_present("debug") {
-                hakana_logger::init_stdout_logger(LevelFilter::Debug);
-                false
-            } else if sub_matches.is_present("show-timing") {
+            if sub_matches.is_present("debug") || sub_matches.is_present("show-timing") {
                 hakana_logger::init_stdout_logger(LevelFilter::Debug);
                 false
             } else if stdout_is_tty {

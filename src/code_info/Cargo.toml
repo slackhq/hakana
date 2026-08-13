@@ -20,4 +20,5 @@ derivative = "2.2.0"
 compact_str = { version = "0.9.0", features = ["serde"] }
 
 [lints.clippy]
+too_many_arguments = "allow"
 type_complexity = "allow"

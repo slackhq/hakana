@@ -88,12 +88,11 @@ pub(crate) fn is_contained_by(
                     ..
                 }) = input_type_part
                 {
-                    *type_params = Some(
-                        extended_params
+                        *type_params = Some(
+                            extended_params
                             .values()
-                            .cloned()
                             .map(|v| {
-                                let mut v = (*v).clone();
+                                let mut v = (**v).clone();
                                 type_expander::expand_union(
                                     codebase,
                                     &None,

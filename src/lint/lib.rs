@@ -64,11 +64,12 @@ pub fn parse_file<'a>(
     PositionedSyntax<'a>,
     Vec<parser_core_types::syntax_error::SyntaxError>,
 ) {
-    let mut env = parser_core_types::parser_env::ParserEnv::default();
-    // Enable XHP support
-    env.enable_xhp_class_modifier = true;
-    env.disable_xhp_element_mangling = false;
-    env.disable_xhp_children_declarations = false;
+    let env = parser_core_types::parser_env::ParserEnv {
+        enable_xhp_class_modifier: true,
+        disable_xhp_element_mangling: false,
+        disable_xhp_children_declarations: false,
+        ..Default::default()
+    };
 
     let (root, errors, _state) = positioned_by_ref_parser::parse_script(arena, source, env);
     (root, errors)

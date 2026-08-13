@@ -619,14 +619,12 @@ pub(crate) fn check_arguments_match(
         // so no further special casing is needed here.
         if function_param.is_splat {
             let mut arg_types = BTreeMap::new();
-            let mut i = 0;
-            for arg in args.iter().skip(*argument_offset) {
+            for (i, arg) in args.iter().skip(*argument_offset).enumerate() {
                 let arg_value_type = analysis_data
                     .get_expr_type(arg.to_expr_ref().pos())
                     .cloned()
                     .unwrap_or_else(&get_mixed_any);
-                arg_types.insert(i as usize, (false, arg_value_type));
-                i += 1;
+                arg_types.insert(i, (false, arg_value_type));
             }
             arg_value_type = TUnion::new(vec![TAtomic::TVec(TVec {
                 type_param: Box::new(get_nothing()),
