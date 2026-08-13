@@ -35,6 +35,8 @@ trait ImplicitBooleanConversionMigration: Send + Sync {
         expr: &aast::Expr<(), ()>,
         pos: &Pos,
     );
+
+    fn kind(&self) -> IssueKind;
 }
 
 struct NullableObjectMigration {}
@@ -78,6 +80,10 @@ impl ImplicitBooleanConversionMigration for NullableObjectMigration {
         pos: &Pos,
     ) {
         analysis_data.insert_at(pos.end_offset() as u32, " is null".to_string());
+    }
+
+    fn kind(&self) -> IssueKind {
+        IssueKind::NonBoolCondition
     }
 }
 
@@ -142,6 +148,10 @@ impl ImplicitBooleanConversionMigration for IntMigration {
             analysis_data.insert_at(pos.end_offset() as u32, " === 0".to_string());
         }
     }
+
+    fn kind(&self) -> IssueKind {
+        IssueKind::NonBoolNumericCondition
+    }
 }
 
 pub(crate) fn check_implicit_boolean_conversion(
@@ -181,7 +191,7 @@ pub(crate) fn check_implicit_boolean_conversion(
             && let Some(migration) = TRUTHINESS_MIGRATIONS.iter().find(|m| m.matches(&expr_type))
         {
             let issue = Issue::new(
-                IssueKind::NonBoolCondition,
+                migration.kind(),
                 "Only bool values can be used as a condition".to_string(),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,

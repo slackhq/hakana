@@ -9,7 +9,7 @@ function maybe_object(bool $test): ?C {
 }
 
 function main(bool $input, int $x, string $foo): int {
-    if ($x !== 0 && $input && maybe_object($input) is nonnull && some_cond($x)) {
+    if ($x && $input && maybe_object($input) is nonnull && some_cond($x)) {
         echo "test";
     }
 
@@ -29,7 +29,7 @@ function main(bool $input, int $x, string $foo): int {
         echo "test";
     }
 
-    if ($x === 0) {
+    if (!$x) {
         echo "test";
     }
 
@@ -39,18 +39,6 @@ function main(bool $input, int $x, string $foo): int {
     }
 
     if ($bar) {
-        echo "test";
-    }
-
-    if ((int)preg_match('/\s/', $foo) > 0) {
-        echo "test";
-    }
-
-    if ((int)preg_match('/\s/', $foo) > 0) {
-        echo "test";
-    }
-
-    if ($input || (int)preg_match('/\s/', $foo) === 0) {
         echo "test";
     }
 
