@@ -68,3 +68,23 @@ jobs:
 
           # run Rust unit tests
           cargo test --locked --release --workspace
+  clippy:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: "true"
+
+      # Step to install OCaml compiler and dependencies
+      - name: Install OCaml
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ocaml opam
+          opam init --disable-sandboxing -y
+          eval $(opam env)
+
+      - name: Init repository
+        run: ./init.sh
+      - name: Run clippy
+        run: cargo clippy

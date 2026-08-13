@@ -939,7 +939,7 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
         storage
             .template_extended_params
             .entry(parent_storage.name)
-            .or_insert_with(IndexMap::new);
+            .or_default();
 
         if let Some(parent_offsets) = storage.template_extended_offsets.get(&parent_storage.name) {
             for (i, extended_type) in parent_offsets.iter().enumerate() {

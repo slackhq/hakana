@@ -1,7 +1,6 @@
 /// A simple PCRE pattern parser that extracts capture group information.
 /// This only parses enough to identify capture groups - it does not validate
 /// or compile the regex.
-
 /// Represents a capture group found in a PCRE pattern.
 pub struct CaptureGroup {
     /// The index of this capture group (0-based).

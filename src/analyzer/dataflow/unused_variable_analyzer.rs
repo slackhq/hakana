@@ -208,10 +208,7 @@ pub fn check_variables_redefined_in_loop(
 
                 let forward_edges = forward_edges
                     .iter()
-                    .filter(|(e, _)| match e {
-                        DataFlowNodeId::Var(..) => true,
-                        _ => false,
-                    })
+                    .filter(|(e, _)| matches!(e, DataFlowNodeId::Var(..)))
                     .collect::<Vec<_>>();
 
                 if forward_edges.len() == 1 {

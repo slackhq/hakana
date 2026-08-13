@@ -596,9 +596,7 @@ fn parse_codeowners_files(root_dir: &str) -> (Vec<glob::Pattern>, FxHashSet<Stri
         }
 
         if pattern.contains('*') || pattern.contains('?') || pattern.contains('[') {
-            let glob_pattern = if pattern.starts_with('/') {
-                pattern.to_string()
-            } else if pattern.starts_with("**/") {
+            let glob_pattern = if pattern.starts_with('/') || pattern.starts_with("**/") {
                 pattern.to_string()
             } else {
                 format!("**/{}", pattern)

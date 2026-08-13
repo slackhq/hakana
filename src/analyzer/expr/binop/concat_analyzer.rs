@@ -153,7 +153,6 @@ pub(crate) fn analyze_concat_nodes(
                         _ => {
                             if !can_be_coerced_to_string(
                                 statements_analyzer,
-                                context,
                                 analysis_data,
                                 concat_node,
                                 t,
@@ -255,7 +254,6 @@ pub(crate) fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(),
 
 fn can_be_coerced_to_string(
     statements_analyzer: &StatementsAnalyzer<'_>,
-    context: &BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     expr: &aast::Expr<(), ()>,
     t: &TAtomic,
@@ -304,7 +302,7 @@ fn can_be_coerced_to_string(
             ..
         }
         | TAtomic::TGenericParam(TGenericParam { as_type, .. }) => as_type.types.iter().all(|t| {
-            can_be_coerced_to_string(statements_analyzer, context, analysis_data, expr, t, false)
+            can_be_coerced_to_string(statements_analyzer, analysis_data, expr, t, false)
         }),
 
         _ => false,

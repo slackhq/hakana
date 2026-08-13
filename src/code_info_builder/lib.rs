@@ -1095,7 +1095,7 @@ fn get_function_hashes(
     }
 
     let mut signature_hash = xxhash_rust::xxh3::xxh3_64(
-        file_contents[def_location.start_offset as usize..signature_end].as_bytes(),
+        &file_contents.as_bytes()[def_location.start_offset as usize..signature_end],
     );
 
     for issue in suppressed_issues {
@@ -1112,7 +1112,7 @@ fn get_function_hashes(
     (
         signature_hash,
         xxhash_rust::xxh3::xxh3_64(
-            file_contents[signature_end..def_location.end_offset as usize].as_bytes(),
+            &file_contents.as_bytes()[signature_end..def_location.end_offset as usize],
         )
         .wrapping_add(get_uses_hash(uses)),
     )

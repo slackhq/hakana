@@ -433,7 +433,10 @@ impl<'a> UnusedUseClauseVisitor<'a> {
                     UseKind::Default => "",
                 };
 
-                let prefix = use_stmt.group_prefix.as_ref().unwrap();
+                let prefix = use_stmt
+                    .group_prefix
+                    .as_ref()
+                    .unwrap_or_else(|| unreachable!("group prefix checked above"));
                 let clause_path = &remaining_clause.full_clause_path;
 
                 // Build the full qualified name by combining prefix and clause path
@@ -527,12 +530,12 @@ impl<'a> UnusedUseClauseVisitor<'a> {
             if has_trailing_comma {
                 // Find the comma position and consume it
                 let mut comma_pos = None;
-                for i in last_unused.end_offset..source_bytes.len() {
-                    if source_bytes[i] == b',' {
+                for (i, byte) in source_bytes.iter().enumerate().skip(last_unused.end_offset) {
+                    if *byte == b',' {
                         comma_pos = Some(i);
                         break;
                     }
-                    if !source_bytes[i].is_ascii_whitespace() {
+                    if !byte.is_ascii_whitespace() {
                         break;
                     }
                 }
@@ -556,12 +559,12 @@ impl<'a> UnusedUseClauseVisitor<'a> {
                     // Check if followed by newline or another item
                     let has_newline_after = {
                         let mut has_nl = false;
-                        for i in end..source_bytes.len() {
-                            if source_bytes[i] == b'\n' {
+                        for byte in source_bytes.iter().skip(end) {
+                            if *byte == b'\n' {
                                 has_nl = true;
                                 break;
                             }
-                            if !source_bytes[i].is_ascii_whitespace() {
+                            if !byte.is_ascii_whitespace() {
                                 break;
                             }
                         }
@@ -645,12 +648,12 @@ impl<'a> UnusedUseClauseVisitor<'a> {
                     // Check what comes after the clause
                     let has_newline_after = {
                         let mut has_nl = false;
-                        for i in end..source_bytes.len() {
-                            if source_bytes[i] == b'\n' {
+                        for byte in source_bytes.iter().skip(end) {
+                            if *byte == b'\n' {
                                 has_nl = true;
                                 break;
                             }
-                            if !source_bytes[i].is_ascii_whitespace() {
+                            if !byte.is_ascii_whitespace() {
                                 break;
                             }
                         }
@@ -779,7 +782,7 @@ fn extract_name_token(node: &PositionedSyntax, ctx: &LintContext) -> Option<Stri
 /// - ":foo:bar" -> namespace: Some("foo"), class: Some("bar")
 /// - ":foo" -> namespace: None, class: Some("foo")
 /// - ":some_namespace:button" -> namespace: Some("some_namespace"), class: Some("button")
-/// Returns (namespace_part, class_part)
+///   Returns (namespace_part, class_part)
 fn extract_xhp_name_parts(xhp_name: &str) -> (Option<String>, Option<String>) {
     // Remove leading colon if present
     let name = xhp_name.strip_prefix(':').unwrap_or(xhp_name);

@@ -84,7 +84,7 @@ async fn run_subscription(
     tx: &mpsc::Sender<WatchmanEvent>,
     startup_tx: &mut Option<oneshot::Sender<bool>>,
     last_clock: &mut Option<Clock>,
-    ignore_files: &Vec<String>,
+    ignore_files: &[String],
     config_path: &Option<PathBuf>,
 ) -> Result<(), Box<dyn Error>> {
     log::info!("Connecting to watchman...");

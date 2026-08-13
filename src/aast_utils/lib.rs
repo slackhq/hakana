@@ -19,19 +19,18 @@ use std::sync::Arc;
 pub mod name_context;
 mod naming_visitor;
 
+type AastParseResult = (
+    aast::Program<(), ()>,
+    ScouredComments,
+    String,
+    Vec<ParserError>,
+);
+
 pub fn get_aast_for_path_and_contents(
     file_path: FilePath,
     file_path_str: &str,
     file_contents: String,
-) -> Result<
-    (
-        aast::Program<(), ()>,
-        ScouredComments,
-        String,
-        Vec<ParserError>,
-    ),
-    ParserError,
-> {
+) -> Result<AastParseResult, ParserError> {
     let relative_path = Arc::new(RelativePath::make(
         Prefix::Root,
         PathBuf::from(&file_path_str),

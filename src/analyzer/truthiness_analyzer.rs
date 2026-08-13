@@ -188,7 +188,7 @@ pub(crate) fn check_implicit_boolean_conversion(
         if !analysis_data
             .insertions
             .contains_key(&(pos.end_offset() as u32))
-            && let Some(migration) = TRUTHINESS_MIGRATIONS.iter().find(|m| m.matches(&expr_type))
+            && let Some(migration) = TRUTHINESS_MIGRATIONS.iter().find(|m| m.matches(expr_type))
         {
             let issue = Issue::new(
                 migration.kind(),

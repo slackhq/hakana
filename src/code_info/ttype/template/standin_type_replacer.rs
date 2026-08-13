@@ -35,7 +35,7 @@ pub struct StandinOpts {
     pub appearance_depth: usize,
 }
 
-impl<'a> Default for StandinOpts {
+impl Default for StandinOpts {
     fn default() -> Self {
         Self {
             calling_class: None,
@@ -319,7 +319,7 @@ fn handle_atomic_standin(
     atomic_types
 }
 
-fn replace_atomic<'a>(
+fn replace_atomic(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
@@ -810,7 +810,7 @@ fn replace_atomic<'a>(
     atomic_type.clone()
 }
 
-fn handle_template_param_standin<'a>(
+fn handle_template_param_standin(
     atomic_type: &TAtomic,
     normalized_key: &String,
     template_type: &TUnion,
@@ -1086,7 +1086,7 @@ fn insert_bound_type(
         });
 }
 
-fn handle_template_param_class_standin<'a>(
+fn handle_template_param_class_standin(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
@@ -1303,7 +1303,7 @@ fn handle_template_param_class_standin<'a>(
     }
 }
 
-fn handle_template_param_type_standin<'a>(
+fn handle_template_param_type_standin(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,

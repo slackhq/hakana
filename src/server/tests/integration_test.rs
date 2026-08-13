@@ -44,10 +44,10 @@ impl TestServer {
                     Ok(mut client) => {
                         let request = Message::Status(StatusRequest);
                         let x = client.request(&request).await;
-                        if let Ok(Message::StatusResult(status)) = x {
-                            if status.ready {
-                                return Ok(());
-                            }
+                        if let Ok(Message::StatusResult(status)) = x
+                            && status.ready
+                        {
+                            return Ok(());
                         }
                     }
                     Err(e) => println!("{:?}", e),

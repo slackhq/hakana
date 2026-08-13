@@ -324,12 +324,11 @@ pub async fn handle(
 
     let mut interner = Interner::default();
 
-    if config_path.exists() {
-        if let Err(error) = config.update_from_file(root_dir, config_path, &mut interner) {
+    if config_path.exists()
+        && let Err(error) = config.update_from_file(root_dir, config_path, &mut interner) {
             println!("Invalid config: {}", error);
             exit(1);
         }
-    }
 
     if !issue_kinds_filter.is_empty() {
         config.allowed_issues = Some(issue_kinds_filter);

@@ -60,12 +60,11 @@ pub fn handle(
 
     let mut interner = Interner::default();
 
-    if config_path.exists() {
-        if let Err(error) = config.update_from_file(cwd, config_path, &mut interner) {
+    if config_path.exists()
+        && let Err(error) = config.update_from_file(cwd, config_path, &mut interner) {
             println!("Invalid config: {}", error);
             std::process::exit(1);
         }
-    }
     config.allowed_issues = None;
 
     let output_file = sub_matches.value_of("output").map(|f| f.to_string());

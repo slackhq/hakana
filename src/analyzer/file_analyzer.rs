@@ -77,8 +77,7 @@ impl<'a> FileAnalyzer<'a> {
             let statements_analyzer =
                 StatementsAnalyzer::new(self, &type_resolution_context, &comments);
 
-            if namespace_declaration.is_some() {
-                let (_, statements) = namespace_declaration.unwrap();
+            if let Some((_, statements)) = namespace_declaration {
 
                 for namespace_statement in statements {
                     def_analyzer::analyze(
