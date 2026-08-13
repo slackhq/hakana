@@ -54,6 +54,14 @@ jobs:
 
       - name: Init repository
         run: ./init.sh
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Build & Run tests
         run: |
           cargo run --locked --release --bin hakana test tests
