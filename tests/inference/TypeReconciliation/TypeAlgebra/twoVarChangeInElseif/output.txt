@@ -1,4 +1,4 @@
-ERROR: NonBoolCondition - input.hack:8:9 - Only bool values can be used as a condition
-ERROR: NonBoolCondition - input.hack:8:17 - Only bool values can be used as a condition
-ERROR: NonBoolCondition - input.hack:11:16 - Only bool values can be used as a condition
-ERROR: NonBoolCondition - input.hack:14:16 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:8:10 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:8:18 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:11:17 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:14:17 - Only bool values can be used as a condition

@@ -1,7 +1,7 @@
 final class E1 extends Exception {}
 
 function dangerous(): void {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         throw new \Exception("bad");
     }
 }

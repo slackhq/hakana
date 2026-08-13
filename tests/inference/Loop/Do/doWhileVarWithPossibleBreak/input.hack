@@ -1,10 +1,10 @@
 $a = false;
 
 do {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         break;
     }
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         $a = true;
         break;
     }

@@ -3,7 +3,7 @@ abstract class B extends A {}
 final class C extends B {}
 
 function bad(A $x) : void {
-    if (($x is C && rand(0, 1)) || rand(0, 1)) {
+    if (($x is C && rand(0, 1) !== 0) || rand(0, 1) !== 0) {
         return;
     }
 

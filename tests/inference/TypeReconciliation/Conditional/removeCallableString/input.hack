@@ -1,4 +1,4 @@
-$s = rand(0,1) ? "strlen" : vec[1];
+$s = rand(0,1) !== 0 ? "strlen" : vec[1];
 if (!is_callable($s)) {
     array_pop(inout $s);
 }

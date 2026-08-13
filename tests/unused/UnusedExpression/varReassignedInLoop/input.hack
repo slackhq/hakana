@@ -4,7 +4,7 @@ function foo(): void {
     while (rand(0, 1)) {
         bar($a);
 
-        if (rand(0, 1)) {
+        if (rand(0, 1) !== 0) {
             // this reassignment is bad
             $a = 'goodbye';
             bar($a);

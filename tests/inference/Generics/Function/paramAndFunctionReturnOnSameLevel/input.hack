@@ -1,5 +1,5 @@
 function foo<T>(T $one, (function():(T, T)) $two): T {
-    if (rand(0, 1)) {
+    if (rand(0, 1) !== 0) {
         return $one;
     }
     return $two()[0];

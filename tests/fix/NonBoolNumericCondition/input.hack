@@ -17,14 +17,6 @@ function main(bool $input, int $x, string $foo): int {
         echo "test";
     }
 
-    if (maybe_object($input)) {
-        echo "test";
-    }
-
-    if (!maybe_object($input)) {
-        echo "test";
-    }
-
     if ($input && !(maybe_object($input) || some_cond($x))) {
         echo "test";
     }
@@ -39,6 +31,18 @@ function main(bool $input, int $x, string $foo): int {
     }
 
     if ($bar) {
+        echo "test";
+    }
+
+    if (preg_match('/\s/', $foo)) {
+        echo "test";
+    }
+
+    if (!!preg_match('/\s/', $foo)) {
+        echo "test";
+    }
+
+    if ($input || !preg_match('/\s/', $foo)) {
         echo "test";
     }
 

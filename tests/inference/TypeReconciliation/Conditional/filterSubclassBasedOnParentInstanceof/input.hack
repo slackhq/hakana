@@ -6,7 +6,7 @@ final class B extends A {
 abstract class C {}
 final class D extends C {}
 
-$b_or_d = rand(0, 1) ? new B() : new D();
+$b_or_d = rand(0, 1) !== 0 ? new B() : new D();
 
 if ($b_or_d is A) {
     $b_or_d->foo();
