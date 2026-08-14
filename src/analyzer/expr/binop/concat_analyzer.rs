@@ -301,9 +301,10 @@ fn can_be_coerced_to_string(
             as_type: Some(as_type),
             ..
         }
-        | TAtomic::TGenericParam(TGenericParam { as_type, .. }) => as_type.types.iter().all(|t| {
-            can_be_coerced_to_string(statements_analyzer, analysis_data, expr, t, false)
-        }),
+        | TAtomic::TGenericParam(TGenericParam { as_type, .. }) => as_type
+            .types
+            .iter()
+            .all(|t| can_be_coerced_to_string(statements_analyzer, analysis_data, expr, t, false)),
 
         _ => false,
     }

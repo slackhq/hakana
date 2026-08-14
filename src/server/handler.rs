@@ -451,26 +451,22 @@ impl RequestHandler {
     ) -> Message {
         let (analysis_result, scan_data) = result.as_ref();
 
-        let filter = req
-            .filter
-            .as_ref()
-            .and_then(|f| glob::Pattern::new(f).ok());
+        let filter = req.filter.as_ref().and_then(|f| glob::Pattern::new(f).ok());
 
         let mut candidates = Vec::new();
         for hook in hooks {
             for candidate in
                 hook.get_candidates(&scan_data.codebase, &scan_data.interner, analysis_result)
             {
-                let (classlike_id, member_id) = if let Some((classlike_name, member_name)) =
-                    candidate.split_once("::")
-                {
-                    (
-                        scan_data.interner.get(classlike_name),
-                        scan_data.interner.get(member_name),
-                    )
-                } else {
-                    (scan_data.interner.get(&candidate), Some(StrId::EMPTY))
-                };
+                let (classlike_id, member_id) =
+                    if let Some((classlike_name, member_name)) = candidate.split_once("::") {
+                        (
+                            scan_data.interner.get(classlike_name),
+                            scan_data.interner.get(member_name),
+                        )
+                    } else {
+                        (scan_data.interner.get(&candidate), Some(StrId::EMPTY))
+                    };
 
                 // If a filter expression is given, only yield candidates that match it.
                 if let Some(classlike_id) = classlike_id

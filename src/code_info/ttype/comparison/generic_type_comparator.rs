@@ -88,8 +88,8 @@ pub(crate) fn is_contained_by(
                     ..
                 }) = input_type_part
                 {
-                        *type_params = Some(
-                            extended_params
+                    *type_params = Some(
+                        extended_params
                             .values()
                             .map(|v| {
                                 let mut v = (**v).clone();

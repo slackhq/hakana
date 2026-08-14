@@ -505,7 +505,7 @@ pub(crate) fn scan(
 
                 let attr_uses_hash = get_uses_hash(
                     all_uses
-                    .symbol_member_uses
+                        .symbol_member_uses
                         .get(&(*class_name, attribute_id))
                         .unwrap_or(&vec![]),
                 );
