@@ -278,6 +278,9 @@ pub(crate) fn get_control_actions(
                     if case_actions.contains(&ControlAction::LeaveSwitch)
                         || case_actions.contains(&ControlAction::Break)
                         || case_actions.contains(&ControlAction::Continue)
+                        // The default case is always last, so falling off its end without a
+                        // break leaves the switch normally, exactly like an explicit break.
+                        || case_actions.contains(&ControlAction::None)
                     {
                         continue 'outer;
                     }
