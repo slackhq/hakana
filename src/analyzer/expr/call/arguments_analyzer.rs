@@ -330,6 +330,61 @@ pub(crate) fn check_arguments_match(
             .unwrap_or(get_mixed_any());
 
         if let aast::Expr_::Lfun(_) | aast::Expr_::Efun(_) = arg_expr.2 {
+            // For a "reduce accumulator" closure (a parameter typed as a template
+            // that also appears in the return type), run a throwaway probe pass on
+            // clones to learn the closure's return type, then feed the bounds it
+            // discovers back into the real template result before analyzing for
+            // real. This widens the accumulator parameter to the full union it can
+            // hold across iterations, rather than freezing it at the initial value.
+            if closure_param_feeds_return(&param_type) {
+                let mut probe_data = analysis_data.clone();
+                let mut probe_context = context.clone();
+                let mut probe_template_result = template_result.clone();
+                let mut probe_param_type = param_type.clone();
+
+                handle_closure_arg(
+                    statements_analyzer,
+                    &mut probe_data,
+                    &mut probe_context,
+                    functionlike_id,
+                    &mut probe_template_result,
+                    args,
+                    arg_expr,
+                    &probe_param_type,
+                );
+
+                if expression_analyzer::analyze(
+                    statements_analyzer,
+                    arg_expr,
+                    &mut probe_data,
+                    &mut probe_context,
+                    false,
+                )
+                .is_ok()
+                {
+                    let probe_value_type = probe_data
+                        .get_expr_type(arg_expr.pos())
+                        .cloned()
+                        .unwrap_or(get_mixed_any());
+
+                    adjust_param_type(
+                        &class_generic_params,
+                        &mut probe_param_type,
+                        codebase,
+                        statements_analyzer.get_file_path(),
+                        probe_value_type,
+                        *argument_offset,
+                        arg_expr.pos(),
+                        &mut probe_context,
+                        &mut probe_template_result,
+                        statements_analyzer,
+                        functionlike_id,
+                    );
+
+                    template_result.lower_bounds = probe_template_result.lower_bounds;
+                }
+            }
+
             handle_closure_arg(
                 statements_analyzer,
                 analysis_data,
@@ -907,6 +962,50 @@ fn get_param_type(
     } else {
         get_mixed_any()
     }
+}
+
+/// Detects the "reduce accumulator" closure shape: a closure parameter whose
+/// declared type is a template parameter that also appears in the closure's
+/// return type, e.g. `(function(Ta, Tv): Ta)` in `reduce`. For such closures
+/// the accumulator parameter's type depends on the closure's own return type,
+/// so analyzing the body once with the accumulator frozen at its initial lower
+/// bound (from `$initial`) under-approximates it: a value first produced by the
+/// closure on a later iteration is never reflected back into the parameter.
+fn closure_param_feeds_return(param_type: &TUnion) -> bool {
+    for atomic in &param_type.types {
+        if let TAtomic::TClosure(closure) = atomic {
+            let Some(return_type) = &closure.return_type else {
+                continue;
+            };
+
+            let return_templates = return_type
+                .get_template_types()
+                .into_iter()
+                .filter_map(|t| match t {
+                    TAtomic::TGenericParam(p) => Some((p.param_name, p.defining_entity)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+
+            if return_templates.is_empty() {
+                continue;
+            }
+
+            for param in &closure.params {
+                if let Some(signature_type) = &param.signature_type {
+                    for t in signature_type.get_template_types() {
+                        if let TAtomic::TGenericParam(p) = t
+                            && return_templates.contains(&(p.param_name, p.defining_entity))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    false
 }
 
 fn handle_closure_arg(

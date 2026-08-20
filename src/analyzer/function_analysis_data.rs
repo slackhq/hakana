@@ -22,6 +22,7 @@ pub struct TypeVariableBounds {
     pub upper_bounds: Vec<TemplateBound>,
 }
 
+#[derive(Clone)]
 pub struct FunctionAnalysisData {
     pub expr_types: FxHashMap<(u32, u32), Rc<TUnion>>,
     pub if_true_assertions: FxHashMap<(u32, u32), FxHashMap<String, Vec<Assertion>>>,
