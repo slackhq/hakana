@@ -1,0 +1,1 @@
+ERROR: NonExistentMethod - input.hack:30:9 - Method NoGet::get does not exist
