@@ -137,11 +137,24 @@ pub fn default_config_for_test(dir: &str, hooks_provider: &dyn HooksProvider) ->
         GraphKind::FunctionBody
     };
 
-    analysis_config.hooks = hooks_provider
-        .get_hooks_for_test(dir)
-        .into_iter()
-        .map(std::sync::Arc::from)
-        .collect();
+    let hooks = hooks_provider.get_hooks_for_test(dir);
+
+    // Register hook-defined custom issues just like the production CLI does, so
+    // that `HAKANA_IGNORE[...]`/`HAKANA_FIXME[...]` comments referencing them are
+    // recognised by the comment parser during tests. Scoped to migration tests:
+    // those are the only tests where a codemod reads `hakana_fixme_or_ignores` to
+    // decide whether to skip a site. Populating it globally would activate
+    // custom-issue ignore comments that other tests (e.g. find-paths goldens
+    // captured without them) currently expect to be inert.
+    if dir.contains("/migrations/") {
+        analysis_config.all_custom_issues = hooks
+            .iter()
+            .flat_map(|hook| hook.get_custom_issue_names())
+            .map(|name| name.to_string())
+            .collect();
+    }
+
+    analysis_config.hooks = hooks.into_iter().map(std::sync::Arc::from).collect();
 
     if dir.contains("/migrations/") {
         let replacements_path = dir.to_string() + "/replacements.txt";
