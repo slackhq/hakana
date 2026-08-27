@@ -14,7 +14,7 @@ final class B {
             return;
         }
 
-        if (!$one->a && $one->fooFoo()) {
+        if ($one->a === "" && $one->fooFoo()) {
             // do something
         }
     }

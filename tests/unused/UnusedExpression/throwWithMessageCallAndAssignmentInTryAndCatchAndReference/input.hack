@@ -14,5 +14,5 @@ function callDangerous(): void {
         $s = "hello";
     }
 
-    if ($s) {}
+    if ($s !== "") {}
 }

@@ -15,5 +15,5 @@ function callDangerous(): void {
         echo $e->getMessage();
     }
 
-    if ($s) {}
+    if ($s is nonnull) {}
 }

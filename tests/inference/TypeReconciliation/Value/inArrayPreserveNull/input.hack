@@ -3,5 +3,5 @@ function x(?string $foo): void {
         throw new Exception();
     }
 
-    if ($foo) {}
+    if ($foo is nonnull) {}
 }

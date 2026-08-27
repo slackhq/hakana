@@ -1,0 +1,52 @@
+final class C {}
+
+function get_value(): ?string {
+    return null;
+}
+
+function conditions(
+    ?string $value,
+    ?string $other,
+    string $string,
+    bool $bool,
+    ?C $object,
+    int $integer,
+): string {
+    if ($value is nonnull && $value !== '' && $value !== '0') {
+        echo "direct";
+    }
+
+    if ($value is null || $value === '' || $value === '0') {
+        echo "negated";
+    }
+
+    if (\HH\legacy_is_truthy(get_value())) {
+        echo "non-simple";
+    }
+
+    if (!\HH\legacy_is_truthy(get_value())) {
+        echo "negated non-simple";
+    }
+
+    if (($value is nonnull && $value !== '' && $value !== '0')) {
+        echo "double negated";
+    }
+
+    if ($bool && ($value is nonnull && $value !== '' && $value !== '0') || ($other is null || $other === '' || $other === '0')) {
+        echo "logical";
+    }
+
+    if ($string !== '' && $string !== '0') {
+        echo "string";
+    }
+
+    if ($object) {
+        echo "object";
+    }
+
+    if ($integer) {
+        echo "integer";
+    }
+
+    return ($value is nonnull && $value !== '' && $value !== '0') ? "present" : "absent";
+}

@@ -19,10 +19,10 @@ function callDangerous(): void {
             $t = "hello";
         }
 
-        if ($t) {
+        if ($t !== "") {
             $s = $t;
         }
     }
 
-    if ($s) {}
+    if ($s is nonnull) {}
 }
