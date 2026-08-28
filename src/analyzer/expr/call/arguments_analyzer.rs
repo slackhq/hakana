@@ -329,8 +329,14 @@ pub(crate) fn check_arguments_match(
             .cloned()
             .unwrap_or(get_mixed_any());
 
-        if let aast::Expr_::Lfun(_) | aast::Expr_::Efun(_) = arg_expr.2 {
-            handle_closure_arg(
+        let closure_param_type = if let aast::Expr_::Lfun(_) | aast::Expr_::Efun(_) = arg_expr.2 {
+            Some(param_type.clone())
+        } else {
+            None
+        };
+
+        if let Some(closure_param_type) = &closure_param_type {
+            let _ = handle_closure_arg(
                 statements_analyzer,
                 analysis_data,
                 context,
@@ -338,7 +344,8 @@ pub(crate) fn check_arguments_match(
                 template_result,
                 args,
                 arg_expr,
-                &param_type,
+                closure_param_type,
+                *argument_offset,
             );
 
             expression_analyzer::analyze(
@@ -368,6 +375,30 @@ pub(crate) fn check_arguments_match(
             statements_analyzer,
             functionlike_id,
         );
+
+        if let Some(closure_param_type) = &closure_param_type
+            && let Some(resolved_closure_type) = handle_closure_arg(
+                statements_analyzer,
+                analysis_data,
+                context,
+                functionlike_id,
+                template_result,
+                args,
+                arg_expr,
+                closure_param_type,
+                *argument_offset,
+            )
+        {
+            param_type = resolved_closure_type;
+
+            expression_analyzer::analyze(
+                statements_analyzer,
+                arg_expr,
+                analysis_data,
+                context,
+                false,
+            )?;
+        }
 
         param_types.insert(argument_offset, param_type);
     }
@@ -918,7 +949,8 @@ fn handle_closure_arg(
     args: &[aast::Argument<(), ()>],
     closure_expr: &aast::Expr<(), ()>,
     param_type: &TUnion,
-) {
+    argument_offset: usize,
+) -> Option<TUnion> {
     let codebase = statements_analyzer.codebase;
 
     let mut replace_template_result = TemplateResult::new(
@@ -931,13 +963,26 @@ fn handle_closure_arg(
                     template_map
                         .iter()
                         .map(|(map_key, lower_bounds)| {
-                            (
-                                *map_key,
-                                Arc::new(template::standin_type_replacer::get_most_specific_type_from_bounds(
+                            let mut resolved_type =
+                                template::standin_type_replacer::get_most_specific_type_from_bounds(
                                     lower_bounds,
                                     codebase,
-                                )),
-                            )
+                                );
+
+                            // Nested closure returns normally lose to shallower bounds, but they
+                            // must still widen parameters inferred for this closure's body.
+                            for closure_bound in lower_bounds
+                                .iter()
+                                .filter(|bound| bound.arg_offset == Some(argument_offset))
+                            {
+                                resolved_type = add_optional_union_type(
+                                    closure_bound.bound_type.clone(),
+                                    Some(&resolved_type),
+                                    codebase,
+                                );
+                            }
+
+                            (*map_key, Arc::new(resolved_type))
                         })
                         .collect::<Vec<_>>(),
                 )
@@ -971,7 +1016,7 @@ fn handle_closure_arg(
             closure_expr.1.start_offset(),
         ) {
             None => {
-                return;
+                return None;
             }
             Some(value) => value,
         }
@@ -1044,9 +1089,25 @@ fn handle_closure_arg(
         }
     }
 
+    let params_changed = match analysis_data.closures.get(closure_expr.pos()) {
+        Some(existing_storage) => {
+            existing_storage.params.len() != closure_storage.params.len()
+                || existing_storage
+                    .params
+                    .iter()
+                    .zip(&closure_storage.params)
+                    .any(|(existing_param, new_param)| {
+                        existing_param.signature_type != new_param.signature_type
+                    })
+        }
+        None => true,
+    };
+
     analysis_data
         .closures
         .insert(closure_expr.pos().clone(), closure_storage);
+
+    params_changed.then_some(replaced_type)
 }
 
 fn map_class_generic_params(
