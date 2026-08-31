@@ -8,6 +8,7 @@ on:
         "src/**",
         "third-party/**",
         "Cargo.toml",
+        "rust-toolchain.toml",
         "build.rs",
         "init.sh",
         ".github/workflows/pages.yml",
@@ -60,13 +61,11 @@ jobs:
         with:
           node-version: "20"
 
-      # Setup Rust nightly toolchain for WebAssembly build
+      # Setup the Rust toolchain from rust-toolchain.toml for the WebAssembly build
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@v1
         with:
-          toolchain: nightly
-          target: wasm32-unknown-unknown
-          override: true
+          targets: wasm32-unknown-unknown
 
       # Install wasm-pack for WebAssembly builds
       - name: Install wasm-pack
