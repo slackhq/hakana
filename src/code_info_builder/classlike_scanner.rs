@@ -842,13 +842,11 @@ fn visit_xhp_attribute(
         get_mixed_any()
     };
 
-    let is_required = if let Some(attr_tag) = &xhp_attribute.2 {
-        attr_tag.is_required()
-    } else {
-        false
-    };
+    let is_required = xhp_attribute
+        .2
+        .is_some_and(|attr_tag| attr_tag.is_required());
 
-    if !is_required && !attribute_type.is_mixed() && xhp_attribute.1.expr.is_none() {
+    if !is_required && !attribute_type.is_mixed() {
         attribute_type.types.push(TAtomic::TNull);
     }
 
