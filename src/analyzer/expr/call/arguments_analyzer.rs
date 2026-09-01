@@ -37,8 +37,9 @@ use hakana_code_info::ttype::template::{
 };
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
-    add_optional_union_type, combine_optional_union_types, get_arrayish_params, get_arraykey,
-    get_mixed_any, get_nothing, wrap_atomic,
+    add_optional_union_type, combine_optional_union_types, combine_union_types,
+    deep_generalize_template_bound, get_arrayish_params, get_arraykey, get_mixed_any, get_nothing,
+    wrap_atomic,
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
@@ -975,8 +976,17 @@ fn handle_closure_arg(
                                 .iter()
                                 .filter(|bound| bound.arg_offset == Some(argument_offset))
                             {
+                                let generalized_type = deep_generalize_template_bound(
+                                    &closure_bound.bound_type,
+                                    codebase,
+                                );
                                 resolved_type = add_optional_union_type(
-                                    closure_bound.bound_type.clone(),
+                                    combine_union_types(
+                                        &closure_bound.bound_type,
+                                        &generalized_type,
+                                        codebase,
+                                        true,
+                                    ),
                                     Some(&resolved_type),
                                     codebase,
                                 );
