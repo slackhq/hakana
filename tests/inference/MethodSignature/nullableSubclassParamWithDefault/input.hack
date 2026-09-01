@@ -7,7 +7,7 @@ abstract class A {
 final class B extends A {
     <<__Override>>
     public function foo(string $s = null): string {
-        return $s ?: "hello";
+        return $s !== "" ? $s : "hello";
     }
 }
 

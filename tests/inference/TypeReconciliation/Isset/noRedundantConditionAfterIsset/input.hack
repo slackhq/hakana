@@ -4,5 +4,5 @@ function foo(dict<string, dict<int, string>> $arr, string $k) : void {
     }
 
     /* HAKANA_FIXME[PossiblyUndefinedIntArrayOffset] */
-    if ($arr[$k][0]) {}
+    if ($arr[$k][0] !== "") {}
 }

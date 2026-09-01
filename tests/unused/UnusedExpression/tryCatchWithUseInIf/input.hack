@@ -8,7 +8,7 @@ function example_string() : string {
 function main() : void {
     try {
         $s = example_string();
-        if (!$s) {
+        if ($s === "") {
             echo "Failed to get string\n";
         }
     } catch (Exception $e) {

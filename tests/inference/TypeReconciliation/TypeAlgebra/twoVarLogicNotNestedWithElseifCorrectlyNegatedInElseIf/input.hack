@@ -1,12 +1,12 @@
 function foo(string $a, string $b): string {
-    if ($a) {
+    if ($a !== "") {
         // do nothing here
-    } else if ($b) {
+    } else if ($b !== "") {
         $a = null;
     } else {
         return "bad";
     }
 
-    if (!$a) return $b;
+    if ($a is null) return $b;
     return $a;
 }
