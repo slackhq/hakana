@@ -66,8 +66,7 @@ jobs:
 
       - name: Read Rust toolchain
         id: rust-toolchain
-        with:
-          cmd: echo "channel=$(yq -r '.toolchain.channel' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+        run: echo "channel=$(yq -r '.toolchain.channel' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
 
       # Setup the Rust toolchain from rust-toolchain.toml for the WebAssembly build
       - name: Setup Rust
