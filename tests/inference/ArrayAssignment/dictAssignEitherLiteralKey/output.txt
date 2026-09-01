@@ -1,0 +1,1 @@
+ERROR: NonBoolContainerCondition - input.hack:10:9 - Only bool values can be used as a condition
