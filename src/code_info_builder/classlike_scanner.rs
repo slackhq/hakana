@@ -846,7 +846,14 @@ fn visit_xhp_attribute(
         .2
         .is_some_and(|attr_tag| attr_tag.is_required());
 
-    if !is_required && !attribute_type.is_mixed() {
+    if !is_required
+        && !attribute_type.is_mixed()
+        && xhp_attribute
+            .1
+            .expr
+            .as_ref()
+            .is_none_or(|default_val| default_val.2.is_null())
+    {
         attribute_type.types.push(TAtomic::TNull);
     }
 
