@@ -3,12 +3,15 @@ use std::sync::LazyLock;
 use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::issue::Issue;
 use oxidized::aast;
+use oxidized::pos::Pos;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::truthiness::container_migration::ContainerMigration;
 
+mod container_migration;
 mod implicit_boolean_conversion_migration;
 mod int_migration;
 mod nullable_object_migration;
@@ -19,6 +22,25 @@ use int_migration::IntMigration;
 use nullable_object_migration::NullableObjectMigration;
 use nullable_string_migration::NullableStringMigration;
 
+/// Is this a trivial expression that should be fine to repeat?
+fn is_trivial(expr: &aast::Expr<(), ()>) -> bool {
+    matches!(
+        expr.2,
+        aast::Expr_::Lvar(..)
+            | aast::Expr_::ArrayGet(..)
+            | aast::Expr_::ClassGet(..)
+            | aast::Expr_::ObjGet(..)
+    )
+}
+
+/// Is this expression the sole condition in an `if` statement?
+fn is_sole_condition(statements_analyzer: &StatementsAnalyzer, pos: &Pos) -> bool {
+    let file_contents = &statements_analyzer.file_analyzer.file_source.file_contents;
+    (file_contents[..pos.start_offset()].ends_with("if (")
+        || file_contents[..pos.start_offset()].ends_with("if (!"))
+        && file_contents[pos.end_offset()..].starts_with(")")
+}
+
 pub(crate) fn check_implicit_boolean_conversion(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
@@ -27,6 +49,7 @@ pub(crate) fn check_implicit_boolean_conversion(
 ) {
     let mut negation_depth: u32 = 0;
     let mut pos = expr.pos();
+    let negation_start_offset = pos.start_offset();
     while let aast::Expr_::Unop(inner) = &expr.2
         && let oxidized::ast_defs::Uop::Unot = inner.0
     {
@@ -53,6 +76,12 @@ pub(crate) fn check_implicit_boolean_conversion(
                     Box::new(NullableStringMigration {
                         handle_nullable: false,
                     }),
+                    Box::new(ContainerMigration {
+                        handle_nullable: true,
+                    }),
+                    Box::new(ContainerMigration {
+                        handle_nullable: false,
+                    }),
                 ]
             });
 
@@ -69,13 +98,15 @@ pub(crate) fn check_implicit_boolean_conversion(
             );
 
             if statements_analyzer.should_autofix(context, analysis_data, &issue) {
-                analysis_data.add_replacement(
-                    (
-                        pos.start_offset() as u32 - negation_depth,
-                        pos.start_offset() as u32,
-                    ),
-                    Replacement::Remove,
-                );
+                // Get rid of all negations, but preserve any potential parentheses in between
+                if negation_depth > 0 {
+                    let negations = &statements_analyzer.file_analyzer.file_source.file_contents
+                        [negation_start_offset..pos.start_offset()];
+                    analysis_data.add_replacement(
+                        (negation_start_offset as u32, pos.start_offset() as u32),
+                        Replacement::Substitute(negations.replace("!", "")),
+                    );
+                }
                 if is_negated {
                     migration.migrate_negated(statements_analyzer, analysis_data, expr, pos);
                 } else {
