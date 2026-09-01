@@ -3,7 +3,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use crate::truthiness_analyzer;
+use crate::truthiness;
 use hakana_code_info::ttype::{get_bool, get_literal_int};
 use oxidized::ast::Binop;
 use oxidized::ast_defs::Bop;
@@ -20,7 +20,7 @@ pub(crate) fn analyze(
     let pos = outer_expr.pos();
 
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
-        truthiness_analyzer::check_implicit_boolean_conversion(
+        truthiness::check_implicit_boolean_conversion(
             statements_analyzer,
             analysis_data,
             context,

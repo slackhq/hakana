@@ -5,7 +5,7 @@ use crate::{
     scope::{BlockContext, if_scope::IfScope},
     scope_analyzer::ScopeAnalyzer,
     stmt_analyzer::AnalysisError,
-    truthiness_analyzer,
+    truthiness,
 };
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -343,7 +343,7 @@ pub(crate) fn handle_paradoxical_condition(
         );
     }
 
-    truthiness_analyzer::check_implicit_boolean_conversion(
+    truthiness::check_implicit_boolean_conversion(
         statements_analyzer,
         analysis_data,
         context,
