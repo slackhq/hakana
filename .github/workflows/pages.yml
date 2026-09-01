@@ -43,9 +43,6 @@ jobs:
       # Initialize submodules and apply patches if needed
       - name: Initialize dependencies
         run: |
-          # for rust toolchain
-          sudo apt install yq
-
           # Initialize and update submodules
           git submodule init
           git submodule update
@@ -66,7 +63,9 @@ jobs:
 
       - name: Read Rust toolchain
         id: rust-toolchain
-        run: echo "channel=$(yq -r '.toolchain.channel' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+        uses: mikefarah/yq@v4.53.6
+        with:
+          cmd: echo "channel=$(yq -r '.toolchain.channel' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
 
       # Setup the Rust toolchain from rust-toolchain.toml for the WebAssembly build
       - name: Setup Rust
