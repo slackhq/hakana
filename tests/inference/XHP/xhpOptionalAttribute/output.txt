@@ -1,2 +1,2 @@
-ERROR: PossiblyInvalidArgument - input.hack:10:30 - Argument 1 of HH\Lib\Str\replace expects string, possibly different type ?string provided
-ERROR: PossiblyInvalidArgument - input.hack:11:37 - Argument 1 of HH\Lib\Str\replace expects string, possibly different type ?string provided
+ERROR: PossiblyInvalidArgument - input.hack:11:30 - Argument 1 of HH\Lib\Str\replace expects string, possibly different type ?string provided
+ERROR: PossiblyInvalidArgument - input.hack:12:37 - Argument 1 of HH\Lib\Str\replace expects string, possibly different type ?string provided
