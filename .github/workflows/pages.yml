@@ -43,6 +43,9 @@ jobs:
       # Initialize submodules and apply patches if needed
       - name: Initialize dependencies
         run: |
+          # for rust toolchain
+          sudo apt install yq
+
           # Initialize and update submodules
           git submodule init
           git submodule update
@@ -61,10 +64,16 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Read Rust toolchain
+        id: rust-toolchain
+        with:
+          cmd: echo "channel=$(yq -r '.toolchain.channel' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
       # Setup the Rust toolchain from rust-toolchain.toml for the WebAssembly build
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@v1
         with:
+          toolchain: ${{ steps.rust-toolchain.outputs.channel }}
           targets: wasm32-unknown-unknown
 
       # Install wasm-pack for WebAssembly builds
