@@ -1,4 +1,5 @@
 use hakana_code_info::issue::IssueKind;
+use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
 use oxidized::aast;
 use oxidized::pos::Pos;
@@ -14,11 +15,15 @@ pub(super) struct NullableStringMigration {
 
 impl ImplicitBooleanConversionMigration for NullableStringMigration {
     fn matches(&self, expr_type: &TUnion) -> bool {
-        if self.handle_nullable {
-            expr_type.is_nullable() && expr_type.has_string()
-        } else {
-            expr_type.is_single() && expr_type.has_string()
-        }
+        super::aliased_type_matches(expr_type, &|t| {
+            matches!(
+                t,
+                TAtomic::TNull
+                    | TAtomic::TString
+                    | TAtomic::TStringWithFlags(..)
+                    | TAtomic::TLiteralString { .. }
+            )
+        }) && (self.handle_nullable || !expr_type.is_nullable())
     }
 
     fn migrate(

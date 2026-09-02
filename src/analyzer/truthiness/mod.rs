@@ -2,6 +2,8 @@ use std::sync::LazyLock;
 
 use hakana_code_info::analysis_result::Replacement;
 use hakana_code_info::issue::Issue;
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_union::TUnion;
 use oxidized::aast;
 use oxidized::pos::Pos;
 
@@ -13,14 +15,16 @@ use crate::truthiness::container_migration::ContainerMigration;
 
 mod container_migration;
 mod implicit_boolean_conversion_migration;
-mod int_migration;
-mod nullable_object_migration;
+mod nullable_bool_migration;
+mod nullable_int_migration;
 mod nullable_string_migration;
+mod nullable_truthy_migration;
 
 use implicit_boolean_conversion_migration::ImplicitBooleanConversionMigration;
-use int_migration::IntMigration;
-use nullable_object_migration::NullableObjectMigration;
+use nullable_bool_migration::NullableBoolMigration;
+use nullable_int_migration::NullableIntMigration;
 use nullable_string_migration::NullableStringMigration;
+use nullable_truthy_migration::NullableTruthyMigration;
 
 /// Is this a trivial expression that should be fine to repeat?
 fn is_trivial(expr: &aast::Expr<(), ()>) -> bool {
@@ -31,6 +35,18 @@ fn is_trivial(expr: &aast::Expr<(), ()>) -> bool {
             | aast::Expr_::ClassGet(..)
             | aast::Expr_::ObjGet(..)
     )
+}
+
+/// Determine whether all components of a union type match the given predicate,
+/// resolving any newtype aliases on the way.
+fn aliased_type_matches<T: Fn(&TAtomic) -> bool>(expr_type: &TUnion, pred: &T) -> bool {
+    expr_type.types.iter().all(|t| match t {
+        TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        } => aliased_type_matches(as_type, pred),
+        t => pred(t),
+    })
 }
 
 /// Is this expression the sole condition in an `if` statement?
@@ -68,8 +84,14 @@ pub(crate) fn check_implicit_boolean_conversion(
         static TRUTHINESS_MIGRATIONS: LazyLock<Vec<Box<dyn ImplicitBooleanConversionMigration>>> =
             LazyLock::new(|| {
                 vec![
-                    Box::new(NullableObjectMigration {}),
-                    Box::new(IntMigration {}),
+                    Box::new(NullableBoolMigration {}),
+                    Box::new(NullableTruthyMigration {}),
+                    Box::new(NullableIntMigration {
+                        handle_nullable: true,
+                    }),
+                    Box::new(NullableIntMigration {
+                        handle_nullable: false,
+                    }),
                     Box::new(NullableStringMigration {
                         handle_nullable: true,
                     }),

@@ -42,5 +42,45 @@ function main(bool $input, int $x, string $foo): int {
         echo "test";
     }
 
+    invariant(maybe_object($input), "invariant violation");
+
     return maybe_object($input) ? 5 : 4;
+}
+
+function newly_supported_types(
+    ?(function(): void) $closure,
+    ?classname<C> $classname,
+    ?class<C> $class_ptr,
+    ?typename<C> $typename,
+    ?Awaitable<int> $awaitable,
+    ?shape('value' => int) $shape,
+    ?(int, string) $tuple,
+): void {
+    if (!$closure) {
+        echo "test";
+    }
+
+    if ($classname) {
+        echo "test";
+    }
+
+    if (!$class_ptr) {
+        echo "test";
+    }
+
+    if ($typename) {
+        echo "test";
+    }
+
+    if (!$awaitable) {
+        echo "test";
+    }
+
+    if ($shape) {
+        echo "test";
+    }
+
+    if (!$tuple) {
+        echo "test";
+    }
 }

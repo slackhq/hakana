@@ -4,3 +4,4 @@ ERROR: NonBoolContainerCondition - input.hack:13:9 - Only bool values can be use
 ERROR: NonBoolContainerCondition - input.hack:17:9 - Only bool values can be used as a condition
 ERROR: NonBoolContainerCondition - input.hack:21:16 - Only bool values can be used as a condition
 ERROR: NonBoolContainerCondition - input.hack:25:11 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:33:9 - Only bool values can be used as a condition

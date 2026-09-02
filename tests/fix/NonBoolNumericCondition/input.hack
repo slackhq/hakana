@@ -8,7 +8,11 @@ function maybe_object(bool $test): ?C {
     return $test ? new C() : null;
 }
 
-function main(bool $input, int $x, string $foo): int {
+function maybe_int(bool $test): ?int {
+    return $test ? 1 : null;
+}
+
+function main(bool $input, int $x, ?int $nullable_x, ?int $nullable_y, string $foo): int {
     if ($x && $input && maybe_object($input) && some_cond($x)) {
         echo "test";
     }
@@ -45,6 +49,32 @@ function main(bool $input, int $x, string $foo): int {
     if ($input || !preg_match('/\s/', $foo)) {
         echo "test";
     }
+
+    if ($nullable_x) {
+        echo "test";
+    }
+
+    if (!$nullable_x) {
+        echo "test";
+    }
+
+    if (maybe_int($input)) {
+        echo "test";
+    }
+
+    if (!maybe_int($input)) {
+        echo "test";
+    }
+
+    if (!!$nullable_x) {
+        echo "test";
+    }
+
+    if ($input && $nullable_x || !$nullable_y) {
+        echo "test";
+    }
+
+    return $nullable_x ? 5 : 4;
 
     return maybe_object($input) ? 5 : 4;
 }
