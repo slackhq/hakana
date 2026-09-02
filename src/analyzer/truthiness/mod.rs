@@ -14,13 +14,13 @@ use crate::truthiness::container_migration::ContainerMigration;
 mod container_migration;
 mod implicit_boolean_conversion_migration;
 mod int_migration;
-mod nullable_object_migration;
 mod nullable_string_migration;
+mod nullable_truthy_migration;
 
 use implicit_boolean_conversion_migration::ImplicitBooleanConversionMigration;
 use int_migration::IntMigration;
-use nullable_object_migration::NullableObjectMigration;
 use nullable_string_migration::NullableStringMigration;
+use nullable_truthy_migration::NullableTruthyMigration;
 
 /// Is this a trivial expression that should be fine to repeat?
 fn is_trivial(expr: &aast::Expr<(), ()>) -> bool {
@@ -68,7 +68,7 @@ pub(crate) fn check_implicit_boolean_conversion(
         static TRUTHINESS_MIGRATIONS: LazyLock<Vec<Box<dyn ImplicitBooleanConversionMigration>>> =
             LazyLock::new(|| {
                 vec![
-                    Box::new(NullableObjectMigration {}),
+                    Box::new(NullableTruthyMigration {}),
                     Box::new(IntMigration {}),
                     Box::new(NullableStringMigration {
                         handle_nullable: true,

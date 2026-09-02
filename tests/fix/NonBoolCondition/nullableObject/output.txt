@@ -44,3 +44,41 @@ function main(bool $input, int $x, string $foo): int {
 
     return maybe_object($input) is nonnull ? 5 : 4;
 }
+
+function newly_supported_types(
+    ?(function(): void) $closure,
+    ?classname<C> $classname,
+    ?class<C> $class_ptr,
+    ?typename<C> $typename,
+    ?Awaitable<int> $awaitable,
+    ?shape('value' => int) $shape,
+    ?(int, string) $tuple,
+): void {
+    if ($closure is null) {
+        echo "test";
+    }
+
+    if ($classname is nonnull) {
+        echo "test";
+    }
+
+    if ($class_ptr is null) {
+        echo "test";
+    }
+
+    if ($typename is nonnull) {
+        echo "test";
+    }
+
+    if ($awaitable is null) {
+        echo "test";
+    }
+
+    if ($shape is nonnull) {
+        echo "test";
+    }
+
+    if ($tuple is null) {
+        echo "test";
+    }
+}

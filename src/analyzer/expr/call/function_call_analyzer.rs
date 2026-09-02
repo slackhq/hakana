@@ -16,13 +16,13 @@ use crate::expr::call::arguments_analyzer;
 use crate::expr::call_analyzer::{apply_effects, check_template_result};
 use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_analyzer};
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::reconciler;
 use crate::scope::BlockContext;
 use crate::scope::control_action::ControlAction;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
+use crate::{reconciler, truthiness};
 use hakana_code_info::assertion::Assertion;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
@@ -608,6 +608,13 @@ fn process_invariant(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
 ) {
+    truthiness::check_implicit_boolean_conversion(
+        statements_analyzer,
+        analysis_data,
+        context,
+        first_arg,
+    );
+
     let assertion_context = statements_analyzer.get_assertion_context(
         context.function_context.calling_class,
         context.function_context.calling_functionlike_id,
