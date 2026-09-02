@@ -5,9 +5,9 @@ use rustc_hash::FxHashMap;
 use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 
-use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
+use crate::{expression_analyzer, truthiness};
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
@@ -15,7 +15,7 @@ use oxidized::aast;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr_pos: &aast::Pos,
+    expr: &aast::Expr<(), ()>,
     hint: &aast::Hint,
     inner_expr: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
@@ -28,6 +28,21 @@ pub(crate) fn analyze(
         context,
         true,
     )?;
+
+    if !context.inside_negation
+        && !context.inside_conditional
+        && let Some((hint_id, _)) = hint.as_happly()
+        && hint_id.name() == "bool"
+    {
+        truthiness::check_implicit_boolean_conversion(
+            statements_analyzer,
+            analysis_data,
+            context,
+            expr,
+        );
+    }
+
+    let expr_pos = expr.pos();
 
     let expr_type = analysis_data
         .get_rc_expr_type(inner_expr.pos())

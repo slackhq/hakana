@@ -1,1 +1,2 @@
+ERROR: NonBoolNumericCondition - input.hack:2:8 - Only bool values can be used as a condition
 ERROR: NonEnumSwitchValue - input.hack:3:13 - Switch statement without default case does not match all possible values of int

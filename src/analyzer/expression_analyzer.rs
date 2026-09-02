@@ -414,7 +414,7 @@ pub(crate) fn analyze(
         aast::Expr_::Cast(boxed) => {
             return cast_analyzer::analyze(
                 statements_analyzer,
-                &expr.1,
+                &expr,
                 &boxed.0,
                 &boxed.1,
                 analysis_data,

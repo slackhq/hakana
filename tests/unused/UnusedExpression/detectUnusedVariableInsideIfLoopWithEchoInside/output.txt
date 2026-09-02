@@ -1,1 +1,2 @@
-UnusedAssignmentStatement
+ERROR: UnusedAssignmentStatement - input.hack:2:5 - Assignment to $a is unused, and this expression has no effect
+ERROR: NonBoolNumericCondition - input.hack:5:16 - Only bool values can be used as a condition

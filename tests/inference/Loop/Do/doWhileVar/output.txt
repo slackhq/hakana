@@ -1,1 +1,1 @@
-RedundantTruthinessCheck
+ERROR: RedundantTruthinessCheck - input.hack:8:5 - Type true is always truthy

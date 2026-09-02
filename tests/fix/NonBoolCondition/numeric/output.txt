@@ -1,0 +1,98 @@
+function some_cond(int $i): bool {
+    return $i++ % 2 === 1;
+}
+
+final class C {}
+
+function maybe_object(bool $test): ?C {
+    return $test ? new C() : null;
+}
+
+function maybe_int(bool $test): ?int {
+    return $test ? 1 : null;
+}
+
+function get_int(): int {
+    return 1;
+}
+
+function main(bool $input, int $x, ?int $nullable_x, ?int $nullable_y, string $foo): int {
+    $explicit_bool = get_int() !== 0;
+
+    while ($x !== 0) {
+        $x--;
+    }
+
+    if ($x !== 0 && $input && maybe_object($input) is nonnull && some_cond($x)) {
+        echo "test";
+    }
+
+    if ($input || maybe_object($input) is null || !some_cond($x)) {
+        echo "test";
+    }
+
+    if ($input && !(maybe_object($input) is nonnull || some_cond($x))) {
+        echo "test";
+    }
+
+    if ($x === 0) {
+        echo "test";
+    }
+
+    $bar = 4;
+    if (rand(0,1) > 0) {
+        $bar = 'baz';
+    }
+
+    if ($bar) {
+        echo "test";
+    }
+
+    if ((int)preg_match('/\s/', $foo) > 0) {
+        echo "test";
+    }
+
+    if ((int)preg_match('/\s/', $foo) > 0) {
+        echo "test";
+    }
+
+    if ($input || (int)preg_match('/\s/', $foo) === 0) {
+        echo "test";
+    }
+
+    if ($nullable_x is nonnull && $nullable_x !== 0) {
+        echo "test";
+    }
+
+    if ($nullable_x is null || $nullable_x === 0) {
+        echo "test";
+    }
+
+    if (\HH\legacy_is_truthy(maybe_int($input))) {
+        echo "test";
+    }
+
+    if (!\HH\legacy_is_truthy(maybe_int($input))) {
+        echo "test";
+    }
+
+    if (($nullable_x is nonnull && $nullable_x !== 0)) {
+        echo "test";
+    }
+
+    if ($input && ($nullable_x is nonnull && $nullable_x !== 0) || ($nullable_y is null || $nullable_y === 0)) {
+        echo "test";
+    }
+
+    if ($input && ($nullable_x is nonnull && $nullable_x !== 0) || ($nullable_y is null || $nullable_y === 0)) {
+        $foo = ($nullable_x is nonnull && $nullable_x !== 0);
+    }
+
+    if (($x & 2) !== 0) {
+        echo "foo";
+    }
+
+    return ($nullable_x is nonnull && $nullable_x !== 0) ? 5 : 4;
+
+    return maybe_object($input) ? 5 : 4;
+}

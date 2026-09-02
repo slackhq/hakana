@@ -7,6 +7,12 @@ function returns_nullable(bool $b): ?dict<string, int> {
 }
 
 function main(?\HH\Container $nc, \HH\Container $c, input_t $input, bool $b): void {
+    $explicit_bool = !!returns_nullable($b);
+
+    while (!$c) {
+        break;
+    }
+
     if ($nc) {
         echo "test";
     }

@@ -1,36 +1,94 @@
 use std::sync::LazyLock;
 
 use hakana_code_info::analysis_result::Replacement;
-use hakana_code_info::issue::Issue;
-use oxidized::aast;
+use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::TAtomic;
+use hakana_code_info::t_union::TUnion;
 use oxidized::pos::Pos;
+use oxidized::{aast, ast::Bop};
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::truthiness::container_migration::ContainerMigration;
+use crate::truthiness::mixed_migration::MixedMigration;
 
+mod assorted_truthiness_migration;
 mod container_migration;
 mod implicit_boolean_conversion_migration;
-mod int_migration;
-mod nullable_object_migration;
-mod nullable_string_migration;
+mod int_truthiness_migration;
+mod mixed_migration;
+mod nullable_bool_migration;
+mod string_truthiness_migration;
 
-use implicit_boolean_conversion_migration::ImplicitBooleanConversionMigration;
-use int_migration::IntMigration;
-use nullable_object_migration::NullableObjectMigration;
-use nullable_string_migration::NullableStringMigration;
+use assorted_truthiness_migration::AssortedTruthinessMigration;
+use implicit_boolean_conversion_migration::{ImplicitBooleanConversionMigration, MigrationArgs};
+use int_truthiness_migration::IntTruthinessMigration;
+use nullable_bool_migration::NullableBoolMigration;
+use string_truthiness_migration::StringTruthinessMigration;
 
 /// Is this a trivial expression that should be fine to repeat?
 fn is_trivial(expr: &aast::Expr<(), ()>) -> bool {
-    matches!(
-        expr.2,
+    match &expr.2 {
+        aast::Expr_::Binop(op) if matches!(op.bop, Bop::QuestionQuestion) => {
+            is_trivial(&op.lhs) && is_trivial(&op.rhs)
+        }
         aast::Expr_::Lvar(..)
-            | aast::Expr_::ArrayGet(..)
-            | aast::Expr_::ClassGet(..)
-            | aast::Expr_::ObjGet(..)
-    )
+        | aast::Expr_::True
+        | aast::Expr_::False
+        | aast::Expr_::Null
+        | aast::Expr_::Int(..)
+        | aast::Expr_::String(..)
+        | aast::Expr_::Float(..)
+        | aast::Expr_::ArrayGet(..)
+        | aast::Expr_::ClassGet(..)
+        | aast::Expr_::ObjGet(..) => true,
+        _ => false,
+    }
+}
+
+fn aliased_types(expr_type: &TUnion) -> Box<dyn Iterator<Item = &TAtomic> + '_> {
+    let it = expr_type
+        .types
+        .iter()
+        .enumerate()
+        .flat_map(|(i, t)| match t {
+            TAtomic::TTypeAlias {
+                as_type: Some(as_type),
+                ..
+            }
+            | TAtomic::TGenericParam(hakana_code_info::t_atomic::TGenericParam {
+                as_type, ..
+            })
+            | TAtomic::TClassTypeConstant { as_type, .. } => aliased_types(as_type),
+            TAtomic::TEnum {
+                as_type,
+                underlying_type,
+                ..
+            }
+            | TAtomic::TEnumLiteralCase {
+                as_type,
+                underlying_type,
+                ..
+            } => {
+                if let Some(as_type) = as_type.as_ref().or(underlying_type.as_ref()) {
+                    Box::new(std::iter::once(as_type.as_ref()))
+                        as Box<dyn Iterator<Item = &TAtomic>>
+                } else {
+                    Box::new(expr_type.types[i..i + 1].iter()) as Box<dyn Iterator<Item = &TAtomic>>
+                }
+            }
+            _ => Box::new(expr_type.types[i..i + 1].iter()),
+        })
+        .filter(|t| {
+            !matches!(
+                t,
+                TAtomic::TNull | TAtomic::TBool | TAtomic::TFalse | TAtomic::TTrue
+            )
+        });
+
+    Box::new(it)
 }
 
 /// Is this expression the sole condition in an `if` statement?
@@ -39,6 +97,60 @@ fn is_sole_condition(statements_analyzer: &StatementsAnalyzer, pos: &Pos) -> boo
     (file_contents[..pos.start_offset()].ends_with("if (")
         || file_contents[..pos.start_offset()].ends_with("if (!"))
         && file_contents[pos.end_offset()..].starts_with(")")
+}
+
+fn is_nullcoalesce(expr: &aast::Expr<(), ()>) -> bool {
+    expr.2
+        .as_binop()
+        .is_some_and(|binop| matches!(binop.bop, Bop::QuestionQuestion))
+}
+
+fn is_nullcoalesce_or_bitwise(expr: &aast::Expr<(), ()>) -> bool {
+    expr.2.as_binop().is_some_and(|binop| {
+        matches!(
+            binop.bop,
+            Bop::QuestionQuestion | Bop::Amp | Bop::Bar | Bop::Xor
+        )
+    })
+}
+
+fn expand_trivial_expr_conds(
+    statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &mut FunctionAnalysisData,
+    expr: &aast::Expr<(), ()>,
+    pos: &Pos,
+    op: &str,
+    conds: &[&str],
+) {
+    let needs_parens = is_nullcoalesce_or_bitwise(expr);
+
+    let expr_text = {
+        let expr_text = &statements_analyzer.file_analyzer.file_source.file_contents
+            [pos.start_offset()..pos.end_offset()];
+
+        if needs_parens {
+            analysis_data.insert_at(pos.start_offset() as u32, "(".to_string());
+            format!("({})", expr_text)
+        } else {
+            expr_text.to_string()
+        }
+    };
+
+    let close_paren = if !is_sole_condition(statements_analyzer, pos) && conds.len() > 1 {
+        analysis_data.insert_at(pos.start_offset() as u32, "(".to_string());
+        ")"
+    } else {
+        ""
+    };
+
+    analysis_data.insert_at(
+        pos.end_offset() as u32,
+        format!(
+            "{} {}{close_paren}",
+            if needs_parens { ")" } else { "" },
+            conds.join(&format!(" {op} {expr_text} "))
+        ),
+    );
 }
 
 pub(crate) fn check_implicit_boolean_conversion(
@@ -50,6 +162,7 @@ pub(crate) fn check_implicit_boolean_conversion(
     let mut negation_depth: u32 = 0;
     let mut pos = expr.pos();
     let negation_start_offset = pos.start_offset();
+
     while let aast::Expr_::Unop(inner) = &expr.2
         && let oxidized::ast_defs::Uop::Unot = inner.0
     {
@@ -58,7 +171,22 @@ pub(crate) fn check_implicit_boolean_conversion(
         negation_depth += 1;
     }
 
-    let Some(expr_type) = analysis_data.get_rc_expr_type(expr.pos()) else {
+    let negation_end_offset = pos.start_offset();
+
+    let mut bool_cast_offsets = None;
+    if let Some(cast_expr) = expr.2.as_cast()
+        && let Some((hint_id, _)) = cast_expr.0.as_happly()
+        && hint_id.name() == "bool"
+    {
+        bool_cast_offsets = Some((
+            hint_id.pos().start_offset() as u32 - 1,
+            hint_id.pos().end_offset() as u32 + 1,
+        ));
+        expr = cast_expr.1;
+        pos = expr.pos();
+    }
+
+    let Some(expr_type) = analysis_data.get_rc_expr_type(expr.pos()).cloned() else {
         return;
     };
 
@@ -68,49 +196,74 @@ pub(crate) fn check_implicit_boolean_conversion(
         static TRUTHINESS_MIGRATIONS: LazyLock<Vec<Box<dyn ImplicitBooleanConversionMigration>>> =
             LazyLock::new(|| {
                 vec![
-                    Box::new(NullableObjectMigration {}),
-                    Box::new(IntMigration {}),
-                    Box::new(NullableStringMigration {
-                        handle_nullable: true,
-                    }),
-                    Box::new(NullableStringMigration {
-                        handle_nullable: false,
-                    }),
-                    Box::new(ContainerMigration {
-                        handle_nullable: true,
-                    }),
-                    Box::new(ContainerMigration {
-                        handle_nullable: false,
-                    }),
+                    Box::new(NullableBoolMigration {}),
+                    Box::new(AssortedTruthinessMigration {}),
+                    Box::new(IntTruthinessMigration {}),
+                    Box::new(StringTruthinessMigration {}),
+                    Box::new(ContainerMigration {}),
+                    Box::new(MixedMigration {}),
                 ]
             });
 
         if !analysis_data
             .insertions
-            .contains_key(&(pos.end_offset() as u32))
-            && let Some(migration) = TRUTHINESS_MIGRATIONS.iter().find(|m| m.matches(expr_type))
+            .contains_key(&(pos.start_offset() as u32))
+            && !analysis_data
+                .insertions
+                .contains_key(&(pos.end_offset() as u32))
+            && let Some(migration) = TRUTHINESS_MIGRATIONS.iter().find(|m| m.matches(&expr_type))
         {
             let issue = Issue::new(
-                migration.kind(),
+                IssueKind::NonBoolCondition,
                 "Only bool values can be used as a condition".to_string(),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             );
 
             if statements_analyzer.should_autofix(context, analysis_data, &issue) {
-                // Get rid of all negations, but preserve any potential parentheses in between
-                if negation_depth > 0 {
-                    let negations = &statements_analyzer.file_analyzer.file_source.file_contents
-                        [negation_start_offset..pos.start_offset()];
+                if negation_depth > 0
+                    && let Some((_, bool_cast_end_offset)) = bool_cast_offsets
+                {
+                    // The negation and bool-cast removals can be adjacent, which the
+                    // replacement collector treats as overlapping. Remove them together,
+                    // preserving any grouping parentheses between them.
+                    let mut prefix = statements_analyzer.file_analyzer.file_source.file_contents
+                        [negation_start_offset..bool_cast_end_offset as usize]
+                        .to_string();
+                    let bool_cast_start_offset = bool_cast_offsets.unwrap().0 as usize;
+                    prefix.replace_range(bool_cast_start_offset - negation_start_offset.., "");
                     analysis_data.add_replacement(
-                        (negation_start_offset as u32, pos.start_offset() as u32),
+                        (negation_start_offset as u32, bool_cast_end_offset),
+                        Replacement::Substitute(prefix.replace("!", "")),
+                    );
+                } else if negation_depth > 0 {
+                    // Get rid of all negations, but preserve any potential parentheses in between
+                    let negations = &statements_analyzer.file_analyzer.file_source.file_contents
+                        [negation_start_offset..negation_end_offset];
+                    analysis_data.add_replacement(
+                        (negation_start_offset as u32, negation_end_offset as u32),
                         Replacement::Substitute(negations.replace("!", "")),
                     );
+                } else if let Some((start, end)) = bool_cast_offsets {
+                    analysis_data.add_replacement((start, end), Replacement::Remove);
                 }
+
                 if is_negated {
-                    migration.migrate_negated(statements_analyzer, analysis_data, expr, pos);
+                    migration.migrate_negated(MigrationArgs {
+                        statements_analyzer,
+                        analysis_data,
+                        expr,
+                        pos,
+                        expr_type,
+                    });
                 } else {
-                    migration.migrate(statements_analyzer, analysis_data, expr, pos);
+                    migration.migrate(MigrationArgs {
+                        statements_analyzer,
+                        analysis_data,
+                        expr,
+                        pos,
+                        expr_type,
+                    });
                 }
             } else {
                 analysis_data.maybe_add_issue(

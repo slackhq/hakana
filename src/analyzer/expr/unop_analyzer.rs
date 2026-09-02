@@ -20,16 +20,21 @@ pub(crate) fn analyze(
     let pos = outer_expr.pos();
 
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
-        truthiness::check_implicit_boolean_conversion(
-            statements_analyzer,
-            analysis_data,
-            context,
-            outer_expr,
-        );
-
         context.inside_negation = !context.inside_negation;
         expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context, true)?;
         context.inside_negation = !context.inside_negation;
+
+        // Wait until the operand has been analyzed so calls, array accesses,
+        // and other non-trivial expressions have a type available. For nested
+        // negations, only migrate the outermost expression.
+        if !context.inside_negation && !context.inside_conditional {
+            truthiness::check_implicit_boolean_conversion(
+                statements_analyzer,
+                analysis_data,
+                context,
+                outer_expr,
+            );
+        }
     } else {
         expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context, true)?;
     }

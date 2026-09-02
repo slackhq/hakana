@@ -1,1 +1,2 @@
+ERROR: NonBoolNumericCondition - input.hack:4:12 - Only bool values can be used as a condition
 ERROR: VarUsedThenRedefinedInLoop - input.hack:9:13 - Variable $a is used in loop before being redefined, which may dirty the outer value

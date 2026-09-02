@@ -7,6 +7,12 @@ function returns_nullable(bool $b): ?dict<string, int> {
 }
 
 function main(?\HH\Container $nc, \HH\Container $c, input_t $input, bool $b): void {
+    $explicit_bool = !C\is_empty(returns_nullable($b) ?? vec[]);
+
+    while (C\is_empty($c)) {
+        break;
+    }
+
     if ($nc is nonnull && !C\is_empty($nc)) {
         echo "test";
     }

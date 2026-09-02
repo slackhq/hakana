@@ -1,1 +1,2 @@
-UndefinedVariable
+ERROR: UndefinedVariable - input.hack:12:9 - Cannot find referenced variable $a
+ERROR: NonBoolCondition - input.hack:12:9 - Only bool values can be used as a condition

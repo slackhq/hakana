@@ -1,1 +1,2 @@
-RedundantTypeComparison
+ERROR: NonBoolCondition - input.hack:11:10 - Only bool values can be used as a condition
+ERROR: RedundantTypeComparison - input.hack:13:5 - Type null is always null

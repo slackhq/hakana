@@ -1,1 +1,2 @@
-RedundantTruthinessCheck
+ERROR: NonBoolNumericCondition - input.hack:2:22 - Only bool values can be used as a condition
+ERROR: RedundantTruthinessCheck - input.hack:5:5 - Type true is always truthy

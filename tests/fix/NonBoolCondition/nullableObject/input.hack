@@ -4,11 +4,31 @@ function some_cond(int $i): bool {
 
 final class C {}
 
+function check_generic_object<T as C>(?T $value): void {
+    if ($value) {
+        echo "generic object";
+    }
+}
+
 function maybe_object(bool $test): ?C {
     return $test ? new C() : null;
 }
 
-function main(bool $input, int $x, string $foo): int {
+function main(
+    bool $input,
+    int $x,
+    string $foo,
+    shape(?'value' => int) $optional_shape,
+): int {
+    $object = new C();
+    if ($object) {
+        echo "object";
+    }
+
+    if (!$optional_shape) {
+        echo "empty shape";
+    }
+
     if ($x && $input && maybe_object($input) && some_cond($x)) {
         echo "test";
     }
@@ -42,5 +62,45 @@ function main(bool $input, int $x, string $foo): int {
         echo "test";
     }
 
+    invariant(maybe_object($input), "invariant violation");
+
     return maybe_object($input) ? 5 : 4;
+}
+
+function newly_supported_types(
+    ?(function(): void) $closure,
+    ?classname<C> $classname,
+    ?class<C> $class_ptr,
+    ?typename<C> $typename,
+    ?Awaitable<int> $awaitable,
+    ?shape('value' => int) $shape,
+    ?(int, string) $tuple,
+): void {
+    if (!$closure) {
+        echo "test";
+    }
+
+    if ($classname) {
+        echo "test";
+    }
+
+    if (!$class_ptr) {
+        echo "test";
+    }
+
+    if ($typename) {
+        echo "test";
+    }
+
+    if (!$awaitable) {
+        echo "test";
+    }
+
+    if ($shape) {
+        echo "test";
+    }
+
+    if (!$tuple) {
+        echo "test";
+    }
 }

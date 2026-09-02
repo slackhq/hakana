@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     control_analyzer,
-    if_conditional_analyzer::add_branch_dataflow,
+    if_conditional_analyzer::{add_branch_dataflow, handle_paradoxical_condition},
     loop_::{assignment_map_visitor::get_assignment_map, tast_cleaner::clean_nodes},
 };
 
@@ -707,6 +707,13 @@ fn apply_pre_condition_to_loop_context(
         loop_context,
         true,
     )?;
+
+    handle_paradoxical_condition(
+        statements_analyzer,
+        analysis_data,
+        pre_condition,
+        loop_parent_context,
+    );
 
     add_branch_dataflow(statements_analyzer, pre_condition, analysis_data);
 

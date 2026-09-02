@@ -1,2 +1,5 @@
+ERROR: RedundantTruthinessCheck - input.hack:3:16 - Type true is always truthy
+ERROR: RedundantTruthinessCheck - input.hack:20:16 - Type true is always truthy
+ERROR: RedundantTruthinessCheck - input.hack:22:20 - Type true is always truthy
 ERROR: UnevaluatedCode - input.hack:28:9 - Unused code after return/throw/continue
 ERROR: UnevaluatedCode - input.hack:32:5 - Unused code after return/throw/continue
