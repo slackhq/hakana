@@ -1,0 +1,9 @@
+function main(int $i, ?bool $nullable): void {
+    do {
+        $i++;
+    } while (($nullable ?? false));
+
+    while ($i && ($nullable ?? false)) {
+        break;
+    }
+}

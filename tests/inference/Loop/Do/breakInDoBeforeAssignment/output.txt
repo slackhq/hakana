@@ -1,1 +1,2 @@
-PossiblyNullArrayAccess
+ERROR: NonBoolNumericCondition - input.hack:9:10 - Only bool values can be used as a condition
+ERROR: PossiblyNullArrayAccess - input.hack:11:6 - Unsafe array access on null

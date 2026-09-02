@@ -8,6 +8,7 @@ use hakana_code_info::var_name::VarName;
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use crate::truthiness;
 use crate::{
     expression_analyzer, formula_generator,
     function_analysis_data::FunctionAnalysisData,
@@ -707,6 +708,13 @@ fn apply_pre_condition_to_loop_context(
         loop_context,
         true,
     )?;
+
+    truthiness::check_implicit_boolean_conversion(
+        statements_analyzer,
+        analysis_data,
+        loop_parent_context,
+        pre_condition,
+    );
 
     add_branch_dataflow(statements_analyzer, pre_condition, analysis_data);
 

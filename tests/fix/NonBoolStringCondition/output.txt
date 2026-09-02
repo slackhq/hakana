@@ -1,7 +1,23 @@
 final class C {}
 
+enum StringEnum: string {
+    VALUE = 'value';
+}
+
 function get_value(): ?string {
     return null;
+}
+
+function get_enum(): ?StringEnum {
+    return null;
+}
+
+function fallback(): string {
+    return "";
+}
+
+function get_string(): string {
+    return "";
 }
 
 function conditions(
@@ -11,7 +27,19 @@ function conditions(
     bool $bool,
     ?C $object,
     int $integer,
+    shape(?'value' => string, ?'other' => string) $input
 ): string {
+    $enum = get_enum();
+    if ($enum is nonnull && $enum !== '' && $enum !== '0') {
+        echo "enum";
+    }
+
+    $explicit_bool = \HH\legacy_is_truthy(get_string());
+
+    for (; ($string !== '' && $string !== '0'); $integer++) {
+        break;
+    }
+
     if ($value is nonnull && $value !== '' && $value !== '0') {
         echo "direct";
     }
@@ -46,6 +74,18 @@ function conditions(
 
     if ($integer) {
         echo "integer";
+    }
+
+    if (($input['value'] ?? false) !== false && ($input['value'] ?? false) !== '' && ($input['value'] ?? false) !== '0') {
+        echo "foo";
+    }
+
+    if (\HH\legacy_is_truthy($input['value'] ?? fallback())) {
+        echo "foo";
+    }
+
+    if (($input['other'] ?? $input['value'] ?? false) !== false && ($input['other'] ?? $input['value'] ?? false) !== '' && ($input['other'] ?? $input['value'] ?? false) !== '0') {
+        echo "foo";
     }
 
     return ($value is nonnull && $value !== '' && $value !== '0') ? "present" : "absent";

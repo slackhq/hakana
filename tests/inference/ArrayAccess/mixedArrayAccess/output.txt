@@ -1,4 +1,5 @@
 ERROR: MixedAnyArrayAccess - input.hack:2:12 - Unsafe array access on value with type any
+ERROR: NonBoolCondition - input.hack:6:9 - Only bool values can be used as a condition
 ERROR: MixedAnyArrayAccess - input.hack:7:16 - Unsafe array access on value with type truthy-from-any
 ERROR: MixedAnyArrayAccess - input.hack:14:16 - Unsafe array access on value with type nonnull-from-any
 ERROR: MixedAnyArrayAccess - input.hack:21:12 - Unsafe array access on value with type any

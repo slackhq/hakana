@@ -1,2 +1,3 @@
 ERROR: UnusedAssignment - input.hack:3:3 - Assignment to $b is unused
+ERROR: NonBoolNumericCondition - input.hack:5:10 - Only bool values can be used as a condition
 ERROR: UnusedAssignment - input.hack:7:5 - Assignment to $b is unused

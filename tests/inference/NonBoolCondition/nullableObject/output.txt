@@ -5,3 +5,12 @@ ERROR: NonBoolCondition - input.hack:20:9 - Only bool values can be used as a co
 ERROR: NonBoolCondition - input.hack:24:10 - Only bool values can be used as a condition
 ERROR: NonBoolCondition - input.hack:28:21 - Only bool values can be used as a condition
 ERROR: NonBoolCondition - input.hack:32:12 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:45:10 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:49:10 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:53:9 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:57:10 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:61:9 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:65:10 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:69:9 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:73:10 - Only bool values can be used as a condition
+ERROR: NonBoolCondition - input.hack:77:15 - Only bool values can be used as a condition

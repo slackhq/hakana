@@ -1,2 +1,4 @@
 ERROR: NonBoolStringCondition - input.hack:2:9 - Only bool values can be used as a condition
 ERROR: NonBoolStringCondition - input.hack:8:9 - Only bool values can be used as a condition
+ERROR: NonBoolStringCondition - input.hack:14:9 - Only bool values can be used as a condition
+ERROR: NonBoolStringCondition - input.hack:20:9 - Only bool values can be used as a condition

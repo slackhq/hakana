@@ -1,0 +1,29 @@
+function get_nullable_bool(): ?bool {
+    return null;
+}
+
+function main(?bool $nullable, shape(?'value' => bool) $input, bool $other): void {
+    if ($nullable ?? false) {
+        echo "nullable";
+    }
+
+    if (!($nullable ?? false)) {
+        echo "negated";
+    }
+
+    if (($nullable ?? false) && $other) {
+        echo "combined";
+    }
+
+    if ($input['value'] ?? false) {
+        echo "coalesce";
+    }
+
+    if ((!($input['value'] ?? false))) {
+        echo "negated coalesce";
+    }
+
+    if (get_nullable_bool() ?? false) {
+        echo "call";
+    }
+}

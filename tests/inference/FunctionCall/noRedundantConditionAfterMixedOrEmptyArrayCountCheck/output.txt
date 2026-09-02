@@ -1,2 +1,3 @@
+ERROR: NonBoolCondition - input.hack:3:10 - Only bool values can be used as a condition
 ERROR: MixedAnyArgument - input.hack:4:24 - Argument 1 of HH\Lib\C\count expects HH\Container<mixed>, truthy-from-any provided
 ERROR: MixedAnyArgument - input.hack:5:24 - Argument 1 of HH\Lib\C\count expects HH\Container<mixed>, truthy-from-any provided

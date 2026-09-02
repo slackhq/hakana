@@ -1,1 +1,2 @@
-PossiblyInvalidArgument
+ERROR: NonBoolNumericCondition - input.hack:19:5 - Only bool values can be used as a condition
+ERROR: PossiblyInvalidArgument - input.hack:20:14 - Argument 1 of printInt expects int, possibly different type ?int provided
