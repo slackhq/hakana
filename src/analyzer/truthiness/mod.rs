@@ -13,12 +13,12 @@ use crate::truthiness::container_migration::ContainerMigration;
 
 mod container_migration;
 mod implicit_boolean_conversion_migration;
-mod int_migration;
+mod nullable_int_migration;
 mod nullable_string_migration;
 mod nullable_truthy_migration;
 
 use implicit_boolean_conversion_migration::ImplicitBooleanConversionMigration;
-use int_migration::IntMigration;
+use nullable_int_migration::NullableIntMigration;
 use nullable_string_migration::NullableStringMigration;
 use nullable_truthy_migration::NullableTruthyMigration;
 
@@ -69,7 +69,12 @@ pub(crate) fn check_implicit_boolean_conversion(
             LazyLock::new(|| {
                 vec![
                     Box::new(NullableTruthyMigration {}),
-                    Box::new(IntMigration {}),
+                    Box::new(NullableIntMigration {
+                        handle_nullable: true,
+                    }),
+                    Box::new(NullableIntMigration {
+                        handle_nullable: false,
+                    }),
                     Box::new(NullableStringMigration {
                         handle_nullable: true,
                     }),
