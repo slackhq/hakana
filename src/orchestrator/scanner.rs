@@ -39,15 +39,17 @@ use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
 /// Combines the binary's build header with a fingerprint of the pre-interned
-/// string table. Cached analysis data stores raw StrIds, so caches must be
-/// invalidated whenever the pre-interned list changes — even if the binary's
-/// version header is unchanged (e.g. local builds where only a dependency
-/// crate was modified).
-pub fn get_combined_build_checksum(build_checksum: &str) -> String {
+/// string table and of the effective configuration. Cached analysis data stores
+/// raw StrIds, so caches must be invalidated whenever the pre-interned list
+/// changes — even if the binary's version header is unchanged (e.g. local builds
+/// where only a dependency crate was modified). Cached issues and references are
+/// likewise only valid for the configuration they were produced under.
+pub fn get_combined_build_checksum(build_checksum: &str, config: &Config) -> String {
     format!(
-        "{}\nInterner:  {:x}",
+        "{}\nInterner:  {:x}\nConfig:    {:x}",
         build_checksum,
-        hakana_str::INTERNED_STRINGS_HASH
+        hakana_str::INTERNED_STRINGS_HASH,
+        config.cache_fingerprint()
     )
 }
 
@@ -61,6 +63,9 @@ pub struct ScanFilesResult {
     pub files_to_analyze: Vec<String>,
     pub invalid_files: FxHashSet<FilePath>,
     pub force_full_analysis: bool,
+    /// False when the on-disk cache was absent or produced by a different build or
+    /// configuration — cached issues and references must then be ignored too.
+    pub cache_is_valid: bool,
 }
 
 pub fn scan_files(
@@ -96,7 +101,7 @@ pub fn scan_files(
 
         if build_checksum_path.exists() {
             if let Ok(contents) = fs::read_to_string(build_checksum_path) {
-                if contents != get_combined_build_checksum(build_checksum) {
+                if contents != get_combined_build_checksum(build_checksum, config) {
                     use_codebase_cache = false;
                 }
             } else {
@@ -465,6 +470,7 @@ pub fn scan_files(
         file_system,
         invalid_files: invalid_files.into_iter().collect(),
         force_full_analysis,
+        cache_is_valid: use_codebase_cache,
     })
 }
 
@@ -714,5 +720,21 @@ mod tests {
             codebase_diff.deletion_ranges_map.get(&target_file),
             Some(&vec![(0, u32::MAX)])
         );
+    }
+
+    #[test]
+    fn build_checksum_changes_when_config_changes() {
+        let mut config = Config::new("root".to_string(), FxHashSet::default());
+        let original = get_combined_build_checksum("build", &config);
+
+        config.find_unused_expressions = true;
+        assert_ne!(original, get_combined_build_checksum("build", &config));
+
+        config.find_unused_expressions = false;
+        config.config_file_hash = 42;
+        assert_ne!(original, get_combined_build_checksum("build", &config));
+
+        config.config_file_hash = 0;
+        assert_eq!(original, get_combined_build_checksum("build", &config));
     }
 }

@@ -647,6 +647,22 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c.has_static_field_access = false;
         }
 
+        // the class's signature node (with this method as a child) was pushed before the
+        // class body was visited
+        let caller_visible_body_hash = get_caller_visible_body_hash(functionlike_storage);
+
+        if let Some(class_node) = self.ast_nodes.last_mut()
+            && class_node.name == classlike_name
+            && let Some(method_node) = class_node
+                .children
+                .iter_mut()
+                .find(|node| node.name == method_name && node.is_function)
+        {
+            method_node.signature_hash = method_node
+                .signature_hash
+                .wrapping_add(caller_visible_body_hash);
+        }
+
         result
     }
 
@@ -712,6 +728,18 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         if c.has_asio_join {
             functionlike_storage.has_asio_join = true;
+        }
+
+        // the function's signature node was pushed before the body was visited
+        let caller_visible_body_hash = get_caller_visible_body_hash(&functionlike_storage);
+
+        if let Some(function_node) = self.ast_nodes.last_mut()
+            && function_node.name == name
+            && function_node.is_function
+        {
+            function_node.signature_hash = function_node
+                .signature_hash
+                .wrapping_add(caller_visible_body_hash);
         }
 
         self.codebase
@@ -976,6 +1004,19 @@ fn fix_function_return_type(function_name: StrId, functionlike_storage: &mut Fun
         }
         _ => {}
     }
+}
+
+/// Facts about a function that are derived from its body but consulted when analysing
+/// its *callers*: whether it can throw (call-site effects), whether it merely wraps an
+/// async version (ImplicitAsioJoin), and whether calls to it are specialised. These are
+/// folded into the signature hash so that a body change flipping one of them invalidates
+/// callers, not just the function itself.
+fn get_caller_visible_body_hash(functionlike_info: &FunctionLikeInfo) -> u64 {
+    let mut hasher = rustc_hash::FxHasher::default();
+    functionlike_info.has_throw.hash(&mut hasher);
+    functionlike_info.specialize_call.hash(&mut hasher);
+    functionlike_info.async_version.hash(&mut hasher);
+    hasher.finish()
 }
 
 fn get_uses_hash(uses: &Vec<(StrId, StrId)>) -> u64 {

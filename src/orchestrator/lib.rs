@@ -151,6 +151,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         mut files_to_analyze,
         invalid_files,
         force_full_analysis,
+        cache_is_valid,
     } = scan_files(
         &all_scanned_dirs,
         cache_dir,
@@ -178,7 +179,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         write!(
             timestamp_file,
             "{}",
-            scanner::get_combined_build_checksum(header)
+            scanner::get_combined_build_checksum(header, &config)
         )
         .unwrap();
 
@@ -196,8 +197,8 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
             &mut interner,
             invalid_files,
             &mut files_to_analyze,
-            &get_issues_path(cache_dir),
-            &get_references_path(cache_dir),
+            &get_issues_path(cache_dir).filter(|_| cache_is_valid),
+            &get_references_path(cache_dir).filter(|_| cache_is_valid),
             previous_analysis_result,
             config.max_changes_allowed,
         )

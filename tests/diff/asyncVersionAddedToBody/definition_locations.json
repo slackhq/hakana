@@ -1,0 +1,26 @@
+[
+  {
+    "end_offset": 64,
+    "file": "main.hack",
+    "name": "Svc",
+    "start_offset": 55
+  },
+  {
+    "end_offset": 86,
+    "file": "main.hack",
+    "name": "Svc::fetch",
+    "start_offset": 81
+  },
+  {
+    "end_offset": 158,
+    "file": "main.hack",
+    "name": "main_async",
+    "start_offset": 148
+  },
+  {
+    "end_offset": 179,
+    "file": "input.hack",
+    "name": "Svc::fetch_async",
+    "start_offset": 168
+  }
+]

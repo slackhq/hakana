@@ -1,0 +1,14 @@
+[
+  {
+    "end_offset": 58,
+    "file": "input.hack",
+    "name": "Exception::__construct",
+    "start_offset": 38
+  },
+  {
+    "end_offset": 52,
+    "file": "main.hack",
+    "name": "pure_fn",
+    "start_offset": 45
+  }
+]

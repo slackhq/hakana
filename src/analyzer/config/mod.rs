@@ -1,12 +1,20 @@
-use std::{error::Error, path::Path, sync::Arc};
+use std::{
+    error::Error,
+    hash::{Hash, Hasher},
+    path::Path,
+    sync::Arc,
+};
 
 use hakana_code_info::{
-    data_flow::{graph::GraphKind, tainted_node::TaintedNode},
+    data_flow::{
+        graph::{GraphKind, WholeProgramKind},
+        tainted_node::TaintedNode,
+    },
     issue::{Issue, IssueKind},
     taint::{SinkType, SourceType},
 };
 use hakana_str::{Interner, StrId};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 
 use crate::custom_hook::CustomHook;
 
@@ -43,6 +51,8 @@ pub struct Config {
     pub cyclomatic_complexity_file_patterns: Vec<glob::Pattern>,
     pub strict_falsable_types: bool,
     pub plugin_config: FxHashMap<String, serde_json::Value>,
+    /// Hash of the raw config file this was loaded from (0 if none) — see `cache_fingerprint`
+    pub config_file_hash: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -100,7 +110,72 @@ impl Config {
             cyclomatic_complexity_file_patterns: Vec::new(),
             strict_falsable_types: false,
             plugin_config: FxHashMap::default(),
+            config_file_hash: 0,
         }
+    }
+
+    /// A fingerprint of every setting that changes what a run scans or reports. It forms
+    /// part of the on-disk cache key, so results cached under one configuration are never
+    /// reused under another (e.g. after editing hakana.json or toggling `--find-unused-expressions`).
+    pub fn cache_fingerprint(&self) -> u64 {
+        fn hash_sorted(mut strings: Vec<String>, hasher: &mut FxHasher) {
+            strings.sort();
+            strings.hash(hasher);
+        }
+
+        let mut hasher = FxHasher::default();
+
+        self.config_file_hash.hash(&mut hasher);
+        self.find_unused_expressions.hash(&mut hasher);
+        self.find_unused_definitions.hash(&mut hasher);
+        self.ignore_mixed_issues.hash(&mut hasher);
+        self.add_fixmes.hash(&mut hasher);
+        self.remove_fixmes.hash(&mut hasher);
+        self.in_migration.hash(&mut hasher);
+        self.in_codegen.hash(&mut hasher);
+        self.collect_goto_definition_locations.hash(&mut hasher);
+        self.analyze_cyclomatic_complexity.hash(&mut hasher);
+        self.cyclomatic_complexity_threshold.hash(&mut hasher);
+
+        match &self.graph_kind {
+            GraphKind::FunctionBody => 0u8,
+            GraphKind::WholeProgram(WholeProgramKind::Taint) => 1u8,
+            GraphKind::WholeProgram(WholeProgramKind::Query) => 2u8,
+        }
+        .hash(&mut hasher);
+
+        self.allowed_issues.is_some().hash(&mut hasher);
+        hash_sorted(
+            self.allowed_issues
+                .iter()
+                .flatten()
+                .map(|issue| issue.to_string())
+                .collect(),
+            &mut hasher,
+        );
+        hash_sorted(
+            self.issues_to_fix
+                .iter()
+                .map(|issue| issue.to_string())
+                .collect(),
+            &mut hasher,
+        );
+        hash_sorted(
+            self.migration_symbols
+                .iter()
+                .map(|(k, v)| format!("{k}={v}"))
+                .collect(),
+            &mut hasher,
+        );
+        hash_sorted(
+            self.cyclomatic_complexity_file_patterns
+                .iter()
+                .map(|pattern| pattern.as_str().to_string())
+                .collect(),
+            &mut hasher,
+        );
+
+        hasher.finish()
     }
 
     /// Get the root path of the project being analyzed.
@@ -115,6 +190,11 @@ impl Config {
         interner: &mut Interner,
     ) -> Result<(), Box<dyn Error>> {
         let json_config = json_config::read_from_file(config_path)?;
+
+        // any change to the file must invalidate cached analysis results
+        let mut hasher = FxHasher::default();
+        std::fs::read(config_path)?.hash(&mut hasher);
+        self.config_file_hash = hasher.finish();
 
         self.ignore_files = json_config
             .ignore_files
