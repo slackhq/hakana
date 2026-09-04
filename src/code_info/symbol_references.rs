@@ -15,9 +15,22 @@ pub enum ReferenceSource {
 }
 
 pub struct InvalidSymbols {
+    /// Symbols and members whose signature changed, or whose signature references
+    /// something that changed (e.g. a class whose parent changed).
     pub invalid_symbol_and_member_signatures: FxHashSet<(StrId, StrId)>,
+    /// Symbols and members whose body changed, or whose body references something that
+    /// changed. Their signatures are intact, so dependents don't need re-analysis.
     pub invalid_symbol_and_member_bodies: FxHashSet<(StrId, StrId)>,
+    /// Classlikes with at least one invalid member.
     pub partially_invalid_symbols: FxHashSet<StrId>,
+}
+
+impl InvalidSymbols {
+    pub fn all(&self) -> FxHashSet<(StrId, StrId)> {
+        let mut all = self.invalid_symbol_and_member_signatures.clone();
+        all.extend(self.invalid_symbol_and_member_bodies.iter().copied());
+        all
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -33,11 +46,6 @@ pub struct SymbolReferences {
     // (class method, enum case, class property etc)
     pub symbol_references_to_overridden_members:
         FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
-
-    // A lookup table used for getting all the functions that reference a method's return value
-    // This is used for dead code detection when we want to see what return values are unused
-    pub functionlike_references_to_functionlike_returns:
-        FxHashMap<FunctionLikeIdentifier, FxHashSet<FunctionLikeIdentifier>>,
 }
 
 impl SymbolReferences {
@@ -46,7 +54,6 @@ impl SymbolReferences {
             symbol_references_to_symbols: FxHashMap::default(),
             symbol_references_to_symbols_in_signature: FxHashMap::default(),
             symbol_references_to_overridden_members: FxHashMap::default(),
-            functionlike_references_to_functionlike_returns: FxHashMap::default(),
         }
     }
 
@@ -277,17 +284,6 @@ impl SymbolReferences {
         }
     }
 
-    pub fn add_reference_to_functionlike_return(
-        &mut self,
-        referencing_functionlike: FunctionLikeIdentifier,
-        functionlike: FunctionLikeIdentifier,
-    ) {
-        self.functionlike_references_to_functionlike_returns
-            .entry(referencing_functionlike)
-            .or_default()
-            .insert(functionlike);
-    }
-
     pub fn extend(&mut self, other: Self) {
         for (k, v) in other.symbol_references_to_symbols {
             self.symbol_references_to_symbols
@@ -415,7 +411,7 @@ impl SymbolReferences {
         &self,
         codebase_diff: &CodebaseDiff,
         max_changes_allowed: usize,
-    ) -> Option<(FxHashSet<(StrId, StrId)>, FxHashSet<StrId>)> {
+    ) -> Option<InvalidSymbols> {
         let mut invalid_symbols = FxHashSet::default();
         let mut invalid_symbol_members = FxHashSet::default();
 
@@ -522,20 +518,38 @@ impl SymbolReferences {
 
         partially_invalid_symbols.extend(invalid_symbol_member_bodies.iter().map(|(a, _)| *a));
 
-        invalid_symbols.extend(invalid_symbol_members);
-        invalid_symbols.extend(invalid_symbol_bodies);
-        invalid_symbols.extend(invalid_symbol_member_bodies);
+        let mut invalid_symbol_and_member_signatures = invalid_symbols;
+        invalid_symbol_and_member_signatures.extend(invalid_symbol_members);
 
-        Some((invalid_symbols, partially_invalid_symbols))
+        let mut invalid_symbol_and_member_bodies = invalid_symbol_bodies;
+        invalid_symbol_and_member_bodies.extend(invalid_symbol_member_bodies);
+
+        Some(InvalidSymbols {
+            invalid_symbol_and_member_signatures,
+            invalid_symbol_and_member_bodies,
+            partially_invalid_symbols,
+        })
     }
 
+    /// Drops the outgoing references of everything that is about to be re-analyzed:
+    /// the given symbols and members, plus every member of the given classlikes.
     pub fn remove_references_from_invalid_symbols(
         &mut self,
         invalid_symbols_and_members: &FxHashSet<(StrId, StrId)>,
+        fully_invalid_symbols: &FxHashSet<StrId>,
     ) {
+        let is_invalid = |symbol: &(StrId, StrId)| {
+            invalid_symbols_and_members.contains(symbol)
+                || fully_invalid_symbols.contains(&symbol.0)
+        };
+
         self.symbol_references_to_symbols
-            .retain(|symbol, _| !invalid_symbols_and_members.contains(symbol));
+            .retain(|symbol, _| !is_invalid(symbol));
         self.symbol_references_to_symbols_in_signature
-            .retain(|symbol, _| !invalid_symbols_and_members.contains(symbol));
+            .retain(|symbol, _| !is_invalid(symbol));
+        // these feed unused-symbol detection; a stale entry from a re-analyzed caller
+        // would keep a parent method looking referenced after its last call was removed
+        self.symbol_references_to_overridden_members
+            .retain(|symbol, _| !is_invalid(symbol));
     }
 }

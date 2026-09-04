@@ -1,0 +1,1 @@
+ERROR: NonExhaustiveSwitchStatement - main.hack:2:13 - Switch statement doesn’t cover the following literal type(s): E::C

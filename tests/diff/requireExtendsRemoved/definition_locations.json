@@ -1,0 +1,26 @@
+[
+  {
+    "end_offset": 169,
+    "file": "input.hack",
+    "name": "Base",
+    "start_offset": 165
+  },
+  {
+    "end_offset": 181,
+    "file": "input.hack",
+    "name": "T",
+    "start_offset": 180
+  },
+  {
+    "end_offset": 242,
+    "file": "input.hack",
+    "name": "Impl",
+    "start_offset": 232
+  },
+  {
+    "end_offset": 247,
+    "file": "input.hack",
+    "name": "T::go",
+    "start_offset": 245
+  }
+]

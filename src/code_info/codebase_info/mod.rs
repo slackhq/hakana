@@ -27,7 +27,6 @@ pub struct CodebaseInfo {
     pub symbols: Symbols,
     pub infer_types_from_usage: bool,
     pub constant_infos: FxHashMap<StrId, ConstantInfo>,
-    pub closures_in_files: FxHashMap<FilePath, FxHashSet<StrId>>,
     pub all_classlike_descendants: FxHashMap<StrId, FxHashSet<StrId>>,
     pub direct_classlike_descendants: FxHashMap<StrId, FxHashSet<StrId>>,
     pub files: FxHashMap<FilePath, FileInfo>,
@@ -59,7 +58,6 @@ impl CodebaseInfo {
             type_definitions: FxHashMap::default(),
             infer_types_from_usage: false,
             constant_infos: FxHashMap::default(),
-            closures_in_files: FxHashMap::default(),
             all_classlike_descendants: FxHashMap::default(),
             direct_classlike_descendants: FxHashMap::default(),
             files: FxHashMap::default(),
@@ -601,7 +599,6 @@ impl CodebaseInfo {
         }
 
         self.symbols.all.extend(other.symbols.all);
-        self.closures_in_files.extend(other.closures_in_files);
         self.files.extend(other.files);
     }
 

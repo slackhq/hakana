@@ -1,0 +1,26 @@
+[
+  {
+    "end_offset": 66,
+    "file": "main.hack",
+    "name": "E::A",
+    "start_offset": 62
+  },
+  {
+    "end_offset": 109,
+    "file": "main.hack",
+    "name": "E::B",
+    "start_offset": 105
+  },
+  {
+    "end_offset": 199,
+    "file": "main.hack",
+    "name": "label",
+    "start_offset": 194
+  },
+  {
+    "end_offset": 204,
+    "file": "main.hack",
+    "name": "E::A",
+    "start_offset": 200
+  }
+]

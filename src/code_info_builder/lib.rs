@@ -678,6 +678,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 .map(|k| &k.0)
                 .collect(),
             &f.fun.ret,
+            &f.where_constraints,
+            &f.fun.ctxs,
             self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
         );
 
@@ -1068,30 +1070,46 @@ fn get_function_hashes(
     user_attributes: &[AttributeInfo],
     suppressed_issues: Vec<&IssueKind>,
     ret: &TypeHint,
+    where_constraints: &[aast::WhereConstraintHint],
+    ctxs: &Option<aast::Contexts>,
     uses: &Vec<(StrId, StrId)>,
 ) -> (u64, u64) {
+    // The signature is everything from the start of the definition up to the furthest
+    // point of any part that callers can observe. Take the maximum across parts: some
+    // (e.g. a return type) may be absent, and within a parameter the type hint precedes
+    // the name and default value.
     let mut signature_end = name.0.end_offset();
 
     if let Some(last_tparam) = tparams.last() {
-        signature_end = last_tparam.name.0.end_offset();
+        signature_end = signature_end.max(last_tparam.name.0.end_offset());
 
         if let Some((_, last_tparam_constraint)) = last_tparam.constraints.last() {
-            signature_end = last_tparam_constraint.0.end_offset();
+            signature_end = signature_end.max(last_tparam_constraint.0.end_offset());
         }
     }
 
     if let Some(last_param) = params.last() {
-        if let ast::FunParamInfo::ParamOptional(Some(expr)) = &last_param.info {
-            signature_end = expr.1.end_offset();
-        }
+        signature_end = signature_end.max(last_param.pos.end_offset());
 
         if let Some(last_hint) = &last_param.type_hint.1 {
-            signature_end = last_hint.0.end_offset();
+            signature_end = signature_end.max(last_hint.0.end_offset());
+        }
+
+        if let ast::FunParamInfo::ParamOptional(Some(expr)) = &last_param.info {
+            signature_end = signature_end.max(expr.1.end_offset());
         }
     }
 
+    if let Some(ctxs) = ctxs {
+        signature_end = signature_end.max(ctxs.0.end_offset());
+    }
+
     if let Some(ret_hint) = &ret.1 {
-        signature_end = ret_hint.0.end_offset();
+        signature_end = signature_end.max(ret_hint.0.end_offset());
+    }
+
+    if let Some(last_where_constraint) = where_constraints.last() {
+        signature_end = signature_end.max(last_where_constraint.2.0.end_offset());
     }
 
     let mut signature_hash = xxhash_rust::xxh3::xxh3_64(

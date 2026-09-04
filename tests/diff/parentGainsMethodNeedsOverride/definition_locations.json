@@ -1,0 +1,20 @@
+[
+  {
+    "end_offset": 23,
+    "file": "input.hack",
+    "name": "P",
+    "start_offset": 22
+  },
+  {
+    "end_offset": 117,
+    "file": "input.hack",
+    "name": "C",
+    "start_offset": 110
+  },
+  {
+    "end_offset": 123,
+    "file": "input.hack",
+    "name": "C::foo",
+    "start_offset": 120
+  }
+]

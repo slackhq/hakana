@@ -60,7 +60,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
             return CachedAnalysis::default();
         };
 
-    let (invalid_symbols_and_members, partially_invalid_symbols) = if let Some(invalid_symbols) =
+    let invalid_symbols = if let Some(invalid_symbols) =
         existing_references.get_invalid_symbols(&codebase_diff, max_changes_allowed)
     {
         invalid_symbols
@@ -69,46 +69,77 @@ pub(crate) fn mark_safe_symbols_from_diff(
         return CachedAnalysis::default();
     };
 
+    // Classlikes whose own signature is invalid — either it changed, or it references
+    // something that changed (a parent, interface, trait, attribute or template type).
+    // Every member of such a classlike is invalid too: a member may depend on inherited
+    // members that appeared or disappeared even though its own text and recorded
+    // references are unchanged. (When the classlike's signature changed the differ never
+    // even visited its members, so they aren't in `keep` at all.)
+    let fully_invalid_symbols = invalid_symbols
+        .invalid_symbol_and_member_signatures
+        .iter()
+        .filter(|(_, member_name)| member_name.is_empty())
+        .map(|(symbol, _)| *symbol)
+        .collect::<FxHashSet<_>>();
+
+    let mut invalid_symbols_and_members = invalid_symbols.all();
+
+    for keep_symbol in &codebase_diff.keep {
+        if !keep_symbol.1.is_empty() && fully_invalid_symbols.contains(&keep_symbol.0) {
+            invalid_symbols_and_members.insert(*keep_symbol);
+        }
+    }
+
     let mut cached_analysis = CachedAnalysis {
         symbol_references: existing_references,
         ..CachedAnalysis::default()
     };
 
     for keep_symbol in &codebase_diff.keep {
-        if !invalid_symbols_and_members.contains(keep_symbol) {
-            if keep_symbol.1.is_empty() {
-                if !partially_invalid_symbols.contains(&keep_symbol.0) {
-                    cached_analysis.safe_symbols.insert(keep_symbol.0);
-                }
-            } else {
-                cached_analysis
-                    .safe_symbol_members
-                    .insert((keep_symbol.0, keep_symbol.1));
+        if invalid_symbols_and_members.contains(keep_symbol) {
+            continue;
+        }
+
+        if keep_symbol.1.is_empty() {
+            if !invalid_symbols
+                .partially_invalid_symbols
+                .contains(&keep_symbol.0)
+            {
+                cached_analysis.safe_symbols.insert(keep_symbol.0);
             }
+        } else {
+            cached_analysis
+                .safe_symbol_members
+                .insert((keep_symbol.0, keep_symbol.1));
         }
     }
 
     cached_analysis
         .symbol_references
-        .remove_references_from_invalid_symbols(&invalid_symbols_and_members);
+        .remove_references_from_invalid_symbols(
+            &invalid_symbols_and_members,
+            &fully_invalid_symbols,
+        );
 
-    let mut invalid_files = codebase
+    let invalid_file_paths = codebase
         .files
         .iter()
         .filter(|(_, file_info)| {
             file_info.ast_nodes.iter().any(|node| {
                 invalid_symbols_and_members.contains(&(node.name, StrId::EMPTY))
-                    || partially_invalid_symbols.contains(&node.name)
+                    || invalid_symbols
+                        .partially_invalid_symbols
+                        .contains(&node.name)
             })
         })
-        .map(|(file_id, _)| interner.lookup(&file_id.0))
+        .map(|(file_id, _)| *file_id)
+        .chain(invalid_scanned_files.iter().copied())
         .collect::<FxHashSet<_>>();
 
-    invalid_files.extend(
-        invalid_scanned_files
-            .iter()
-            .map(|file_id| interner.lookup(&file_id.0)),
-    );
+    let invalid_files = invalid_file_paths
+        .iter()
+        .map(|file_id| interner.lookup(&file_id.0))
+        .collect::<FxHashSet<_>>();
 
     files_to_analyze.retain(|full_path| invalid_files.contains(&full_path.as_str()));
 
@@ -116,6 +147,8 @@ pub(crate) fn mark_safe_symbols_from_diff(
         &mut existing_issues,
         &codebase_diff,
         &invalid_symbols_and_members,
+        &fully_invalid_symbols,
+        &invalid_file_paths,
     );
     cached_analysis.existing_issues = existing_issues;
 
@@ -129,11 +162,23 @@ fn update_issues_from_diff(
     existing_issues: &mut FxHashMap<FilePath, Vec<Issue>>,
     codebase_diff: &CodebaseDiff,
     invalid_symbols_and_members: &FxHashSet<(StrId, StrId)>,
+    fully_invalid_symbols: &FxHashSet<StrId>,
+    reanalyzed_files: &FxHashSet<FilePath>,
 ) {
     for (existing_file, file_issues) in existing_issues.iter_mut() {
+        let file_will_be_reanalyzed = reanalyzed_files.contains(existing_file);
+
         file_issues.retain(|issue| {
-            !invalid_symbols_and_members.contains(&issue.symbol)
-                && issue.symbol.0 != existing_file.0
+            if invalid_symbols_and_members.contains(&issue.symbol)
+                || fully_invalid_symbols.contains(&issue.symbol.0)
+            {
+                return false;
+            }
+
+            // Issues emitted outside any function or classlike are keyed by their file.
+            // They can only be regenerated by re-analyzing that file, so drop them only
+            // when that's about to happen — otherwise unchanged files would lose them.
+            !(issue.symbol.0 == existing_file.0 && file_will_be_reanalyzed)
         });
 
         if file_issues.is_empty() {

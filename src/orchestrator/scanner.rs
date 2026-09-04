@@ -631,60 +631,46 @@ fn invalidate_changed_codebase_elements(
         .filter(|f| changed_files.contains(f.0))
     {
         for ast_node in &file_storage.ast_nodes {
-            match codebase.symbols.all.remove(&ast_node.name) {
-                Some(kind) => {
-                    if let SymbolKind::TypeDefinition | SymbolKind::NewtypeDefinition = kind {
-                        codebase.type_definitions.remove(&ast_node.name);
-                        // Also remove from defs tracking
-                        codebase.type_definitions_defs.remove(&ast_node.name);
-                    } else if let Some(classlike_info) =
-                        codebase.classlike_infos.remove(&ast_node.name)
-                    {
-                        // Also remove from defs tracking
-                        codebase.classlike_infos_defs.remove(&ast_node.name);
-                        for method_name in classlike_info.methods {
-                            codebase
-                                .functionlike_infos
-                                .remove(&(ast_node.name, method_name));
-                        }
-                    }
-                }
-                None => {
-                    if ast_node.is_function {
+            // Functions and constants live in their own namespaces and never appear in
+            // `symbols.all`, so check them first: a function `Foo` must not remove an
+            // unrelated class `Foo` defined elsewhere.
+            if ast_node.is_function {
+                codebase
+                    .functionlike_infos
+                    .remove(&(ast_node.name, StrId::EMPTY));
+                // Also remove from defs tracking
+                codebase
+                    .functionlike_infos_defs
+                    .remove(&(ast_node.name, StrId::EMPTY));
+            } else if ast_node.is_constant {
+                codebase.constant_infos.remove(&ast_node.name);
+                // Also remove from defs tracking
+                codebase.constant_infos_defs.remove(&ast_node.name);
+            } else if let Some(kind) = codebase.symbols.all.remove(&ast_node.name) {
+                if let SymbolKind::TypeDefinition | SymbolKind::NewtypeDefinition = kind {
+                    codebase.type_definitions.remove(&ast_node.name);
+                    // Also remove from defs tracking
+                    codebase.type_definitions_defs.remove(&ast_node.name);
+                } else if let Some(classlike_info) = codebase.classlike_infos.remove(&ast_node.name)
+                {
+                    // Also remove from defs tracking
+                    codebase.classlike_infos_defs.remove(&ast_node.name);
+                    for method_name in classlike_info.methods {
                         codebase
                             .functionlike_infos
-                            .remove(&(ast_node.name, StrId::EMPTY));
-                        // Also remove from defs tracking
-                        codebase
-                            .functionlike_infos_defs
-                            .remove(&(ast_node.name, StrId::EMPTY));
-                    } else if ast_node.is_constant {
-                        codebase.constant_infos.remove(&ast_node.name);
-                        // Also remove from defs tracking
-                        codebase.constant_infos_defs.remove(&ast_node.name);
+                            .remove(&(ast_node.name, method_name));
                     }
                 }
             }
         }
 
+        // closures are keyed by (file, start offset) and tracked per file
         for closure_ref in &file_storage.closure_refs {
             codebase
                 .functionlike_infos
                 .remove(&(file_path.0, StrId(*closure_ref)));
         }
     }
-
-    // we need to check for anonymous functions here
-    let closures_to_remove = codebase
-        .closures_in_files
-        .iter()
-        .filter(|(k, _)| changed_files.contains(*k))
-        .flat_map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
-        .collect::<FxHashSet<_>>();
-
-    codebase
-        .functionlike_infos
-        .retain(|k, _| !closures_to_remove.contains(&k.0));
 }
 
 #[cfg(test)]

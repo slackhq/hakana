@@ -1,0 +1,2 @@
+ERROR: UnusedPublicOrProtectedMethod - input.hack:2:21 - Unused public or protected method P::foo
+ERROR: UnusedInheritedMethod - input.hack:7:21 - Unused inherited method C::foo

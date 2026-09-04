@@ -1,0 +1,20 @@
+[
+  {
+    "end_offset": 92,
+    "file": "other.hack",
+    "name": "Foo",
+    "start_offset": 84
+  },
+  {
+    "end_offset": 92,
+    "file": "other.hack",
+    "name": "Foo::bar",
+    "start_offset": 89
+  },
+  {
+    "end_offset": 103,
+    "file": "other.hack",
+    "name": "Foo",
+    "start_offset": 100
+  }
+]

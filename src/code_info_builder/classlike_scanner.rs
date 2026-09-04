@@ -495,6 +495,31 @@ pub(crate) fn scan(
     )
     .wrapping_add(uses_hash);
 
+    // `require extends` / `require implements` / `require class` clauses sit inside the
+    // body braces, so they're outside the text hashed above — but they determine what a
+    // trait or interface inherits, so they're part of its signature.
+    for req in &classlike_node.reqs {
+        let req_kind: u8 = match &req.1 {
+            aast::RequireKind::RequireExtends => 0,
+            aast::RequireKind::RequireImplements => 1,
+            aast::RequireKind::RequireClass => 2,
+            _ => 3,
+        };
+
+        signature_hash = signature_hash
+            .wrapping_add(xxhash_rust::xxh3::xxh3_64(
+                &file_source.file_contents.as_bytes()[req.0.0.start_offset()..req.0.0.end_offset()],
+            ))
+            .wrapping_add(xxhash_rust::xxh3::xxh3_64(&[req_kind]));
+
+        if let oxidized::ast::Hint_::Happly(name, _) = &*req.0.1
+            && let Some(require_name) = resolved_names.get(&(name.0.start_offset() as u32))
+        {
+            signature_hash = signature_hash
+                .wrapping_add(xxhash_rust::xxh3::xxh3_64(&require_name.0.to_le_bytes()));
+        }
+    }
+
     for xhp_attribute in &classlike_node.xhp_attrs {
         if let Some(r) = xhp_attribute.2 {
             // required attributes are _essentially_ part of the
@@ -556,8 +581,11 @@ pub(crate) fn scan(
 
     let mut def_signature_nodes = vec![];
 
+    // Like methods and properties below, the *set* of constants (including enum cases)
+    // and type constants is part of the classlike's signature: adding or removing one
+    // changes what dependents can reference and, for enums, what a switch must cover.
     for class_const_node in &classlike_node.consts {
-        visit_class_const_declaration(
+        let const_name = visit_class_const_declaration(
             class_const_node,
             class_name,
             comments,
@@ -569,11 +597,14 @@ pub(crate) fn scan(
             &mut def_signature_nodes,
             all_uses,
         );
+
+        signature_hash =
+            signature_hash.wrapping_add(xxhash_rust::xxh3::xxh3_64(&const_name.0.to_le_bytes()));
     }
 
     for class_typeconst_node in &classlike_node.typeconsts {
         if !class_typeconst_node.is_ctx {
-            visit_class_typeconst_declaration(
+            let typeconst_name = visit_class_typeconst_declaration(
                 class_typeconst_node,
                 resolved_names,
                 &mut storage,
@@ -582,6 +613,9 @@ pub(crate) fn scan(
                 &mut def_signature_nodes,
                 all_uses,
             );
+
+            signature_hash = signature_hash
+                .wrapping_add(xxhash_rust::xxh3::xxh3_64(&typeconst_name.0.to_le_bytes()));
         }
     }
 
@@ -651,7 +685,7 @@ pub(crate) fn scan(
     }
 
     for xhp_attribute in &classlike_node.xhp_attrs {
-        visit_xhp_attribute(
+        let attribute_name = visit_xhp_attribute(
             xhp_attribute,
             resolved_names,
             &mut storage,
@@ -660,6 +694,9 @@ pub(crate) fn scan(
             interner,
             all_uses,
         );
+
+        signature_hash = signature_hash
+            .wrapping_add(xxhash_rust::xxh3::xxh3_64(&attribute_name.0.to_le_bytes()));
     }
 
     for m in &classlike_node.methods {
@@ -688,6 +725,8 @@ pub(crate) fn scan(
                 .map(|k| &k.0)
                 .collect(),
             &m.ret,
+            &m.where_constraints,
+            &m.ctxs,
             all_uses
                 .symbol_member_uses
                 .get(&(*class_name, method_name))
@@ -822,7 +861,7 @@ fn visit_xhp_attribute(
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
     interner: &mut ThreadedInterner,
     all_uses: &Uses,
-) {
+) -> StrId {
     let mut attribute_type_location = None;
     let mut attribute_type = if let Some(hint) = &xhp_attribute.0.1 {
         attribute_type_location = Some(HPos::new(&hint.0, file_source.file_path));
@@ -930,6 +969,8 @@ fn visit_xhp_attribute(
     classlike_storage
         .properties
         .insert(attribute_id, property_storage);
+
+    attribute_id
 }
 
 fn visit_class_const_declaration(
@@ -943,7 +984,7 @@ fn visit_class_const_declaration(
     interner: &mut ThreadedInterner,
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
     all_uses: &Uses,
-) {
+) -> StrId {
     let mut provided_type = None;
 
     let mut supplied_type_location = None;
@@ -1032,6 +1073,8 @@ fn visit_class_const_declaration(
     }
 
     classlike_storage.constants.insert(name, const_storage);
+
+    name
 }
 
 fn visit_class_typeconst_declaration(
@@ -1042,7 +1085,7 @@ fn visit_class_typeconst_declaration(
     interner: &mut ThreadedInterner,
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
     all_uses: &Uses,
-) {
+) -> StrId {
     let class_constant_type = match &const_node.kind {
         aast::ClassTypeconst::TCAbstract(abstract_node) => {
             ClassConstantType::Abstract(if let Some(hint) = &abstract_node.as_constraint {
@@ -1109,6 +1152,8 @@ fn visit_class_typeconst_declaration(
     classlike_storage
         .type_constants
         .insert(name, class_constant_type);
+
+    name
 }
 
 fn visit_property_declaration(

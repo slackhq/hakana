@@ -1,0 +1,1 @@
+ERROR: TooFewArguments - main.hack:3:5 - Too few arguments for A::__construct - expecting 1 but got 0
