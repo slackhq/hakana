@@ -2,6 +2,9 @@ pub(crate) mod populator;
 
 use analyzer::analyze_files;
 use diff::{CachedAnalysis, mark_safe_symbols_from_diff};
+
+#[cfg(test)]
+mod invalidation_tests;
 use file::{FileStatus, VirtualFileSystem};
 use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_analyzer::config::Config;
@@ -150,6 +153,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
         file_system,
         mut files_to_analyze,
         invalid_files,
+        changed_files,
         force_full_analysis,
         cache_is_valid,
     } = scan_files(
@@ -196,6 +200,7 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
             &codebase,
             &mut interner,
             invalid_files,
+            changed_files,
             &mut files_to_analyze,
             &get_issues_path(cache_dir).filter(|_| cache_is_valid),
             &get_references_path(cache_dir).filter(|_| cache_is_valid),

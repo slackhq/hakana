@@ -67,7 +67,9 @@ impl<'a> FileAnalyzer<'a> {
         }
 
         let type_resolution_context = TypeResolutionContext::new();
-        let mut context = BlockContext::new(FunctionContext::new());
+        let mut function_context = FunctionContext::new();
+        function_context.calling_file = Some(self.file_source.file_path.0);
+        let mut context = BlockContext::new(function_context);
         let comments = Vec::from_iter(self.file_source.comments.iter());
 
         for declaration in program {

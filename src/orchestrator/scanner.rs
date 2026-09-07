@@ -62,6 +62,7 @@ pub struct ScanFilesResult {
     pub codebase_diff: CodebaseDiff,
     pub files_to_analyze: Vec<String>,
     pub invalid_files: FxHashSet<FilePath>,
+    pub changed_files: FxHashSet<FilePath>,
     pub force_full_analysis: bool,
     /// False when the on-disk cache was absent or produced by a different build or
     /// configuration — cached issues and references must then be ignored too.
@@ -151,9 +152,9 @@ pub fn scan_files(
         interner = cached_interner;
     }
 
-    let file_system = if let Some(language_server_changes) = language_server_changes {
-        let mut file_system = existing_file_system.clone().unwrap();
-
+    let file_system = if let Some(language_server_changes) = language_server_changes
+        && let Some(mut file_system) = existing_file_system.clone()
+    {
         file_system.apply_language_server_changes(
             language_server_changes,
             &mut files_to_scan,
@@ -231,6 +232,8 @@ pub fn scan_files(
     );
 
     invalidate_changed_codebase_elements(&mut codebase, &changed_files);
+    // Failed parses and deletions must not leave offset-to-name maps from an old AST.
+    resolved_names.retain(|file, _| !changed_files.contains(file));
 
     let mut files_to_scan = vec![];
 
@@ -469,6 +472,7 @@ pub fn scan_files(
         files_to_analyze,
         file_system,
         invalid_files: invalid_files.into_iter().collect(),
+        changed_files,
         force_full_analysis,
         cache_is_valid: use_codebase_cache,
     })

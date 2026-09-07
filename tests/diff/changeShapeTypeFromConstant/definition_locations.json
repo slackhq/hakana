@@ -16,11 +16,5 @@
     "file": "constants.hack",
     "name": "Foo\\MyType::STRING",
     "start_offset": 239
-  },
-  {
-    "end_offset": 274,
-    "file": "constants.hack",
-    "name": "Foo\\MyType::INT",
-    "start_offset": 263
   }
 ]

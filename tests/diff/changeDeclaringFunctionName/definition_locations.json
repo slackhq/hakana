@@ -4,17 +4,5 @@
     "file": "input.hack",
     "name": "A",
     "start_offset": 22
-  },
-  {
-    "end_offset": 61,
-    "file": "input.hack",
-    "name": "B",
-    "start_offset": 55
-  },
-  {
-    "end_offset": 61,
-    "file": "input.hack",
-    "name": "A::foo",
-    "start_offset": 58
   }
 ]

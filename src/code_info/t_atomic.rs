@@ -1976,6 +1976,20 @@ pub fn populate_atomic_type(
     symbol_references: &mut SymbolReferences,
     force: bool,
 ) {
+    // A previously resolved class may have been deleted since this signature was
+    // populated. Restore the unresolved reference just as a fresh scan would.
+    if force
+        && let TAtomic::TNamedObject(TNamedObject {
+            name, type_params, ..
+        }) = t_atomic
+        && !codebase_symbols.all.contains_key(name)
+        && *name != StrId::PHP_INCOMPLETE_CLASS
+    {
+        *t_atomic = TAtomic::TReference {
+            name: *name,
+            type_params: type_params.take(),
+        };
+    }
     match t_atomic {
         TAtomic::TDict(TDict {
             params,

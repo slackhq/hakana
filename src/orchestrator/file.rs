@@ -30,6 +30,11 @@ impl VirtualFileSystem {
         config: &Config,
         files_to_analyze: &mut Vec<String>,
     ) {
+        let ignore_patterns = config
+            .ignore_files
+            .iter()
+            .map(|pattern| glob::Pattern::new(pattern).unwrap())
+            .collect::<Vec<_>>();
         let deleted_paths = language_server_changes
             .iter()
             .filter(|(_, v)| matches!(v, FileStatus::Deleted | FileStatus::DeletedDir))
@@ -76,9 +81,13 @@ impl VirtualFileSystem {
             match status {
                 FileStatus::Unchanged(_, _) => panic!(),
                 FileStatus::Added(_, _) | FileStatus::Modified(_, _) => {
+                    // Match the initial walk's exclusion of hidden paths.
+                    if file_path.contains("/.") {
+                        continue;
+                    }
                     self.add_path(
                         path,
-                        &vec![],
+                        &ignore_patterns,
                         interner,
                         &None,
                         true,
@@ -311,6 +320,42 @@ pub fn get_file_contents_hash(file_path: &String) -> Result<u64, std::io::Error>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn watcher_changes_respect_ignored_files_and_directories() {
+        let root = std::env::temp_dir().join(format!("hakana-watcher-{}", rand::random::<u64>()));
+        fs::create_dir_all(root.join("ignored")).unwrap();
+        fs::create_dir_all(root.join(".hidden")).unwrap();
+        let paths = [
+            root.join("ignored/child.hack"),
+            root.join("skip.hack"),
+            root.join(".hidden/input.hack"),
+        ];
+        let mut changes = FxHashMap::default();
+        for path in &paths {
+            fs::write(path, "function ignored(): void {}").unwrap();
+            changes.insert(path.to_string_lossy().into_owned(), FileStatus::Added(0, 0));
+        }
+        let mut config = Config::new(root.to_string_lossy().into_owned(), FxHashSet::default());
+        config.ignore_files = vec![
+            format!("{}/ignored/**", root.display()),
+            format!("{}/skip.hack", root.display()),
+        ];
+        let mut file_system = VirtualFileSystem::default();
+        let mut scan = vec![];
+        let mut analyze = vec![];
+        file_system.apply_language_server_changes(
+            changes,
+            &mut scan,
+            &mut Interner::default(),
+            &config,
+            &mut analyze,
+        );
+        fs::remove_dir_all(root).unwrap();
+        assert!(scan.is_empty(), "excluded files were scanned: {scan:?}");
+        assert!(analyze.is_empty());
+        assert!(file_system.file_hashes_and_times.is_empty());
+    }
 
     #[test]
     fn deleted_file_status_also_removes_files_below_that_path() {

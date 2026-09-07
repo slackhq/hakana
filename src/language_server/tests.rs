@@ -10,7 +10,7 @@ use tower_lsp::lsp_types::{FileChangeType, FileEvent, Url};
 
 /// Helper struct to manage the language server process
 struct LanguageServer {
-    client: DuplexStream,
+    client: BufReader<DuplexStream>,
     request_id: Arc<AtomicI64>,
 }
 
@@ -18,7 +18,7 @@ impl LanguageServer {
     /// Spawn a new language server process
     fn new(client: DuplexStream) -> Self {
         Self {
-            client,
+            client: BufReader::new(client),
             request_id: Arc::new(AtomicI64::new(1)),
         }
     }
@@ -58,7 +58,7 @@ impl LanguageServer {
     }
 
     /// Read a single response from the language server
-    async fn read_response(reader: &mut BufReader<&mut DuplexStream>) -> std::io::Result<Value> {
+    async fn read_response(reader: &mut BufReader<DuplexStream>) -> std::io::Result<Value> {
         let mut headers = Vec::new();
 
         // Read headers
@@ -102,8 +102,6 @@ impl LanguageServer {
         let start = std::time::Instant::now();
         let timeout_duration = Duration::from_secs(timeout_secs);
 
-        let mut reader = BufReader::new(&mut self.client);
-
         loop {
             if start.elapsed() > timeout_duration {
                 return Err(std::io::Error::new(
@@ -112,7 +110,7 @@ impl LanguageServer {
                 ));
             }
 
-            let result = timeout(timeout_duration, Self::read_response(&mut reader)).await?;
+            let result = timeout(timeout_duration, Self::read_response(&mut self.client)).await?;
             let response = result?;
 
             // Check if this is the response we're waiting for
@@ -171,6 +169,81 @@ fn deleted_directory_with_extension_is_invalidated() {
 }
 
 #[tokio::test]
+async fn publishing_diagnostics_twice_does_not_clear_the_first_publication() {
+    let (service, socket) = tower_lsp::LspService::new(|client| {
+        crate::Backend::new(
+            client,
+            hakana_analyzer::config::Config::new(String::new(), Default::default()),
+            hakana_str::Interner::default(),
+        )
+    });
+    drop(socket);
+    let uri = Url::parse("file:///tmp/input.hack").unwrap();
+    *service.inner().all_diagnostics.write().await = Some(rustc_hash::FxHashMap::from_iter([(
+        uri.clone(),
+        vec![tower_lsp::lsp_types::Diagnostic::default()],
+    )]));
+    service.inner().emit_issues().await;
+    assert!(
+        service
+            .inner()
+            .files_with_errors
+            .read()
+            .await
+            .contains(&uri)
+    );
+    service.inner().emit_issues().await;
+    assert!(
+        service
+            .inner()
+            .files_with_errors
+            .read()
+            .await
+            .contains(&uri)
+    );
+}
+
+#[tokio::test]
+async fn watchers_are_registered_before_initial_analysis() {
+    let project = tempfile::tempdir().unwrap();
+    let config = hakana_analyzer::config::Config::new(
+        project.path().to_string_lossy().into_owned(),
+        Default::default(),
+    );
+    let (client, server) = tokio::io::duplex(8192);
+    let mut lsp = LanguageServer::new(client);
+    let task = tokio::spawn(async move {
+        let (reader, writer) = tokio::io::split(server);
+        let (service, socket) = tower_lsp::LspService::new(|client| {
+            crate::Backend::new(client, config, hakana_str::Interner::default())
+        });
+        tower_lsp::Server::new(reader, writer, socket)
+            .serve(service)
+            .await;
+    });
+    let id = lsp
+        .send_request("initialize", json!({"capabilities": {}}))
+        .await
+        .unwrap();
+    lsp.wait_for_response(id, 30).await.unwrap();
+    lsp.send_notification("initialized", json!({}))
+        .await
+        .unwrap();
+    let first = timeout(
+        Duration::from_secs(30),
+        LanguageServer::read_response(&mut lsp.client),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    task.abort();
+    assert_eq!(
+        first["method"], "client/registerCapability",
+        "analysis started before watching files: {first}"
+    );
+}
+
+#[tokio::test]
 async fn test_language_server_goto_definition() {
     let (client, server) = tokio::io::duplex(64);
     let mut lsp = LanguageServer::new(client);
@@ -225,9 +298,30 @@ async fn test_language_server_goto_definition() {
         .expect("Failed to send initialized notification");
 
     // 3. Wait for initialized notification
-    lsp.wait_for_response(0, 30)
+    let registration = lsp
+        .wait_for_response(0, 30)
         .await
-        .expect("Failed to get initialize notification");
+        .expect("Failed to get watcher registration");
+    let response = serde_json::to_string(&json!({
+        "jsonrpc": "2.0", "id": registration["id"], "result": null,
+    }))
+    .unwrap();
+    lsp.client
+        .write_all(format!("Content-Length: {}\r\n\r\n{}", response.len(), response).as_bytes())
+        .await
+        .unwrap();
+    loop {
+        let notification = timeout(
+            Duration::from_secs(30),
+            LanguageServer::read_response(&mut lsp.client),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        if notification["params"]["message"] == "server initialized!" {
+            break;
+        }
+    }
 
     // 4. Send goto-definition request
     // Position is at line 8, character 15 (the "MyClass" in "new MyClass()")

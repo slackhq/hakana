@@ -224,6 +224,8 @@ impl SymbolReferences {
             }
         } else if let Some(calling_class) = &function_context.calling_class {
             self.add_symbol_reference_to_class_member(*calling_class, class_member, in_signature)
+        } else if let Some(calling_file) = function_context.calling_file {
+            self.add_symbol_reference_to_class_member(calling_file, class_member, in_signature)
         }
     }
 
@@ -255,6 +257,11 @@ impl SymbolReferences {
                 .entry((*calling_class, StrId::EMPTY))
                 .or_default()
                 .insert(class_member);
+        } else if let Some(calling_file) = function_context.calling_file {
+            self.symbol_references_to_overridden_members
+                .entry((calling_file, StrId::EMPTY))
+                .or_default()
+                .insert(class_member);
         }
     }
 
@@ -281,6 +288,8 @@ impl SymbolReferences {
             }
         } else if let Some(calling_class) = &function_context.calling_class {
             self.add_symbol_reference_to_symbol(*calling_class, symbol, in_signature)
+        } else if let Some(calling_file) = function_context.calling_file {
+            self.add_symbol_reference_to_symbol(calling_file, symbol, in_signature)
         }
     }
 

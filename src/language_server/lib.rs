@@ -113,8 +113,6 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        self.do_analysis().await;
-
         let registration = Registration {
             id: "watch-hack-files".to_string(),
             method: "workspace/didChangeWatchedFiles".to_string(),
@@ -145,10 +143,8 @@ impl LanguageServer for Backend {
             .await
             .unwrap();
 
+        self.do_analysis().await;
         self.emit_issues().await;
-
-        let mut all_diagnostics = self.all_diagnostics.write().await;
-        *all_diagnostics = None;
 
         self.client
             .log_message(MessageType::INFO, "server initialized!")
@@ -418,10 +414,13 @@ impl Backend {
     }
 
     async fn emit_issues(&self) {
-        if let Some(all_diagnostics) = self.all_diagnostics.write().await.as_mut() {
+        // Consume each analysis result once. Concurrent watcher handlers can both
+        // reach this method after one has already published the newest result.
+        let mut diagnostics_guard = self.all_diagnostics.write().await;
+        if let Some(all_diagnostics) = diagnostics_guard.take() {
             let mut new_files_with_errors = FxHashSet::default();
 
-            for (uri, diagnostics) in all_diagnostics.drain() {
+            for (uri, diagnostics) in all_diagnostics {
                 self.client
                     .publish_diagnostics(uri.clone(), diagnostics, None)
                     .await;

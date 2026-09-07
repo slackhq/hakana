@@ -26,6 +26,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
     codebase: &CodebaseInfo,
     interner: &mut Interner,
     invalid_scanned_files: FxHashSet<FilePath>,
+    changed_files: FxHashSet<FilePath>,
     files_to_analyze: &mut Vec<String>,
     issues_path: &Option<String>,
     references_path: &Option<String>,
@@ -75,7 +76,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
     // members that appeared or disappeared even though its own text and recorded
     // references are unchanged. (When the classlike's signature changed the differ never
     // even visited its members, so they aren't in `keep` at all.)
-    let fully_invalid_symbols = invalid_symbols
+    let mut fully_invalid_symbols = invalid_symbols
         .invalid_symbol_and_member_signatures
         .iter()
         .filter(|(_, member_name)| member_name.is_empty())
@@ -87,6 +88,23 @@ pub(crate) fn mark_safe_symbols_from_diff(
     for keep_symbol in &codebase_diff.keep {
         if !keep_symbol.1.is_empty() && fully_invalid_symbols.contains(&keep_symbol.0) {
             invalid_symbols_and_members.insert(*keep_symbol);
+        }
+    }
+
+    // AST diffs only describe named declarations. Rebuild changed files in full so
+    // file-scope statements, references and positions cannot outlive their source.
+    // Dependency propagation above still uses the actual signature diff, so this
+    // does not force callers of unchanged declarations to be re-analyzed.
+    for file in &changed_files {
+        fully_invalid_symbols.insert(file.0);
+        if let Some(info) = codebase.files.get(file) {
+            for node in &info.ast_nodes {
+                fully_invalid_symbols.insert(node.name);
+                invalid_symbols_and_members.insert((node.name, StrId::EMPTY));
+                for child in &node.children {
+                    invalid_symbols_and_members.insert((node.name, child.name));
+                }
+            }
         }
     }
 
@@ -124,16 +142,18 @@ pub(crate) fn mark_safe_symbols_from_diff(
     let invalid_file_paths = codebase
         .files
         .iter()
-        .filter(|(_, file_info)| {
-            file_info.ast_nodes.iter().any(|node| {
-                invalid_symbols_and_members.contains(&(node.name, StrId::EMPTY))
-                    || invalid_symbols
-                        .partially_invalid_symbols
-                        .contains(&node.name)
-            })
+        .filter(|(file, file_info)| {
+            invalid_symbols_and_members.contains(&(file.0, StrId::EMPTY))
+                || file_info.ast_nodes.iter().any(|node| {
+                    invalid_symbols_and_members.contains(&(node.name, StrId::EMPTY))
+                        || invalid_symbols
+                            .partially_invalid_symbols
+                            .contains(&node.name)
+                })
         })
         .map(|(file_id, _)| *file_id)
         .chain(invalid_scanned_files.iter().copied())
+        .chain(changed_files.iter().copied())
         .collect::<FxHashSet<_>>();
 
     let invalid_files = invalid_file_paths
@@ -142,6 +162,20 @@ pub(crate) fn mark_safe_symbols_from_diff(
         .collect::<FxHashSet<_>>();
 
     files_to_analyze.retain(|full_path| invalid_files.contains(&full_path.as_str()));
+
+    // Top-level statements run whenever their file is analyzed, including when only
+    // a dependency changed. Replace their outgoing edges rather than accumulating them.
+    cached_analysis
+        .symbol_references
+        .remove_references_from_invalid_symbols(
+            &invalid_file_paths
+                .iter()
+                .map(|file| (file.0, StrId::EMPTY))
+                .collect(),
+            &FxHashSet::default(),
+        );
+    existing_issues.retain(|file, _| !changed_files.contains(file));
+    existing_definition_locations.retain(|file, _| !changed_files.contains(file));
 
     update_issues_from_diff(
         &mut existing_issues,
@@ -153,6 +187,36 @@ pub(crate) fn mark_safe_symbols_from_diff(
     cached_analysis.existing_issues = existing_issues;
 
     update_definition_locations_from_diff(&mut existing_definition_locations, &codebase_diff);
+    // An unchanged caller can be invalidated by a deleted dependency. Its old
+    // locations must be replaced too, while locations inside skipped declarations
+    // still need to survive the incremental run.
+    for file in &invalid_file_paths {
+        let Some(locations) = existing_definition_locations.get_mut(file) else {
+            continue;
+        };
+        let mut safe_ranges = Vec::new();
+        if let Some(info) = codebase.files.get(file) {
+            for node in &info.ast_nodes {
+                if cached_analysis.safe_symbols.contains(&node.name) {
+                    safe_ranges.push((node.start_offset, node.end_offset));
+                } else {
+                    for child in &node.children {
+                        if cached_analysis
+                            .safe_symbol_members
+                            .contains(&(node.name, child.name))
+                        {
+                            safe_ranges.push((child.start_offset, child.end_offset));
+                        }
+                    }
+                }
+            }
+        }
+        locations.retain(|(start, end), _| {
+            safe_ranges
+                .iter()
+                .any(|(from, to)| start >= from && end <= to)
+        });
+    }
     cached_analysis.definition_locations = existing_definition_locations;
 
     cached_analysis

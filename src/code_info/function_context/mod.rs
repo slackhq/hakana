@@ -10,6 +10,9 @@ use crate::{
 pub struct FunctionContext {
     pub calling_class: Option<StrId>,
 
+    /// Owner of references made outside a function or class.
+    pub calling_file: Option<StrId>,
+
     pub calling_class_final: bool,
 
     pub is_static: bool,
@@ -29,6 +32,7 @@ impl FunctionContext {
     pub fn new() -> Self {
         Self {
             calling_class: None,
+            calling_file: None,
             is_static: false,
             calling_functionlike_id: None,
             calling_class_final: false,
