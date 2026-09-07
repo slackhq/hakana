@@ -1,0 +1,3 @@
+ERROR: NonBoolContainerCondition - input.hack:6:13 - Only bool values can be used as a condition
+ERROR: NonBoolContainerCondition - input.hack:12:16 - Only bool values can be used as a condition
+ERROR: NonBoolContainerCondition - input.hack:12:30 - Only bool values can be used as a condition

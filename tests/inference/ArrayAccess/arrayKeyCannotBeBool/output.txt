@@ -1,1 +1,2 @@
-ImpossibleTypeComparison
+ERROR: NonBoolContainerCondition - input.hack:2:10 - Only bool values can be used as a condition
+ERROR: ImpossibleTypeComparison - input.hack:8:9 - Type arraykey is never bool
