@@ -1978,12 +1978,13 @@ pub fn populate_atomic_type(
 ) {
     // A previously resolved class may have been deleted since this signature was
     // populated. Restore the unresolved reference just as a fresh scan would.
+    // Contextual `this` types are placeholders, not entries in the symbol table.
     if force
         && let TAtomic::TNamedObject(TNamedObject {
             name, type_params, ..
         }) = t_atomic
         && !codebase_symbols.all.contains_key(name)
-        && *name != StrId::PHP_INCOMPLETE_CLASS
+        && !matches!(*name, StrId::THIS | StrId::PHP_INCOMPLETE_CLASS)
     {
         *t_atomic = TAtomic::TReference {
             name: *name,
