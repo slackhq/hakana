@@ -12,25 +12,6 @@ pub(super) struct NullableStringMigration {
     pub(super) handle_nullable: bool,
 }
 
-impl NullableStringMigration {
-    fn is_trivial(expr: &aast::Expr<(), ()>) -> bool {
-        matches!(
-            expr.2,
-            aast::Expr_::Lvar(..)
-                | aast::Expr_::ArrayGet(..)
-                | aast::Expr_::ClassGet(..)
-                | aast::Expr_::ObjGet(..)
-        )
-    }
-
-    fn is_sole_condition(statements_analyzer: &StatementsAnalyzer, pos: &Pos) -> bool {
-        let file_contents = &statements_analyzer.file_analyzer.file_source.file_contents;
-        (file_contents[..pos.start_offset()].ends_with("if (")
-            || file_contents[..pos.start_offset()].ends_with("if (!"))
-            && file_contents[pos.end_offset()..].starts_with(")")
-    }
-}
-
 impl ImplicitBooleanConversionMigration for NullableStringMigration {
     fn matches(&self, expr_type: &TUnion) -> bool {
         if self.handle_nullable {
@@ -47,10 +28,10 @@ impl ImplicitBooleanConversionMigration for NullableStringMigration {
         expr: &aast::Expr<(), ()>,
         pos: &Pos,
     ) {
-        if Self::is_trivial(expr) {
+        if super::is_trivial(expr) {
             let expr_text = &statements_analyzer.file_analyzer.file_source.file_contents
                 [pos.start_offset()..pos.end_offset()];
-            let close_paren = if !Self::is_sole_condition(statements_analyzer, pos) {
+            let close_paren = if !super::is_sole_condition(statements_analyzer, pos) {
                 analysis_data.insert_at(pos.start_offset() as u32, "(".to_string());
                 ")"
             } else {
@@ -86,10 +67,10 @@ impl ImplicitBooleanConversionMigration for NullableStringMigration {
         expr: &aast::Expr<(), ()>,
         pos: &Pos,
     ) {
-        if Self::is_trivial(expr) {
+        if super::is_trivial(expr) {
             let expr_text = &statements_analyzer.file_analyzer.file_source.file_contents
                 [pos.start_offset()..pos.end_offset()];
-            let close_paren = if !Self::is_sole_condition(statements_analyzer, pos) {
+            let close_paren = if !super::is_sole_condition(statements_analyzer, pos) {
                 analysis_data.insert_at(pos.start_offset() as u32, "(".to_string());
                 ")"
             } else {

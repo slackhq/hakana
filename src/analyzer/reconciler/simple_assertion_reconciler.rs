@@ -611,8 +611,7 @@ fn reconcile_array_access(
     }
 
     new_var_type.types.retain(|atomic| {
-        (allow_int_key
-            && atomic.is_array_accessible_with_int_or_string_key(statements_analyzer.interner))
+        (allow_int_key && atomic.is_array_accessible_with_int_or_string_key())
             || (!allow_int_key
                 && atomic.is_array_accessible_with_string_key(statements_analyzer.interner))
     });
