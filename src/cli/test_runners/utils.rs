@@ -25,6 +25,9 @@ pub fn augment_with_local_config(dir: &str, analysis_config: &mut config::Config
         if let Some(max_changes_allowed) = test_config.max_changes_allowed {
             analysis_config.max_changes_allowed = max_changes_allowed;
         }
+        if let Some(max_depth) = test_config.max_depth {
+            analysis_config.security_config.max_depth = max_depth;
+        }
         if let Some(strict_falsable_types) = test_config.strict_falsable_types {
             analysis_config.strict_falsable_types = strict_falsable_types;
         }

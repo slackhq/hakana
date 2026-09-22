@@ -697,6 +697,7 @@ fn analyze_named_constructor(
         from_classname,
         analysis_data,
         pos,
+        expr.2,
     );
 
     result.return_type = Some(add_optional_union_type(
@@ -718,9 +719,17 @@ fn add_dataflow<'a>(
     from_classname: bool,
     analysis_data: &mut FunctionAnalysisData,
     call_pos: &Pos,
+    args: &[aast::Argument<(), ()>],
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
 
+    let exception_args = native_exception_args(
+        statements_analyzer,
+        functionlike_storage,
+        method_id,
+        args,
+        analysis_data,
+    );
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
@@ -747,6 +756,21 @@ fn add_dataflow<'a>(
         data_flow_graph.add_node(new_call_node.clone());
 
         return_type_candidate.parent_nodes = vec![new_call_node.clone()];
+
+        for (field, parents) in exception_args {
+            for parent in parents {
+                data_flow_graph.add_path(
+                    &parent.id,
+                    &new_call_node.id,
+                    hakana_code_info::data_flow::path::PathKind::PropertyAssignment(
+                        method_id.0,
+                        statements_analyzer.interner.get(field).unwrap(),
+                    ),
+                    vec![],
+                    vec![],
+                );
+            }
+        }
 
         if from_classname {
             let descendants = codebase.get_all_descendants(&method_id.0);
@@ -784,4 +808,41 @@ fn add_dataflow<'a>(
     }
 
     return_type_candidate
+}
+
+pub(super) fn native_exception_args(
+    statements_analyzer: &StatementsAnalyzer,
+    functionlike_storage: Option<&FunctionLikeInfo>,
+    method_id: &MethodIdentifier,
+    args: &[aast::Argument<(), ()>],
+    analysis_data: &FunctionAnalysisData,
+) -> Vec<(&'static str, Vec<DataFlowNode>)> {
+    let native_exception = functionlike_storage.is_some_and(|storage| !storage.user_defined)
+        && matches!(
+            statements_analyzer.interner.lookup(&method_id.0),
+            "Exception" | "Error" | "ErrorException"
+        );
+    if native_exception {
+        args.iter()
+            .enumerate()
+            .filter_map(|(offset, arg)| {
+                let field = match offset {
+                    0 => "message",
+                    1 => "code",
+                    2 if statements_analyzer.interner.lookup(&method_id.0) != "ErrorException" => {
+                        "previous"
+                    }
+                    5 if statements_analyzer.interner.lookup(&method_id.0) == "ErrorException" => {
+                        "previous"
+                    }
+                    _ => return None,
+                };
+                analysis_data
+                    .get_expr_type(arg.to_expr_ref().pos())
+                    .map(|ty| (field, ty.parent_nodes.clone()))
+            })
+            .collect::<Vec<_>>()
+    } else {
+        vec![]
+    }
 }

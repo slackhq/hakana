@@ -26,6 +26,7 @@ pub enum PathKind {
     RefineSymbol(StrId),
     ScalarTypeGuard,
     Aggregate,
+    Superglobal(String),
 }
 
 impl PathKind {
@@ -83,6 +84,7 @@ impl PathKind {
             PathKind::ScalarTypeGuard => "scalar-type-guard".to_string(),
             PathKind::Serialize => "serialize".to_string(),
             PathKind::Aggregate => "aggregate".to_string(),
+            PathKind::Superglobal(name) => format!("superglobal({name})"),
         }
     }
 }
@@ -108,11 +110,12 @@ impl std::fmt::Display for PathKind {
             PathKind::ScalarTypeGuard => write!(f, "scalar-type-guard"),
             PathKind::Serialize => write!(f, "serialize"),
             PathKind::Aggregate => write!(f, "aggregate"),
+            PathKind::Superglobal(name) => write!(f, "superglobal({name})"),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataFlowPath {
     pub kind: PathKind,
     pub added_taints: Vec<SinkType>,

@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:2:5 - Data from a URL query string found its way to an HTML attribute with url using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:2:30) ----> htmlspecialchars#1 (input.hack:2:22) ----> call to htmlspecialchars (hhi_embedded_stdlib/builtins_string.hhi:213:4) ----> url#1 (input.hack:2:5)

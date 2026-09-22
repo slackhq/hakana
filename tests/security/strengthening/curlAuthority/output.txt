@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:1:11 - Data from a URL query string found its way to a curl url using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:1:32) ----> composition (input.hack:1:11) ----> curl_init#1 (input.hack:1:11)

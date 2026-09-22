@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:4:31 - Data from raw user-controllable data found its way to a curl url using path call to input (input.hack:2:19) ----> curl_setopt option (input.hack:4:31)

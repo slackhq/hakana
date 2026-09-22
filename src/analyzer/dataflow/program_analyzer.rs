@@ -1,7 +1,6 @@
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
-use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use itertools::Itertools;
@@ -37,7 +36,23 @@ pub fn find_tainted_data(
     info!(" - initial sources count: {}", sources.len());
     info!(" - initial sinks count:   {}", graph.sinks.len());
 
-    find_paths_to_sinks(sources, graph, config, &mut new_issues, true, interner);
+    find_paths_to_sinks(
+        sources,
+        graph,
+        config,
+        &mut new_issues,
+        true,
+        interner,
+        true,
+    );
+
+    // Graph/interner insertion order can vary between scans. Keep independent
+    // source findings at the same sink stable in reports and snapshots.
+    new_issues.sort_by(|a, b| {
+        a.pos
+            .cmp(&b.pos)
+            .then_with(|| a.description.cmp(&b.description))
+    });
 
     new_issues
 }
@@ -54,7 +69,15 @@ pub fn find_connections(graph: &DataFlowGraph, config: &Config, interner: &Inter
 
     info!(" - initial sources count: {}", sources.len());
 
-    find_paths_to_sinks(sources, graph, config, &mut new_issues, false, interner);
+    find_paths_to_sinks(
+        sources,
+        graph,
+        config,
+        &mut new_issues,
+        false,
+        interner,
+        false,
+    );
 
     new_issues
 }
@@ -66,7 +89,21 @@ fn find_paths_to_sinks(
     new_issues: &mut Vec<Issue>,
     match_sinks: bool,
     interner: &Interner,
+    prune_unreachable: bool,
 ) {
+    // Backward BFS is deliberately context-insensitive: it over-approximates
+    // reachability. The forward BFS still validates every field, sanitizer and
+    // call-context transition, so pruning cannot create an invalid witness.
+    let sink_reachable = (match_sinks && prune_unreachable).then(|| nodes_reaching_sinks(graph));
+    if let Some(reachable) = &sink_reachable {
+        let before = sources.len();
+        sources.retain(|source| reachable.contains(&reachability_id(&source.id)));
+        info!(
+            " - backward reachability retained {} of {} sources",
+            sources.len(),
+            before
+        );
+    }
     let mut seen_sources = FxHashSet::default();
 
     for source in &sources {
@@ -74,7 +111,7 @@ fn find_paths_to_sinks(
     }
 
     if !match_sinks || !graph.sinks.is_empty() {
-        for i in 0..config.security_config.max_depth {
+        for _ in 0..config.security_config.max_depth {
             if !sources.is_empty() {
                 let now = if log_enabled!(Level::Debug) {
                     Some(Instant::now())
@@ -107,7 +144,7 @@ fn find_paths_to_sinks(
                             &mut seen_sources,
                             &mut file_nodes,
                             new_issues,
-                            i == config.security_config.max_depth - 1,
+                            sink_reachable.as_ref(),
                             match_sinks,
                             interner,
                         ))
@@ -151,9 +188,81 @@ fn find_paths_to_sinks(
                 }
 
                 sources = new_sources;
+            } else {
+                break;
             }
         }
     }
+
+    if match_sinks {
+        let unfinished = sources
+            .iter()
+            .filter(|source| {
+                get_specialized_sources(graph, (*source).clone())
+                    .iter()
+                    .any(|generated| {
+                        graph.forward_edges.get(&generated.id).is_some_and(|edges| {
+                            edges.iter().any(|(id, paths)| {
+                                paths.iter().any(|path| path.kind != PathKind::Aggregate)
+                                    && sink_reachable.as_ref().is_none_or(|reachable| {
+                                        reachable.contains(&reachability_id(id))
+                                    })
+                            })
+                        })
+                    })
+            })
+            .collect::<Vec<_>>();
+        if !unfinished.is_empty()
+            && let Some(pos) = unfinished
+                .iter()
+                .find_map(|source| source.pos.as_deref().copied())
+                .or_else(|| graph.sinks.values().find_map(|sink| sink.get_pos()))
+        {
+            new_issues.push(Issue::new(
+                IssueKind::TaintAnalysisIncomplete,
+                format!("Security analysis reached max-depth {} with {} unfinished states that may reach a sink. Increase --max-depth; this run is incomplete.",
+                    config.security_config.max_depth, unfinished.len()),
+                pos, &None,
+            ));
+        }
+    }
+}
+
+fn reachability_id(id: &DataFlowNodeId) -> DataFlowNodeId {
+    match id {
+        DataFlowNodeId::SpecializedCallTo(..)
+        | DataFlowNodeId::SpecializedFunctionLikeArg(..)
+        | DataFlowNodeId::SpecializedFunctionLikeOut(..)
+        | DataFlowNodeId::SpecializedThisBeforeMethod(..)
+        | DataFlowNodeId::SpecializedThisAfterMethod(..) => id.unspecialize().0,
+        _ => id.clone(),
+    }
+}
+
+fn nodes_reaching_sinks(graph: &DataFlowGraph) -> FxHashSet<DataFlowNodeId> {
+    let mut predecessors: FxHashMap<DataFlowNodeId, Vec<DataFlowNodeId>> = FxHashMap::default();
+    for (from, edges) in &graph.forward_edges {
+        for (to, paths) in edges {
+            if paths.iter().any(|path| path.kind != PathKind::Aggregate) {
+                predecessors
+                    .entry(reachability_id(to))
+                    .or_default()
+                    .push(reachability_id(from));
+            }
+        }
+    }
+    let mut reachable: FxHashSet<_> = graph.sinks.keys().map(reachability_id).collect();
+    let mut queue: std::collections::VecDeque<_> = reachable.iter().cloned().collect();
+    while let Some(node) = queue.pop_front() {
+        if let Some(parents) = predecessors.get(&node) {
+            for parent in parents {
+                if reachable.insert(parent.clone()) {
+                    queue.push_back(parent.clone());
+                }
+            }
+        }
+    }
+    reachable
 }
 
 fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Vec<Rc<TaintedNode>> {
@@ -223,7 +332,7 @@ fn get_child_nodes(
     seen_sources: &mut FxHashSet<String>,
     file_nodes: &mut FxHashMap<(FilePath, u32), usize>,
     new_issues: &mut Vec<Issue>,
-    is_last: bool,
+    sink_reachable: Option<&FxHashSet<DataFlowNodeId>>,
     match_sinks: bool,
     interner: &Interner,
 ) -> Vec<Rc<TaintedNode>> {
@@ -250,7 +359,14 @@ fn get_child_nodes(
             }
         }
 
-        for (to_id, path) in forward_edges {
+        for (to_id, path) in forward_edges
+            .iter()
+            .flat_map(|(to_id, paths)| paths.iter().map(move |path| (to_id, path)))
+        {
+            if sink_reachable.is_some_and(|reachable| !reachable.contains(&reachability_id(to_id)))
+            {
+                continue;
+            }
             let destination_node = if let Some(n) = graph.vertices.get(to_id) {
                 n
             } else if let Some(n) = graph.sinks.get(to_id) {
@@ -260,17 +376,11 @@ fn get_child_nodes(
                 panic!();
             };
 
-            // skip Exception::__construct, which looks too noisy
-            if to_id
-                == &DataFlowNodeId::FunctionLikeArg(
-                    FunctionLikeIdentifier::Method(StrId::EXCEPTION, StrId::CONSTRUCT),
-                    0,
-                )
-            {
+            if let PathKind::Aggregate = &path.kind {
                 continue;
             }
 
-            if let PathKind::Aggregate = &path.kind {
+            if should_ignore_superglobal_fetch(&path.kind, &generated_source.path_types) {
                 continue;
             }
 
@@ -328,22 +438,13 @@ fn get_child_nodes(
                 }
             }
 
-            let mut new_taints = source_taints.clone();
+            let (transformed_sources, mut new_taints) = transform_sources(
+                generated_source.get_taint_sources(),
+                source_taints,
+                &path.source_transforms,
+            );
             new_taints.extend(path.added_taints.clone());
             new_taints.retain(|t| !path.removed_taints.contains(t));
-
-            let mut transformed_sources = vec![];
-            if !path.source_transforms.is_empty() {
-                let original_sources = generated_source.get_taint_sources();
-                for (from_source, to_source) in &path.source_transforms {
-                    if original_sources.contains(from_source) {
-                        let old_sinks = get_sinks_for_sources(from_source);
-                        new_taints.retain(|t| !old_sinks.contains(t));
-                        new_taints.extend(get_sinks_for_sources(to_source));
-                        transformed_sources.push(to_source.clone());
-                    }
-                }
-            }
 
             let mut new_destination = TaintedNode::from(destination_node);
 
@@ -377,8 +478,8 @@ fn get_child_nodes(
                 matching_sinks.retain(|t| new_taints.contains(t));
 
                 if !matching_sinks.is_empty() {
-                    let taint_sources = generated_source.get_taint_sources();
-                    for taint_source in taint_sources {
+                    let taint_sources = new_destination.get_taint_sources().to_vec();
+                    for taint_source in &taint_sources {
                         for matching_sink in &matching_sinks {
                             if !config.allow_data_from_source_in_file(
                                 taint_source,
@@ -423,13 +524,71 @@ fn get_child_nodes(
 
             seen_sources.insert(source_id);
 
-            if !is_last {
-                new_child_nodes.push(Rc::new(new_destination));
-            }
+            new_child_nodes.push(Rc::new(new_destination));
         }
     }
 
     new_child_nodes
+}
+
+fn transform_sources(
+    sources: &[hakana_code_info::taint::SourceType],
+    sinks: &[SinkType],
+    transforms: &[(
+        hakana_code_info::taint::SourceType,
+        hakana_code_info::taint::SourceType,
+    )],
+) -> (Vec<hakana_code_info::taint::SourceType>, Vec<SinkType>) {
+    if transforms.is_empty() {
+        return (vec![], sinks.to_vec());
+    }
+    let transformed: Vec<_> = sources
+        .iter()
+        .map(|source| {
+            transforms
+                .iter()
+                .find(|(from, _)| from == source)
+                .map_or_else(|| source.clone(), |(_, to)| to.clone())
+        })
+        .collect();
+    let old_possible: FxHashSet<_> = sources.iter().flat_map(get_sinks_for_sources).collect();
+    let new_possible: FxHashSet<_> = transformed.iter().flat_map(get_sinks_for_sources).collect();
+    // Keep prior sanitization for sinks shared by the old and new source kinds,
+    // and keep obligations belonging to source kinds that were not transformed.
+    let mut new_sinks: Vec<_> = sinks
+        .iter()
+        .filter(|sink| !old_possible.contains(*sink) || new_possible.contains(*sink))
+        .cloned()
+        .collect();
+    new_sinks.extend(new_possible.difference(&old_possible).cloned());
+    (transformed, new_sinks)
+}
+
+fn should_ignore_superglobal_fetch(path: &PathKind, previous: &[PathKind]) -> bool {
+    let PathKind::ArrayFetch(ArrayDataKind::ArrayValue, key) = path else {
+        return false;
+    };
+    let mut depth = 0i32;
+    for step in previous.iter().rev() {
+        match step {
+            PathKind::ArrayFetch(ArrayDataKind::ArrayValue, _)
+            | PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue) => depth += 1,
+            PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, _)
+            | PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue) => depth -= 1,
+            PathKind::Serialize => return false,
+            PathKind::Superglobal(name) => {
+                return match name.as_str() {
+                    "_SERVER" if depth == 0 => !hakana_code_info::taint::is_request_server_key(key),
+                    "_FILES" if depth == 1 => {
+                        !matches!(key.as_str(), "name" | "type" | "full_path")
+                    }
+                    _ => false,
+                };
+            }
+            _ => {}
+        }
+    }
+    false
 }
 
 fn has_recent_assignment(generated_path_types: &[PathKind]) -> bool {
@@ -620,4 +779,160 @@ pub(crate) fn should_ignore_property_fetch(
     }
 
     false
+}
+
+#[cfg(test)]
+mod security_search_tests {
+    use super::*;
+    use hakana_code_info::code_location::HPos;
+    use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
+    use hakana_code_info::data_flow::node::DataFlowNode;
+    use hakana_code_info::function_context::FunctionLikeIdentifier;
+    use hakana_code_info::taint::SourceType;
+
+    fn position(interner: &mut Interner) -> HPos {
+        HPos {
+            file_path: FilePath(interner.intern("test.hack".into())),
+            start_offset: 0,
+            end_offset: 1,
+            start_line: 1,
+            end_line: 1,
+            start_column: 1,
+            end_column: 2,
+        }
+    }
+
+    fn vertex(graph: &mut DataFlowGraph, id: DataFlowNodeId, pos: HPos) -> DataFlowNodeId {
+        graph.add_node(DataFlowNode {
+            id: id.clone(),
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(pos),
+                is_specialized: false,
+            },
+        });
+        id
+    }
+
+    fn findings(graph: &DataFlowGraph, interner: &Interner, prune: bool) -> Vec<String> {
+        let config = Config::new("project".into(), FxHashSet::default());
+        let sources = graph
+            .sources
+            .values()
+            .map(|node| Rc::new(TaintedNode::from(node)))
+            .collect();
+        let mut issues = vec![];
+        find_paths_to_sinks(sources, graph, &config, &mut issues, true, interner, prune);
+        let mut messages: Vec<_> = issues.into_iter().map(|issue| issue.description).collect();
+        messages.sort();
+        messages
+    }
+
+    #[test]
+    fn reverse_pruning_preserves_specialized_field_paths_and_parallel_edges() {
+        let mut interner = Interner::default();
+        let pos = position(&mut interner);
+        let mut graph = DataFlowGraph::new(GraphKind::WholeProgram(WholeProgramKind::Taint));
+        let source = DataFlowNodeId::String("request".into());
+        graph.add_node(DataFlowNode {
+            id: source.clone(),
+            kind: DataFlowNodeKind::TaintSource {
+                pos: Some(pos),
+                types: vec![SourceType::UriRequestHeader],
+            },
+        });
+        let sink = DataFlowNodeId::String("html".into());
+        graph.add_node(DataFlowNode {
+            id: sink.clone(),
+            kind: DataFlowNodeKind::TaintSink {
+                pos,
+                types: vec![SinkType::HtmlTag],
+            },
+        });
+        let method = FunctionLikeIdentifier::Function(interner.intern("identity".into()));
+        let arg = DataFlowNode::get_for_method_argument(&method, 0, Some(pos), Some(pos));
+        graph.add_node(arg.clone());
+        let base = vertex(&mut graph, arg.id.unspecialize().0, pos);
+        let data = vertex(&mut graph, DataFlowNodeId::String("fields".into()), pos);
+        graph.add_path(&source, &arg.id, PathKind::Default, vec![], vec![]);
+        graph.add_path(
+            &base,
+            &data,
+            PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, "unsafe".into()),
+            vec![],
+            vec![],
+        );
+        // Same endpoints from another file/summary must not overwrite "unsafe".
+        let mut extra = DataFlowGraph::new(graph.kind);
+        extra.add_path(
+            &base,
+            &data,
+            PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, "safe".into()),
+            vec![],
+            vec![SinkType::HtmlTag],
+        );
+        graph.add_graph(extra);
+        graph.add_path(
+            &data,
+            &sink,
+            PathKind::ArrayFetch(ArrayDataKind::ArrayValue, "unsafe".into()),
+            vec![],
+            vec![],
+        );
+        // A node-only meeting at this field would incorrectly create a second issue.
+        graph.add_path(
+            &data,
+            &sink,
+            PathKind::ArrayFetch(ArrayDataKind::ArrayValue, "other".into()),
+            vec![],
+            vec![],
+        );
+        let dead = vertex(&mut graph, DataFlowNodeId::String("dead".into()), pos);
+        graph.add_path(&source, &dead, PathKind::Default, vec![], vec![]);
+        graph.add_path(&dead, &sink, PathKind::Aggregate, vec![], vec![]);
+        let reachable = nodes_reaching_sinks(&graph);
+        assert!(reachable.contains(&source));
+        assert!(!reachable.contains(&dead));
+        let pruned = findings(&graph, &interner, true);
+        assert_eq!(pruned.len(), 1);
+        assert_eq!(pruned, findings(&graph, &interner, false));
+    }
+
+    #[test]
+    fn source_transforms_preserve_other_sources_and_prior_sanitization() {
+        let (sources, sinks) = transform_sources(
+            &[SourceType::UriRequestHeader, SourceType::SystemSecret],
+            &[SinkType::Sql, SinkType::Logging, SinkType::Output],
+            &[(
+                SourceType::UriRequestHeader,
+                SourceType::NonUriRequestHeader,
+            )],
+        );
+        assert_eq!(
+            sources,
+            vec![SourceType::NonUriRequestHeader, SourceType::SystemSecret]
+        );
+        assert!(sinks.contains(&SinkType::Logging));
+        assert!(sinks.contains(&SinkType::Output));
+        assert!(sinks.contains(&SinkType::Sql));
+        assert!(!sinks.contains(&SinkType::HtmlTag));
+    }
+
+    #[test]
+    fn source_kinds_with_the_same_sink_policy_have_distinct_visit_keys() {
+        let mut interner = Interner::default();
+        let pos = position(&mut interner);
+        let node = |source| {
+            TaintedNode::from(&DataFlowNode {
+                id: DataFlowNodeId::String("shared".into()),
+                kind: DataFlowNodeKind::TaintSource {
+                    pos: Some(pos),
+                    types: vec![source],
+                },
+            })
+        };
+        assert_ne!(
+            node(SourceType::UserEmail).get_unique_source_id(&interner),
+            node(SourceType::UserPII).get_unique_source_id(&interner),
+        );
+    }
 }

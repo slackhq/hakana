@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:2:9 - Data from a URL query string found its way to CSS code using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:2:42) ----> htmlspecialchars#1 (input.hack:2:34) ----> call to htmlspecialchars (hhi_embedded_stdlib/builtins_string.hhi:213:4) ----> Facebook\XHP\HTML\style (input.hack:2:9)

@@ -73,7 +73,7 @@ impl SecurityConfig {
         Self {
             ignore_patterns: Vec::new(),
             ignore_sink_files: FxHashMap::default(),
-            max_depth: 25,
+            max_depth: 40,
         }
     }
 }
@@ -266,7 +266,13 @@ impl Config {
                 )
             })
             .collect();
-        self.security_config.max_depth = json_config.security_analysis.max_depth.unwrap_or(40);
+        self.security_config.max_depth = json_config
+            .security_analysis
+            .max_depth
+            .unwrap_or(SecurityConfig::default().max_depth);
+        if self.security_config.max_depth == 0 {
+            return Err("security_analysis.max_depth must be greater than zero".into());
+        }
 
         self.strict_falsable_types = json_config.strict_falsable_types;
 

@@ -45,71 +45,34 @@ pub enum SinkType {
     CurlUri,
     HtmlAttribute,
     HtmlAttributeUri,
+    JavaScript,
+    Css,
+    ResponseHeader,
     Logging,
     Output,
     UnauthorizedDataFetchKey,
     Custom(String),
 }
 
-const PAIRS: [(SourceType, SinkType); 35] = [
-    // All the places we don't want GET data to go
-    (SourceType::UriRequestHeader, SinkType::Sql),
-    (SourceType::UriRequestHeader, SinkType::Shell),
-    (SourceType::UriRequestHeader, SinkType::FileSystem),
-    (SourceType::UriRequestHeader, SinkType::Unserialize),
-    (SourceType::UriRequestHeader, SinkType::CurlHeader),
-    (SourceType::UriRequestHeader, SinkType::CurlUri),
-    (SourceType::UriRequestHeader, SinkType::HtmlAttribute),
-    (SourceType::UriRequestHeader, SinkType::HtmlAttributeUri),
-    (SourceType::UriRequestHeader, SinkType::HtmlTag),
-    (SourceType::UriRequestHeader, SinkType::RedirectUri),
-    (SourceType::UriRequestHeader, SinkType::Cookie),
-    (
-        SourceType::UriRequestHeader,
-        SinkType::UnauthorizedDataFetchKey,
-    ),
-    // We don't want unescaped user data in any of those places either
-    // Except we allow it in cookies
-    (SourceType::RawUserData, SinkType::Sql),
-    (SourceType::RawUserData, SinkType::Shell),
-    (SourceType::RawUserData, SinkType::FileSystem),
-    (SourceType::RawUserData, SinkType::Unserialize),
-    (SourceType::RawUserData, SinkType::CurlUri),
-    (SourceType::RawUserData, SinkType::HtmlAttribute),
-    (SourceType::RawUserData, SinkType::HtmlAttributeUri),
-    (SourceType::RawUserData, SinkType::HtmlTag),
-    (SourceType::RawUserData, SinkType::RedirectUri),
-    // All the places we don't want POST data to go
-    // For example we don't care about XSS in POST data
-    (SourceType::NonUriRequestHeader, SinkType::Sql),
-    (SourceType::NonUriRequestHeader, SinkType::Shell),
-    (SourceType::NonUriRequestHeader, SinkType::FileSystem),
-    (SourceType::NonUriRequestHeader, SinkType::Unserialize),
-    (SourceType::NonUriRequestHeader, SinkType::CurlHeader),
-    (SourceType::NonUriRequestHeader, SinkType::CurlUri),
-    (
-        SourceType::NonUriRequestHeader,
-        SinkType::UnauthorizedDataFetchKey,
-    ),
-    // We don't want user data, PII, or emails to appear in logs,
-    // but it's ok for it to appear everywhere else.
-    (SourceType::UserData, SinkType::Logging),
-    (SourceType::UserEmail, SinkType::Logging),
-    (SourceType::UserPII, SinkType::Logging),
-    // User passwords shouldn't appear in any user output or logs
-    (SourceType::UserPassword, SinkType::Logging),
-    (SourceType::UserPassword, SinkType::Output),
-    // System secrets have the same prohibitions
-    (SourceType::SystemSecret, SinkType::Logging),
-    (SourceType::SystemSecret, SinkType::Output),
-];
-
+/// Injection policy is independent of the transport carrying untrusted input.
 pub fn get_sinks_for_sources(source: &SourceType) -> Vec<SinkType> {
-    PAIRS
-        .into_iter()
-        .filter(|p| &p.0 == source)
-        .map(|p| p.1)
-        .collect()
+    match source {
+        SourceType::UriRequestHeader | SourceType::NonUriRequestHeader => {
+            let mut sinks = SinkType::user_controllable_taints();
+            sinks.push(SinkType::UnauthorizedDataFetchKey);
+            sinks
+        }
+        SourceType::RawUserData => SinkType::user_controllable_taints()
+            .into_iter()
+            .filter(|sink| *sink != SinkType::Cookie)
+            .collect(),
+        SourceType::UserData | SourceType::UserEmail | SourceType::UserPII => {
+            vec![SinkType::Logging]
+        }
+        SourceType::UserPassword | SourceType::SystemSecret => {
+            vec![SinkType::Logging, SinkType::Output]
+        }
+    }
 }
 
 impl SinkType {
@@ -127,6 +90,9 @@ impl SinkType {
             SinkType::CurlUri => "a curl url".to_string(),
             SinkType::HtmlAttribute => "an HTML attribute".to_string(),
             SinkType::HtmlAttributeUri => "an HTML attribute with url".to_string(),
+            SinkType::JavaScript => "JavaScript code".to_string(),
+            SinkType::Css => "CSS code".to_string(),
+            SinkType::ResponseHeader => "an HTTP response header".to_string(),
             SinkType::Logging => "a logging method".to_string(),
             SinkType::Output => "generic output".to_string(),
             SinkType::UnauthorizedDataFetchKey => "unauthorized fetch key for data".to_string(),
@@ -148,6 +114,9 @@ impl SinkType {
             SinkType::CurlUri,
             SinkType::HtmlAttribute,
             SinkType::HtmlAttributeUri,
+            SinkType::JavaScript,
+            SinkType::Css,
+            SinkType::ResponseHeader,
         ]
     }
 }
@@ -156,21 +125,31 @@ pub fn string_to_source_types(str: String) -> Option<SourceType> {
     SourceType::from_str(&str).ok()
 }
 
+/// Values supplied by the HTTP client, as opposed to server configuration.
+pub fn is_request_server_key(key: &str) -> bool {
+    key.starts_with("HTTP_")
+        || matches!(
+            key,
+            "CONTENT_TYPE"
+                | "CONTENT_LENGTH"
+                | "QUERY_STRING"
+                | "REQUEST_URI"
+                | "PATH_INFO"
+                | "ORIG_PATH_INFO"
+                | "PHP_SELF"
+                | "REDIRECT_URL"
+                | "SERVER_NAME"
+                | "PHP_AUTH_USER"
+                | "PHP_AUTH_PW"
+                | "PHP_AUTH_DIGEST"
+                | "REMOTE_USER"
+                | "REDIRECT_REMOTE_USER"
+        )
+}
+
 pub fn string_to_sink_types(str: String) -> Vec<SinkType> {
     match str.as_str() {
-        "*" => vec![
-            SinkType::Sql,
-            SinkType::HtmlTag,
-            SinkType::HtmlAttribute,
-            SinkType::HtmlAttributeUri,
-            SinkType::CurlHeader,
-            SinkType::CurlUri,
-            SinkType::FileSystem,
-            SinkType::RedirectUri,
-            SinkType::Shell,
-            SinkType::Unserialize,
-            SinkType::Cookie,
-        ],
+        "*" => SinkType::user_controllable_taints(),
         str => {
             if let Ok(sink_type) = SinkType::from_str(str) {
                 vec![sink_type]

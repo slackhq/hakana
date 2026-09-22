@@ -252,7 +252,7 @@ pub fn analyze_single_file(
         file_path,
         hh_fixmes: &aast.1.fixmes,
         comments: &aast.1.comments,
-        file_contents: "".to_string(),
+        file_contents: aast.2.clone(),
     };
 
     let mut file_analyzer = file_analyzer::FileAnalyzer::new(

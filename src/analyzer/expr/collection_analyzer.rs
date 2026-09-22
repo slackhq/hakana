@@ -610,7 +610,7 @@ fn add_array_value_dataflow(
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
             },
             vec![],
-            vec![],
+            value_type.scalar_taint_removals(),
         );
     }
 
@@ -671,7 +671,7 @@ fn add_array_key_dataflow(
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey)
             },
             vec![],
-            vec![],
+            key_item_type.scalar_taint_removals(),
         );
     }
 

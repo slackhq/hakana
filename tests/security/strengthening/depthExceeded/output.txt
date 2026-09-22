@@ -1,0 +1,1 @@
+ERROR: TaintAnalysisIncomplete - input.hack:1:1 - Security analysis reached max-depth 2 with 1 unfinished states that may reach a sink. Increase --max-depth; this run is incomplete.

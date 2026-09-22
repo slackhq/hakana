@@ -28,7 +28,11 @@ pub fn get_subcommand() -> Command<'static> {
         .arg(
             arg!(--"max-depth" <PATH>)
                 .required(false)
-                .help("Length of the longest allowable path — defaults to 20, and overrides config file value"),
+                .help("Length of the longest allowable path — defaults to 40, and overrides config file value")
+                .validator(|value| match value.parse::<u8>() {
+                    Ok(1..=255) => Ok(()),
+                    _ => Err("max-depth must be an integer between 1 and 255"),
+                }),
         )
         .arg(
             arg!(--"debug")
@@ -53,7 +57,8 @@ pub fn handle(
     header: &str,
     had_error: &mut bool,
 ) {
-    let mut config = config::Config::new(cwd.clone(), all_custom_issues);
+    let analysis_root = sub_matches.value_of("root").unwrap_or(cwd).to_string();
+    let mut config = config::Config::new(analysis_root.clone(), all_custom_issues);
     config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Taint);
 
     let config_path = config_path.unwrap();
@@ -61,7 +66,7 @@ pub fn handle(
     let mut interner = Interner::default();
 
     if config_path.exists()
-        && let Err(error) = config.update_from_file(cwd, config_path, &mut interner)
+        && let Err(error) = config.update_from_file(&analysis_root, config_path, &mut interner)
     {
         println!("Invalid config: {}", error);
         std::process::exit(1);
@@ -97,28 +102,34 @@ pub fn handle(
         || {},
     );
 
-    if let Ok((analysis_result, successful_run_data)) = result {
-        for (file_path, issues) in
-            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir, true)
-        {
-            for issue in issues {
-                *had_error = true;
-                println!("{}", issue.format(&file_path));
-            }
+    let (analysis_result, successful_run_data) = match result {
+        Ok(result) => result,
+        Err(error) => {
+            *had_error = true;
+            eprintln!("Security analysis failed: {error}");
+            return;
         }
+    };
+    for (file_path, issues) in
+        analysis_result.get_all_issues(&successful_run_data.interner, &root_dir, true)
+    {
+        for issue in issues {
+            *had_error = true;
+            println!("{}", issue.format(&file_path));
+        }
+    }
 
-        if !*had_error {
-            tty_println!("\nNo security issues found!\n");
-        }
+    if !*had_error {
+        tty_println!("\nNo security issues found!\n");
+    }
 
-        if let Some(output_file) = output_file {
-            write_analysis_output_files(
-                output_file,
-                None,
-                cwd,
-                &analysis_result,
-                &successful_run_data.interner,
-            );
-        }
+    if let Some(output_file) = output_file {
+        write_analysis_output_files(
+            output_file,
+            None,
+            cwd,
+            &analysis_result,
+            &successful_run_data.interner,
+        );
     }
 }

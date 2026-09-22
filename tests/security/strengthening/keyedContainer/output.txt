@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:2:6 - Data from a URL query string found its way to an HTML tag using path $_GET ----> HH\dict#1 (input.hack:1:14) ----> call to HH\dict (hhi_embedded_container_functions.hhi:99:8) ----> $data (input.hack:1:1) --array-fetch--> $data['q'] (input.hack:2:14) ----> echo#1 (input.hack:2:6)

@@ -1,6 +1,6 @@
 # Security Analysis in Hakana
 
-Hakana can attempt to find connections between user-controlled input (like `HH\global_get('GET')['name']`) and places that we don’t want unescaped user-controlled input to end up (like `echo "<h1>$name</h1>"` by looking at the ways that data flows through your application (via assignments, function/method calls and array/property access).
+Hakana can attempt to find connections between user-controlled input (like `HH\global_get('_GET')['name']`) and places that we don’t want unescaped user-controlled input to end up (like `echo "<h1>$name</h1>"`) by looking at the ways that data flows through your application (via assignments, function/method calls and array/property access).
 
 You can enable this mode by running `<hakana path> security-check`. When taint analysis is enabled, no other analysis is performed.
 
@@ -32,6 +32,17 @@ Hakana recognises a number of taint sources, defined in the [SourceType enum](ht
 - `UserPassword` — any data that contains user secrets (e.g. hashed password fields). This must be explicitly annotated in your application with Hakana attributes.
 - `SystemSecret` — any data that contains system secrets (e.g. API keys). This must be explicitly annotated in your application with Hakana attributes.
 
+`UriRequestHeader` and `NonUriRequestHeader` have the same injection policy.
+POST bodies and cookies can reach HTML and URL sinks just as GET parameters can.
+`HH\global_get` recognizes `_GET`, `_REQUEST`, `_POST`, `_COOKIE`, request-derived
+fields of `_SERVER`, and client metadata fields of `_FILES`. Unknown global
+names are conservatively modeled as request data. `file_get_contents('php://input')`
+is also a request source.
+
+Numeric values retain privacy, secret, and authorization-key provenance.
+Numeric conversion can remove syntax-injection taints without making an ID
+authorized or making a secret safe to log.
+
 ## Taint Sinks
 
 Hakana recognises a range of taint sinks, defined in the [SinkType enum](https://github.com/slackhq/hakana/blob/c23bd6183a705a40a1cfe1952b603b97fae9f555/src/code_info/taint.rs#L30)
@@ -47,8 +58,38 @@ Hakana recognises a range of taint sinks, defined in the [SinkType enum](https:/
 - `CurlUri` - used for anywhere that sends Curl requests to an arbitrary URI
 - `HtmlAttribute` - used for anywhere that emits arbitrary HTML attributes
 - `HtmlAttributeUri` - used for anywhere that emits arbitrary URIs embedded in HTML code
+- `JavaScript` - script bodies and event-handler attributes
+- `Css` - style bodies and style attributes
+- `ResponseHeader` - the header argument of `header`
 - `Logging` - used for anywhere that logs arbitrary strings
 - `Output` - used for anywhere that `echo`s arbitrary strings
+- `UnauthorizedDataFetchKey` - explicitly annotated data-access keys that require authorization
+
+`curl_setopt` and literal `curl_setopt_array` options distinguish URLs/proxies
+from HTTP headers and harmless options. Unknown options are treated
+conservatively. Native exception messages, codes, and previous exceptions retain
+their field-specific provenance when retrieved.
+
+### Context-specific sanitization
+
+HTML escaping removes HTML-tag taint, and quote escaping (`ENT_QUOTES`) also
+removes HTML-attribute taint. It does not validate a URL scheme or escape
+JavaScript/CSS. `strip_tags` only removes HTML-tag taint when no tags are allowed.
+URL-component encoding is not a JavaScript or CSS sanitizer.
+
+Concatenation only removes URL-destination taint from a suffix after a fixed
+authority or an established relative path. For example,
+`'https://example.com/path/' . $input` fixes the destination, whereas
+`'https://' . $input` does not. Taint in the authority itself remains reportable.
+
+### Search limits
+
+The default maximum path depth is 40 and can be overridden by configuration or
+`--max-depth` (1–255). Backward reachability from sinks prunes irrelevant parts
+of the graph before the forward, context-sensitive traversal. If the forward
+traversal reaches its depth limit with potentially relevant paths remaining,
+`TaintAnalysisIncomplete` is emitted. This is an incomplete run, not evidence
+that the code is free of security issues.
 
 ## Annotating your code for security analysis
 
@@ -135,7 +176,7 @@ type user_t = shape(
 
 function takesUser(user_t $user) {
     echo $user['username']; // this is ok
-    echo $user['email']; // this is an error
+    echo $user['password']; // this is an error
 }
 ```
 
@@ -179,6 +220,12 @@ function takesUser(User $user): void {
 ### `HAKANA_SECURITY_IGNORE`
 
 In addition to attributes, Hakana supports using the `HAKANA_SECURITY_IGNORE[<SinkType>]` doc comment to suppress individual paths. This can be used when you want to deliberately do something that would otherwise be considered dangerous.
+
+The comment must immediately precede the affected call, argument, or assignment,
+with only whitespace between them (an argument-list opening parenthesis is also
+allowed). A comment before a call applies to that call's arguments. It does not
+suppress later calls on the same line. For regex match-output propagation,
+place it immediately before the pattern argument.
 
 ```hack
 function check_endpoint(string $s): void {

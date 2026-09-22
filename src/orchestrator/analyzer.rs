@@ -276,7 +276,17 @@ fn analyze_loaded_ast(
         file_path,
         hh_fixmes: &aast.1.fixmes,
         comments: &aast.1.comments,
-        file_contents: if !config.migration_symbols.is_empty() || !config.issues_to_fix.is_empty() {
+        file_contents: if !config.migration_symbols.is_empty()
+            || !config.issues_to_fix.is_empty()
+            || (matches!(
+                config.graph_kind,
+                hakana_code_info::data_flow::graph::GraphKind::WholeProgram(_)
+            ) && aast.1.comments.iter().any(|(_, comment)| {
+                matches!(
+                    comment, oxidized::prim_defs::Comment::CmtBlock(text)
+                    if text.trim_start().starts_with("HAKANA_SECURITY_IGNORE[")
+                )
+            })) {
             match fs::read_to_string(str_path) {
                 Ok(str_file) => str_file,
                 Err(_) => panic!("Could not read {}", str_path),

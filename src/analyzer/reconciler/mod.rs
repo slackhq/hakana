@@ -267,7 +267,7 @@ pub(crate) fn reconcile_keyed_types(
                             &scalar_check_node.id,
                             PathKind::ScalarTypeGuard,
                             vec![],
-                            vec![],
+                            result_type.scalar_taint_removals(),
                         );
                     }
 
@@ -280,7 +280,21 @@ pub(crate) fn reconcile_keyed_types(
                             if let TAtomic::TNamedObject(TNamedObject { name, .. }) =
                                 result_type.get_single()
                             {
-                                Some(name)
+                                // These interfaces also describe native Hack arrays.
+                                // Their contents do not require a matching object-property
+                                // assignment to remain tainted after an is/as check.
+                                if matches!(
+                                    name,
+                                    &StrId::KEYED_CONTAINER
+                                        | &StrId::CONTAINER
+                                        | &StrId::TRAVERSABLE
+                                        | &StrId::KEYED_TRAVERSABLE
+                                        | &StrId::ANY_ARRAY
+                                ) {
+                                    None
+                                } else {
+                                    Some(name)
+                                }
                             } else {
                                 None
                             }

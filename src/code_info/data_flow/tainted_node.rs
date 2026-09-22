@@ -158,6 +158,17 @@ impl TaintedNode {
 
         id += "|";
 
+        for source in self
+            .get_taint_sources()
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<BTreeSet<_>>()
+        {
+            id += &source;
+            id += ",";
+        }
+        id += "|";
+
         for specialization in self
             .specialized_calls
             .iter()

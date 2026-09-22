@@ -21,7 +21,7 @@ use hakana_code_info::ttype::{
     get_string, get_vec, template, type_expander, wrap_atomic,
 };
 use hakana_code_info::{EFFECT_IMPURE, GenericParent, VarId};
-use hakana_str::{Interner, StrId};
+use hakana_str::StrId;
 use oxidized::aast::Argument;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
@@ -208,10 +208,25 @@ fn handle_special_functions(
         &StrId::GLOBAL_GET => {
             if let Some(arg) = args.first() {
                 let arg_expr = arg.to_expr_ref();
-                if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
-                    expr_type.get_single_literal_string_value().map(|value| {
-                        get_type_for_superglobal(statements_analyzer, value, pos, analysis_data)
-                    })
+                if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()).cloned() {
+                    let mut result = None;
+                    for atomic in &expr_type.types {
+                        let name = if let TAtomic::TLiteralString { value } = atomic {
+                            value.clone()
+                        } else {
+                            // An unknown name can select any request global. Preserve
+                            // that possibility through helpers taking the name as input.
+                            "_REQUEST".to_string()
+                        };
+                        let ty =
+                            get_type_for_superglobal(statements_analyzer, name, pos, analysis_data);
+                        result = Some(if let Some(previous) = result {
+                            add_union_type(ty, &previous, statements_analyzer.codebase, false)
+                        } else {
+                            ty
+                        });
+                    }
+                    result
                 } else {
                     None
                 }
@@ -680,8 +695,8 @@ fn get_type_for_superglobal(
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     match name.as_str() {
-        "_FILES" | "_SERVER" | "_ENV" => get_mixed(),
-        "_GET" | "_REQUEST" | "_POST" | "_COOKIE" => {
+        "_ENV" => get_mixed(),
+        "_GET" | "_REQUEST" | "_POST" | "_COOKIE" | "_SERVER" | "_FILES" => {
             let mut var_type = get_mixed();
 
             let taint_pos = statements_analyzer.get_hpos(pos);
@@ -709,7 +724,21 @@ fn get_type_for_superglobal(
 
             analysis_data.data_flow_graph.add_node(taint_source.clone());
 
-            var_type.parent_nodes.push(taint_source);
+            if name == "_SERVER" || name == "_FILES" {
+                let value_node =
+                    DataFlowNode::get_for_local_string(format!("global {name}"), taint_pos);
+                analysis_data.data_flow_graph.add_path(
+                    &taint_source.id,
+                    &value_node.id,
+                    PathKind::Superglobal(name),
+                    vec![],
+                    vec![],
+                );
+                analysis_data.data_flow_graph.add_node(value_node.clone());
+                var_type.parent_nodes.push(value_node);
+            } else {
+                var_type.parent_nodes.push(taint_source);
+            }
 
             var_type
         }
@@ -888,6 +917,36 @@ fn add_dataflow(
         return stmt_type;
     }
 
+    let added_removed_taints =
+        if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
+            get_special_added_removed_taints(
+                functionlike_id,
+                statements_analyzer,
+                expr.2,
+                analysis_data,
+            )
+        } else {
+            FxHashMap::default()
+        };
+
+    add_option_dependent_sinks(
+        statements_analyzer,
+        functionlike_id,
+        expr.2,
+        analysis_data,
+        context,
+        pos,
+    );
+    let raw_request_body = matches!(functionlike_id, FunctionLikeIdentifier::Function(name)
+        if statements_analyzer.interner.lookup(name) == "file_get_contents")
+        && expr
+            .2
+            .first()
+            .and_then(|arg| analysis_data.get_expr_type(arg.to_expr_ref().pos()))
+            .and_then(|ty| ty.get_single_literal_string_value())
+            .as_deref()
+            == Some("php://input");
+
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind
@@ -924,12 +983,6 @@ fn add_dataflow(
         } else {
             (vec![], None)
         };
-
-    let added_removed_taints = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        get_special_added_removed_taints(functionlike_id, statements_analyzer.interner)
-    } else {
-        FxHashMap::default()
-    };
 
     let mut last_arg = usize::MAX;
 
@@ -1012,13 +1065,17 @@ fn add_dataflow(
     }
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind
-        && !functionlike_storage.taint_source_types.is_empty()
+        && (!functionlike_storage.taint_source_types.is_empty() || raw_request_body)
     {
         let function_call_node_source = DataFlowNode {
             id: function_call_node.id.clone(),
             kind: DataFlowNodeKind::TaintSource {
                 pos: function_call_node.get_pos(),
-                types: functionlike_storage.taint_source_types.clone(),
+                types: if raw_request_body {
+                    vec![SourceType::NonUriRequestHeader]
+                } else {
+                    functionlike_storage.taint_source_types.clone()
+                },
             },
         };
         data_flow_graph.add_node(function_call_node_source);
@@ -1653,21 +1710,198 @@ fn get_special_argument_nodes(
 
 fn get_special_added_removed_taints(
     functionlike_id: &FunctionLikeIdentifier,
-    interner: &Interner,
+    statements_analyzer: &StatementsAnalyzer,
+    args: &[aast::Argument<(), ()>],
+    analysis_data: &FunctionAnalysisData,
 ) -> FxHashMap<usize, (Vec<SinkType>, Vec<SinkType>)> {
-    match functionlike_id {
-        FunctionLikeIdentifier::Function(function_name) => match interner.lookup(function_name) {
-            "html_entity_decode" | "htmlspecialchars_decode" => {
-                FxHashMap::from_iter([(0, (vec![SinkType::HtmlTag], vec![]))])
+    let FunctionLikeIdentifier::Function(name) = functionlike_id else {
+        return FxHashMap::default();
+    };
+    let (added, removed) = match statements_analyzer.interner.lookup(name) {
+        "html_entity_decode" | "htmlspecialchars_decode" => {
+            (vec![SinkType::HtmlTag, SinkType::HtmlAttribute], vec![])
+        }
+        "htmlentities" | "htmlspecialchars" => {
+            let mut removed = vec![SinkType::HtmlTag];
+            // ENT_QUOTES escapes both quote characters. Neither mode validates URLs
+            // or escapes JavaScript/CSS syntax.
+            if args.get(1).is_some_and(|arg| {
+                has_ent_quotes(arg.to_expr_ref(), statements_analyzer, analysis_data)
+            }) {
+                removed.push(SinkType::HtmlAttribute);
             }
-            "htmlentities" | "htmlspecialchars" | "strip_tags" | "urlencode" => {
-                FxHashMap::from_iter([(
-                    0,
-                    (vec![], vec![SinkType::HtmlTag, SinkType::HtmlAttributeUri]),
-                )])
+            (vec![], removed)
+        }
+        "strip_tags" => {
+            let removes_all_tags = args.get(1).is_none_or(|arg| {
+                analysis_data
+                    .get_expr_type(arg.to_expr_ref().pos())
+                    .is_some_and(|ty| {
+                        ty.is_null()
+                            || ty
+                                .get_single_literal_string_value()
+                                .is_some_and(|s| s.is_empty())
+                    })
+            });
+            (
+                vec![],
+                if removes_all_tags {
+                    vec![SinkType::HtmlTag]
+                } else {
+                    vec![]
+                },
+            )
+        }
+        "urlencode" | "rawurlencode" => (
+            vec![],
+            vec![
+                SinkType::HtmlTag,
+                SinkType::HtmlAttribute,
+                SinkType::HtmlAttributeUri,
+            ],
+        ),
+        _ => return FxHashMap::default(),
+    };
+    FxHashMap::from_iter([(0, (added, removed))])
+}
+
+fn has_ent_quotes(
+    expr: &aast::Expr<(), ()>,
+    analyzer: &StatementsAnalyzer,
+    data: &FunctionAnalysisData,
+) -> bool {
+    if let Some(flags) = data
+        .get_expr_type(expr.pos())
+        .and_then(|ty| ty.get_single_literal_int_value())
+    {
+        return flags & 3 == 3;
+    }
+    match &expr.2 {
+        aast::Expr_::Id(id) => analyzer
+            .file_analyzer
+            .resolved_names
+            .get(&(id.0.start_offset() as u32))
+            .is_some_and(|id| analyzer.interner.lookup(id) == "ENT_QUOTES"),
+        aast::Expr_::Binop(binop) if binop.bop == oxidized::ast_defs::Bop::Bar => {
+            has_ent_quotes(&binop.lhs, analyzer, data) || has_ent_quotes(&binop.rhs, analyzer, data)
+        }
+        _ => false,
+    }
+}
+
+fn curl_option_sinks(
+    option: &aast::Expr<(), ()>,
+    analyzer: &StatementsAnalyzer,
+    data: &FunctionAnalysisData,
+) -> Vec<SinkType> {
+    let option_name = if let aast::Expr_::Id(id) = &option.2 {
+        analyzer
+            .file_analyzer
+            .resolved_names
+            .get(&(id.0.start_offset() as u32))
+            .map(|id| analyzer.interner.lookup(id))
+    } else {
+        None
+    };
+    let value = data
+        .get_expr_type(option.pos())
+        .and_then(|ty| ty.get_single_literal_int_value());
+    // HHI constants often have no literal value. Resolve their names too.
+    match (option_name, value) {
+        (
+            Some(
+                "CURLOPT_URL" | "CURLOPT_PROXY" | "CURLOPT_PRE_PROXY" | "CURLOPT_CONNECT_TO"
+                | "CURLOPT_RESOLVE",
+            ),
+            _,
+        )
+        | (_, Some(10002 | 10004 | 10262 | 10243 | 10203)) => vec![SinkType::CurlUri],
+        (Some("CURLOPT_HTTPHEADER" | "CURLOPT_PROXYHEADER"), _) | (_, Some(10023 | 10228)) => {
+            vec![SinkType::CurlHeader]
+        }
+        (Some(name), _) if name.starts_with("CURLOPT_") => vec![],
+        (_, Some(_)) => vec![],
+        _ => vec![SinkType::CurlUri, SinkType::CurlHeader],
+    }
+}
+
+fn add_option_dependent_sinks(
+    statements_analyzer: &StatementsAnalyzer,
+    id: &FunctionLikeIdentifier,
+    args: &[aast::Argument<(), ()>],
+    analysis_data: &mut FunctionAnalysisData,
+    context: &BlockContext,
+    call_pos: &Pos,
+) {
+    if !matches!(
+        analysis_data.data_flow_graph.kind,
+        GraphKind::WholeProgram(_)
+    ) || !context.allow_taints
+    {
+        return;
+    }
+    let FunctionLikeIdentifier::Function(name) = id else {
+        return;
+    };
+    let name = statements_analyzer.interner.lookup(name);
+    let values = match name {
+        "curl_setopt" if args.len() >= 3 => vec![(
+            args[2].to_expr_ref(),
+            curl_option_sinks(args[1].to_expr_ref(), statements_analyzer, analysis_data),
+            PathKind::Default,
+        )],
+        "curl_setopt_array" if args.len() >= 2 => {
+            let options = args[1].to_expr_ref();
+            if let aast::Expr_::KeyValCollection(collection) = &options.2 {
+                collection
+                    .2
+                    .iter()
+                    .map(|field| {
+                        (
+                            &field.1,
+                            curl_option_sinks(&field.0, statements_analyzer, analysis_data),
+                            PathKind::Default,
+                        )
+                    })
+                    .collect()
+            } else {
+                vec![(
+                    options,
+                    vec![SinkType::CurlUri, SinkType::CurlHeader],
+                    PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue),
+                )]
             }
-            _ => FxHashMap::default(),
-        },
-        _ => panic!(),
+        }
+        _ => return,
+    };
+    for (value, sinks, path) in values {
+        if sinks.is_empty() {
+            continue;
+        }
+        let Some(value_type) = analysis_data.get_expr_type(value.pos()).cloned() else {
+            continue;
+        };
+        let pos = statements_analyzer.get_hpos(value.pos());
+        let mut sink = DataFlowNode::get_for_local_string(format!("{name} option"), pos);
+        sink.kind = DataFlowNodeKind::TaintSink { pos, types: sinks };
+        let mut removed = super::argument_analyzer::get_removed_taints_in_comments(
+            statements_analyzer,
+            value.pos(),
+        );
+        removed.extend(super::argument_analyzer::get_removed_taints_in_comments(
+            statements_analyzer,
+            call_pos,
+        ));
+        removed.extend(value_type.scalar_taint_removals());
+        for parent in &value_type.parent_nodes {
+            analysis_data.data_flow_graph.add_path(
+                &parent.id,
+                &sink.id,
+                path.clone(),
+                vec![],
+                removed.clone(),
+            );
+        }
+        analysis_data.data_flow_graph.add_node(sink);
     }
 }

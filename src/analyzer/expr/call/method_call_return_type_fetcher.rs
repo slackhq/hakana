@@ -337,6 +337,93 @@ fn add_dataflow(
         }
     }
 
+    if matches!(
+        analysis_data.data_flow_graph.kind,
+        GraphKind::WholeProgram(_)
+    ) && method_id.1 == StrId::CONSTRUCT
+    {
+        let exception_args = super::new_analyzer::native_exception_args(
+            statements_analyzer,
+            Some(functionlike_storage),
+            declaring_method_id,
+            call_expr.1,
+            analysis_data,
+        );
+        if !exception_args.is_empty() {
+            let receiver = DataFlowNode::get_for_this_after_method(
+                method_id,
+                functionlike_storage.return_type_location,
+                Some(statements_analyzer.get_hpos(call_pos)),
+            );
+            for (field, parents) in exception_args {
+                for parent in parents {
+                    analysis_data.data_flow_graph.add_path(
+                        &parent.id,
+                        &receiver.id,
+                        PathKind::PropertyAssignment(
+                            method_id.0,
+                            statements_analyzer.interner.get(field).unwrap(),
+                        ),
+                        vec![],
+                        vec![],
+                    );
+                }
+            }
+            analysis_data.data_flow_graph.add_node(receiver);
+        }
+    }
+
+    if matches!(
+        analysis_data.data_flow_graph.kind,
+        GraphKind::WholeProgram(_)
+    ) && !functionlike_storage.user_defined
+        && matches!(
+            statements_analyzer.interner.lookup(&declaring_method_id.0),
+            "Exception"
+                | "Error"
+                | "Throwable"
+                | "IExceptionWithPureGetMessage"
+                | "ExceptionWithPureGetMessageTrait"
+        )
+        && let Some(lhs) = lhs_expr
+    {
+        let field = match statements_analyzer.interner.lookup(&method_id.1) {
+            "getMessage" => Some("message"),
+            "getCode" => Some("code"),
+            "getPrevious" => Some("previous"),
+            _ => None,
+        };
+        let path = field
+            .map(|field| {
+                PathKind::PropertyFetch(
+                    declaring_method_id.0,
+                    statements_analyzer.interner.get(field).unwrap(),
+                )
+            })
+            .or_else(|| {
+                matches!(
+                    statements_analyzer.interner.lookup(&method_id.1),
+                    "__toString" | "toString"
+                )
+                .then_some(PathKind::Serialize)
+            });
+        if let Some(path) = path {
+            let parents = analysis_data
+                .get_expr_type(lhs.pos())
+                .map(|ty| ty.parent_nodes.clone())
+                .unwrap_or_default();
+            for parent in parents {
+                analysis_data.data_flow_graph.add_path(
+                    &parent.id,
+                    &method_call_node.id,
+                    path.clone(),
+                    vec![],
+                    vec![],
+                );
+            }
+        }
+    }
+
     if method_id.0 == StrId::SHAPES && method_id.1 == StrId::KEY_EXISTS {
         add_special_param_dataflow(
             statements_analyzer,

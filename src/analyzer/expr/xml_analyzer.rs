@@ -242,7 +242,14 @@ pub(crate) fn analyze(
                     id: DataFlowNodeId::Symbol(*xhp_class_name),
                     kind: DataFlowNodeKind::TaintSink {
                         pos: statements_analyzer.get_hpos(pos),
-                        types: vec![SinkType::HtmlTag, SinkType::Output],
+                        types: vec![
+                            if element_name.ends_with("script") {
+                                SinkType::JavaScript
+                            } else {
+                                SinkType::Css
+                            },
+                            SinkType::Output,
+                        ],
                     },
                 };
 
@@ -568,6 +575,8 @@ fn add_xml_attribute_dataflow(
                     | ("Facebook\\XHP\\HTML\\video", "poster") => {
                         taints.push(SinkType::HtmlAttributeUri);
                     }
+                    (_, "style") => taints.push(SinkType::Css),
+                    (_, name) if name.starts_with("on") => taints.push(SinkType::JavaScript),
                     _ => {
                         taints.push(SinkType::HtmlAttribute);
                     }

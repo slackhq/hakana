@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:2:6 - Data from a server request found its way to an HTML tag using path $_SERVER --superglobal(_SERVER)--> global _SERVER (input.hack:1:11) ----> $server (input.hack:1:1) --array-fetch--> $server['HTTP_USER_AGENT'] (input.hack:2:14) ----> echo#1 (input.hack:2:6)

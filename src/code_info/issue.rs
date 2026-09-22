@@ -122,6 +122,7 @@ pub enum IssueKind {
     ShadowedLoopVar,
     StrictObjectEquality,
     TaintedData(Box<SinkType>),
+    TaintAnalysisIncomplete,
     TestOnlyCall,
     TooFewArguments,
     UndefinedIntArrayOffset,

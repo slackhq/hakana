@@ -543,13 +543,6 @@ fn add_dataflow(
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
-        if !function_param.propagate_taint
-            && function_param.taint_sinks.is_none()
-            && (!input_type.has_taintable_value() || !param_type.has_taintable_value())
-        {
-            return;
-        }
-
         if !context.allow_taints || ignore_taints {
             return;
         }
@@ -684,13 +677,17 @@ fn add_dataflow(
         }
     }
 
-    // maybe todo prevent numeric types from being tainted
-    // ALTHOUGH numbers may still contain PII
-
     let removed_taints = if data_flow_graph.kind == GraphKind::FunctionBody {
         vec![]
     } else {
-        get_removed_taints_in_comments(statements_analyzer, input_expr.pos())
+        let mut removed = get_removed_taints_in_comments(statements_analyzer, input_expr.pos());
+        removed.extend(get_removed_taints_in_comments(
+            statements_analyzer,
+            function_call_pos,
+        ));
+        removed.extend(input_type.scalar_taint_removals());
+        removed.extend(param_type.scalar_taint_removals());
+        removed
     };
     // TODO add plugin hooks for adding/removing taints
 
@@ -717,8 +714,15 @@ pub(crate) fn get_removed_taints_in_comments(
         .comments
         .iter()
         .filter(|c| {
-            let diff = (input_expr_pos.line() as i64) - (c.0.line() as i64);
-            diff == 0 || diff == 1
+            // A security-ignore applies only to the immediately following expression.
+            // Line-based matching also suppressed unrelated calls on that line.
+            let contents = &statements_analyzer.file_analyzer.file_source.file_contents;
+            let end = c.0.end_offset();
+            let start = input_expr_pos.start_offset();
+            end <= start
+                && contents
+                    .get(end..start)
+                    .is_some_and(|gap| matches!(gap.trim(), "" | "("))
         })
         .collect::<Vec<_>>();
 
@@ -777,7 +781,7 @@ fn get_argument_taints(
             }
             "header" => {
                 if arg_offset == 0 {
-                    // return vec![TaintType::ResponseHeader];
+                    return vec![SinkType::ResponseHeader];
                 }
             }
             "igbinary_unserialize"
@@ -802,11 +806,6 @@ fn get_argument_taints(
             "curl_init" | "getimagesize" => {
                 if arg_offset == 0 {
                     return vec![SinkType::CurlUri];
-                }
-            }
-            "curl_setopt" => {
-                if arg_offset == 2 {
-                    return vec![SinkType::CurlHeader];
                 }
             }
             _ => {}

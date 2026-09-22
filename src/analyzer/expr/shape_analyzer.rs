@@ -234,7 +234,7 @@ fn add_shape_value_dataflow(
             &new_parent_node.id,
             PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.clone()),
             vec![],
-            vec![],
+            value_type.scalar_taint_removals(),
         );
     }
 

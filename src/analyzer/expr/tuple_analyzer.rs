@@ -86,7 +86,7 @@ fn add_tuple_value_dataflow(
         || (matches!(
             &analysis_data.data_flow_graph.kind,
             GraphKind::WholeProgram(WholeProgramKind::Taint)
-        ) && value_type.has_taintable_value())
+        ) && !value_type.has_taintable_value())
     {
         return None;
     }
@@ -107,7 +107,7 @@ fn add_tuple_value_dataflow(
             &new_parent_node.id,
             PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.to_string()),
             vec![],
-            vec![],
+            value_type.scalar_taint_removals(),
         );
     }
 

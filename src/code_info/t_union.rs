@@ -674,25 +674,49 @@ impl TUnion {
     }
 
     pub fn has_taintable_value(&self) -> bool {
-        self.types.iter().any(|assignment_atomic_type| {
-            !matches!(
-                assignment_atomic_type,
-                TAtomic::TInt
-                    | TAtomic::TFloat
-                    | TAtomic::TNull
-                    | TAtomic::TLiteralClassname { .. }
-                    | TAtomic::TLiteralClassPtr { .. }
-                    | TAtomic::TLiteralInt { .. }
-                    | TAtomic::TLiteralString { .. }
-                    | TAtomic::TBool
-                    | TAtomic::TFalse
-                    | TAtomic::TMixedWithFlags(_, _, true, _)
-                    | TAtomic::TTrue
-                    | TAtomic::TEnum { .. }
-                    | TAtomic::TEnumLiteralCase { .. }
-                    | TAtomic::TNum
-            )
-        })
+        // Numeric IDs and flags can still carry authorization or privacy provenance.
+        self.types
+            .iter()
+            .any(|t| !matches!(t, TAtomic::TNull | TAtomic::TNothing))
+    }
+
+    pub fn scalar_taint_removals(&self) -> Vec<crate::taint::SinkType> {
+        use crate::taint::SinkType;
+        if !self.types.is_empty()
+            && self.types.iter().all(|t| {
+                matches!(
+                    t,
+                    TAtomic::TInt
+                        | TAtomic::TFloat
+                        | TAtomic::TNum
+                        | TAtomic::TLiteralInt { .. }
+                        | TAtomic::TBool
+                        | TAtomic::TTrue
+                        | TAtomic::TFalse
+                        | TAtomic::TNull
+                        | TAtomic::TNothing
+                )
+            })
+        {
+            // These values cannot introduce syntax, but they can still select a
+            // filesystem path, numeric network host, or unauthorized resource.
+            vec![
+                SinkType::HtmlTag,
+                SinkType::Sql,
+                SinkType::Shell,
+                SinkType::RedirectUri,
+                SinkType::Unserialize,
+                SinkType::Cookie,
+                SinkType::CurlHeader,
+                SinkType::HtmlAttribute,
+                SinkType::HtmlAttributeUri,
+                SinkType::JavaScript,
+                SinkType::Css,
+                SinkType::ResponseHeader,
+            ]
+        } else {
+            vec![]
+        }
     }
 
     pub fn needs_population(&self) -> bool {

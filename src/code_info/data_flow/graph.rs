@@ -29,7 +29,7 @@ pub enum GraphKind {
 pub struct DataFlowGraph {
     pub kind: GraphKind,
     pub vertices: FxHashMap<DataFlowNodeId, DataFlowNode>,
-    pub forward_edges: FxHashMap<DataFlowNodeId, FxHashMap<DataFlowNodeId, DataFlowPath>>,
+    pub forward_edges: FxHashMap<DataFlowNodeId, FxHashMap<DataFlowNodeId, Vec<DataFlowPath>>>,
     pub backward_edges: FxHashMap<DataFlowNodeId, FxHashSet<DataFlowNodeId>>,
     pub sources: FxHashMap<DataFlowNodeId, DataFlowNode>,
     pub sinks: FxHashMap<DataFlowNodeId, DataFlowNode>,
@@ -93,29 +93,14 @@ impl DataFlowGraph {
         added_taints: Vec<SinkType>,
         removed_taints: Vec<SinkType>,
     ) {
-        if from_id == to_id {
-            return;
-        }
-
-        if let GraphKind::FunctionBody = self.kind {
-            self.backward_edges
-                .entry(to_id.clone())
-                .or_default()
-                .insert(from_id.clone());
-        }
-
-        self.forward_edges
-            .entry(from_id.clone())
-            .or_default()
-            .insert(
-                to_id.clone(),
-                DataFlowPath {
-                    kind: path_kind,
-                    added_taints,
-                    removed_taints,
-                    source_transforms: vec![],
-                },
-            );
+        self.add_path_with_source_transforms(
+            from_id,
+            to_id,
+            path_kind,
+            added_taints,
+            removed_taints,
+            vec![],
+        );
     }
 
     pub fn add_path_with_source_transforms(
@@ -138,18 +123,24 @@ impl DataFlowGraph {
                 .insert(from_id.clone());
         }
 
-        self.forward_edges
+        let paths = self
+            .forward_edges
             .entry(from_id.clone())
             .or_default()
-            .insert(
-                to_id.clone(),
-                DataFlowPath {
-                    kind: path_kind,
-                    added_taints,
-                    removed_taints,
-                    source_transforms,
-                },
-            );
+            .entry(to_id.clone())
+            .or_default();
+        let path = DataFlowPath {
+            kind: path_kind,
+            added_taints,
+            removed_taints,
+            source_transforms,
+        };
+        if self.kind == GraphKind::FunctionBody {
+            paths.clear();
+        }
+        if !paths.contains(&path) {
+            paths.push(path);
+        }
     }
 
     pub fn add_graph(&mut self, graph: DataFlowGraph) {
@@ -158,7 +149,18 @@ impl DataFlowGraph {
         }
 
         for (key, edges) in graph.forward_edges {
-            self.forward_edges.entry(key).or_default().extend(edges);
+            for (to_id, paths) in edges {
+                for path in paths {
+                    self.add_path_with_source_transforms(
+                        &key,
+                        &to_id,
+                        path.kind,
+                        path.added_taints,
+                        path.removed_taints,
+                        path.source_transforms,
+                    );
+                }
+            }
         }
 
         if self.kind == GraphKind::FunctionBody {
@@ -228,8 +230,8 @@ impl DataFlowGraph {
                 if let Some(backward_edges) = self.backward_edges.get(&child_node_id) {
                     for from_id in backward_edges {
                         if let Some(forward_flows) = self.forward_edges.get(from_id)
-                            && let Some(path) = forward_flows.get(&child_node_id)
-                            && ignore_paths.contains(&path.kind)
+                            && let Some(paths) = forward_flows.get(&child_node_id)
+                            && paths.iter().all(|path| ignore_paths.contains(&path.kind))
                         {
                             break;
                         }

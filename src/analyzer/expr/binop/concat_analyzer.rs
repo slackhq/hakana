@@ -65,13 +65,16 @@ pub(crate) fn analyze_concat_nodes(
 
     let decision_node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(stmt_pos));
 
-    let mut has_slash = false;
-    let mut has_query = false;
     let mut nonempty_string = false;
 
     let mut existing_literal_string_values: Option<Vec<String>> = Some(vec!["".to_string()]);
 
-    for (i, concat_node) in concat_nodes.iter().enumerate() {
+    for concat_node in &concat_nodes {
+        let safe_uri_prefix = existing_literal_string_values
+            .as_ref()
+            .is_some_and(|values| {
+                !values.is_empty() && values.iter().all(|value| has_fixed_uri_authority(value))
+            });
         let mut new_literal_string_values = vec![];
 
         if let aast::Expr_::String(simple_string) = &concat_node.2 {
@@ -84,13 +87,6 @@ pub(crate) fn analyze_concat_nodes(
 
             if !simple_string.is_empty() {
                 nonempty_string = true;
-            }
-
-            if simple_string.contains(&b'/') {
-                has_slash = true;
-            }
-            if simple_string.contains(&b'?') {
-                has_query = true;
             }
         } else {
             let expr_type = analysis_data
@@ -106,13 +102,6 @@ pub(crate) fn analyze_concat_nodes(
                 for t in &expr_type.types {
                     match t {
                         TAtomic::TLiteralString { value, .. } => {
-                            if value.contains('/') {
-                                has_slash = true;
-                            }
-                            if value.contains('?') {
-                                has_query = true;
-                            }
-
                             if value.is_empty() {
                                 local_nonempty_string = false;
                             }
@@ -178,21 +167,21 @@ pub(crate) fn analyze_concat_nodes(
                     nonempty_string = true;
                 }
 
+                let mut removed_taints = expr_type.scalar_taint_removals();
+                if safe_uri_prefix {
+                    removed_taints.extend([
+                        SinkType::HtmlAttributeUri,
+                        SinkType::CurlUri,
+                        SinkType::RedirectUri,
+                    ]);
+                }
                 for old_parent_node in &expr_type.parent_nodes {
                     analysis_data.data_flow_graph.add_path(
                         &old_parent_node.id,
                         &decision_node.id,
                         PathKind::Default,
                         vec![],
-                        if i > 0 && (has_slash || has_query) {
-                            vec![
-                                SinkType::HtmlAttributeUri,
-                                SinkType::CurlUri,
-                                SinkType::RedirectUri,
-                            ]
-                        } else {
-                            vec![]
-                        },
+                        removed_taints.clone(),
                     );
                 }
             } else {
@@ -342,4 +331,25 @@ fn concat_non_string(
     } else {
         analysis_data.maybe_add_issue(issue, config, statements_analyzer.get_file_path_actual());
     }
+}
+
+/// A suffix cannot choose a scheme or authority once a literal prefix has
+/// entered the path/query/fragment. A lone slash still permits //host URLs.
+fn has_fixed_uri_authority(prefix: &str) -> bool {
+    if prefix.bytes().any(|b| b <= b' ' || b == b'\\' || b == 127) {
+        return false;
+    }
+    if prefix.starts_with('/') && !prefix.starts_with("//") {
+        return prefix.len() > 1;
+    }
+    if prefix.starts_with('?') || prefix.starts_with('#') {
+        return true;
+    }
+    let authority = prefix
+        .strip_prefix("https://")
+        .or_else(|| prefix.strip_prefix("http://"));
+    authority.is_some_and(|rest| {
+        rest.find(['/', '?', '#'])
+            .is_some_and(|end| end > 0 && !rest[..end].ends_with('@'))
+    })
 }
