@@ -1006,6 +1006,7 @@ dependencies = [
  "oxidized",
  "parser_core_types",
  "rand 0.8.6",
+ "rayon",
  "regex",
  "relative_path",
  "rustc-hash 1.1.0",

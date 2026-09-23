@@ -4,7 +4,7 @@ use super::{
 };
 
 use core::panic;
-use std::{collections::BTreeSet, rc::Rc};
+use std::{collections::BTreeSet, sync::Arc};
 
 use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -18,11 +18,11 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaintedNode {
     pub id: DataFlowNodeId,
-    pub pos: Option<Rc<HPos>>,
+    pub pos: Option<Arc<HPos>>,
     pub is_specialized: bool,
     pub taint_sources: Vec<SourceType>,
     pub taint_sinks: Vec<SinkType>,
-    pub previous: Option<Rc<TaintedNode>>,
+    pub previous: Option<Arc<TaintedNode>>,
     pub path_types: Vec<PathKind>,
     pub specialized_calls: FxHashMap<(FilePath, u32), FxHashSet<DataFlowNodeId>>,
 }
@@ -81,7 +81,7 @@ impl TaintedNode {
                 ..
             } => TaintedNode {
                 id: node.id.clone(),
-                pos: pos.as_ref().map(|p| Rc::new(*p)),
+                pos: pos.as_ref().map(|p| Arc::new(*p)),
                 is_specialized: *is_specialized,
                 taint_sinks: vec![],
                 previous: None,
@@ -98,7 +98,7 @@ impl TaintedNode {
 
                 TaintedNode {
                     id: node.id.clone(),
-                    pos: pos.as_ref().map(|p| Rc::new(*p)),
+                    pos: pos.as_ref().map(|p| Arc::new(*p)),
                     is_specialized: false,
                     taint_sinks: sinks,
                     previous: None,
@@ -109,7 +109,7 @@ impl TaintedNode {
             }
             DataFlowNodeKind::TaintSink { pos, types, .. } => TaintedNode {
                 id: node.id.clone(),
-                pos: Some(Rc::new(*pos)),
+                pos: Some(Arc::new(*pos)),
                 is_specialized: false,
                 taint_sinks: types.clone(),
                 taint_sources: vec![],
@@ -119,7 +119,7 @@ impl TaintedNode {
             },
             DataFlowNodeKind::DataSource { pos, target_id, .. } => TaintedNode {
                 id: node.id.clone(),
-                pos: Some(Rc::new(*pos)),
+                pos: Some(Arc::new(*pos)),
                 is_specialized: false,
                 taint_sinks: vec![SinkType::Custom(target_id.clone())],
                 previous: None,

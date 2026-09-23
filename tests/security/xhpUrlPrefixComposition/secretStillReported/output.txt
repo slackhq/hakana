@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:6:22 - Data from a system secret found its way to generic output using path call to secret (input.hack:3:20) ----> $query (input.hack:5:5) ----> composition (input.hack:6:22) ----> Facebook\XHP\HTML\a::href (input.hack:6:22)

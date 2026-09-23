@@ -343,11 +343,13 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
                 &analysis_result.program_dataflow_graph,
                 &config,
                 &scan_data.interner,
+                threads,
             ),
             WholeProgramKind::Query => find_connections(
                 &analysis_result.program_dataflow_graph,
                 &config,
                 &scan_data.interner,
+                threads,
             ),
         };
 

@@ -1,13 +1,14 @@
-use hakana_code_info::code_location::FilePath;
 use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use itertools::Itertools;
 use log::{Level, info, log_enabled};
+#[cfg(not(target_arch = "wasm32"))]
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::config::Config;
@@ -23,13 +24,14 @@ pub fn find_tainted_data(
     graph: &DataFlowGraph,
     config: &Config,
     interner: &Interner,
+    threads: u8,
 ) -> Vec<Issue> {
     let mut new_issues = vec![];
 
     let sources = graph
         .sources
         .values()
-        .map(|v| Rc::new(TaintedNode::from(v)))
+        .map(|v| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
     info!("Security analysis: detecting paths");
@@ -44,6 +46,7 @@ pub fn find_tainted_data(
         true,
         interner,
         true,
+        threads,
     );
 
     // Graph/interner insertion order can vary between scans. Keep independent
@@ -57,14 +60,19 @@ pub fn find_tainted_data(
     new_issues
 }
 
-pub fn find_connections(graph: &DataFlowGraph, config: &Config, interner: &Interner) -> Vec<Issue> {
+pub fn find_connections(
+    graph: &DataFlowGraph,
+    config: &Config,
+    interner: &Interner,
+    threads: u8,
+) -> Vec<Issue> {
     let mut new_issues = vec![];
 
     let sources = graph
         .sources
         .iter()
         .filter(|(_, v)| matches!(v.kind, DataFlowNodeKind::DataSource { .. }))
-        .map(|(_, v)| Rc::new(TaintedNode::from(v)))
+        .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
     info!(" - initial sources count: {}", sources.len());
@@ -77,19 +85,21 @@ pub fn find_connections(graph: &DataFlowGraph, config: &Config, interner: &Inter
         false,
         interner,
         false,
+        threads,
     );
 
     new_issues
 }
 
 fn find_paths_to_sinks(
-    mut sources: Vec<Rc<TaintedNode>>,
+    mut sources: Vec<Arc<TaintedNode>>,
     graph: &DataFlowGraph,
     config: &Config,
     new_issues: &mut Vec<Issue>,
     match_sinks: bool,
     interner: &Interner,
     prune_unreachable: bool,
+    threads: u8,
 ) {
     // Backward BFS is deliberately context-insensitive: it over-approximates
     // reachability. The forward BFS still validates every field, sanitizer and
@@ -110,6 +120,9 @@ fn find_paths_to_sinks(
         seen_sources.insert(source.get_unique_source_id(interner));
     }
 
+    let executor = FrontierExecutor::new(threads);
+    info!(" - forward traversal workers: {}", executor.workers());
+
     if !match_sinks || !graph.sinks.is_empty() {
         for _ in 0..config.security_config.max_depth {
             if !sources.is_empty() {
@@ -123,41 +136,66 @@ fn find_paths_to_sinks(
 
                 let mut file_nodes = FxHashMap::default();
 
-                for source in sources {
-                    let inow = if log_enabled!(Level::Debug) {
-                        Some(Instant::now())
-                    } else {
-                        None
-                    };
-                    let source_taints = source.taint_sinks.clone();
-                    let source_id = source.id.clone();
-
-                    let generated_sources = get_specialized_sources(graph, source);
-                    actual_source_count += generated_sources.len();
-
-                    for generated_source in generated_sources {
-                        new_sources.extend(get_child_nodes(
+                if executor.workers() == 1 {
+                    // Merge immediately and release each old frontier reference
+                    // as we go. The synchronous path needs no candidate buffers.
+                    for source in sources {
+                        actual_source_count += expand_source(
+                            source,
                             graph,
                             config,
-                            &generated_source,
-                            &source_taints,
-                            &mut seen_sources,
-                            &mut file_nodes,
-                            new_issues,
                             sink_reachable.as_ref(),
                             match_sinks,
                             interner,
-                        ))
+                            new_issues,
+                            &mut |id, destination| {
+                                if seen_sources.insert(id) {
+                                    if let Some(pos) = &destination.pos {
+                                        *file_nodes
+                                            .entry((pos.file_path, pos.start_line))
+                                            .or_insert(0) += 1;
+                                    }
+                                    new_sources.push(Arc::new(destination));
+                                }
+                            },
+                        );
                     }
-
-                    if let Some(inow) = inow {
-                        let ielapsed = inow.elapsed();
-                        if ielapsed.as_millis() > 100 {
-                            info!(
-                                "    - took {:.2?} to generate from {}",
-                                ielapsed,
-                                source_id.to_string(interner)
+                } else {
+                    // Bound speculative expansion to a batch rather than buffering
+                    // the entire next frontier. The visited set is read-only while
+                    // workers run, then updated in original source/edge order.
+                    for batch in sources.chunks(1024) {
+                        let expansions = executor.expand(batch, |source| {
+                            let mut expansion = Expansion::default();
+                            expansion.source_count = expand_source(
+                                source.clone(),
+                                graph,
+                                config,
+                                sink_reachable.as_ref(),
+                                match_sinks,
+                                interner,
+                                &mut expansion.issues,
+                                &mut |id, destination| {
+                                    if !seen_sources.contains(&id) {
+                                        expansion.destinations.push((id, Arc::new(destination)));
+                                    }
+                                },
                             );
+                            expansion
+                        });
+                        for expansion in expansions {
+                            actual_source_count += expansion.source_count;
+                            new_issues.extend(expansion.issues);
+                            for (id, destination) in expansion.destinations {
+                                if seen_sources.insert(id) {
+                                    if let Some(pos) = &destination.pos {
+                                        *file_nodes
+                                            .entry((pos.file_path, pos.start_line))
+                                            .or_insert(0) += 1;
+                                    }
+                                    new_sources.push(destination);
+                                }
+                            }
                         }
                     }
                 }
@@ -228,6 +266,110 @@ fn find_paths_to_sinks(
     }
 }
 
+/// A private pool respects --threads without changing Rayon's process-wide pool.
+/// WebAssembly and --threads 1 merge destinations synchronously as they expand.
+struct FrontierExecutor {
+    #[cfg(not(target_arch = "wasm32"))]
+    pool: Option<rayon::ThreadPool>,
+}
+
+impl FrontierExecutor {
+    fn new(threads: u8) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let pool = if threads > 1 {
+                match rayon::ThreadPoolBuilder::new()
+                    .num_threads(usize::from(threads))
+                    .thread_name(|i| format!("hakana-dataflow-{i}"))
+                    .build()
+                {
+                    Ok(pool) => Some(pool),
+                    Err(error) => {
+                        log::warn!("Cannot start dataflow workers; using one thread: {error}");
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            Self { pool }
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = threads;
+            Self {}
+        }
+    }
+
+    fn workers(&self) -> usize {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(pool) = &self.pool {
+            return pool.current_num_threads();
+        }
+        1
+    }
+
+    fn expand(
+        &self,
+        sources: &[Arc<TaintedNode>],
+        expand: impl Fn(&Arc<TaintedNode>) -> Expansion + Sync + Send,
+    ) -> Vec<Expansion> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(pool) = &self.pool {
+            // Indexed collection preserves frontier order independently of
+            // scheduling. Racing to insert visited states would change witnesses.
+            return pool.install(|| sources.par_iter().map(expand).collect());
+        }
+        sources.iter().map(expand).collect()
+    }
+}
+
+#[derive(Default)]
+struct Expansion {
+    destinations: Vec<(String, Arc<TaintedNode>)>,
+    issues: Vec<Issue>,
+    source_count: usize,
+}
+
+fn expand_source(
+    source: Arc<TaintedNode>,
+    graph: &DataFlowGraph,
+    config: &Config,
+    sink_reachable: Option<&FxHashSet<DataFlowNodeId>>,
+    match_sinks: bool,
+    interner: &Interner,
+    new_issues: &mut Vec<Issue>,
+    visit: &mut impl FnMut(String, TaintedNode),
+) -> usize {
+    let now = log_enabled!(Level::Debug).then(Instant::now);
+    let generated_sources = get_specialized_sources(graph, source.clone());
+    let source_count = generated_sources.len();
+    for generated_source in generated_sources {
+        get_child_nodes(
+            graph,
+            config,
+            &generated_source,
+            &source.taint_sinks,
+            new_issues,
+            sink_reachable,
+            match_sinks,
+            interner,
+            visit,
+        );
+    }
+    if let Some(now) = now {
+        let elapsed = now.elapsed();
+        if elapsed.as_millis() > 100 {
+            info!(
+                "    - took {:.2?} to generate from {}",
+                elapsed,
+                source.id.to_string(interner)
+            );
+        }
+    }
+    source_count
+}
+
 fn reachability_id(id: &DataFlowNodeId) -> DataFlowNodeId {
     match id {
         DataFlowNodeId::SpecializedCallTo(..)
@@ -265,7 +407,10 @@ fn nodes_reaching_sinks(graph: &DataFlowGraph) -> FxHashSet<DataFlowNodeId> {
     reachable
 }
 
-fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Vec<Rc<TaintedNode>> {
+fn get_specialized_sources(
+    graph: &DataFlowGraph,
+    source: Arc<TaintedNode>,
+) -> Vec<Arc<TaintedNode>> {
     let mut generated_sources = vec![];
 
     if graph.forward_edges.contains_key(&source.id) {
@@ -286,7 +431,7 @@ fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Ve
                 .or_default()
                 .insert(new_source.id.clone());
 
-            generated_sources.push(Rc::new(new_source));
+            generated_sources.push(Arc::new(new_source));
         }
     } else if let Some(specializations) = graph.specializations.get(&source.id) {
         for specialization in specializations {
@@ -302,7 +447,7 @@ fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Ve
                     new_source.is_specialized = false;
                     new_source.specialized_calls.remove(specialization);
 
-                    generated_sources.push(Rc::new(new_source));
+                    generated_sources.push(Arc::new(new_source));
                 }
             }
         }
@@ -315,7 +460,7 @@ fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Ve
                     let mut new_source = (*source).clone();
                     new_source.id = new_forward_edge_id;
                     new_source.is_specialized = false;
-                    generated_sources.push(Rc::new(new_source));
+                    generated_sources.push(Arc::new(new_source));
                 }
             }
         }
@@ -327,17 +472,14 @@ fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Ve
 fn get_child_nodes(
     graph: &DataFlowGraph,
     config: &Config,
-    generated_source: &Rc<TaintedNode>,
+    generated_source: &Arc<TaintedNode>,
     source_taints: &Vec<SinkType>,
-    seen_sources: &mut FxHashSet<String>,
-    file_nodes: &mut FxHashMap<(FilePath, u32), usize>,
     new_issues: &mut Vec<Issue>,
     sink_reachable: Option<&FxHashSet<DataFlowNodeId>>,
     match_sinks: bool,
     interner: &Interner,
-) -> Vec<Rc<TaintedNode>> {
-    let mut new_child_nodes = Vec::new();
-
+    visit: &mut impl FnMut(String, TaintedNode),
+) {
     if let Some(forward_edges) = graph.forward_edges.get(&generated_source.id) {
         if !match_sinks {
             for t in source_taints {
@@ -511,24 +653,11 @@ fn get_child_nodes(
 
             let source_id = new_destination.get_unique_source_id(interner);
 
-            if seen_sources.contains(&source_id) {
-                continue;
-            }
-
-            if let Some(pos) = &new_destination.pos {
-                let entry = file_nodes
-                    .entry((pos.file_path, pos.start_line))
-                    .or_insert(0);
-                *entry += 1;
-            }
-
-            seen_sources.insert(source_id);
-
-            new_child_nodes.push(Rc::new(new_destination));
+            // Reporting and clearing matched sinks must happen before either
+            // visited check, including for paths merged in an earlier batch.
+            visit(source_id, new_destination);
         }
     }
-
-    new_child_nodes
 }
 
 fn transform_sources(
@@ -784,7 +913,7 @@ pub(crate) fn should_ignore_property_fetch(
 #[cfg(test)]
 mod security_search_tests {
     use super::*;
-    use hakana_code_info::code_location::HPos;
+    use hakana_code_info::code_location::{FilePath, HPos};
     use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
     use hakana_code_info::data_flow::node::DataFlowNode;
     use hakana_code_info::function_context::FunctionLikeIdentifier;
@@ -818,10 +947,37 @@ mod security_search_tests {
         let sources = graph
             .sources
             .values()
-            .map(|node| Rc::new(TaintedNode::from(node)))
+            .map(|node| Arc::new(TaintedNode::from(node)))
             .collect();
         let mut issues = vec![];
-        find_paths_to_sinks(sources, graph, &config, &mut issues, true, interner, prune);
+        find_paths_to_sinks(
+            sources,
+            graph,
+            &config,
+            &mut issues,
+            true,
+            interner,
+            prune,
+            1,
+        );
+        for threads in [2, 4] {
+            let mut parallel = vec![];
+            find_paths_to_sinks(
+                graph
+                    .sources
+                    .values()
+                    .map(|node| Arc::new(TaintedNode::from(node)))
+                    .collect(),
+                graph,
+                &config,
+                &mut parallel,
+                true,
+                interner,
+                prune,
+                threads,
+            );
+            assert_eq!(issues, parallel);
+        }
         let mut messages: Vec<_> = issues.into_iter().map(|issue| issue.description).collect();
         messages.sort();
         messages
@@ -934,5 +1090,172 @@ mod security_search_tests {
             node(SourceType::UserEmail).get_unique_source_id(&interner),
             node(SourceType::UserPII).get_unique_source_id(&interner),
         );
+    }
+
+    fn check_worker_equivalence(
+        sources: Vec<Arc<TaintedNode>>,
+        graph: &DataFlowGraph,
+        config: &Config,
+        interner: &Interner,
+        match_sinks: bool,
+    ) -> Vec<Issue> {
+        let run = |threads| {
+            let mut issues = vec![];
+            find_paths_to_sinks(
+                sources.clone(),
+                graph,
+                config,
+                &mut issues,
+                match_sinks,
+                interner,
+                match_sinks,
+                threads,
+            );
+            issues
+        };
+        let serial = run(1);
+        // Compare complete ordered witnesses and warning positions, not just counts.
+        for threads in [2, 4, 4] {
+            assert_eq!(serial, run(threads));
+        }
+        serial
+    }
+
+    #[test]
+    fn parallel_batches_preserve_global_deduplication_and_report_before_dedup() {
+        let mut interner = Interner::default();
+        let pos = position(&mut interner);
+        let mut graph = DataFlowGraph::new(GraphKind::WholeProgram(WholeProgramKind::Taint));
+        let join = vertex(&mut graph, DataFlowNodeId::String("join".into()), pos);
+        let tail = vertex(&mut graph, DataFlowNodeId::String("tail".into()), pos);
+        let sink = DataFlowNodeId::String("html".into());
+        graph.add_node(DataFlowNode {
+            id: sink.clone(),
+            kind: DataFlowNodeKind::TaintSink {
+                pos,
+                types: vec![SinkType::HtmlTag],
+            },
+        });
+        let mut sources = vec![];
+        // Cross several bounded parallel batches; equivalent origins must merge
+        // globally, but every direct source-to-sink witness must still report.
+        for i in 0..2050 {
+            let node = DataFlowNode {
+                id: DataFlowNodeId::String(format!("request-{i}")),
+                kind: DataFlowNodeKind::TaintSource {
+                    pos: Some(pos),
+                    types: vec![SourceType::UriRequestHeader],
+                },
+            };
+            sources.push(Arc::new(TaintedNode::from(&node)));
+            graph.add_path(&node.id, &join, PathKind::Default, vec![], vec![]);
+            graph.add_path(&node.id, &sink, PathKind::Default, vec![], vec![]);
+            graph.add_node(node);
+        }
+        graph.add_path(&join, &tail, PathKind::Default, vec![], vec![]);
+        graph.add_path(&tail, &join, PathKind::Default, vec![], vec![]);
+        graph.add_path(&tail, &sink, PathKind::Default, vec![], vec![]);
+        let mut config = Config::new("project".into(), FxHashSet::default());
+        config.security_config.max_depth = 2;
+        let issues = check_worker_equivalence(sources.clone(), &graph, &config, &interner, true);
+        assert_eq!(issues.len(), 2051);
+        let warning = issues.last().unwrap();
+        assert_eq!(warning.kind, IssueKind::TaintAnalysisIncomplete);
+        assert!(warning.description.contains("1 unfinished states"));
+
+        config.security_config.max_depth = 10;
+        let issues = check_worker_equivalence(sources, &graph, &config, &interner, true);
+        assert_eq!(issues.len(), 2051);
+        assert!(issues.last().unwrap().description.contains("request-0"));
+        assert!(
+            issues
+                .iter()
+                .all(|issue| issue.kind != IssueKind::TaintAnalysisIncomplete)
+        );
+    }
+
+    #[test]
+    fn parallel_queries_preserve_target_reports_and_cycles() {
+        let mut interner = Interner::default();
+        let pos = position(&mut interner);
+        let mut graph = DataFlowGraph::new(GraphKind::WholeProgram(WholeProgramKind::Query));
+        let join = vertex(&mut graph, DataFlowNodeId::String("join".into()), pos);
+        let target = vertex(&mut graph, DataFlowNodeId::String("target".into()), pos);
+        let mut sources = vec![];
+        for i in 0..1050 {
+            let node = DataFlowNode {
+                id: DataFlowNodeId::String(format!("origin-{i}")),
+                kind: DataFlowNodeKind::DataSource {
+                    pos,
+                    target_id: target.to_string(&interner),
+                },
+            };
+            sources.push(Arc::new(TaintedNode::from(&node)));
+            graph.add_path(&node.id, &join, PathKind::Default, vec![], vec![]);
+            graph.add_path(&node.id, &target, PathKind::Default, vec![], vec![]);
+            graph.add_node(node);
+        }
+        graph.add_path(&join, &target, PathKind::Default, vec![], vec![]);
+        graph.add_path(&target, &join, PathKind::Default, vec![], vec![]);
+        let config = Config::new("project".into(), FxHashSet::default());
+        let issues = check_worker_equivalence(sources, &graph, &config, &interner, false);
+        assert_eq!(issues.len(), 1052);
+    }
+
+    #[test]
+    fn parallel_reporting_preserves_path_specific_ignores() {
+        let mut interner = Interner::default();
+        let pos = position(&mut interner);
+        let ignored_pos = HPos {
+            file_path: FilePath(interner.intern("project/ignored.hack".into())),
+            ..pos
+        };
+        let mut config = Config::new("project".into(), FxHashSet::default());
+        let config_path = std::env::temp_dir().join(format!(
+            "hakana-parallel-ignore-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+        ));
+        std::fs::write(
+            &config_path,
+            r#"{"security_analysis":{"ignore_files":[],"ignore_sink_files":{
+                "UriRequestHeader -> HtmlTag":["ignored.hack"]
+            }}}"#,
+        )
+        .unwrap();
+        let loaded = config.update_from_file(&"project".into(), &config_path, &mut interner);
+        std::fs::remove_file(config_path).unwrap();
+        loaded.unwrap();
+
+        let mut graph = DataFlowGraph::new(GraphKind::WholeProgram(WholeProgramKind::Taint));
+        let mut sources = vec![];
+        for (id, source_pos) in [("ignored", ignored_pos), ("reported", pos)] {
+            let node = DataFlowNode {
+                id: DataFlowNodeId::String(id.into()),
+                kind: DataFlowNodeKind::TaintSource {
+                    pos: Some(source_pos),
+                    types: vec![SourceType::UriRequestHeader],
+                },
+            };
+            sources.push(Arc::new(TaintedNode::from(&node)));
+            graph.add_node(node);
+        }
+        let sink = DataFlowNodeId::String("sink".into());
+        graph.add_node(DataFlowNode {
+            id: sink.clone(),
+            kind: DataFlowNodeKind::TaintSink {
+                pos,
+                types: vec![SinkType::HtmlTag],
+            },
+        });
+        for source in &sources {
+            graph.add_path(&source.id, &sink, PathKind::Default, vec![], vec![]);
+        }
+        let issues = check_worker_equivalence(sources, &graph, &config, &interner, true);
+        assert_eq!(issues.len(), 1);
+        assert!(issues[0].description.contains("reported"));
     }
 }

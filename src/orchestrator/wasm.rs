@@ -77,6 +77,7 @@ pub fn scan_and_analyze_single_file(
             &analysis_result.program_dataflow_graph,
             &analysis_config,
             &interner,
+            1,
         );
 
         for issue in issues {

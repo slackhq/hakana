@@ -699,7 +699,8 @@ impl TUnion {
             })
         {
             // These values cannot introduce syntax, but they can still select a
-            // filesystem path, numeric network host, or unauthorized resource.
+            // filesystem path, numeric network host, executable browser resource,
+            // or unauthorized resource.
             vec![
                 SinkType::HtmlTag,
                 SinkType::Sql,

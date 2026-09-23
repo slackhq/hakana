@@ -68,13 +68,19 @@ pub(crate) fn analyze_concat_nodes(
     let mut nonempty_string = false;
 
     let mut existing_literal_string_values: Option<Vec<String>> = Some(vec!["".to_string()]);
+    let mut literal_uri_prefix = true;
+    let mut safe_uri_prefix = false;
 
     for concat_node in &concat_nodes {
-        let safe_uri_prefix = existing_literal_string_values
-            .as_ref()
-            .is_some_and(|values| {
-                !values.is_empty() && values.iter().all(|value| has_fixed_uri_authority(value))
-            });
+        // Once a literal prefix has fixed the authority, every later operand is
+        // still in its path/query/fragment, even after dynamic path segments.
+        // Losing the full literal value does not lose this narrower guarantee.
+        safe_uri_prefix |= literal_uri_prefix
+            && existing_literal_string_values
+                .as_ref()
+                .is_some_and(|values| {
+                    !values.is_empty() && values.iter().all(|value| has_fixed_uri_authority(value))
+                });
         let mut new_literal_string_values = vec![];
 
         if let aast::Expr_::String(simple_string) = &concat_node.2 {
@@ -98,6 +104,12 @@ pub(crate) fn analyze_concat_nodes(
                 .cloned();
 
             if let Some(expr_type) = expr_type {
+                // A literal alternative alongside an unknown string cannot
+                // establish a prefix. Keep this proof separate from type inference.
+                literal_uri_prefix &= expr_type
+                    .types
+                    .iter()
+                    .all(|t| matches!(t, TAtomic::TLiteralString { .. }));
                 let mut local_nonempty_string = true;
                 for t in &expr_type.types {
                     match t {
@@ -185,6 +197,7 @@ pub(crate) fn analyze_concat_nodes(
                     );
                 }
             } else {
+                literal_uri_prefix = false;
                 nonempty_string = false;
                 all_literals = false;
                 existing_literal_string_values = None;

@@ -4,6 +4,14 @@ Hakana can attempt to find connections between user-controlled input (like `HH\g
 
 You can enable this mode by running `<hakana path> security-check`. When taint analysis is enabled, no other analysis is performed.
 
+`--threads` controls both file analysis and forward graph traversal (default: 8).
+The traversal expands bounded batches of each BFS frontier in parallel, then
+merges results in frontier order using one global visited set. Worker scheduling
+does not change retained witnesses, sink reporting, or the depth limit for a given
+graph. Backward reachability pruning remains serial. `--threads 1` runs traversal
+synchronously; WebAssembly also uses that path. A `TaintAnalysisIncomplete` warning
+still means that `--max-depth` stopped the search before it exhausted reachable states.
+
 Tainted input is anything that can be controlled, wholly or in part, by a user of your application. In taint analysis, tainted input is called a _taint source_.
 
 Example sources:
@@ -56,8 +64,10 @@ Hakana recognises a range of taint sinks, defined in the [SinkType enum](https:/
 - `Cookie` - used for anywhere that saves arbitrary cookie information
 - `CurlHeader` - used for anywhere that sends arbitrary header information in a Curl request
 - `CurlUri` - used for anywhere that sends Curl requests to an arbitrary URI
-- `HtmlAttribute` - used for anywhere that emits arbitrary HTML attributes
-- `HtmlAttributeUri` - used for anywhere that emits arbitrary URIs embedded in HTML code
+- `HtmlAttribute` - unescaped HTML attribute syntax
+- `HtmlAttributeUri` - navigation URLs, including links, base URLs and form destinations
+- `HtmlActiveResourceUri` - script, iframe, object, embed and stylesheet URLs
+- `HtmlMediaUri` - passive media/resource URLs; excluded from default request-injection taints
 - `JavaScript` - script bodies and event-handler attributes
 - `Css` - style bodies and style attributes
 - `ResponseHeader` - the header argument of `header`
@@ -70,6 +80,35 @@ from HTTP headers and harmless options. Unknown options are treated
 conservatively. Native exception messages, codes, and previous exceptions retain
 their field-specific provenance when retrieved.
 
+### XHP attribute contexts
+
+Native XHP HTML elements escape scalar attribute values inside double quotes.
+Those values do not need an `HtmlAttribute` injection check. Mixed/object values
+retain that check because `UnsafeAttributeValue_DEPRECATED` can bypass escaping.
+Custom component rendering does not acquire the native escaping guarantee.
+
+Image `src`/`srcset`, media sources and video posters use `HtmlMediaUri`.
+User control of a passive resource URL alone does not produce an injection report.
+All attribute sinks retain `Output`, so secret disclosure is still reported.
+The media label distinguishes this context for resource policies; the default
+source policy does not enable a separate media-destination check.
+
+Script, iframe, embed, object and stylesheet URLs use `HtmlActiveResourceUri`.
+HTML escaping, URL-component encoding, numeric conversion and a fixed URL prefix
+do not establish that the chosen resource is safe to execute. Existing
+`Sanitize('HtmlAttributeUri')` annotations and URL checks do not clear the new
+active-resource obligation. A reviewed resource builder can explicitly declare
+`Sanitize('HtmlActiveResourceUri')`; `Sanitize('*')` includes it.
+
+`link` classification uses this element's literal `rel`, `as` and `type`, regardless
+of attribute order. Icons, metadata links and known passive preloads are passive;
+stylesheet/module preloads, unknown relations, dynamic discriminators and spreads
+remain conservative. Event handlers still use `JavaScript`, styles use `Css`, and
+iframe `srcdoc` uses `HtmlTag` because the browser parses it as a nested document.
+
+These are sink classifications, not sanitizers: displaying a value in an image
+does not clear its taint before a later script, navigation or raw HTML use.
+
 ### Context-specific sanitization
 
 HTML escaping removes HTML-tag taint, and quote escaping (`ENT_QUOTES`) also
@@ -81,6 +120,12 @@ Concatenation only removes URL-destination taint from a suffix after a fixed
 authority or an established relative path. For example,
 `'https://example.com/path/' . $input` fixes the destination, whereas
 `'https://' . $input` does not. Taint in the authority itself remains reportable.
+That guarantee persists through subsequent operands in the same concatenation:
+`'/apps/' . $id . '/' . $section . '?' . $query` cannot turn `$query` into a
+URL scheme or host. This only removes destination-control taints (`HtmlAttributeUri`,
+`CurlUri`, `RedirectUri`); executable-resource, HTML syntax and secret-disclosure
+checks remain. Query parameter names and values should still be URL-encoded to
+keep `&`, `=` and `#` inside their intended parameters.
 
 ### Search limits
 

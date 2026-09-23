@@ -52,6 +52,10 @@ pub enum SinkType {
     Output,
     UnauthorizedDataFetchKey,
     Custom(String),
+    /// A URL whose contents may execute as script, a document, or a stylesheet.
+    HtmlActiveResourceUri,
+    /// A passive browser resource, not an HTML/JavaScript injection sink.
+    HtmlMediaUri,
 }
 
 /// Injection policy is independent of the transport carrying untrusted input.
@@ -90,6 +94,8 @@ impl SinkType {
             SinkType::CurlUri => "a curl url".to_string(),
             SinkType::HtmlAttribute => "an HTML attribute".to_string(),
             SinkType::HtmlAttributeUri => "an HTML attribute with url".to_string(),
+            SinkType::HtmlActiveResourceUri => "an executable HTML resource URL".to_string(),
+            SinkType::HtmlMediaUri => "a passive HTML media URL".to_string(),
             SinkType::JavaScript => "JavaScript code".to_string(),
             SinkType::Css => "CSS code".to_string(),
             SinkType::ResponseHeader => "an HTTP response header".to_string(),
@@ -114,6 +120,9 @@ impl SinkType {
             SinkType::CurlUri,
             SinkType::HtmlAttribute,
             SinkType::HtmlAttributeUri,
+            SinkType::HtmlActiveResourceUri,
+            // HtmlMediaUri is deliberately excluded: user-selected media URLs
+            // do not execute HTML/JavaScript. Output still tracks secret leaks.
             SinkType::JavaScript,
             SinkType::Css,
             SinkType::ResponseHeader,

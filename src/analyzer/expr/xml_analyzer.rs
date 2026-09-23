@@ -32,6 +32,9 @@ use super::assignment::instance_property_assignment_analyzer::add_unspecialized_
 use super::call::argument_analyzer::get_removed_taints_in_comments;
 use super::fetch::atomic_property_fetch_analyzer;
 
+mod attribute_security;
+use attribute_security::{AttributeContext, attribute_sinks, is_escaped_value};
+
 pub(crate) fn analyze(
     context: &mut BlockContext,
     parts: &(
@@ -79,6 +82,7 @@ pub(crate) fn analyze(
     let mut used_attributes = FxHashSet::default();
 
     let codebase = statements_analyzer.codebase;
+    let attribute_context = AttributeContext::new(&parts.1);
 
     for attribute in &parts.1 {
         match attribute {
@@ -101,6 +105,7 @@ pub(crate) fn analyze(
                     xhp_simple,
                     analysis_data,
                     context,
+                    &attribute_context,
                 )?;
             }
             aast::XhpAttribute::XhpSpread(xhp_expr) => {
@@ -111,6 +116,7 @@ pub(crate) fn analyze(
                     analysis_data,
                     context,
                     codebase,
+                    &attribute_context,
                 )?);
             }
         }
@@ -256,6 +262,7 @@ fn handle_attribute_spread(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     codebase: &CodebaseInfo,
+    attribute_context: &AttributeContext,
 ) -> Result<FxHashSet<StrId>, AnalysisError> {
     expression_analyzer::analyze(statements_analyzer, xhp_expr, analysis_data, context, true)?;
 
@@ -282,9 +289,13 @@ fn handle_attribute_spread(
                     .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { .. }));
 
                 for spread_attribute in all_attributes {
-                    // Each fetch starts from the spread object, not the type
-                    // left by the previous attribute fetch at the same position.
-                    analysis_data.set_rc_expr_type(xhp_expr.pos(), expr_type.clone());
+                    // This position doubles as the receiver and fetched value.
+                    // The receiver type is supplied explicitly below; do not
+                    // union the receiver (or previous attribute) into the value.
+                    analysis_data.expr_types.remove(&(
+                        xhp_expr.pos().start_offset() as u32,
+                        xhp_expr.pos().end_offset() as u32,
+                    ));
                     atomic_property_fetch_analyzer::analyze(
                         statements_analyzer,
                         (xhp_expr, xhp_expr),
@@ -340,6 +351,7 @@ fn handle_attribute_spread(
                                 statements_analyzer.interner.lookup(spread_attribute.0),
                                 &property_fetch_type,
                                 analysis_data,
+                                attribute_context,
                             );
                         } else {
                             add_all_dataflow(
@@ -350,6 +362,7 @@ fn handle_attribute_spread(
                                 xhp_expr.pos(),
                                 Rc::new(property_fetch_type),
                                 statements_analyzer.interner.lookup(spread_attribute.0),
+                                attribute_context,
                             );
                         }
                     }
@@ -376,6 +389,7 @@ fn analyze_xhp_attribute_assignment(
     attribute_info: &aast::XhpSimple<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
+    attribute_context: &AttributeContext,
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(
         statements_analyzer,
@@ -432,6 +446,7 @@ fn analyze_xhp_attribute_assignment(
             attribute_value_pos,
             attribute_value_type,
             &attribute_info.name.1,
+            attribute_context,
         );
     }
 
@@ -446,6 +461,7 @@ fn add_all_dataflow(
     attribute_value_pos: &Pos,
     attribute_value_type: Rc<TUnion>,
     attribute_name: &str,
+    attribute_context: &AttributeContext,
 ) {
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let codebase = statements_analyzer.codebase;
@@ -471,6 +487,7 @@ fn add_all_dataflow(
             attribute_name,
             &attribute_value_type,
             analysis_data,
+            attribute_context,
         );
     }
 }
@@ -534,6 +551,7 @@ fn add_xml_attribute_dataflow(
     name: &str,
     attribute_value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
+    attribute_context: &AttributeContext,
 ) {
     if let Some(classlike_storage) = codebase.classlike_infos.get(element_name) {
         let element_name = statements_analyzer.interner.lookup(element_name);
@@ -543,58 +561,21 @@ fn add_xml_attribute_dataflow(
             || property_id.1 == StrId::DATA_ATTRIBUTE
             || property_id.1 == StrId::ARIA_ATTRIBUTE
         {
-            let mut taints = vec![SinkType::Output];
-
-            if classlike_storage
+            let taints = if classlike_storage
                 .appearing_property_ids
                 .contains_key(&property_id.1)
+                || property_id.1 == StrId::DATA_ATTRIBUTE
+                || property_id.1 == StrId::ARIA_ATTRIBUTE
             {
-                match (element_name, name) {
-                    // We allow input value attributes to have user-submitted values
-                    // because that's to be expected
-                    ("Facebook\\XHP\\HTML\\label", "for")
-                    | ("Facebook\\XHP\\HTML\\meta", "content")
-                    | (_, "id" | "class" | "lang" | "title" | "alt")
-                    | (
-                        "Facebook\\XHP\\HTML\\input" | "Facebook\\XHP\\HTML\\option",
-                        "value" | "checked",
-                    ) => {
-                        // do nothing
-                    }
-                    (
-                        "Facebook\\XHP\\HTML\\a"
-                        | "Facebook\\XHP\\HTML\\area"
-                        | "Facebook\\XHP\\HTML\\base"
-                        | "Facebook\\XHP\\HTML\\link",
-                        "href",
-                    ) => {
-                        taints.push(SinkType::HtmlAttributeUri);
-                    }
-                    ("Facebook\\XHP\\HTML\\body", "background")
-                    | ("Facebook\\XHP\\HTML\\form", "action")
-                    | (
-                        "Facebook\\XHP\\HTML\\button" | "Facebook\\XHP\\HTML\\input",
-                        "formaction",
-                    )
-                    | (
-                        "Facebook\\XHP\\HTML\\iframe"
-                        | "Facebook\\XHP\\HTML\\img"
-                        | "Facebook\\XHP\\HTML\\script"
-                        | "Facebook\\XHP\\HTML\\audio"
-                        | "Facebook\\XHP\\HTML\\video"
-                        | "Facebook\\XHP\\HTML\\source",
-                        "src",
-                    )
-                    | ("Facebook\\XHP\\HTML\\video", "poster") => {
-                        taints.push(SinkType::HtmlAttributeUri);
-                    }
-                    (_, "style") => taints.push(SinkType::Css),
-                    (_, name) if name.starts_with("on") => taints.push(SinkType::JavaScript),
-                    _ => {
-                        taints.push(SinkType::HtmlAttribute);
-                    }
-                }
-            }
+                attribute_sinks(
+                    element_name,
+                    name,
+                    attribute_context,
+                    is_escaped_value(attribute_value_type),
+                )
+            } else {
+                vec![SinkType::Output]
+            };
 
             let sink_pos = statements_analyzer.get_hpos(attribute_value_pos);
             let mut xml_attribute_taint =
