@@ -505,30 +505,32 @@ fn analyze_list_assignment(
             value_type = add_union_type(value_type, &atomic_value_type, codebase, false);
         }
 
-        if let Some(source_expr) = source_expr {
-            let source_expr_id = expression_identifier::get_var_id(
+        let source_expr_id = source_expr.and_then(|source_expr| {
+            expression_identifier::get_var_id(
                 source_expr,
                 context.function_context.calling_class,
                 statements_analyzer.file_analyzer.resolved_names,
                 Some((statements_analyzer.codebase, statements_analyzer.interner)),
-            );
+            )
+        });
 
-            let keyed_array_var_id = source_expr_id
-                .map(|source_expr_id| source_expr_id + "['" + offset.to_string().as_str() + "']");
+        // All slots of a returned tuple share the source expression's position.
+        // Distinguish their fetch nodes as well as their ArrayFetch edge offsets.
+        let keyed_array_var_id = Some(if let Some(source_expr_id) = source_expr_id {
+            format!("{}['{}']", source_expr_id, offset)
+        } else {
+            format!("arrayvalue-fetch[{}]", offset)
+        });
 
-            let mut value_type_rc = Rc::new(value_type);
-
-            array_fetch_analyzer::add_array_fetch_dataflow_rc(
-                statements_analyzer,
-                source_expr,
-                analysis_data,
-                keyed_array_var_id,
-                &mut value_type_rc,
-                &mut get_literal_int(offset as i64),
-            );
-
-            value_type = (*value_type_rc).clone();
-        }
+        array_fetch_analyzer::add_array_fetch_dataflow_from_parents(
+            statements_analyzer,
+            source_expr.map_or(assign_var_item.pos(), |expr| expr.pos()),
+            analysis_data,
+            keyed_array_var_id,
+            &mut value_type,
+            &mut get_literal_int(offset as i64),
+            &assign_value_type.parent_nodes,
+        );
 
         analyze(
             statements_analyzer,

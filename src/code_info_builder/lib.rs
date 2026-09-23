@@ -600,10 +600,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
     fn visit_method_(&mut self, c: &mut Context, m: &aast::Method_<(), ()>) -> Result<(), ()> {
         let method_name = self.interner.intern(m.name.1.clone());
+        // Shared-state access belongs to this method, not subsequent methods
+        // or classes visited with the same scanner context.
+        let had_static_field_access = std::mem::take(&mut c.has_static_field_access);
 
         c.member_name = Some(method_name);
 
         let result = m.recurse(c, self);
+        let has_static_field_access = c.has_static_field_access;
+        c.has_static_field_access = had_static_field_access;
 
         c.member_name = None;
 
@@ -642,9 +647,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c.has_asio_join = false;
         }
 
-        if !c.has_static_field_access && m.static_ {
+        if !has_static_field_access && m.static_ {
             functionlike_storage.specialize_call = true;
-            c.has_static_field_access = false;
         }
 
         // the class's signature node (with this method as a child) was pushed before the

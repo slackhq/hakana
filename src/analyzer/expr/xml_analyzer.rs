@@ -9,7 +9,6 @@ use hakana_code_info::EFFECT_PURE;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::DataFlowNode;
-use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::Issue;
@@ -30,6 +29,7 @@ use rustc_hash::FxHashSet;
 use std::rc::Rc;
 
 use super::assignment::instance_property_assignment_analyzer::add_unspecialized_property_assignment_dataflow;
+use super::call::argument_analyzer::get_removed_taints_in_comments;
 use super::fetch::atomic_property_fetch_analyzer;
 
 pub(crate) fn analyze(
@@ -208,49 +208,21 @@ pub(crate) fn analyze(
             inner_expr.pos().start_offset() as u32,
             inner_expr.pos().end_offset() as u32,
         )) {
-            if matches!(
-                element_name,
-                "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p"
-            ) {
-                let xml_body_taint = DataFlowNode {
-                    id: DataFlowNodeId::Symbol(*xhp_class_name),
-                    kind: DataFlowNodeKind::TaintSink {
-                        pos: statements_analyzer.get_hpos(pos),
-                        types: vec![SinkType::Output],
-                    },
-                };
+            let sink_types = match element_name {
+                "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p" => Some(vec![SinkType::Output]),
+                "Facebook\\XHP\\HTML\\script" => Some(vec![SinkType::JavaScript, SinkType::Output]),
+                "Facebook\\XHP\\HTML\\style" => Some(vec![SinkType::Css, SinkType::Output]),
+                _ => None,
+            };
 
-                for parent_node in &expr_type.parent_nodes {
-                    analysis_data.data_flow_graph.add_path(
-                        &parent_node.id,
-                        &xml_body_taint.id,
-                        PathKind::Default,
-                        vec![],
-                        vec![],
-                    );
-                }
-
-                analysis_data.data_flow_graph.add_node(xml_body_taint);
-            }
-
-            // find data leaking to style and script tags
-            if matches!(
-                element_name,
-                "Facebook\\XHP\\HTML\\style" | "Facebook\\XHP\\HTML\\script"
-            ) {
-                let xml_body_taint = DataFlowNode {
-                    id: DataFlowNodeId::Symbol(*xhp_class_name),
-                    kind: DataFlowNodeKind::TaintSink {
-                        pos: statements_analyzer.get_hpos(pos),
-                        types: vec![
-                            if element_name.ends_with("script") {
-                                SinkType::JavaScript
-                            } else {
-                                SinkType::Css
-                            },
-                            SinkType::Output,
-                        ],
-                    },
+            if let Some(types) = sink_types {
+                // Sinks describe this element, not every instance of its class.
+                let sink_pos = statements_analyzer.get_hpos(pos);
+                let mut xml_body_taint =
+                    DataFlowNode::get_for_local_string(element_name.to_string(), sink_pos);
+                xml_body_taint.kind = DataFlowNodeKind::TaintSink {
+                    pos: sink_pos,
+                    types,
                 };
 
                 for parent_node in &expr_type.parent_nodes {
@@ -310,6 +282,9 @@ fn handle_attribute_spread(
                     .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { .. }));
 
                 for spread_attribute in all_attributes {
+                    // Each fetch starts from the spread object, not the type
+                    // left by the previous attribute fetch at the same position.
+                    analysis_data.set_rc_expr_type(xhp_expr.pos(), expr_type.clone());
                     atomic_property_fetch_analyzer::analyze(
                         statements_analyzer,
                         (xhp_expr, xhp_expr),
@@ -332,15 +307,51 @@ fn handle_attribute_spread(
                         ))
                         .cloned()
                     {
-                        add_all_dataflow(
-                            analysis_data,
-                            statements_analyzer,
-                            (*element_name, *spread_attribute.0),
-                            xhp_expr.pos(),
-                            xhp_expr.pos(),
-                            property_fetch_type,
-                            statements_analyzer.interner.lookup(spread_attribute.0),
-                        );
+                        // There is no individual attribute-access AST (or lhs
+                        // variable ID) here, so explicitly read shared storage.
+                        let property_fetch_type =
+                            atomic_property_fetch_analyzer::add_unspecialized_property_fetch_dataflow(
+                                DataFlowNode::get_for_local_string(
+                                    format!(
+                                        "spread {}::{}",
+                                        statements_analyzer.interner.lookup(spread_xhp_class),
+                                        statements_analyzer
+                                            .interner
+                                            .lookup(spread_attribute.0)
+                                            .trim_start_matches(':'),
+                                    ),
+                                    statements_analyzer.get_hpos(xhp_expr.pos()),
+                                ),
+                                &(*spread_xhp_class, *spread_attribute.0),
+                                analysis_data,
+                                false,
+                                (*property_fetch_type).clone(),
+                            );
+                        if element_name == spread_xhp_class {
+                            // The source and destination already share storage.
+                            // Writing the fetched value back adds no information
+                            // and would introduce a fetch/assignment cycle.
+                            add_xml_attribute_dataflow(
+                                statements_analyzer,
+                                codebase,
+                                xhp_expr.pos(),
+                                element_name,
+                                (*element_name, *spread_attribute.0),
+                                statements_analyzer.interner.lookup(spread_attribute.0),
+                                &property_fetch_type,
+                                analysis_data,
+                            );
+                        } else {
+                            add_all_dataflow(
+                                analysis_data,
+                                statements_analyzer,
+                                (*element_name, *spread_attribute.0),
+                                xhp_expr.pos(),
+                                xhp_expr.pos(),
+                                Rc::new(property_fetch_type),
+                                statements_analyzer.interner.lookup(spread_attribute.0),
+                            );
+                        }
                     }
                 }
             }
@@ -458,6 +469,7 @@ fn add_all_dataflow(
             &property_id.0,
             property_id,
             attribute_name,
+            &attribute_value_type,
             analysis_data,
         );
     }
@@ -520,16 +532,17 @@ fn add_xml_attribute_dataflow(
     element_name: &StrId,
     property_id: (StrId, StrId),
     name: &str,
+    attribute_value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
 ) {
     if let Some(classlike_storage) = codebase.classlike_infos.get(element_name) {
         let element_name = statements_analyzer.interner.lookup(element_name);
+        // Spread attributes use stored property names such as ":action".
+        let name = name.strip_prefix(':').unwrap_or(name);
         if element_name.starts_with("Facebook\\XHP\\HTML\\")
             || property_id.1 == StrId::DATA_ATTRIBUTE
             || property_id.1 == StrId::ARIA_ATTRIBUTE
         {
-            let label = DataFlowNodeId::Property(property_id.0, property_id.1);
-
             let mut taints = vec![SinkType::Output];
 
             if classlike_storage
@@ -583,13 +596,27 @@ fn add_xml_attribute_dataflow(
                 }
             }
 
-            let xml_attribute_taint = DataFlowNode {
-                id: label.clone(),
-                kind: DataFlowNodeKind::TaintSink {
-                    pos: statements_analyzer.get_hpos(attribute_value_pos),
-                    types: taints,
-                },
+            let sink_pos = statements_analyzer.get_hpos(attribute_value_pos);
+            let mut xml_attribute_taint =
+                DataFlowNode::get_for_local_string(format!("{}::{}", element_name, name), sink_pos);
+            xml_attribute_taint.kind = DataFlowNodeKind::TaintSink {
+                pos: sink_pos,
+                types: taints,
             };
+
+            // Keep shared property storage for subsequent reads, but connect a
+            // rendering sink only to the value supplied at this occurrence.
+            let removed_taints =
+                get_removed_taints_in_comments(statements_analyzer, attribute_value_pos);
+            for parent_node in &attribute_value_type.parent_nodes {
+                analysis_data.data_flow_graph.add_path(
+                    &parent_node.id,
+                    &xml_attribute_taint.id,
+                    PathKind::Default,
+                    vec![],
+                    removed_taints.clone(),
+                );
+            }
 
             analysis_data.data_flow_graph.add_node(xml_attribute_taint);
         }
