@@ -27,7 +27,49 @@ pub struct TaintedNode {
     pub specialized_calls: FxHashMap<(FilePath, u32), FxHashSet<DataFlowNodeId>>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum JavaScriptValueState {
+    Unknown,
+    JsonExpression,
+    ComposedJson,
+}
+
 impl TaintedNode {
+    /// Encoding belongs to a particular route through the graph. An encoded
+    /// alternative cannot sanitize an unencoded alternative at the same node.
+    fn javascript_value_state(&self) -> JavaScriptValueState {
+        use JavaScriptValueState::*;
+        let mut state = Unknown;
+        for step in &self.path_types {
+            match step {
+                PathKind::Encode(super::path::ValueEncoding::HtmlSafeJson) => {
+                    state = JsonExpression
+                }
+                PathKind::StringComposition => {
+                    if state != Unknown {
+                        state = ComposedJson;
+                    }
+                }
+                PathKind::StringTransform
+                | PathKind::Serialize
+                | PathKind::ArrayFetch(..)
+                | PathKind::UnknownArrayFetch(..)
+                | PathKind::PropertyFetch(..)
+                | PathKind::UnknownPropertyFetch => state = Unknown,
+                _ => {}
+            }
+        }
+        state
+    }
+
+    pub fn has_html_safe_javascript(&self, accepts_composed_json: bool) -> bool {
+        match self.javascript_value_state() {
+            JavaScriptValueState::JsonExpression => true,
+            JavaScriptValueState::ComposedJson => accepts_composed_json,
+            JavaScriptValueState::Unknown => false,
+        }
+    }
+
     pub fn get_trace(&self, interner: &Interner, root_dir: &str) -> String {
         let mut source_descriptor = format!(
             "{}{}",
@@ -110,7 +152,9 @@ impl TaintedNode {
             DataFlowNodeKind::TaintSink { pos, types, .. } => TaintedNode {
                 id: node.id.clone(),
                 pos: Some(Arc::new(*pos)),
-                is_specialized: false,
+                // A parameter can be both a sink and an input to its function
+                // body. Preserve the call context when following that input.
+                is_specialized: matches!(node.id, DataFlowNodeId::SpecializedFunctionLikeArg(..)),
                 taint_sinks: types.clone(),
                 taint_sources: vec![],
                 previous: None,
@@ -139,7 +183,15 @@ impl TaintedNode {
             + self
                 .path_types
                 .iter()
-                .filter(|t| !matches!(t, PathKind::Default))
+                .filter(|t| {
+                    !matches!(
+                        t,
+                        PathKind::Default
+                            | PathKind::StringTransform
+                            | PathKind::StringComposition
+                            | PathKind::AcceptHtmlSafeJson
+                    )
+                })
                 .map(|k| k.to_unique_string())
                 .collect::<Vec<_>>()
                 .join("-")
@@ -179,6 +231,11 @@ impl TaintedNode {
             id += &specialization;
         }
 
+        id.push_str(match self.javascript_value_state() {
+            JavaScriptValueState::Unknown => "|js:unknown",
+            JavaScriptValueState::JsonExpression => "|js:json",
+            JavaScriptValueState::ComposedJson => "|js:composed-json",
+        });
         id
     }
 }

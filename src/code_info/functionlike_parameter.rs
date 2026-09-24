@@ -41,6 +41,7 @@ pub struct FunctionLikeParameter {
     pub is_named: bool,
 
     pub taint_sinks: Option<Vec<SinkType>>,
+    pub removed_taints: Vec<SinkType>,
 
     pub removed_taints_when_returning_true: Option<Vec<SinkType>>,
 
@@ -81,6 +82,7 @@ impl FunctionLikeParameter {
             is_splat: false,
             is_named: false,
             taint_sinks: None,
+            removed_taints: vec![],
             propagate_taint: false,
             assert_untainted: false,
             type_inferred: false,

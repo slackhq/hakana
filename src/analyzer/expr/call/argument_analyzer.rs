@@ -540,6 +540,17 @@ fn add_dataflow(
 ) {
     let codebase = statements_analyzer.codebase;
 
+    let json_response = matches!(
+        functionlike_id,
+        FunctionLikeIdentifier::Function(
+            hakana_str::StrId::ECHO
+                | hakana_str::StrId::PRINT
+                | hakana_str::StrId::PRINTF
+                | hakana_str::StrId::VAR_DUMP
+        )
+    ) && super::response_effects::is_scalar_output(input_type)
+        && context.response.content_type
+            == crate::scope::response_context::ResponseContentType::Json;
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
@@ -574,6 +585,10 @@ fn add_dataflow(
     };
 
     let function_call_hpos = statements_analyzer.get_hpos(function_call_pos);
+    let accepts_html_safe_json = taints.contains(&SinkType::JavaScript)
+        && codebase
+            .get_functionlike(functionlike_id)
+            .is_some_and(|info| info.accepts_html_safe_json);
 
     let method_node = {
         let arg_location = function_param.name_location;
@@ -687,6 +702,10 @@ fn add_dataflow(
         ));
         removed.extend(input_type.scalar_taint_removals());
         removed.extend(param_type.scalar_taint_removals());
+        removed.extend(function_param.removed_taints.clone());
+        if json_response {
+            removed.push(SinkType::HtmlTag);
+        }
         removed
     };
     // TODO add plugin hooks for adding/removing taints
@@ -695,7 +714,11 @@ fn add_dataflow(
         data_flow_graph.add_path(
             &parent_node.id,
             &method_node.id,
-            PathKind::Default,
+            if accepts_html_safe_json {
+                PathKind::AcceptHtmlSafeJson
+            } else {
+                PathKind::Default
+            },
             vec![],
             removed_taints.clone(),
         );

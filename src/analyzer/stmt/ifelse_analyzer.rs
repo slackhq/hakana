@@ -260,6 +260,25 @@ pub(crate) fn analyze(
         loop_scope,
     )?;
 
+    context.response = if analysis_data
+        .get_expr_type(stmt.0.pos())
+        .is_some_and(|ty| ty.is_always_truthy())
+    {
+        if_body_context.response
+    } else if analysis_data
+        .get_expr_type(stmt.0.pos())
+        .is_some_and(|ty| ty.is_always_falsy())
+    {
+        else_context.response
+    } else {
+        match (if_body_context.has_returned, else_context.has_returned) {
+            (false, false) => if_body_context.response.join(else_context.response),
+            (false, true) => if_body_context.response,
+            (true, false) => else_context.response,
+            (true, true) => if_body_context.response.join(else_context.response),
+        }
+    };
+
     if !if_scope.if_actions.is_empty() && !if_scope.if_actions.contains(&ControlAction::None) {
         context.clauses = else_context.clauses;
         for (var_id, var_type) in else_context.locals {

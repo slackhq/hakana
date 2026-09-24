@@ -358,6 +358,19 @@ pub(crate) fn get_functionlike(
 
                 functionlike_info.taint_source_types = source_types;
             }
+            StrId::HAKANA_SECURITY_ANALYSIS_NOT_SOURCE_WHEN => {
+                let values = get_spread_params_from_attribute(user_attribute);
+                if let Some(parameter) = values.first()
+                    && values.len() > 1
+                    && let Some(offset) = functionlike_info.params.iter().position(|param| {
+                        interner.lookup(param.name.0).trim_start_matches('$')
+                            == parameter.trim_start_matches('$')
+                    })
+                {
+                    functionlike_info.not_source_when.push((offset, values[1..].to_vec()));
+                    functionlike_info.specialize_call = true;
+                }
+            }
             StrId::HAKANA_SECURITY_ANALYSIS_SPECIALIZE_CALL => {
                 functionlike_info.specialize_call = true;
             }
@@ -390,6 +403,13 @@ pub(crate) fn get_functionlike(
             }
             StrId::HAKANA_SECURITY_ANALYSIS_IGNORE_PATH_IF_TRUE => {
                 functionlike_info.ignore_taints_if_true = true;
+            }
+            StrId::HAKANA_SECURITY_ANALYSIS_HTML_SAFE_JSON => {
+                functionlike_info.return_value_encoding =
+                    Some(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson);
+            }
+            StrId::HAKANA_SECURITY_ANALYSIS_ACCEPTS_HTML_SAFE_JSON => {
+                functionlike_info.accepts_html_safe_json = true;
             }
             StrId::HAKANA_SECURITY_ANALYSIS_SANITIZE | StrId::HAKANA_FIND_PATHS_SANITIZE => {
                 let string_values = get_spread_params_from_attribute(user_attribute);
@@ -784,6 +804,11 @@ fn convert_param_nodes(
                 param.attributes.push(AttributeInfo { name: *name });
 
                 match *name {
+                    StrId::HAKANA_SECURITY_ANALYSIS_SANITIZE => {
+                        for name in get_spread_params_from_attribute(user_attribute) {
+                            param.removed_taints.extend(string_to_sink_types(name));
+                        }
+                    }
                     StrId::HAKANA_SECURITY_ANALYSIS_SINK => {
                         let string_values = get_spread_params_from_attribute(user_attribute);
 

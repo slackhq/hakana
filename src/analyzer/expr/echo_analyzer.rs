@@ -37,11 +37,18 @@ pub(crate) fn analyze(
 
         let arg_type = analysis_data.get_rc_expr_type(arg_expr.pos()).cloned();
 
+        if arg_type
+            .as_ref()
+            .is_none_or(|ty| !super::call::response_effects::is_scalar_output(ty))
+        {
+            context.response.invalidate();
+        }
+
         context.inside_general_use = true;
 
         argument_analyzer::verify_type(
             statements_analyzer,
-            &arg_type.unwrap_or(Rc::new(get_mixed_any())),
+            &arg_type.clone().unwrap_or(Rc::new(get_mixed_any())),
             &TUnion::new(vec![TAtomic::TScalar, TAtomic::TNull]),
             &FunctionLikeIdentifier::Function(StrId::ECHO),
             i,
@@ -56,6 +63,16 @@ pub(crate) fn analyze(
         );
 
         context.inside_general_use = false;
+        let empty = arg_type.as_ref().is_some_and(|ty| {
+            ty.types.iter().all(|t| {
+                matches!(t, TAtomic::TFalse | TAtomic::TNull)
+                    || matches!(t, TAtomic::TLiteralString { value } if value.is_empty())
+            })
+        });
+        if !empty {
+            context.response.emit();
+            analysis_data.response_output_events += 1;
+        }
     }
 
     analysis_data.expr_effects.insert(

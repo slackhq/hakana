@@ -205,6 +205,109 @@ $tainted = $_GET['foo'];
 echo custom_html_escape($tainted);
 ```
 
+On a parameter, `Sanitize` removes the named obligations from that argument's
+path into the callee. It does not sanitize the caller's variable, other
+arguments, or sources read within the callee. This is useful for a URL builder
+whose path argument cannot change the configured origin. It is an asserted
+contract, so review every use of that parameter before annotating it.
+
+### `Hakana\SecurityAnalysis\NotSourceWhen`
+
+Use this on a source function or method to exclude specific literal argument
+values from the source declaration:
+
+```hack
+<<Hakana\SecurityAnalysis\Source('NonUriRequestHeader'),
+  Hakana\SecurityAnalysis\NotSourceWhen('key', 'TRUSTED_PROXY_FIELD')>>
+function request_field(string $key, string $default = ''): string {
+    // ...
+}
+```
+
+The first attribute argument names a parameter; subsequent arguments list exact,
+case-sensitive string values. A call introduces no new source when every possible
+literal value of that argument is listed. Unknown values, mixed trusted/untrusted
+alternatives, and omitted arguments remain conservative. Invalid parameter names
+have no effect.
+
+This is a source contract, not a sanitizer: taint propagated from the function
+body or other arguments, including a tainted default, remains. Wrappers around
+request globals need a call-site boundary model to distinguish their fields.
+Only assert this contract for a field whose origin is trusted in the deployment.
+
+### `Hakana\SecurityAnalysis\HtmlSafeJson`
+
+This describes a function or method returning a complete JSON expression encoded
+for insertion into HTML script text, such as `json_encode($value, JSON_HEX_TAG)`.
+It adds an encoding marker to the return data-flow path. It does not change the
+Hack type or remove the value's source provenance.
+
+Direct `json_encode` calls with a provable `JSON_HEX_TAG` flag also establish the
+marker. Unknown flags remain conservative. A bare encoded JSON expression can
+satisfy a JavaScript sink. Once composed into script text, it requires an audited
+consumer contract as described below. Hakana does not parse JavaScript.
+
+Encoding is tracked separately for each route, so an encoded branch cannot clear
+an unencoded branch's taint. Decoding, string transformations, and container
+fetches invalidate the encoding proof. The marker does not sanitize URL sinks or
+secret output.
+
+### `Hakana\SecurityAnalysis\AcceptsHtmlSafeJson`
+
+This marks a function or method whose JavaScript sinks have been audited to
+handle HTML-safe JSON as complete data values. It applies to native XHP script
+bodies directly inside that function, and to its parameters explicitly marked
+`Sink('JavaScript')`.
+
+```hack
+use type Facebook\XHP\HTML\script;
+
+<<Hakana\SecurityAnalysis\AcceptsHtmlSafeJson>>
+function render_boot_data(mixed $data): script {
+    $json = json_encode($data, JSON_HEX_TAG) as string;
+    return <script>{'window.boot_data = '.$json.';'}</script>;
+}
+```
+
+The audit must establish that encoded values are complete expressions, never
+inserted inside quotes, template strings, comments or regular expressions, and
+never interpreted as code or HTML by consumers such as `eval` or `innerHTML`.
+Values used as navigation destinations or executable resource URLs need separate
+URL sinks or validation, even when their JSON insertion is safe.
+
+The encoding proof survives concatenation, assignment, and helper returns.
+Every tainted route still needs its own proof: raw siblings, raw alternative
+branches, and transformations after encoding retain their reports. The attribute
+only discharges the JavaScript obligation at the audited sink; it does not
+sanitize the function's return value, its callees, event-handler attributes,
+resource URLs, or secret output. Re-audit the contract when script handling
+changes.
+
+### HTTP response context
+
+`BlockContext` carries the current response content type (`Unknown`, `Html`, or
+`Json`) and whether observed output has committed the headers. A known literal
+Content-Type updates that context. Ordinary assignments, pure computation, and
+other named HTTP headers preserve it. A JSON response omits the `HtmlTag` sink
+for scalar `echo`/`print` output; the value's taints and secret-output obligations
+remain intact.
+
+`if`/`else`, ternary, and short-circuit joins retain only facts guaranteed on the
+continuing paths. Headers inside one conditional branch cannot sanitize output
+on another branch or before the header. Unknown calls invalidate the MIME fact;
+output-buffering operations and control-flow joins that may have emitted output
+also forget header mutability. Loops without observed output preserve header
+mutability, so a Content-Type set after the loop can establish a new MIME fact.
+
+The model assumes headers are mutable at function entry and tracks output
+observed in that function. It is not an interprocedural proof about output
+previously sent by callers or hidden inside unknown callees.
+
+`json_encode` and `json_encode_with_error` preserve the response context for all
+input types, including objects and `mixed`. The model assumes serialization
+callbacks do not alter HTTP response state. Effects from evaluating the encoder's
+arguments still apply, as do subsequent explicit header changes.
+
 ### `Hakana\SecurityAnalysis\ShapeSource`
 
 Given a type alias that defines a shape, you can use `ShapeSource` to define per-field source types.

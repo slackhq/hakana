@@ -271,6 +271,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
             )?;
+            context.response.invalidate();
         }
         aast::Expr_::ClassGet(boxed) => {
             let (lhs, rhs, prop_or_method) = (&boxed.0, &boxed.1, &boxed.2);
@@ -407,6 +408,7 @@ pub(crate) fn analyze(
         }
         aast::Expr_::Await(boxed) | aast::Expr_::Delay(boxed) => {
             await_analyzer::analyze(statements_analyzer, expr, boxed, analysis_data, context)?;
+            context.response.invalidate();
         }
         aast::Expr_::FunctionPointer(boxed) => {
             analyze_function_pointer(statements_analyzer, boxed, context, analysis_data, expr)?;

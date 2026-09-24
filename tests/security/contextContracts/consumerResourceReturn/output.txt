@@ -1,0 +1,2 @@
+ERROR: TaintedData - input.hack:5:8 - Data from a URL query string found its way to JavaScript code using path call to input (input.hack:2:19) ----> resource_url#1 (input.hack:5:21) ----> $url (input.hack:3:88) ----> return (input.hack:3:111) ----> call to resource_url (input.hack:3:95) ----> script#1 (input.hack:5:8)
+ERROR: TaintedData - input.hack:5:21 - Data from a URL query string found its way to an executable HTML resource URL using path call to input (input.hack:2:19) ----> resource_url#1 (input.hack:5:21)

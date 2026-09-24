@@ -43,6 +43,10 @@ pub struct FunctionAnalysisData {
     pub symbol_references: SymbolReferences,
     pub issue_filter: Option<FxHashSet<IssueKind>>,
     pub expr_effects: FxHashMap<(u32, u32), u8>,
+    /// Counts observed output/buffering operations across all analyzed paths.
+    /// Compound statements use the delta to retain header mutability when no
+    /// such operation occurred, including paths ending in break or continue.
+    pub response_output_events: usize,
     pub issue_counts: FxHashMap<IssueKind, usize>,
     pub actual_service_calls: FxHashSet<String>,
     recording_level: usize,
@@ -101,6 +105,7 @@ impl FunctionAnalysisData {
             symbol_references: SymbolReferences::new(),
             issue_filter: None,
             expr_effects: FxHashMap::default(),
+            response_output_events: 0,
             hakana_fixme_or_ignores: hakana_fixme_or_ignores
                 .unwrap_or(get_hakana_fixmes_and_ignores(comments, all_custom_issues)),
             expr_fixme_positions: FxHashMap::default(),

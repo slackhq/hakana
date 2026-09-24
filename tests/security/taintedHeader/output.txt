@@ -1,1 +1,2 @@
-ERROR: TaintedData - input.hack:8:10 - Data from a URL query string found its way to a redirect URI
+ERROR: TaintedData - input.hack:4:12 - Data from a URL query string found its way to an HTTP response header using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:8:10) ----> redirect#1 (input.hack:8:10) ----> $url (input.hack:2:60) ----> composition (input.hack:4:12) ----> header#1 (input.hack:4:12)
+ERROR: TaintedData - input.hack:8:10 - Data from a URL query string found its way to a redirect URI using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:8:10) ----> redirect#1 (input.hack:8:10)

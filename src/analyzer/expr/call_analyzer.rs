@@ -44,7 +44,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let function_name_expr = &expr.func;
 
-    match &function_name_expr.2 {
+    let result = match &function_name_expr.2 {
         aast::Expr_::Id(boxed_id) => function_call_analyzer::analyze(
             statements_analyzer,
             (
@@ -113,7 +113,17 @@ pub(crate) fn analyze(
             analysis_data,
             context,
         ),
+    };
+    if result.is_ok() {
+        crate::expr::call::response_effects::apply(
+            statements_analyzer,
+            expr,
+            pos,
+            analysis_data,
+            context,
+        );
     }
+    result
 }
 
 /**

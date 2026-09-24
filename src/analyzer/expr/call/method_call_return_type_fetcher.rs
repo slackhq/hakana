@@ -274,6 +274,14 @@ fn add_dataflow(
     let method_call_node;
 
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
+        let suppress_source = !functionlike_storage.not_source_when.is_empty()
+            && functionlike_storage.suppresses_taint_source(
+                &call_expr
+                    .1
+                    .iter()
+                    .map(|arg| analysis_data.get_expr_type(arg.to_expr_ref().pos()))
+                    .collect::<Vec<_>>(),
+            );
         method_call_node = get_tainted_method_node(
             statements_analyzer,
             context,
@@ -287,6 +295,7 @@ fn add_dataflow(
             added_taints,
             removed_taints,
             codebase,
+            suppress_source,
         );
     } else {
         method_call_node = DataFlowNode::get_for_method_return(
@@ -312,7 +321,7 @@ fn add_dataflow(
                     analysis_data.data_flow_graph.add_path(
                         &parent_node.id,
                         &method_call_node.id,
-                        PathKind::Default,
+                        PathKind::StringTransform,
                         vec![],
                         vec![],
                     );
@@ -460,7 +469,7 @@ fn add_dataflow(
             &FxHashMap::default(),
             &mut analysis_data.data_flow_graph,
             &method_call_node,
-            PathKind::Default,
+            PathKind::StringTransform,
         );
         add_special_param_dataflow(
             statements_analyzer,
@@ -503,7 +512,25 @@ fn add_dataflow(
         .data_flow_graph
         .add_node(method_call_node.clone());
 
-    return_type_candidate.parent_nodes = vec![method_call_node.clone()];
+    if let Some(encoding) = functionlike_storage.return_value_encoding {
+        let formatted_node = DataFlowNode::get_for_local_string(
+            "HTML-safe JSON expression".to_string(),
+            statements_analyzer.get_hpos(call_pos),
+        );
+        analysis_data.data_flow_graph.add_path(
+            &method_call_node.id,
+            &formatted_node.id,
+            PathKind::Encode(encoding),
+            vec![],
+            vec![],
+        );
+        analysis_data
+            .data_flow_graph
+            .add_node(formatted_node.clone());
+        return_type_candidate.parent_nodes = vec![formatted_node];
+    } else {
+        return_type_candidate.parent_nodes = vec![method_call_node.clone()];
+    }
 
     return_type_candidate
 }
@@ -521,6 +548,7 @@ fn get_tainted_method_node(
     added_taints: Vec<SinkType>,
     removed_taints: Vec<SinkType>,
     codebase: &CodebaseInfo,
+    suppress_source: bool,
 ) -> DataFlowNode {
     let method_call_node;
 
@@ -696,7 +724,7 @@ fn get_tainted_method_node(
         data_flow_graph.add_node(this_after_method_node);
     }
 
-    if !functionlike_storage.taint_source_types.is_empty() {
+    if !functionlike_storage.taint_source_types.is_empty() && !suppress_source {
         let method_call_node_source = DataFlowNode {
             id: method_call_node.id.clone(),
             kind: DataFlowNodeKind::TaintSource {

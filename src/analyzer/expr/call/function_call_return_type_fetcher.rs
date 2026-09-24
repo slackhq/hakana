@@ -947,6 +947,22 @@ fn add_dataflow(
             .as_deref()
             == Some("php://input");
 
+    let json_encode = matches!(
+        functionlike_id,
+        FunctionLikeIdentifier::Function(StrId::JSON_ENCODE)
+    );
+    let suppress_source = !functionlike_storage.not_source_when.is_empty()
+        && functionlike_storage.suppresses_taint_source(
+            &expr
+                .2
+                .iter()
+                .map(|arg| analysis_data.get_expr_type(arg.to_expr_ref().pos()))
+                .collect::<Vec<_>>(),
+        );
+    let html_safe_json = json_encode
+        && expr.2.get(1).is_some_and(|arg| {
+            has_json_hex_tag(arg.to_expr_ref(), statements_analyzer, analysis_data)
+        });
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind
@@ -986,7 +1002,13 @@ fn add_dataflow(
 
     let mut last_arg = usize::MAX;
 
-    for (param_offset, path_kind) in param_offsets {
+    for (param_offset, mut path_kind) in param_offsets {
+        if html_safe_json && param_offset == 0 {
+            path_kind =
+                PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson);
+        } else if path_kind == PathKind::Default {
+            path_kind = PathKind::StringTransform;
+        }
         if let Some(arg) = expr.2.get(param_offset) {
             let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
 
@@ -1008,6 +1030,11 @@ fn add_dataflow(
     }
 
     if let Some(path_kind) = &variadic_path {
+        let path_kind = if *path_kind == PathKind::Default {
+            &PathKind::StringTransform
+        } else {
+            path_kind
+        };
         for (param_offset, arg) in expr.2.iter().enumerate() {
             if last_arg == usize::MAX || param_offset > last_arg {
                 let arg_pos = statements_analyzer.get_hpos(arg.to_expr_ref().pos());
@@ -1066,6 +1093,7 @@ fn add_dataflow(
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind
         && (!functionlike_storage.taint_source_types.is_empty() || raw_request_body)
+        && !suppress_source
     {
         let function_call_node_source = DataFlowNode {
             id: function_call_node.id.clone(),
@@ -1081,7 +1109,23 @@ fn add_dataflow(
         data_flow_graph.add_node(function_call_node_source);
     }
 
-    stmt_type.parent_nodes.push(function_call_node);
+    if let Some(encoding) = functionlike_storage.return_value_encoding {
+        let formatted_node = DataFlowNode::get_for_local_string(
+            "HTML-safe JSON expression".to_string(),
+            statements_analyzer.get_hpos(pos),
+        );
+        data_flow_graph.add_path(
+            &function_call_node.id,
+            &formatted_node.id,
+            PathKind::Encode(encoding),
+            vec![],
+            vec![],
+        );
+        data_flow_graph.add_node(formatted_node.clone());
+        stmt_type.parent_nodes.push(formatted_node);
+    } else {
+        stmt_type.parent_nodes.push(function_call_node);
+    }
 
     stmt_type
 }
@@ -1411,6 +1455,7 @@ fn get_special_argument_nodes(
             | StrId::IS_SUBCLASS_OF
             | StrId::STRIPOS
             | StrId::STRLEN
+            | StrId::MB_STRLEN
             | StrId::STRNATCMP
             | StrId::STRNCMP
             | StrId::STRRPOS
@@ -1763,6 +1808,34 @@ fn get_special_added_removed_taints(
         _ => return FxHashMap::default(),
     };
     FxHashMap::from_iter([(0, (added, removed))])
+}
+
+pub(crate) fn has_json_hex_tag(
+    expr: &aast::Expr<(), ()>,
+    analyzer: &StatementsAnalyzer,
+    data: &FunctionAnalysisData,
+) -> bool {
+    if data.get_expr_type(expr.pos()).is_some_and(|ty| {
+        !ty.types.is_empty()
+            && ty
+                .types
+                .iter()
+                .all(|t| matches!(t, TAtomic::TLiteralInt { value } if value & 1 != 0))
+    }) {
+        return true;
+    }
+    match &expr.2 {
+        aast::Expr_::Id(id) => analyzer
+            .file_analyzer
+            .resolved_names
+            .get(&(id.0.start_offset() as u32))
+            .is_some_and(|name| analyzer.interner.lookup(name) == "JSON_HEX_TAG"),
+        aast::Expr_::Binop(binop) if binop.bop == oxidized::ast_defs::Bop::Bar => {
+            has_json_hex_tag(&binop.lhs, analyzer, data)
+                || has_json_hex_tag(&binop.rhs, analyzer, data)
+        }
+        _ => false,
+    }
 }
 
 fn has_ent_quotes(

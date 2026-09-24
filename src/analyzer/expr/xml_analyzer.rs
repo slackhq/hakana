@@ -189,6 +189,10 @@ pub(crate) fn analyze(
     };
 
     let element_name = statements_analyzer.interner.lookup(xhp_class_name);
+    let accepts_html_safe_json = context
+        .function_context
+        .get_functionlike_info(codebase)
+        .is_some_and(|info| info.accepts_html_safe_json);
 
     analysis_data.expr_effects.insert(
         (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -235,7 +239,11 @@ pub(crate) fn analyze(
                     analysis_data.data_flow_graph.add_path(
                         &parent_node.id,
                         &xml_body_taint.id,
-                        PathKind::Default,
+                        if element_name == "Facebook\\XHP\\HTML\\script" && accepts_html_safe_json {
+                            PathKind::AcceptHtmlSafeJson
+                        } else {
+                            PathKind::Default
+                        },
                         vec![],
                         vec![],
                     );

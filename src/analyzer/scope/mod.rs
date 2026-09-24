@@ -18,6 +18,7 @@ use crate::{
 pub mod control_action;
 pub mod if_scope;
 pub mod loop_scope;
+pub mod response_context;
 pub mod switch_scope;
 
 #[derive(Clone, Debug)]
@@ -44,6 +45,7 @@ impl CaseScope {
 
 #[derive(Clone, Debug)]
 pub struct BlockContext {
+    pub response: response_context::ResponseContext,
     /**
      * Stores the local variables for the current function being analyzed and
      * also any properties that have assertions e.g. $foo and $foo->bar would
@@ -187,6 +189,7 @@ pub struct BlockContext {
 impl BlockContext {
     pub fn new(function_context: FunctionContext) -> Self {
         Self {
+            response: response_context::ResponseContext::default(),
             locals: BTreeMap::new(),
             cond_referenced_var_ids: FxHashSet::default(),
             assigned_var_ids: FxHashMap::default(),

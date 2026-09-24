@@ -618,6 +618,11 @@ fn get_child_nodes(
             {
                 let mut matching_sinks = types.clone();
                 matching_sinks.retain(|t| new_taints.contains(t));
+                if new_destination.has_html_safe_javascript(
+                    matches!(path.kind, PathKind::AcceptHtmlSafeJson),
+                ) {
+                    matching_sinks.retain(|t| *t != SinkType::JavaScript);
+                }
 
                 if !matching_sinks.is_empty() {
                     let taint_sources = new_destination.get_taint_sources().to_vec();
@@ -704,7 +709,7 @@ fn should_ignore_superglobal_fetch(path: &PathKind, previous: &[PathKind]) -> bo
             | PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue) => depth += 1,
             PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, _)
             | PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue) => depth -= 1,
-            PathKind::Serialize => return false,
+            PathKind::Serialize | PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson) => return false,
             PathKind::Superglobal(name) => {
                 return match name.as_str() {
                     "_SERVER" if depth == 0 => !hakana_code_info::taint::is_request_server_key(key),
@@ -746,7 +751,7 @@ fn has_recent_assignment(generated_path_types: &[PathKind]) -> bool {
             | PathKind::UnknownPropertyFetch => {
                 nesting += 1;
             }
-            PathKind::Serialize => {
+            PathKind::Serialize | PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson) => {
                 return false;
             }
             _ => (),
@@ -790,7 +795,7 @@ fn has_unmatched_property_assignment(symbol: &StrId, generated_path_types: &[Pat
             PathKind::UnknownPropertyFetch => {
                 nesting += 1;
             }
-            PathKind::Serialize => {
+            PathKind::Serialize | PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson) => {
                 return false;
             }
             _ => (),
@@ -858,7 +863,7 @@ pub(crate) fn should_ignore_array_fetch(
         && let Some(PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, assigned_name)) =
             previous_path_types
                 .iter()
-                .rfind(|t| !matches!(t, PathKind::Default))
+                .rfind(|t| !matches!(t, PathKind::Default | PathKind::StringTransform | PathKind::StringComposition | PathKind::AcceptHtmlSafeJson))
         && assigned_name == key_name
     {
         return true;

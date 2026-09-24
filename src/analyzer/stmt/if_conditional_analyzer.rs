@@ -142,7 +142,7 @@ pub(crate) fn analyze(
 
     // we need to clone the current context so our ongoing updates
     // to $outer_context don't mess with elseif/else blocks
-    let post_if_context = externally_applied_context.clone();
+    let mut post_if_context = externally_applied_context.clone();
 
     let mut cond_referenced_var_ids;
     let assigned_in_conditional_var_ids;
@@ -205,6 +205,14 @@ pub(crate) fn analyze(
     let mut if_body_context = Rc::try_unwrap(if_conditional_context.if_body_context.unwrap())
         .unwrap()
         .into_inner();
+
+    if_body_context.response = if_conditional_context.response;
+    if internally_applied_if_cond_expr != cond || externally_applied_if_cond_expr != cond {
+        post_if_context.response = post_if_context
+            .response
+            .join(if_conditional_context.response);
+    }
+    externally_applied_context.response = post_if_context.response;
 
     if_body_context.if_body_context = tmp_if_body_context_nested;
 

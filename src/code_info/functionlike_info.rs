@@ -137,6 +137,16 @@ pub struct FunctionLikeInfo {
     pub ignore_taints_if_true: bool,
 
     pub taint_source_types: Vec<SourceType>,
+    /// Exact literal argument values for which this call adds no new source.
+    /// Parameter-derived taint is unaffected.
+    pub not_source_when: Vec<(usize, Vec<String>)>,
+
+    /// Encoding contract applied to the return data-flow path, not its type.
+    pub return_value_encoding: Option<crate::data_flow::path::ValueEncoding>,
+
+    /// Audited JavaScript sinks declared by or directly inside this function
+    /// accept HTML-safe JSON even when it has been composed into script text.
+    pub accepts_html_safe_json: bool,
 
     pub added_taints: Vec<SinkType>,
 
@@ -186,6 +196,17 @@ pub struct FunctionLikeInfo {
 }
 
 impl FunctionLikeInfo {
+    pub fn suppresses_taint_source(&self, arguments: &[Option<&TUnion>]) -> bool {
+        self.not_source_when.iter().any(|(offset, values)| {
+            arguments.get(*offset).and_then(|ty| *ty).is_some_and(|ty| {
+                !ty.types.is_empty() && ty.types.iter().all(|t| {
+                    matches!(t, crate::t_atomic::TAtomic::TLiteralString { value }
+                        if values.contains(value))
+                })
+            })
+        })
+    }
+
     pub fn new(def_location: HPos, meta_start: MetaStart) -> Self {
         Self {
             def_location,
@@ -205,6 +226,9 @@ impl FunctionLikeInfo {
             effects: FnEffect::Unknown,
             specialize_call: false,
             taint_source_types: vec![],
+            not_source_when: vec![],
+            return_value_encoding: None,
+            accepts_html_safe_json: false,
             added_taints: vec![],
             removed_taints: vec![],
             attributes: Vec::new(),

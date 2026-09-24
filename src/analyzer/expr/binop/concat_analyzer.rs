@@ -70,7 +70,6 @@ pub(crate) fn analyze_concat_nodes(
     let mut existing_literal_string_values: Option<Vec<String>> = Some(vec!["".to_string()]);
     let mut literal_uri_prefix = true;
     let mut safe_uri_prefix = false;
-
     for concat_node in &concat_nodes {
         // Once a literal prefix has fixed the authority, every later operand is
         // still in its path/query/fragment, even after dynamic path segments.
@@ -191,7 +190,7 @@ pub(crate) fn analyze_concat_nodes(
                     analysis_data.data_flow_graph.add_path(
                         &old_parent_node.id,
                         &decision_node.id,
-                        PathKind::Default,
+                        PathKind::StringComposition,
                         vec![],
                         removed_taints.clone(),
                     );

@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:10:12 - Data from a URL query string found its way to JavaScript code using path call to input (input.hack:3:19) ----> $raw (input.hack:9:5) ----> composition (input.hack:10:21) ----> Facebook\XHP\HTML\script (input.hack:10:12)
