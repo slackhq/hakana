@@ -1136,6 +1136,7 @@ version = "0.1.0"
 dependencies = [
  "hakana-analyzer",
  "hakana-code-info",
+ "hakana-language-server",
  "hakana-orchestrator",
  "hakana-protocol",
  "hakana-server",
