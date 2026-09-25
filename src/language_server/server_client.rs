@@ -1,6 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::time::Duration;
 use std::{env, io};
 
 use hakana_protocol::{
@@ -8,6 +6,8 @@ use hakana_protocol::{
     GotoDefinitionResponse, Message, ShutdownRequest, SocketPath, StatusRequest, StatusResponse,
 };
 use rustc_hash::FxHashMap;
+
+use crate::server_factory::{PreferredServerFactory, ServerFactory};
 
 #[derive(Debug)]
 pub struct ServerConnection {
@@ -49,9 +49,7 @@ impl ServerConnection {
             });
         }
 
-        let mut server_process = Self::spawn_server(project_root, hakana_binary)?;
-
-        Self::wait_for_server(&socket_path, &mut server_process, Duration::from_secs(120)).await?;
+        Self::start_server(project_root, hakana_binary, &socket_path).await?;
 
         Ok(Self {
             socket_path,
@@ -67,13 +65,10 @@ impl ServerConnection {
 
         log::info!("Server connection failed, attempting to respawn...");
 
-        let mut server_process =
-            Self::spawn_server(&self.project_root, self.hakana_binary.as_deref())?;
-
-        Self::wait_for_server(
+        Self::start_server(
+            &self.project_root,
+            self.hakana_binary.as_deref(),
             &self.socket_path,
-            &mut server_process,
-            Duration::from_secs(120),
         )
         .await?;
 
@@ -82,40 +77,26 @@ impl ServerConnection {
             .map_err(|e| io::Error::new(io::ErrorKind::ConnectionRefused, format!("{}", e)))
     }
 
-    fn spawn_server(project_root: &Path, hakana_binary: Option<&str>) -> io::Result<Child> {
+    async fn start_server(
+        project_root: &Path,
+        hakana_binary: Option<&str>,
+        socket_path: &SocketPath,
+    ) -> io::Result<()> {
         let binary = if let Some(bin) = hakana_binary {
             PathBuf::from(bin)
         } else {
             Self::find_hakana_binary()?
         };
 
-        log::info!(
-            "Spawning hakana server: {} server --root {}",
-            binary.display(),
-            project_root.display()
-        );
-
-        let child = Command::new(&binary)
-            .arg("server")
-            .arg("--root")
-            .arg(project_root)
-            .current_dir(project_root)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|e| {
-                io::Error::new(
-                    e.kind(),
-                    format!(
-                        "Failed to spawn hakana server (binary: {}): {}",
-                        binary.display(),
-                        e
-                    ),
-                )
-            })?;
-
-        Ok(child)
+        let factory = PreferredServerFactory::discover();
+        let mut server_process = factory.spawn_server(project_root, &binary)?;
+        factory
+            .wait_for_server(
+                socket_path,
+                &mut server_process,
+                std::time::Duration::from_secs(120),
+            )
+            .await
     }
 
     fn find_hakana_binary() -> io::Result<PathBuf> {
@@ -148,55 +129,6 @@ impl ServerConnection {
                     hakana_path.display()
                 ),
             ))
-    }
-
-    async fn wait_for_server(
-        socket_path: &SocketPath,
-        child: &mut Child,
-        timeout: Duration,
-    ) -> io::Result<()> {
-        let start = std::time::Instant::now();
-        let poll_interval = Duration::from_millis(100);
-
-        loop {
-            match child.try_wait() {
-                Ok(Some(status)) => {
-                    let log_path = std::env::temp_dir().join("hakana-server.log");
-                    let log_contents = std::fs::read_to_string(&log_path)
-                        .unwrap_or_else(|_| "<no log available>".to_string());
-                    log::info!("Server log contents:\n{}", log_contents);
-                    return Err(io::Error::other(format!(
-                        "Server process exited during startup with status: {}. Check {} for details.",
-                        status,
-                        log_path.display()
-                    )));
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    return Err(io::Error::other(format!(
-                        "Failed to check server process status: {}",
-                        e
-                    )));
-                }
-            }
-
-            if start.elapsed() > timeout {
-                let _ = child.kill();
-                return Err(io::Error::new(
-                    io::ErrorKind::TimedOut,
-                    "Timed out waiting for server to start",
-                ));
-            }
-
-            if socket_path.server_exists() {
-                if ClientSocket::connect(socket_path).await.is_ok() {
-                    return Ok(());
-                }
-                tokio::time::sleep(poll_interval).await;
-            } else {
-                tokio::time::sleep(poll_interval).await;
-            }
-        }
     }
 
     pub async fn status(&self) -> io::Result<StatusResponse> {
@@ -328,64 +260,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    #[tokio::test]
-    async fn test_wait_for_server_detects_dead_process() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let socket_path = SocketPath::for_project(temp_dir.path());
-
-        let mut child = Command::new("sh")
-            .arg("-c")
-            .arg("exit 1")
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("Failed to spawn test process");
-
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
-        let result =
-            ServerConnection::wait_for_server(&socket_path, &mut child, Duration::from_secs(1))
-                .await;
-
-        assert!(result.is_err(), "Should return error when process dies");
-        let err = result.unwrap_err();
-        assert!(
-            err.to_string().contains("exited"),
-            "Error should mention process exited: {}",
-            err
-        );
-    }
-
-    #[tokio::test]
-    async fn test_wait_for_server_timeout() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let socket_path = SocketPath::for_project(temp_dir.path());
-
-        let mut child = Command::new("sleep")
-            .arg("10")
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("Failed to spawn test process");
-
-        let result =
-            ServerConnection::wait_for_server(&socket_path, &mut child, Duration::from_millis(200))
-                .await;
-
-        let _ = child.kill();
-        let _ = child.wait();
-
-        assert!(result.is_err(), "Should return error on timeout");
-        let err = result.unwrap_err();
-        assert!(
-            err.kind() == io::ErrorKind::TimedOut,
-            "Error should be TimedOut, got: {:?}",
-            err.kind()
-        );
     }
 
     #[tokio::test]
