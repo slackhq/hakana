@@ -63,7 +63,7 @@ jobs:
 
       - name: Read Rust toolchain
         id: rust-toolchain
-        uses: mikefarah/yq@v4.53.6
+        uses: mikefarah/yq@v4.54.1
         with:
           cmd: echo "channel=$(yq -r '.toolchain.channel' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
 
