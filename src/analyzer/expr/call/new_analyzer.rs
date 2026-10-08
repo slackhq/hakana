@@ -431,6 +431,7 @@ fn analyze_named_constructor(
             context,
             pos,
             None,
+            false,
         )?;
 
         // todo check method visibility

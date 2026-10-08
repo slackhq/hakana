@@ -115,6 +115,8 @@ fn find_paths_to_sinks(
         );
     }
     let mut seen_sources = FxHashSet::default();
+    let uri_prefix_functions =
+        hakana_code_info::data_flow::uri_prefix::resolve(&graph.uri_prefix_returns);
 
     for source in &sources {
         seen_sources.insert(source.get_unique_source_id(interner));
@@ -144,6 +146,7 @@ fn find_paths_to_sinks(
                             source,
                             graph,
                             config,
+                            &uri_prefix_functions,
                             sink_reachable.as_ref(),
                             match_sinks,
                             interner,
@@ -171,6 +174,7 @@ fn find_paths_to_sinks(
                                 source.clone(),
                                 graph,
                                 config,
+                                &uri_prefix_functions,
                                 sink_reachable.as_ref(),
                                 match_sinks,
                                 interner,
@@ -229,39 +233,6 @@ fn find_paths_to_sinks(
             } else {
                 break;
             }
-        }
-    }
-
-    if match_sinks {
-        let unfinished = sources
-            .iter()
-            .filter(|source| {
-                get_specialized_sources(graph, (*source).clone())
-                    .iter()
-                    .any(|generated| {
-                        graph.forward_edges.get(&generated.id).is_some_and(|edges| {
-                            edges.iter().any(|(id, paths)| {
-                                paths.iter().any(|path| path.kind != PathKind::Aggregate)
-                                    && sink_reachable.as_ref().is_none_or(|reachable| {
-                                        reachable.contains(&reachability_id(id))
-                                    })
-                            })
-                        })
-                    })
-            })
-            .collect::<Vec<_>>();
-        if !unfinished.is_empty()
-            && let Some(pos) = unfinished
-                .iter()
-                .find_map(|source| source.pos.as_deref().copied())
-                .or_else(|| graph.sinks.values().find_map(|sink| sink.get_pos()))
-        {
-            new_issues.push(Issue::new(
-                IssueKind::TaintAnalysisIncomplete,
-                format!("Security analysis reached max-depth {} with {} unfinished states that may reach a sink. Increase --max-depth; this run is incomplete.",
-                    config.security_config.max_depth, unfinished.len()),
-                pos, &None,
-            ));
         }
     }
 }
@@ -335,6 +306,9 @@ fn expand_source(
     source: Arc<TaintedNode>,
     graph: &DataFlowGraph,
     config: &Config,
+    uri_prefix_functions: &FxHashSet<
+        hakana_code_info::functionlike_identifier::FunctionLikeIdentifier,
+    >,
     sink_reachable: Option<&FxHashSet<DataFlowNodeId>>,
     match_sinks: bool,
     interner: &Interner,
@@ -348,6 +322,7 @@ fn expand_source(
         get_child_nodes(
             graph,
             config,
+            uri_prefix_functions,
             &generated_source,
             &source.taint_sinks,
             new_issues,
@@ -472,6 +447,9 @@ fn get_specialized_sources(
 fn get_child_nodes(
     graph: &DataFlowGraph,
     config: &Config,
+    uri_prefix_functions: &FxHashSet<
+        hakana_code_info::functionlike_identifier::FunctionLikeIdentifier,
+    >,
     generated_source: &Arc<TaintedNode>,
     source_taints: &Vec<SinkType>,
     new_issues: &mut Vec<Issue>,
@@ -523,6 +501,17 @@ fn get_child_nodes(
             }
 
             if should_ignore_superglobal_fetch(&path.kind, &generated_source.path_types) {
+                continue;
+            }
+
+            if matches!(path.kind, PathKind::MethodReturn(_))
+                && !method_receivers_compatible(
+                    generated_source
+                        .path_types
+                        .iter()
+                        .chain(std::iter::once(&path.kind)),
+                )
+            {
                 continue;
             }
 
@@ -587,6 +576,16 @@ fn get_child_nodes(
             );
             new_taints.extend(path.added_taints.clone());
             new_taints.retain(|t| !path.removed_taints.contains(t));
+            if let PathKind::UriSuffix(prefix) = &path.kind
+                && prefix.is_proven(uri_prefix_functions)
+            {
+                new_taints.retain(|t| {
+                    !matches!(
+                        t,
+                        SinkType::CurlUri | SinkType::RedirectUri | SinkType::HtmlAttributeUri
+                    )
+                });
+            }
 
             let mut new_destination = TaintedNode::from(destination_node);
 
@@ -618,9 +617,9 @@ fn get_child_nodes(
             {
                 let mut matching_sinks = types.clone();
                 matching_sinks.retain(|t| new_taints.contains(t));
-                if new_destination.has_html_safe_javascript(
-                    matches!(path.kind, PathKind::AcceptHtmlSafeJson),
-                ) {
+                if new_destination
+                    .has_html_safe_javascript(matches!(path.kind, PathKind::AcceptHtmlSafeJson))
+                {
                     matching_sinks.retain(|t| *t != SinkType::JavaScript);
                 }
 
@@ -633,6 +632,9 @@ fn get_child_nodes(
                                 matching_sink,
                                 &new_destination,
                                 interner,
+                            ) || !config.allow_issue_kind_in_file(
+                                &IssueKind::TaintedData(Box::new(matching_sink.clone())),
+                                interner.lookup(&sink_pos.file_path.0),
                             ) {
                                 continue;
                             }
@@ -709,7 +711,10 @@ fn should_ignore_superglobal_fetch(path: &PathKind, previous: &[PathKind]) -> bo
             | PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue) => depth += 1,
             PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, _)
             | PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue) => depth -= 1,
-            PathKind::Serialize | PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson) => return false,
+            PathKind::Serialize
+            | PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson) => {
+                return false;
+            }
             PathKind::Superglobal(name) => {
                 return match name.as_str() {
                     "_SERVER" if depth == 0 => !hakana_code_info::taint::is_request_server_key(key),
@@ -751,7 +756,8 @@ fn has_recent_assignment(generated_path_types: &[PathKind]) -> bool {
             | PathKind::UnknownPropertyFetch => {
                 nesting += 1;
             }
-            PathKind::Serialize | PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson) => {
+            PathKind::Serialize
+            | PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson) => {
                 return false;
             }
             _ => (),
@@ -795,7 +801,8 @@ fn has_unmatched_property_assignment(symbol: &StrId, generated_path_types: &[Pat
             PathKind::UnknownPropertyFetch => {
                 nesting += 1;
             }
-            PathKind::Serialize | PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson) => {
+            PathKind::Serialize
+            | PathKind::Encode(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson) => {
                 return false;
             }
             _ => (),
@@ -805,54 +812,45 @@ fn has_unmatched_property_assignment(symbol: &StrId, generated_path_types: &[Pat
     true
 }
 
+fn method_receivers_compatible<'a>(paths: impl Iterator<Item = &'a PathKind>) -> bool {
+    hakana_code_info::data_flow::path::method_receiver_bindings(paths).is_some()
+}
+
 pub(crate) fn should_ignore_array_fetch(
     path_type: &PathKind,
     match_type: &ArrayDataKind,
     previous_path_types: &[PathKind],
 ) -> bool {
-    // arraykey-fetch requires a matching arraykey-assignment at the same level
-    // otherwise the tainting is not valid
-    if match path_type {
-        PathKind::ArrayFetch(inner_expression_type, _) => inner_expression_type == match_type,
-        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey) => {
-            match_type == &ArrayDataKind::ArrayValue
-        }
-        _ => false,
-    } {
+    if matches!(
+        path_type,
+        PathKind::ArrayFetch(inner, _) | PathKind::UnknownArrayFetch(inner)
+            if inner == match_type
+    ) {
         let mut fetch_nesting = 0;
 
         for previous_path_type in previous_path_types.iter().rev() {
             match &previous_path_type {
-                PathKind::UnknownArrayAssignment(inner) => {
-                    if inner == match_type {
-                        if fetch_nesting == 0 {
-                            return false;
-                        }
-
+                PathKind::UnknownArrayAssignment(inner) | PathKind::ArrayAssignment(inner, _) => {
+                    if fetch_nesting > 0 {
                         fetch_nesting -= 1;
+                        continue;
                     }
-                }
-                PathKind::ArrayAssignment(inner, previous_assignment_value) => {
-                    if inner == match_type {
-                        if fetch_nesting > 0 {
-                            fetch_nesting -= 1;
-                            continue;
-                        }
-
-                        if let PathKind::ArrayFetch(_, fetch_value) = &path_type
-                            && fetch_value == previous_assignment_value
-                        {
-                            return false;
-                        }
-
+                    if inner != match_type {
                         return true;
                     }
+                    return matches!(
+                        (path_type, previous_path_type),
+                        (PathKind::ArrayFetch(_, fetched_key), PathKind::ArrayAssignment(_, assigned_key))
+                            if fetched_key != assigned_key
+                    );
                 }
-                PathKind::UnknownArrayFetch(inner) | PathKind::ArrayFetch(inner, _) => {
-                    if inner == match_type {
-                        fetch_nesting += 1;
-                    }
+                PathKind::UnknownArrayFetch(_) | PathKind::ArrayFetch(_, _) => {
+                    fetch_nesting += 1;
                 }
+                PathKind::Serialize
+                | PathKind::Encode(
+                    hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson,
+                ) => return false,
                 _ => {}
             }
         }
@@ -861,9 +859,17 @@ pub(crate) fn should_ignore_array_fetch(
     if let PathKind::RemoveDictKey(key_name) = path_type
         && match_type == &ArrayDataKind::ArrayValue
         && let Some(PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, assigned_name)) =
-            previous_path_types
-                .iter()
-                .rfind(|t| !matches!(t, PathKind::Default | PathKind::StringTransform | PathKind::StringComposition | PathKind::AcceptHtmlSafeJson))
+            previous_path_types.iter().rfind(|t| {
+                !matches!(
+                    t,
+                    PathKind::Default
+                        | PathKind::MethodReturn(_)
+                        | PathKind::StringTransform
+                        | PathKind::StringComposition
+                        | PathKind::UriSuffix(_)
+                        | PathKind::AcceptHtmlSafeJson
+                )
+            })
         && assigned_name == key_name
     {
         return true;
@@ -945,6 +951,127 @@ mod security_search_tests {
             },
         });
         id
+    }
+
+    #[test]
+    fn array_fetches_distinguish_keys_values_and_nested_collections() {
+        let key_fetch = PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey);
+        let value_fetch = PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue);
+        let key_assignment = PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey);
+        let value_assignment = PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue);
+        let ignored = |fetch: &PathKind, previous: &[PathKind]| {
+            should_ignore_array_fetch(fetch, &ArrayDataKind::ArrayKey, previous)
+                || should_ignore_array_fetch(fetch, &ArrayDataKind::ArrayValue, previous)
+        };
+        assert!(ignored(&key_fetch, std::slice::from_ref(&value_assignment)));
+        assert!(ignored(&value_fetch, std::slice::from_ref(&key_assignment)));
+        assert!(!ignored(&key_fetch, std::slice::from_ref(&key_assignment)));
+        assert!(!ignored(
+            &value_fetch,
+            std::slice::from_ref(&value_assignment)
+        ));
+        assert!(!ignored(&key_fetch, &[]));
+        assert!(!ignored(&value_fetch, &[]));
+        assert!(ignored(
+            &key_fetch,
+            &[
+                key_assignment.clone(),
+                key_fetch.clone(),
+                value_assignment.clone()
+            ],
+        ));
+        assert!(!ignored(
+            &key_fetch,
+            &[
+                key_assignment.clone(),
+                value_assignment.clone(),
+                value_fetch.clone()
+            ],
+        ));
+        assert!(!ignored(
+            &value_fetch,
+            &[value_assignment, PathKind::Serialize],
+        ));
+        assert!(!ignored(
+            &key_fetch,
+            &[PathKind::ArrayAssignment(
+                ArrayDataKind::ArrayKey,
+                "private".into()
+            )],
+        ));
+        assert!(ignored(
+            &PathKind::ArrayFetch(ArrayDataKind::ArrayValue, "public".into()),
+            &[PathKind::ArrayAssignment(
+                ArrayDataKind::ArrayValue,
+                "private".into()
+            )],
+        ));
+    }
+
+    #[test]
+    fn method_receiver_constraints_follow_this_but_not_unrelated_objects() {
+        use hakana_code_info::data_flow::path::MethodReceiver;
+        use hakana_code_info::method_identifier::MethodIdentifier;
+
+        let mut interner = Interner::default();
+        let base = interner.intern("Visitor".into());
+        let text = interner.intern("TextVisitor".into());
+        let shape = interner.intern("ShapeVisitor".into());
+        let item = interner.intern("item".into());
+        let wrapped = MethodIdentifier(base, interner.intern("wrapped".into()));
+        let visit = MethodIdentifier(base, interner.intern("visit".into()));
+        let method_return = |callee, caller: Option<MethodIdentifier>, classes| {
+            PathKind::MethodReturn(Arc::new(MethodReceiver {
+                callee,
+                caller: caller.map(|caller| (caller, Arc::new(vec![base, text, shape]))),
+                classes,
+            }))
+        };
+        let item_to_wrapped =
+            method_return(MethodIdentifier(text, item), Some(wrapped), vec![text]);
+        let wrapped_to_visit = method_return(wrapped, Some(visit), vec![text, shape]);
+        let shape_return = method_return(visit, None, vec![shape]);
+        let text_return = method_return(visit, None, vec![text]);
+        assert!(!method_receivers_compatible(
+            [
+                item_to_wrapped.clone(),
+                wrapped_to_visit.clone(),
+                shape_return.clone()
+            ]
+            .iter(),
+        ));
+        assert!(method_receivers_compatible(
+            [
+                item_to_wrapped.clone(),
+                wrapped_to_visit.clone(),
+                text_return.clone()
+            ]
+            .iter(),
+        ));
+        assert!(method_receivers_compatible(
+            [
+                item_to_wrapped.clone(),
+                wrapped_to_visit,
+                text_return.clone(),
+                shape_return.clone()
+            ]
+            .iter(),
+        ));
+        let pos = position(&mut interner);
+        let mut source = TaintedNode::from(&DataFlowNode {
+            id: DataFlowNodeId::String("shared".into()),
+            kind: DataFlowNodeKind::TaintSource {
+                pos: Some(pos),
+                types: vec![SourceType::UserData],
+            },
+        });
+        let unconstrained = source.get_unique_source_id(&interner);
+        source.path_types = vec![item_to_wrapped];
+        assert_ne!(source.get_unique_source_id(&interner), unconstrained);
+        source.path_types = vec![text_return, shape_return];
+        assert_eq!(source.get_unique_source_id(&interner), unconstrained);
+        source.path_types = vec![method_return(visit, Some(wrapped), vec![base, text, shape])];
+        assert_eq!(source.get_unique_source_id(&interner), unconstrained);
     }
 
     fn findings(graph: &DataFlowGraph, interner: &Interner, prune: bool) -> Vec<String> {
@@ -1119,7 +1246,7 @@ mod security_search_tests {
             issues
         };
         let serial = run(1);
-        // Compare complete ordered witnesses and warning positions, not just counts.
+        // Compare complete ordered witnesses, not just counts.
         for threads in [2, 4, 4] {
             assert_eq!(serial, run(threads));
         }
@@ -1163,20 +1290,17 @@ mod security_search_tests {
         let mut config = Config::new("project".into(), FxHashSet::default());
         config.security_config.max_depth = 2;
         let issues = check_worker_equivalence(sources.clone(), &graph, &config, &interner, true);
-        assert_eq!(issues.len(), 2051);
-        let warning = issues.last().unwrap();
-        assert_eq!(warning.kind, IssueKind::TaintAnalysisIncomplete);
-        assert!(warning.description.contains("1 unfinished states"));
+        assert_eq!(issues.len(), 2050);
+        assert!(
+            issues
+                .iter()
+                .all(|issue| matches!(issue.kind, IssueKind::TaintedData(_)))
+        );
 
         config.security_config.max_depth = 10;
         let issues = check_worker_equivalence(sources, &graph, &config, &interner, true);
         assert_eq!(issues.len(), 2051);
         assert!(issues.last().unwrap().description.contains("request-0"));
-        assert!(
-            issues
-                .iter()
-                .all(|issue| issue.kind != IssueKind::TaintAnalysisIncomplete)
-        );
     }
 
     #[test]
@@ -1262,5 +1386,49 @@ mod security_search_tests {
         let issues = check_worker_equivalence(sources, &graph, &config, &interner, true);
         assert_eq!(issues.len(), 1);
         assert!(issues[0].description.contains("reported"));
+    }
+
+    #[test]
+    fn issue_file_filter_does_not_clear_taint_before_a_later_sink() {
+        let mut interner = Interner::default();
+        let pos = position(&mut interner);
+        let ignored_pos = HPos {
+            file_path: FilePath(interner.intern("project/ignored.hack".into())),
+            ..pos
+        };
+        let mut config = Config::new("project".into(), FxHashSet::default());
+        config.ignore_issue_patterns.insert(
+            IssueKind::TaintedData(Box::default()),
+            vec![glob::Pattern::new("project/ignored.hack").unwrap()],
+        );
+        let mut graph = DataFlowGraph::new(GraphKind::WholeProgram(WholeProgramKind::Taint));
+        let source = DataFlowNodeId::String("request".into());
+        let ignored = DataFlowNodeId::String("ignored-sql".into());
+        let reported = DataFlowNodeId::String("reported-sql".into());
+        graph.add_node(DataFlowNode {
+            id: source.clone(),
+            kind: DataFlowNodeKind::TaintSource {
+                pos: Some(pos),
+                types: vec![SourceType::UriRequestHeader],
+            },
+        });
+        for (id, pos) in [(ignored.clone(), ignored_pos), (reported.clone(), pos)] {
+            graph.add_node(DataFlowNode {
+                id,
+                kind: DataFlowNodeKind::TaintSink {
+                    pos,
+                    types: vec![SinkType::Sql],
+                },
+            });
+        }
+        graph.add_path(&source, &ignored, PathKind::Default, vec![], vec![]);
+        graph.add_path(&ignored, &reported, PathKind::Default, vec![], vec![]);
+        let issues = find_tainted_data(&graph, &config, &interner, 1);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].pos, pos);
+        assert_eq!(
+            issues[0].kind,
+            IssueKind::TaintedData(Box::new(SinkType::Sql))
+        );
     }
 }

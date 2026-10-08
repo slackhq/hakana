@@ -26,7 +26,6 @@ use hakana_code_info::{
 };
 use hakana_str::{Interner, StrId};
 use oxidized::aast;
-use rustc_hash::FxHashSet;
 
 use crate::{
     expression_analyzer, function_analysis_data::FunctionAnalysisData,
@@ -700,37 +699,6 @@ fn handle_dataflow(
             vec![],
             vec![],
         );
-
-        if let FunctionLikeIdentifier::Method(classlike_name, method_name) = functionlike_id
-            && let Some(classlike_info) = codebase.classlike_infos.get(classlike_name)
-            && *method_name != StrId::CONSTRUCT
-        {
-            let mut all_parents = classlike_info
-                .all_parent_classes
-                .iter()
-                .collect::<FxHashSet<_>>();
-            all_parents.extend(classlike_info.all_parent_interfaces.iter());
-
-            for parent_classlike in all_parents {
-                if codebase.declaring_method_exists(parent_classlike, method_name) {
-                    let new_sink = DataFlowNode::get_for_method_return(
-                        &FunctionLikeIdentifier::Method(*parent_classlike, *method_name),
-                        None,
-                        None,
-                    );
-
-                    data_flow_graph.add_node(new_sink.clone());
-
-                    data_flow_graph.add_path(
-                        &method_node.id,
-                        &new_sink.id,
-                        PathKind::Default,
-                        vec![],
-                        vec![],
-                    );
-                }
-            }
-        }
 
         data_flow_graph.add_node(method_node);
         return_node

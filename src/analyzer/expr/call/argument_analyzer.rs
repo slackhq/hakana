@@ -632,21 +632,31 @@ fn add_dataflow(
         }
     };
 
+    let mut dispatch_nodes = vec![];
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id
             && let Some(method_call_info) = method_call_info
-            && let Some(dependent_classlikes) = codebase
-                .all_classlike_descendants
-                .get(&method_call_info.classlike_storage.name)
+            && let Some(dispatch_class) = method_call_info.dispatch_class
             && method_name != &statements_analyzer.interner.get("__construct").unwrap()
         {
-            for dependent_classlike in dependent_classlikes {
-                if codebase.declaring_method_exists(dependent_classlike, method_name) {
+            let mut targets = rustc_hash::FxHashSet::default();
+            for dependent_classlike in codebase.get_all_descendants(&dispatch_class) {
+                if codebase.method_exists(&dependent_classlike, method_name) {
+                    let target = codebase.get_declaring_method_id(
+                        &hakana_code_info::method_identifier::MethodIdentifier(
+                            dependent_classlike,
+                            *method_name,
+                        ),
+                    );
+                    if !targets.insert(target) {
+                        continue;
+                    }
+                    let target_storage = codebase.get_method(&target);
                     let new_sink = DataFlowNode::get_for_method_argument(
-                        &FunctionLikeIdentifier::Method(*dependent_classlike, *method_name),
+                        &FunctionLikeIdentifier::Method(target.0, target.1),
                         argument_offset,
                         None,
-                        if specialize_taint {
+                        if target_storage.is_some_and(|storage| storage.specialize_call) {
                             Some(function_call_hpos)
                         } else {
                             None
@@ -655,13 +665,7 @@ fn add_dataflow(
 
                     data_flow_graph.add_node(new_sink.clone());
 
-                    data_flow_graph.add_path(
-                        &method_node.id,
-                        &new_sink.id,
-                        PathKind::Default,
-                        vec![],
-                        vec![],
-                    );
+                    dispatch_nodes.push(new_sink);
                 }
             }
         }
@@ -711,6 +715,15 @@ fn add_dataflow(
     // TODO add plugin hooks for adding/removing taints
 
     for parent_node in &input_type.parent_nodes {
+        for dispatch_node in &dispatch_nodes {
+            data_flow_graph.add_path(
+                &parent_node.id,
+                &dispatch_node.id,
+                PathKind::Default,
+                vec![],
+                removed_taints.clone(),
+            );
+        }
         data_flow_graph.add_path(
             &parent_node.id,
             &method_node.id,

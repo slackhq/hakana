@@ -388,6 +388,7 @@ pub(crate) fn check_method_args(
     context: &mut BlockContext,
     pos: &Pos,
     method_name_pos: Option<&Pos>,
+    is_virtual: bool,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.codebase;
 
@@ -400,7 +401,7 @@ pub(crate) fn check_method_args(
         call_expr.2,
         &functionlike_id,
         functionlike_storage,
-        Some((method_id.0, lhs_type_part)),
+        Some((method_id.0, lhs_type_part, is_virtual)),
         analysis_data,
         context,
         template_result,

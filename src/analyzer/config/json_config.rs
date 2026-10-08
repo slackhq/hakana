@@ -25,8 +25,12 @@ pub struct JsonConfig {
 
 #[derive(Deserialize, Debug, Default)]
 pub struct JsonSecurityConfig {
+    #[serde(default)]
     pub ignore_files: Vec<String>,
+    #[serde(default)]
     pub ignore_sink_files: FxHashMap<String, Vec<String>>,
+    #[serde(default)]
+    pub ignore_test_files: bool,
     pub max_depth: Option<u8>,
 }
 

@@ -9,8 +9,7 @@ The traversal expands bounded batches of each BFS frontier in parallel, then
 merges results in frontier order using one global visited set. Worker scheduling
 does not change retained witnesses, sink reporting, or the depth limit for a given
 graph. Backward reachability pruning remains serial. `--threads 1` runs traversal
-synchronously; WebAssembly also uses that path. A `TaintAnalysisIncomplete` warning
-still means that `--max-depth` stopped the search before it exhausted reachable states.
+synchronously; WebAssembly also uses that path.
 
 Tainted input is anything that can be controlled, wholly or in part, by a user of your application. In taint analysis, tainted input is called a _taint source_.
 
@@ -127,14 +126,77 @@ URL scheme or host. This only removes destination-control taints (`HtmlAttribute
 checks remain. Query parameter names and values should still be URL-encoded to
 keep `&`, `=` and `#` inside their intended parameters.
 
+The prefix guarantee survives assignments and `.=`. Synchronous helpers can
+also establish it when every returning path has a fixed prefix, independently
+of their arguments. Method summaries require an exact implementation (a final
+class/method or a private method). Unknown alternatives, transformations,
+overridable methods, source annotations and recursive dependencies without a
+proof remain conservative. This only affects a later suffix's URL-destination
+obligations; it does not remove taint already carried by the prefix.
+
+## Security configuration and annotation diagnostics
+
+`security_analysis.ignore_files` excludes function-body taint analysis in matching
+files while retaining scanned declarations. Top-level `test_files` does not
+exclude security analysis by default. To explicitly reuse those patterns:
+
+```json
+{
+  "security_analysis": {
+    "ignore_test_files": true
+  }
+}
+```
+
+Review the test patterns before enabling this option: mock APIs and operational
+test tools can have a different security scope from unit-test fixtures.
+
+`security_analysis.ignore_sink_files` takes exact `"SourceType -> SinkType"` keys.
+Despite its historical name, each pattern matches **any file on the trace**,
+not just the sink. Existing behavior is preserved; misspelled pairs now fail
+configuration loading. Prefer an argument-local `HAKANA_SECURITY_IGNORE` when
+only one operation is exempt.
+
+Top-level `ignore_issue_files: {"TaintedData": ["reviewed.hack"]}` suppresses
+taint reports of every sink kind located in the specified file. It does not
+remove the file's graph or stop propagation to later sinks. Other issue kinds
+remain reportable.
+
+`InvalidSecurityAnnotation` reports empty taint lists, unrecognized taint kinds
+or security attribute names, and invalid `NotSourceWhen` parameter names on
+functions, methods and their parameters. Empty lists and unrecognized kinds
+do not remove taint; recognized kinds in a partially invalid list still apply.
+
 ### Search limits
 
 The default maximum path depth is 40 and can be overridden by configuration or
 `--max-depth` (1–255). Backward reachability from sinks prunes irrelevant parts
-of the graph before the forward, context-sensitive traversal. If the forward
-traversal reaches its depth limit with potentially relevant paths remaining,
-`TaintAnalysisIncomplete` is emitted. This is an incomplete run, not evidence
-that the code is free of security issues.
+of the graph before the forward, context-sensitive traversal. Reaching the depth
+limit stops traversal without emitting an issue or failing the security check.
+Findings within the configured depth are still reported; paths beyond that depth
+are not checked.
+
+### Dispatch and collection precision
+
+Virtual calls propagate arguments to implementations reachable from the receiver
+type, rather than connecting a shared parent argument to every override. Explicit
+`parent::`, class `self::`, and named-class calls retain their selected
+implementation; late-static and dynamic calls still consider overrides. Trait
+`self::` calls resolve against their consuming classes. Inherited implementations
+are included when resolving interfaces and subclasses.
+
+Return flows retain compatible receiver classes through calls on `$this`. This
+keeps sibling implementations of generic visitors separate without discarding
+polymorphic returns or data obtained from a different object. Visited states keep
+only narrowed receiver sets; unconstrained and completed receiver contexts merge.
+
+`Keyset\keys` and `Vec\keys` extract key taint, not value taint. The result carries
+those keys as values; keysets also carry them as keys. Array-path matching tracks
+nested containers and distinguishes keys from values, so private dictionary
+values do not taint field-name logging and sensitive dictionary keys still report.
+Keyset literals, appends, conversions, and HSL transformations preserve the
+identity between their keys and values, including through abstract container
+return types.
 
 ## Annotating your code for security analysis
 

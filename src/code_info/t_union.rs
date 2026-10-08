@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct TUnion {
     pub types: Vec<TAtomic>,
     pub parent_nodes: Vec<DataFlowNode>,
+    /// Whole-value prefix proof used only for subsequent URL concatenation.
+    pub uri_prefix: Option<crate::data_flow::uri_prefix::UriPrefix>,
     pub had_template: bool,
 
     // Whether or not the data in this type could have references to it.
@@ -76,6 +78,7 @@ impl TUnion {
         TUnion {
             types,
             parent_nodes: vec![],
+            uri_prefix: None,
             had_template: false,
             reference_free: false,
             possibly_undefined_from_try: false,
@@ -87,6 +90,27 @@ impl TUnion {
 
     pub fn remove_type(&mut self, bad_type: &TAtomic) {
         self.types.retain(|t| t != bad_type);
+    }
+
+    pub fn uri_prefix(&self) -> Option<crate::data_flow::uri_prefix::UriPrefix> {
+        if self.types.is_empty()
+            || !self
+                .types
+                .iter()
+                .all(|ty| ty.is_string() || ty.is_string_subtype())
+        {
+            return None;
+        }
+        if !self.types.is_empty()
+            && self.types.iter().all(|ty| {
+                matches!(ty, TAtomic::TLiteralString { value }
+                if crate::data_flow::uri_prefix::has_fixed_authority(value))
+            })
+        {
+            Some(Default::default())
+        } else {
+            self.uri_prefix.clone()
+        }
     }
 
     pub fn is_int(&self) -> bool {
@@ -804,7 +828,7 @@ impl PartialEq for TUnion {
             }
         }
 
-        self.parent_nodes == other.parent_nodes
+        self.parent_nodes == other.parent_nodes && self.uri_prefix == other.uri_prefix
     }
 }
 

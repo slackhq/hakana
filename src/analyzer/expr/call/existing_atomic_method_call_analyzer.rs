@@ -62,6 +62,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     lhs_var_id: Option<&String>,
+    is_virtual: bool,
 ) -> Result<TUnion, AnalysisError> {
     analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
@@ -281,6 +282,16 @@ pub(crate) fn analyze(
         }
     }
 
+    let is_virtual = is_virtual
+        && !classlike_storage.is_final
+        && !functionlike_storage
+            .method_info
+            .as_ref()
+            .is_some_and(|method| {
+                method.is_final
+                    || method.visibility
+                        == hakana_code_info::member_visibility::MemberVisibility::Private
+            });
     check_method_args(
         statements_analyzer,
         analysis_data,
@@ -292,6 +303,7 @@ pub(crate) fn analyze(
         context,
         pos,
         method_name_pos,
+        is_virtual,
     )?;
 
     if solve_class_templates_from_args {
@@ -398,6 +410,7 @@ pub(crate) fn analyze(
         classlike_storage,
         &template_result,
         pos,
+        is_virtual,
     );
 
     // todo check method visibility

@@ -35,6 +35,7 @@ pub struct DataFlowGraph {
     pub sinks: FxHashMap<DataFlowNodeId, DataFlowNode>,
     pub mixed_source_counts: FxHashMap<DataFlowNodeId, FxHashSet<String>>,
     pub specializations: FxHashMap<DataFlowNodeId, FxHashSet<(FilePath, u32)>>,
+    pub uri_prefix_returns: FxHashMap<FunctionLikeIdentifier, Option<super::uri_prefix::UriPrefix>>,
     specialized_calls: FxHashMap<(FilePath, u32), FxHashSet<DataFlowNodeId>>,
 }
 
@@ -49,6 +50,7 @@ impl DataFlowGraph {
             sinks: FxHashMap::default(),
             mixed_source_counts: FxHashMap::default(),
             specializations: FxHashMap::default(),
+            uri_prefix_returns: FxHashMap::default(),
             specialized_calls: FxHashMap::default(),
         }
     }
@@ -146,6 +148,18 @@ impl DataFlowGraph {
     pub fn add_graph(&mut self, graph: DataFlowGraph) {
         if self.kind != graph.kind {
             panic!("Graph kinds are different");
+        }
+
+        for (id, prefix) in graph.uri_prefix_returns {
+            self.uri_prefix_returns
+                .entry(id)
+                .and_modify(|existing| {
+                    *existing = existing
+                        .clone()
+                        .zip(prefix.clone())
+                        .map(|(left, right)| left.join(right));
+                })
+                .or_insert(prefix);
         }
 
         for (key, edges) in graph.forward_edges {

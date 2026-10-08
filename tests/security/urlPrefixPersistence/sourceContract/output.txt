@@ -1,0 +1,2 @@
+ERROR: TaintedData - input.hack:6:30 - Data from a URL query string found its way to a curl url using path call to input (input.hack:2:19) ----> composition (input.hack:6:30) ----> fetch#1 (input.hack:6:30)
+ERROR: TaintedData - input.hack:6:30 - Data from a server request found its way to a curl url using path call to prefix (input.hack:4:20) ----> composition (input.hack:6:30) ----> fetch#1 (input.hack:6:30)

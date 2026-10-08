@@ -316,6 +316,19 @@ pub(crate) fn get_functionlike(
         functionlike_info.params.shrink_to_fit();
     }
 
+    for attribute in user_attributes
+        .iter()
+        .chain(params.iter().flat_map(|param| &param.user_attributes))
+    {
+        if let Some(message) =
+            validate_security_attribute(attribute, params, resolved_names, interner)
+        {
+            functionlike_info
+                .invalid_security_annotations
+                .push((HPos::new(&attribute.name.0, file_source.file_path), message));
+        }
+    }
+
     type_context.template_supers = template_supers;
     functionlike_info.return_type = get_type_from_optional_hint(
         ret.get_hint(),
@@ -872,4 +885,57 @@ fn get_spread_params_from_attribute(user_attribute: &aast::UserAttribute<(), ()>
             }
         })
         .collect::<Vec<_>>()
+}
+
+fn validate_security_attribute(
+    attribute: &aast::UserAttribute<(), ()>,
+    params: &[aast::FunParam<(), ()>],
+    resolved_names: &FxHashMap<u32, StrId>,
+    interner: &ThreadedInterner,
+) -> Option<String> {
+    let name = interner.lookup(*resolved_names.get(&(attribute.name.0.start_offset() as u32))?);
+    let kind = name.strip_prefix("Hakana\\SecurityAnalysis\\")?;
+    let values = get_spread_params_from_attribute(attribute);
+    let reason = match kind {
+        "Source" | "Sink" | "Sanitize" | "RemoveTaintsWhenReturningTrue" => {
+            if values.is_empty() || values.len() != attribute.params.len() {
+                Some("requires one or more literal taint-kind strings".to_string())
+            } else {
+                let invalid = values
+                    .iter()
+                    .filter(|value| {
+                        if kind == "Source" {
+                            string_to_source_types((*value).clone()).is_none()
+                        } else {
+                            string_to_sink_types((*value).clone()).is_empty()
+                        }
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                (!invalid.is_empty())
+                    .then(|| format!("unrecognized taint kind(s): {}", invalid.join(", ")))
+            }
+        }
+        "NotSourceWhen" => {
+            if values.len() < 2 || values.len() != attribute.params.len() {
+                Some("requires a literal parameter name and at least one literal value".to_string())
+            } else if !params.iter().any(|param| {
+                param.name.trim_start_matches('$') == values[0].trim_start_matches('$')
+            }) {
+                Some(format!("unknown parameter {}", values[0]))
+            } else {
+                None
+            }
+        }
+        "IgnorePath"
+        | "IgnorePathIfTrue"
+        | "SpecializeCall"
+        | "SpecializeInstance"
+        | "HtmlSafeJson"
+        | "AcceptsHtmlSafeJson"
+        | "PropagateTaint"
+        | "ShapeSource" => None,
+        _ => Some("unrecognized security attribute".to_string()),
+    };
+    reason.map(|reason| format!("{name}: {reason}"))
 }

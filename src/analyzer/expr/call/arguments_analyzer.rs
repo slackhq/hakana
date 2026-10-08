@@ -56,7 +56,7 @@ pub(crate) fn check_arguments_match(
     unpacked_arg: &Option<aast::Expr<(), ()>>,
     functionlike_id: &FunctionLikeIdentifier,
     functionlike_info: &FunctionLikeInfo,
-    calling_classlike: Option<(StrId, Option<&TAtomic>)>,
+    calling_classlike: Option<(StrId, Option<&TAtomic>, bool)>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     template_result: &mut TemplateResult,
@@ -195,17 +195,18 @@ pub(crate) fn check_arguments_match(
             self_fq_classlike_name = appearing_method_id.0;
         }
 
+        if class_storage.is_none() {
+            return Err(AnalysisError::InternalError(
+                "Class storage does not exist".to_string(),
+                statements_analyzer.get_hpos(function_call_pos),
+            ));
+        }
         method_call_info = Some(MethodCallInfo {
             self_fq_classlike_name,
             declaring_method_id: Some(declaring_method_id),
-            classlike_storage: if let Some(class_storage) = class_storage {
-                class_storage
-            } else {
-                return Err(AnalysisError::InternalError(
-                    "Class storage does not exist".to_string(),
-                    statements_analyzer.get_hpos(function_call_pos),
-                ));
-            },
+            dispatch_class: calling_classlike
+                .filter(|(_, _, is_virtual)| *is_virtual)
+                .map(|(class_name, _, _)| class_name),
         });
     }
 

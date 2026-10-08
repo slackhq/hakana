@@ -1,0 +1,5 @@
+ERROR: InvalidSecurityAnnotation - input.hack:3:3 - Hakana\SecurityAnalysis\Sanitize: unrecognized taint kind(s): CurlURL
+ERROR: InvalidSecurityAnnotation - input.hack:6:7 - Hakana\SecurityAnalysis\RemoveTaintsWhenReturningTrue: requires one or more literal taint-kind strings
+ERROR: InvalidSecurityAnnotation - input.hack:9:3 - Hakana\SecurityAnalysis\Sanitise: unrecognized security attribute
+ERROR: InvalidSecurityAnnotation - input.hack:11:3 - Hakana\SecurityAnalysis\NotSourceWhen: unknown parameter missing
+ERROR: TaintedData - input.hack:13:6 - Data from a URL query string found its way to an HTML tag using path call to input (input.hack:2:19) ----> bad_sanitizer#1 (input.hack:4:31) ----> $value (input.hack:4:31) ----> return (input.hack:4:56) ----> call to bad_sanitizer (input.hack:4:40) ----> echo#1 (input.hack:13:6)

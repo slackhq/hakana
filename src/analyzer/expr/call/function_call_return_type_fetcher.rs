@@ -972,6 +972,16 @@ fn add_dataflow(
     }
 
     let mut stmt_type = stmt_type;
+    stmt_type.uri_prefix = (matches!(data_flow_graph.kind, GraphKind::WholeProgram(_))
+        && functionlike_storage.user_defined
+        && stmt_type
+            .types
+            .iter()
+            .all(|ty| ty.is_string() || ty.is_string_subtype())
+        && !functionlike_storage.is_async
+        && !functionlike_storage.ignore_taint_path
+        && functionlike_storage.taint_source_types.is_empty())
+    .then(|| hakana_code_info::data_flow::uri_prefix::UriPrefix::returning(*functionlike_id));
 
     // todo conditionally remove taints
 
@@ -1160,9 +1170,116 @@ pub(crate) fn add_special_param_dataflow(
             (vec![], vec![])
         };
 
+    let key_collection = matches!(
+        functionlike_id,
+        FunctionLikeIdentifier::Function(StrId::LIB_KEYSET_KEYS | StrId::LIB_VEC_KEYS)
+    ) && param_offset == 0;
+    let collects_keyset = matches!(
+        functionlike_id,
+        FunctionLikeIdentifier::Function(
+            StrId::KEYSET
+                | StrId::LIB_KEYSET_KEYS
+                | StrId::LIB_KEYSET_MAP
+                | StrId::LIB_KEYSET_MAP_ASYNC
+                | StrId::LIB_KEYSET_MAP_WITH_KEY
+                | StrId::LIB_KEYSET_FILTER
+                | StrId::LIB_KEYSET_FILTER_NULLS
+                | StrId::LIB_KEYSET_FILTER_ASYNC
+                | StrId::LIB_KEYSET_FLATTEN
+                | StrId::LIB_KEYSET_CHUNK
+                | StrId::LIB_KEYSET_UNION
+                | StrId::LIB_KEYSET_DIFF
+                | StrId::LIB_KEYSET_INTERSECT
+                | StrId::LIB_KEYSET_TAKE
+                | StrId::LIB_KEYSET_DROP
+        )
+    );
+    let collect_values =
+        collects_keyset && matches!(path_kind, PathKind::Default | PathKind::StringTransform);
+    let mut input_node = if key_collection || collect_values {
+        let keys_node = DataFlowNode::get_for_local_string(
+            if key_collection {
+                "collection keys".to_string()
+            } else {
+                "collection values".to_string()
+            },
+            statements_analyzer.get_hpos(pos),
+        );
+        data_flow_graph.add_path(
+            &argument_node.id,
+            &keys_node.id,
+            PathKind::UnknownArrayFetch(if key_collection {
+                ArrayDataKind::ArrayKey
+            } else {
+                ArrayDataKind::ArrayValue
+            }),
+            vec![],
+            vec![],
+        );
+        data_flow_graph.add_node(keys_node.clone());
+        keys_node
+    } else {
+        argument_node.clone()
+    };
+    if collect_values
+        && matches!(
+            functionlike_id,
+            FunctionLikeIdentifier::Function(StrId::LIB_KEYSET_FLATTEN)
+        )
+    {
+        let values_node = DataFlowNode::get_for_local_string(
+            "nested collection values".to_string(),
+            statements_analyzer.get_hpos(pos),
+        );
+        data_flow_graph.add_path(
+            &input_node.id,
+            &values_node.id,
+            PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue),
+            vec![],
+            vec![],
+        );
+        data_flow_graph.add_node(values_node.clone());
+        input_node = values_node;
+    }
+    let keyset_chunk = collect_values
+        && matches!(
+            functionlike_id,
+            FunctionLikeIdentifier::Function(StrId::LIB_KEYSET_CHUNK)
+        );
+    let result_node = if keyset_chunk {
+        let chunk_node = DataFlowNode::get_for_local_string(
+            "keyset chunk".to_string(),
+            statements_analyzer.get_hpos(pos),
+        );
+        data_flow_graph.add_node(chunk_node.clone());
+        data_flow_graph.add_path(
+            &chunk_node.id,
+            &function_call_node.id,
+            PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
+            vec![],
+            vec![],
+        );
+        chunk_node
+    } else {
+        function_call_node.clone()
+    };
+    let path_kind = if collect_values {
+        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
+    } else {
+        path_kind
+    };
+    if collects_keyset && path_kind == PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue) {
+        data_flow_graph.add_path(
+            &input_node.id,
+            &result_node.id,
+            PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey),
+            added_taints.clone(),
+            removed_taints.clone(),
+        );
+    }
     data_flow_graph.add_path(
-        &argument_node.id,
-        &function_call_node.id,
+        &input_node.id,
+        &result_node.id,
         path_kind,
         added_taints,
         removed_taints,
@@ -1252,7 +1369,6 @@ fn get_special_argument_nodes(
             | StrId::LIB_KEYSET_FILTER_NULLS
             | StrId::LIB_KEYSET_FILTER_ASYNC
             | StrId::LIB_KEYSET_FLATTEN
-            | StrId::LIB_KEYSET_KEYS
             | StrId::KEYSET
             | StrId::VEC
             | StrId::DICT
@@ -1346,7 +1462,6 @@ fn get_special_argument_nodes(
             | StrId::LIB_C_SEARCH
             | StrId::LIB_STR_IS_EMPTY
             | StrId::LIB_STR_LENGTH
-            | StrId::LIB_VEC_KEYS
             | StrId::LIB_STR_TO_INT
             | StrId::LIB_MATH_SUM
             | StrId::LIB_MATH_SUM_FLOAT
@@ -1652,6 +1767,13 @@ fn get_special_argument_nodes(
                     (0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
                     (1, PathKind::Default),
                 ],
+                None,
+            ),
+            StrId::LIB_VEC_KEYS | StrId::LIB_KEYSET_KEYS => (
+                vec![(
+                    0,
+                    PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
+                )],
                 None,
             ),
             StrId::LIB_VEC_MAP

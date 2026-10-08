@@ -362,6 +362,12 @@ pub fn combine_union_types(
         }
     }
 
+    if type_1.uri_prefix.is_some() || type_2.uri_prefix.is_some() {
+        combined_type.uri_prefix = type_1
+            .uri_prefix()
+            .zip(type_2.uri_prefix())
+            .map(|(left, right)| left.join(right));
+    }
     combined_type
 }
 
@@ -375,6 +381,14 @@ pub fn add_union_type(
         return base_type;
     }
 
+    let uri_prefix = if base_type.uri_prefix.is_some() || other_type.uri_prefix.is_some() {
+        base_type
+            .uri_prefix()
+            .zip(other_type.uri_prefix())
+            .map(|(left, right)| left.join(right))
+    } else {
+        None
+    };
     base_type.types = if base_type.is_vanilla_mixed() && other_type.is_vanilla_mixed() {
         base_type.types
     } else {
@@ -404,6 +418,7 @@ pub fn add_union_type(
         extend_dataflow_uniquely(&mut base_type.parent_nodes, other_type.parent_nodes.clone());
     }
 
+    base_type.uri_prefix = uri_prefix;
     base_type
 }
 

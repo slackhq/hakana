@@ -45,7 +45,7 @@ impl TaintedNode {
                 PathKind::Encode(super::path::ValueEncoding::HtmlSafeJson) => {
                     state = JsonExpression
                 }
-                PathKind::StringComposition => {
+                PathKind::StringComposition | PathKind::UriSuffix(_) => {
                     if state != Unknown {
                         state = ComposedJson;
                     }
@@ -187,8 +187,10 @@ impl TaintedNode {
                     !matches!(
                         t,
                         PathKind::Default
+                            | PathKind::MethodReturn(_)
                             | PathKind::StringTransform
                             | PathKind::StringComposition
+                            | PathKind::UriSuffix(_)
                             | PathKind::AcceptHtmlSafeJson
                     )
                 })
@@ -236,6 +238,11 @@ impl TaintedNode {
             JavaScriptValueState::JsonExpression => "|js:json",
             JavaScriptValueState::ComposedJson => "|js:composed-json",
         });
+        if let Some(bindings) = super::path::method_receiver_bindings(self.path_types.iter())
+            && !bindings.is_empty()
+        {
+            id.push_str(&format!("|receivers:{bindings:?}"));
+        }
         id
     }
 }

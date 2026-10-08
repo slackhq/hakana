@@ -565,9 +565,15 @@ fn add_xml_attribute_dataflow(
         let element_name = statements_analyzer.interner.lookup(element_name);
         // Spread attributes use stored property names such as ":action".
         let name = name.strip_prefix(':').unwrap_or(name);
+        let renderer = statements_analyzer
+            .get_config()
+            .hooks
+            .iter()
+            .find_map(|hook| hook.get_xhp_attribute_renderer(element_name, name));
         if element_name.starts_with("Facebook\\XHP\\HTML\\")
             || property_id.1 == StrId::DATA_ATTRIBUTE
             || property_id.1 == StrId::ARIA_ATTRIBUTE
+            || renderer.is_some()
         {
             let taints = if classlike_storage
                 .appearing_property_ids
@@ -576,7 +582,7 @@ fn add_xml_attribute_dataflow(
                 || property_id.1 == StrId::ARIA_ATTRIBUTE
             {
                 attribute_sinks(
-                    element_name,
+                    renderer.unwrap_or(element_name),
                     name,
                     attribute_context,
                     is_escaped_value(attribute_value_type),

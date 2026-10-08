@@ -438,6 +438,16 @@ fn analyze_vals_item(
         .cloned()
         .unwrap_or(get_mixed_any());
 
+    if matches!(container_type, VcKind::Keyset) {
+        add_array_key_dataflow(
+            statements_analyzer,
+            &value_item_type,
+            analysis_data,
+            item_value.pos(),
+            array_creation_info,
+        );
+    }
+
     add_array_value_dataflow(
         statements_analyzer,
         &value_item_type,

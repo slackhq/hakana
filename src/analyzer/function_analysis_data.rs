@@ -210,7 +210,10 @@ impl FunctionAnalysisData {
             &self.data_flow_graph.kind,
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         ) {
-            return matches!(issue.kind, IssueKind::TaintedData(_));
+            return matches!(
+                issue.kind,
+                IssueKind::TaintedData(_) | IssueKind::InvalidSecurityAnnotation
+            );
         }
 
         if self.covered_by_hh_fixme(

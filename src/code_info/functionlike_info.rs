@@ -82,6 +82,7 @@ pub struct FunctionLikeInfo {
 
     /// All the issues we're suppressing at the function level
     pub suppressed_issues: Vec<(IssueKind, HPos)>,
+    pub invalid_security_annotations: Vec<(HPos, String)>,
 
     /// Whether this function is deprecated
     pub deprecated: bool,
@@ -218,6 +219,7 @@ impl FunctionLikeInfo {
             is_populated: false,
             user_defined: false,
             suppressed_issues: vec![],
+            invalid_security_annotations: vec![],
             deprecated: false,
             template_types: vec![],
             has_visitor_issues: false,
