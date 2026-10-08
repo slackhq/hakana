@@ -198,6 +198,11 @@ Keyset literals, appends, conversions, and HSL transformations preserve the
 identity between their keys and values, including through abstract container
 return types.
 
+Unused-expression analysis tracks input usage separately from this taint
+provenance. Builtin transformations can read keys or values without returning
+them, so their argument-to-result usage edges consume the entire argument and
+discard its old collection layout. Discarded results still report as unused.
+
 ## Annotating your code for security analysis
 
 Hakana understands a number of existing Hack sinks and sources — for example, it knows that the first argument of `AsyncMysqlConnection::query` is a `Sql` taint sink.

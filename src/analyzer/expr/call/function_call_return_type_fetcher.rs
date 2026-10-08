@@ -1170,6 +1170,18 @@ pub(crate) fn add_special_param_dataflow(
             (vec![], vec![])
         };
 
+    if data_flow_graph.kind == GraphKind::FunctionBody {
+        data_flow_graph.add_path(
+            &argument_node.id,
+            &function_call_node.id,
+            PathKind::Aggregate,
+            added_taints,
+            removed_taints,
+        );
+        data_flow_graph.add_node(argument_node);
+        return;
+    }
+
     let key_collection = matches!(
         functionlike_id,
         FunctionLikeIdentifier::Function(StrId::LIB_KEYSET_KEYS | StrId::LIB_VEC_KEYS)

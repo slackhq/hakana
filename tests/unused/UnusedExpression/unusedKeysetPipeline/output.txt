@@ -1,0 +1,4 @@
+ERROR: UnusedAssignmentStatement - input.hack:2:5 - Assignment to $discarded is unused, and this expression has no effect
+ERROR: UnusedPipeVariable - input.hack:2:18 - The pipe data in this expression is not used anywhere
+ERROR: UnusedAssignmentStatement - input.hack:7:5 - Assignment to $discarded is unused, and this expression has no effect
+ERROR: UnusedParameter - input.hack:11:42 - Unused param $unused

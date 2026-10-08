@@ -702,7 +702,11 @@ fn get_variable_child_nodes(
             }
 
             let mut new_destination = VariableUseNode {
-                path_types: generated_source.clone().path_types,
+                path_types: if path.kind == PathKind::Aggregate {
+                    vec![]
+                } else {
+                    generated_source.path_types.clone()
+                },
                 kind: generated_source.kind.clone(),
                 pos: generated_source.pos.clone(),
             };
