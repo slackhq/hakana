@@ -3,7 +3,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use crate::server_client;
+use crate::{get_diagnostic_severity, server_client};
 use hakana_analyzer::config::Config;
 use hakana_code_info::issue::IssueKind;
 
@@ -205,7 +205,7 @@ impl ServerBasedBackend {
                                 character: issue.end_column as u32 - 1,
                             },
                         },
-                        Some(DiagnosticSeverity::ERROR),
+                        Some(get_diagnostic_severity(&issue.kind)),
                         Some(NumberOrString::String(issue.kind)),
                         Some("Hakana".to_string()),
                         issue.description,

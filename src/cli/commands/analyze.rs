@@ -50,12 +50,14 @@ pub fn get_subcommand() -> Command<'static> {
         .arg(
             arg!(--"find-unused-expressions")
                 .required(false)
-                .help("Find unused expressions"),
+                .hide(true)
+                .help("No-op: unused expressions are always reported"),
         )
         .arg(
             arg!(--"find-unused-definitions")
                 .required(false)
-                .help("Find unused definitions — classes, functions, methods etc."),
+                .hide(true)
+                .help("No-op: unused definitions are always reported"),
         )
         .arg(
             arg!(--"show-issue" <PATH>)
@@ -177,13 +179,10 @@ pub async fn handle(
             print!("\r\x1b[K");
             io::stdout().flush().ok();
         }
-        let find_unused_expressions = sub_matches.is_present("find-unused-expressions");
-        let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
-
         let request = Message::GetIssues(GetIssuesRequest {
             filter: filter.clone(),
-            find_unused_expressions,
-            find_unused_definitions,
+            find_unused_expressions: true,
+            find_unused_definitions: true,
             block_until_next_analysis: false,
             send_progress_report: true,
         });
@@ -278,8 +277,6 @@ pub async fn handle(
     let ignored = sub_matches
         .values_of("ignore")
         .map(|values| values.map(|f| f.to_string()).collect::<FxHashSet<_>>());
-    let mut find_unused_expressions = sub_matches.is_present("find-unused-expressions");
-    let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
     let show_mixed_function_counts = sub_matches.is_present("show-mixed-function-counts");
     let print_symbol_usages = sub_matches.is_present("print-symbol-usages");
     let ignore_mixed_issues = sub_matches.is_present("ignore-mixed-issues");
@@ -299,9 +296,6 @@ pub async fn handle(
             if let Ok(issue_kind) =
                 IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
             {
-                if issue_kind.requires_dataflow_analysis() {
-                    find_unused_expressions = true;
-                }
                 issue_kinds_filter.insert(issue_kind);
             } else {
                 println!("Invalid issue type {}", filter_issue_string);
@@ -311,8 +305,8 @@ pub async fn handle(
     }
 
     let mut config = config::Config::new(root_dir.to_string(), all_custom_issues);
-    config.find_unused_expressions = find_unused_expressions;
-    config.find_unused_definitions = find_unused_definitions;
+    config.find_unused_expressions = true;
+    config.find_unused_definitions = true;
     config.ignore_mixed_issues = ignore_mixed_issues;
     config.ast_diff = do_ast_diff;
 
