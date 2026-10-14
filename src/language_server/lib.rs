@@ -365,7 +365,7 @@ impl Backend {
                                                 character: emitted_issue.pos.end_column as u32 - 1,
                                             },
                                         },
-                                        Some(DiagnosticSeverity::ERROR),
+                                        Some(get_diagnostic_severity(&emitted_issue.kind.to_string())),
                                         Some(NumberOrString::String(emitted_issue.kind.to_string())),
                                         Some("Hakana".to_string()),
                                         emitted_issue.description.clone(),
@@ -444,6 +444,16 @@ impl Backend {
                 .log_message(MessageType::INFO, "Diagnostics sent")
                 .await;
         }
+    }
+}
+
+/// Unused code issues are reported as warnings so they are visually distinct from
+/// type errors in the editor.
+pub(crate) fn get_diagnostic_severity(issue_kind: &str) -> DiagnosticSeverity {
+    if issue_kind.starts_with("Unused") {
+        DiagnosticSeverity::WARNING
+    } else {
+        DiagnosticSeverity::ERROR
     }
 }
 
