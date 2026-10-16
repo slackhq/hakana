@@ -1461,8 +1461,8 @@ fn get_special_argument_nodes(
                 vec![
                     (0, PathKind::Aggregate),
                     (1, PathKind::Default),
-                    (1, PathKind::Aggregate),
                     (2, PathKind::Aggregate),
+                    (3, PathKind::Aggregate),
                 ],
                 None,
             ),
