@@ -50,6 +50,7 @@ pub enum IssueKind {
     InvalidMethodCall,
     InvalidPropertyAssignmentValue,
     InvalidReturnStatement,
+    InvalidTypeAssertionAnnotation,
     LargeTypeExpansion,
     LessSpecificArgument,
     LessSpecificNestedAnyArgumentType,

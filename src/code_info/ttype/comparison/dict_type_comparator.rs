@@ -80,6 +80,24 @@ pub(crate) fn is_contained_by(
                             }
                         } else if !c_u {
                             all_types_contain = false;
+                        } else if inside_assertion {
+                            // An optional field absent from the known items can still
+                            // be present in an open shape. Its unknown value must also
+                            // satisfy the assertion before we can call it redundant.
+                            if let Some(input_params) = input_params {
+                                if !union_type_comparator::is_contained_by(
+                                    codebase,
+                                    file_path,
+                                    &input_params.1,
+                                    container_property_type,
+                                    false,
+                                    false,
+                                    true,
+                                    atomic_comparison_result,
+                                ) {
+                                    all_types_contain = false;
+                                }
+                            }
                         }
                     }
 

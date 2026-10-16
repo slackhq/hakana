@@ -168,13 +168,13 @@ pub(crate) fn analyze(
     );
 
     let mut new_dict = wrap_atomic(TAtomic::TDict(TDict {
+        non_empty: !known_items.is_empty(),
         known_items: if !known_items.is_empty() {
             Some(Arc::new(known_items))
         } else {
             None
         },
         params: None,
-        non_empty: true,
         shape_name: None,
         is_shape: true,
     }));

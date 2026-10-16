@@ -300,12 +300,11 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
                     continue;
                 }
 
-                if !union_type_comparator::can_expression_types_be_identical(
+                if !union_type_comparator::can_type_bounds_be_compatible(
                     codebase,
                     statements_analyzer.get_file_path(),
                     &upper_bound_with_equality.bound_type,
                     &upper_bound.bound_type,
-                    false,
                 ) {
                     analysis_data.maybe_add_issue(
                         Issue::new(

@@ -1,9 +1,8 @@
 use crate::code_location::FilePath;
-use crate::t_atomic::{TDict, TGenericParam, TNamedObject, TVec};
+use crate::t_atomic::{DictKey, TDict, TGenericParam, TNamedObject, TVec};
 use crate::ttype::{get_arrayish_params, get_value_param, wrap_atomic};
 use crate::{class_constant_info::ConstantInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 use hakana_str::StrId;
-use itertools::Itertools;
 
 use super::{
     closure_type_comparator, dict_type_comparator,
@@ -266,16 +265,24 @@ pub fn is_contained_by(
                     );
                 }
             }
-            TAtomic::TKeyset { .. } => {
+            TAtomic::TKeyset { type_param, .. } => {
                 if let Some(arrayish_params) = get_arrayish_params(container_type_part, codebase) {
-                    return self::is_contained_by(
+                    return union_type_comparator::is_contained_by(
                         codebase,
                         file_path,
-                        input_type_part,
-                        &TAtomic::TKeyset {
-                            type_param: Box::new(arrayish_params.0),
-                            non_empty: false,
-                        },
+                        type_param,
+                        &arrayish_params.0,
+                        false,
+                        false,
+                        inside_assertion,
+                        atomic_comparison_result,
+                    ) && union_type_comparator::is_contained_by(
+                        codebase,
+                        file_path,
+                        type_param,
+                        &arrayish_params.1,
+                        false,
+                        false,
                         inside_assertion,
                         atomic_comparison_result,
                     );
@@ -804,30 +811,69 @@ pub(crate) fn can_be_identical<'a>(
     file_path: &FilePath,
     mut type1_part: &'a TAtomic,
     mut type2_part: &'a TAtomic,
-    inside_assertion: bool,
+    options: union_type_comparator::OverlapOptions,
 ) -> bool {
-    while let TAtomic::TTypeAlias { as_type, name, .. } = type1_part {
-        if let Some(as_type) = as_type {
-            type1_part = as_type.get_single();
-        } else if inside_assertion {
-            let type_alias_info = codebase.type_definitions.get(name).unwrap();
-            type1_part = type_alias_info.actual_type.get_single();
-        } else {
-            break;
-        }
+    if type1_part == type2_part {
+        return !matches!(type1_part, TAtomic::TNothing);
     }
 
-    while let TAtomic::TTypeAlias { as_type, name, .. } = type2_part {
-        if let Some(as_type) = as_type {
-            type2_part = as_type.get_single();
-        } else if inside_assertion {
-            if let Some(type_alias_info) = codebase.type_definitions.get(name) {
-                type2_part = type_alias_info.actual_type.get_single();
-            } else {
-                break;
-            }
-        } else {
-            break;
+    // Overlap is weaker than assignability. Distinct templates can have the
+    // same runtime type even though neither template is assignable to the other.
+    if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = type1_part {
+        return union_type_comparator::can_types_overlap(
+            codebase,
+            file_path,
+            as_type,
+            &wrap_atomic(type2_part.clone()),
+            options,
+        );
+    }
+    if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = type2_part {
+        return union_type_comparator::can_types_overlap(
+            codebase,
+            file_path,
+            &wrap_atomic(type1_part.clone()),
+            as_type,
+            options,
+        );
+    }
+
+    // Keep all alternatives of an alias's underlying type, not just its first
+    // atomic member.
+    if let TAtomic::TTypeAlias { as_type, name, .. } = type1_part {
+        let underlying = as_type.as_deref().or_else(|| {
+            options
+                .inside_assertion
+                .then(|| codebase.type_definitions.get(name))
+                .flatten()
+                .map(|info| &info.actual_type)
+        });
+        if let Some(underlying) = underlying {
+            return union_type_comparator::can_types_overlap(
+                codebase,
+                file_path,
+                underlying,
+                &wrap_atomic(type2_part.clone()),
+                options,
+            );
+        }
+    }
+    if let TAtomic::TTypeAlias { as_type, name, .. } = type2_part {
+        let underlying = as_type.as_deref().or_else(|| {
+            options
+                .inside_assertion
+                .then(|| codebase.type_definitions.get(name))
+                .flatten()
+                .map(|info| &info.actual_type)
+        });
+        if let Some(underlying) = underlying {
+            return union_type_comparator::can_types_overlap(
+                codebase,
+                file_path,
+                &wrap_atomic(type1_part.clone()),
+                underlying,
+                options,
+            );
         }
     }
 
@@ -845,6 +891,30 @@ pub(crate) fn can_be_identical<'a>(
 
     if let TAtomic::TTypeVariable { .. } = type2_part {
         return true;
+    }
+
+    // HHVM's enumHasValue also accepts canonical integer strings for integer
+    // enum values. This applies to deep is/as checks as well as Enum::assert.
+    for (enum_type, string_type) in [(type1_part, type2_part), (type2_part, type1_part)] {
+        if options.allow_enum_coercion
+            && let TAtomic::TEnum { name, .. } = enum_type
+            && matches!(
+                string_type,
+                TAtomic::TString | TAtomic::TStringWithFlags(..) | TAtomic::TLiteralString { .. }
+            )
+            && let Some(info) = codebase.classlike_infos.get(name)
+            && info.constants.values().any(|member| {
+                let TAtomic::TLiteralInt { value } = expand_constant_value(member, codebase) else {
+                    return false;
+                };
+                match string_type {
+                    TAtomic::TLiteralString { value: string } => string == &value.to_string(),
+                    _ => true,
+                }
+            })
+        {
+            return true;
+        }
     }
 
     if let TAtomic::TEnumLiteralCase {
@@ -1052,25 +1122,151 @@ pub(crate) fn can_be_identical<'a>(
         }
     }
 
-    if (type1_part.is_vec() && type2_part.is_non_empty_vec())
-        || (type2_part.is_vec() && type1_part.is_non_empty_vec())
+    if let (TAtomic::TVec(..), TAtomic::TVec(..))
+    | (TAtomic::TKeyset { .. }, TAtomic::TKeyset { .. }) = (type1_part, type2_part)
     {
-        return union_type_comparator::can_expression_types_be_identical(
-            codebase,
-            file_path,
-            type1_part.get_vec_param().unwrap(),
-            type2_part.get_vec_param().unwrap(),
-            inside_assertion,
+        if array_can_be_empty(type1_part) && array_can_be_empty(type2_part) {
+            return true;
+        }
+
+        if let (TAtomic::TVec(left), TAtomic::TVec(right)) = (type1_part, type2_part) {
+            if let (Some(left_count), Some(right_count)) = (left.known_count, right.known_count)
+                && left.variadic_type.is_none()
+                && right.variadic_type.is_none()
+                && left_count != right_count
+            {
+                return false;
+            }
+            for (left, right) in [(left, right), (right, left)] {
+                if let Some(items) = &left.known_items {
+                    for (offset, (optional, value)) in items {
+                        if *optional {
+                            continue;
+                        }
+                        if right.known_count.is_some_and(|count| *offset >= count)
+                            && right.variadic_type.is_none()
+                        {
+                            return false;
+                        }
+                        let other_value = right
+                            .known_items
+                            .as_ref()
+                            .and_then(|items| items.get(offset))
+                            .map(|(_, value)| value)
+                            .unwrap_or_else(|| {
+                                right.variadic_type.as_ref().unwrap_or(&right.type_param)
+                            });
+                        if !union_type_comparator::can_types_overlap(
+                            codebase,
+                            file_path,
+                            value,
+                            other_value,
+                            options,
+                        ) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        let (_, value1) = get_arrayish_params(type1_part, codebase).unwrap();
+        let (_, value2) = get_arrayish_params(type2_part, codebase).unwrap();
+        return union_type_comparator::can_types_overlap(
+            codebase, file_path, &value1, &value2, options,
         );
     }
 
     if let (TAtomic::TDict(type_1_dict), TAtomic::TDict(type_2_dict)) = (type1_part, type2_part) {
-        return dicts_can_be_identical(
-            type_1_dict,
-            type_2_dict,
+        if array_can_be_empty(type1_part) && array_can_be_empty(type2_part) {
+            return true;
+        }
+        return dicts_can_be_identical(type_1_dict, type_2_dict, codebase, file_path, options);
+    }
+
+    // Arrays can satisfy Traversable/Container interfaces. Compare their
+    // possible keys and values, rather than demanding assignability in either
+    // direction (e.g. vec<mixed> may contain only strings at runtime).
+    let array_and_interface = match (type1_part, type2_part) {
+        (
+            array @ (TAtomic::TVec(..) | TAtomic::TDict(..) | TAtomic::TKeyset { .. }),
+            interface @ TAtomic::TNamedObject(..),
+        )
+        | (
+            interface @ TAtomic::TNamedObject(..),
+            array @ (TAtomic::TVec(..) | TAtomic::TDict(..) | TAtomic::TKeyset { .. }),
+        ) => Some((array, interface)),
+        _ => None,
+    };
+    if let Some((array, interface)) = array_and_interface
+        && let Some((interface_key, interface_value)) = get_arrayish_params(interface, codebase)
+    {
+        if array_can_be_empty(array) {
+            return true;
+        }
+        match array {
+            TAtomic::TVec(TVec {
+                known_items: Some(items),
+                ..
+            }) => {
+                for (optional, value) in items.values() {
+                    if !optional
+                        && !union_type_comparator::can_types_overlap(
+                            codebase,
+                            file_path,
+                            value,
+                            &interface_value,
+                            options,
+                        )
+                    {
+                        return false;
+                    }
+                }
+            }
+            TAtomic::TDict(TDict {
+                known_items: Some(items),
+                ..
+            }) => {
+                let interface_dict = TDict {
+                    params: Some((
+                        Box::new(interface_key.clone()),
+                        Box::new(interface_value.clone()),
+                    )),
+                    known_items: None,
+                    non_empty: false,
+                    shape_name: None,
+                    is_shape: false,
+                };
+                for (key, (optional, value)) in items.iter() {
+                    if !optional
+                        && !dict_entry_can_overlap(
+                            key,
+                            value,
+                            &interface_dict,
+                            codebase,
+                            file_path,
+                            options,
+                        )
+                    {
+                        return false;
+                    }
+                }
+            }
+            _ => {}
+        }
+        let (array_key, array_value) = get_arrayish_params(array, codebase).unwrap();
+        return union_type_comparator::can_types_overlap(
             codebase,
             file_path,
-            inside_assertion,
+            &array_key,
+            &interface_key,
+            options,
+        ) && union_type_comparator::can_types_overlap(
+            codebase,
+            file_path,
+            &array_value,
+            &interface_value,
+            options,
         );
     }
 
@@ -1082,14 +1278,14 @@ pub(crate) fn can_be_identical<'a>(
         file_path,
         type1_part,
         type2_part,
-        inside_assertion,
+        options.inside_assertion,
         &mut first_comparison_result,
     ) || is_contained_by(
         codebase,
         file_path,
         type2_part,
         type1_part,
-        inside_assertion,
+        options.inside_assertion,
         &mut second_comparison_result,
     ) || (first_comparison_result.type_coerced.unwrap_or(false)
         && second_comparison_result.type_coerced.unwrap_or(false))
@@ -1115,141 +1311,114 @@ pub fn expand_constant_value(v: &ConstantInfo, codebase: &CodebaseInfo) -> TAtom
     )
 }
 
+fn array_can_be_empty(atomic: &TAtomic) -> bool {
+    match atomic {
+        TAtomic::TVec(vec) => {
+            !vec.non_empty
+                && vec.known_count.is_none_or(|count| count == 0)
+                && vec
+                    .known_items
+                    .as_ref()
+                    .is_none_or(|items| items.values().all(|(optional, _)| *optional))
+        }
+        TAtomic::TDict(dict) => {
+            !dict.non_empty
+                && dict
+                    .known_items
+                    .as_ref()
+                    .is_none_or(|items| items.values().all(|(optional, _)| *optional))
+        }
+        TAtomic::TKeyset { non_empty, .. } => !non_empty,
+        _ => false,
+    }
+}
+
 fn dicts_can_be_identical(
     type_1_dict: &TDict,
     type_2_dict: &TDict,
     codebase: &CodebaseInfo,
     file_path: &FilePath,
-    inside_assertion: bool,
+    options: union_type_comparator::OverlapOptions,
 ) -> bool {
-    if type_1_dict.non_empty || type_2_dict.non_empty {
-        return match (&type_1_dict.params, &type_2_dict.params) {
-            (None, None) | (None, Some(_)) | (Some(_), None) => true,
-            (Some(type_1_dict_params), Some(type_2_dict_params)) => {
-                union_type_comparator::can_expression_types_be_identical(
-                    codebase,
-                    file_path,
-                    &type_1_dict_params.0,
-                    &type_2_dict_params.0,
-                    inside_assertion,
-                ) && union_type_comparator::can_expression_types_be_identical(
-                    codebase,
-                    file_path,
-                    &type_1_dict_params.1,
-                    &type_2_dict_params.1,
-                    inside_assertion,
-                )
+    let mut has_required_entry = false;
+    for (left, right) in [(type_1_dict, type_2_dict), (type_2_dict, type_1_dict)] {
+        if let Some(items) = &left.known_items {
+            for (key, (optional, value)) in items.iter() {
+                // Two optional, incompatible entries may both be absent.
+                if *optional {
+                    continue;
+                }
+                has_required_entry = true;
+                if !dict_entry_can_overlap(key, value, right, codebase, file_path, options) {
+                    return false;
+                }
             }
-        };
+        }
+    }
+    if has_required_entry {
+        return true;
     }
 
-    match (&type_1_dict.known_items, &type_2_dict.known_items) {
-        (Some(type_1_known_items), Some(type_2_known_items)) => {
-            let mut all_keys = type_1_known_items.keys().collect_vec();
-            all_keys.extend(type_2_known_items.keys());
-
-            for key in all_keys {
-                match (type_1_known_items.get(key), type_2_known_items.get(key)) {
-                    (Some(type_1_entry), Some(type_2_entry)) => {
-                        if !union_type_comparator::can_expression_types_be_identical(
-                            codebase,
-                            file_path,
-                            &type_1_entry.1,
-                            &type_2_entry.1,
-                            inside_assertion,
-                        ) {
-                            return false;
-                        }
-                    }
-                    (Some(type_1_entry), None) => {
-                        if let Some(type_2_dict_params) = &type_2_dict.params {
-                            if !union_type_comparator::can_expression_types_be_identical(
-                                codebase,
-                                file_path,
-                                &type_1_entry.1,
-                                &type_2_dict_params.1,
-                                inside_assertion,
-                            ) {
-                                return false;
-                            }
-                        } else if !type_1_entry.0 {
-                            return false;
-                        }
-                    }
-                    (None, Some(type_2_entry)) => {
-                        if let Some(type_1_dict_params) = &type_1_dict.params {
-                            if !union_type_comparator::can_expression_types_be_identical(
-                                codebase,
-                                file_path,
-                                &type_1_dict_params.1,
-                                &type_2_entry.1,
-                                inside_assertion,
-                            ) {
-                                return false;
-                            }
-                        } else if !type_2_entry.0 {
-                            return false;
-                        }
-                    }
-                    _ => {
-                        panic!("impossible");
-                    }
+    // Neither side has required keys, but at least one side is known nonempty.
+    // Find a possible shared entry among optional fields or open parameters.
+    for (left, right) in [(type_1_dict, type_2_dict), (type_2_dict, type_1_dict)] {
+        if let Some(items) = &left.known_items {
+            for (key, (_, value)) in items.iter() {
+                if dict_entry_can_overlap(key, value, right, codebase, file_path, options) {
+                    return true;
                 }
             }
         }
-        (Some(type_1_known_items), None) => {
-            for type_1_entry in type_1_known_items.values() {
-                if let Some(type_2_dict_params) = &type_2_dict.params {
-                    if !union_type_comparator::can_expression_types_be_identical(
-                        codebase,
-                        file_path,
-                        &type_1_entry.1,
-                        &type_2_dict_params.1,
-                        inside_assertion,
-                    ) {
-                        return false;
-                    }
-                } else if !type_1_entry.0 {
-                    return false;
-                }
-            }
-        }
-        (None, Some(type_2_known_items)) => {
-            for type_2_entry in type_2_known_items.values() {
-                if let Some(type_1_dict_params) = &type_1_dict.params {
-                    if !union_type_comparator::can_expression_types_be_identical(
-                        codebase,
-                        file_path,
-                        &type_1_dict_params.1,
-                        &type_2_entry.1,
-                        inside_assertion,
-                    ) {
-                        return false;
-                    }
-                } else if !type_2_entry.0 {
-                    return false;
-                }
-            }
-        }
-        _ => {}
-    };
-
+    }
     match (&type_1_dict.params, &type_2_dict.params) {
-        (None, None) | (None, Some(_)) | (Some(_), None) => true,
-        (Some(type_1_dict_params), Some(type_2_dict_params)) => {
-            union_type_comparator::can_expression_types_be_identical(
-                codebase,
-                file_path,
-                &type_1_dict_params.0,
-                &type_2_dict_params.0,
-                inside_assertion,
-            ) && union_type_comparator::can_expression_types_be_identical(
-                codebase,
-                file_path,
-                &type_1_dict_params.1,
-                &type_2_dict_params.1,
-                inside_assertion,
+        (Some(left), Some(right)) => {
+            union_type_comparator::can_types_overlap(
+                codebase, file_path, &left.0, &right.0, options,
+            ) && union_type_comparator::can_types_overlap(
+                codebase, file_path, &left.1, &right.1, options,
             )
         }
+        _ => false,
     }
+}
+
+fn dict_entry_can_overlap(
+    key: &DictKey,
+    value: &crate::t_union::TUnion,
+    other: &TDict,
+    codebase: &CodebaseInfo,
+    file_path: &FilePath,
+    options: union_type_comparator::OverlapOptions,
+) -> bool {
+    if let Some((_, other_value)) = other.known_items.as_ref().and_then(|items| items.get(key)) {
+        return union_type_comparator::can_types_overlap(
+            codebase,
+            file_path,
+            value,
+            other_value,
+            options,
+        );
+    }
+    let Some((other_key, other_value)) = &other.params else {
+        return false;
+    };
+    let key_type = match key {
+        DictKey::Int(value) => wrap_atomic(TAtomic::TLiteralInt {
+            value: *value as i64,
+        }),
+        DictKey::String(value) => wrap_atomic(TAtomic::TLiteralString {
+            value: value.clone(),
+        }),
+        DictKey::Enum(class, member) => codebase
+            .get_class_constant_type(class, false, member, Default::default())
+            .unwrap_or_else(|| crate::ttype::get_arraykey(false)),
+    };
+    union_type_comparator::can_types_overlap(codebase, file_path, &key_type, other_key, options)
+        && union_type_comparator::can_types_overlap(
+            codebase,
+            file_path,
+            value,
+            other_value,
+            options,
+        )
 }

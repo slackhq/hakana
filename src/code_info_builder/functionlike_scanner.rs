@@ -24,9 +24,11 @@ use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::method_info::MethodInfo;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_atomic::TGenericParam;
+use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::string_to_sink_types;
 use hakana_code_info::taint::string_to_source_types;
 use hakana_code_info::ttype::get_mixed_any;
+use hakana_code_info::ttype::wrap_atomic;
 use hakana_code_info::type_resolution::TypeResolutionContext;
 use hakana_str::{StrId, ThreadedInterner};
 use oxidized::aast;
@@ -351,6 +353,18 @@ pub(crate) fn get_functionlike(
         });
 
         match attribute_name {
+            StrId::HAKANA_TYPE_ASSERTION => {
+                match get_type_assertion(user_attribute, &functionlike_info, type_context, interner)
+                {
+                    Ok(assertion) => functionlike_info.type_assertion = Some(Box::new(assertion)),
+                    Err(message) => {
+                        functionlike_info.invalid_type_assertion_annotation = Some(Box::new((
+                            HPos::new(&user_attribute.name.0, file_source.file_path),
+                            message,
+                        )));
+                    }
+                }
+            }
             StrId::HAKANA_CALLS_SERVICE => {
                 functionlike_info.service_calls = get_spread_params_from_attribute(user_attribute);
             }
@@ -871,6 +885,58 @@ fn convert_param_nodes(
             param
         })
         .collect()
+}
+
+fn get_type_assertion(
+    attribute: &aast::UserAttribute<(), ()>,
+    functionlike_info: &FunctionLikeInfo,
+    type_context: &TypeResolutionContext,
+    interner: &ThreadedInterner,
+) -> Result<(usize, TUnion), String> {
+    let values = get_spread_params_from_attribute(attribute);
+    if attribute.params.len() != 2 || values.len() != 2 {
+        return Err(
+            "Hakana\\TypeAssertion expects two string literals: a parameter name and a generic type name"
+                .to_string(),
+        );
+    }
+
+    let offset = functionlike_info
+        .params
+        .iter()
+        .position(|param| {
+            interner.lookup(param.name.0).trim_start_matches('$')
+                == values[0].trim_start_matches('$')
+        })
+        .ok_or_else(|| format!("Unknown type assertion parameter {}", values[0]))?;
+
+    if functionlike_info.params[offset].is_variadic
+        || functionlike_info.params[offset].is_splat
+        || functionlike_info.params[offset].is_inout
+    {
+        return Err("A type assertion parameter must be a single, non-inout value".to_string());
+    }
+
+    let (name, bounds) = type_context
+        .template_type_map
+        .iter()
+        .find(|(name, _)| interner.lookup(*name) == values[1])
+        .ok_or_else(|| format!("Unknown type assertion generic type {}", values[1]))?;
+    let (defining_entity, as_type) = bounds.first().ok_or_else(|| {
+        format!(
+            "Missing bounds for type assertion generic type {}",
+            values[1]
+        )
+    })?;
+
+    Ok((
+        offset,
+        wrap_atomic(TAtomic::TGenericParam(TGenericParam {
+            param_name: *name,
+            defining_entity: *defining_entity,
+            as_type: Box::new((**as_type).clone()),
+        })),
+    ))
 }
 
 fn get_spread_params_from_attribute(user_attribute: &aast::UserAttribute<(), ()>) -> Vec<String> {

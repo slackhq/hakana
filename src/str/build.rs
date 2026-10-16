@@ -289,6 +289,7 @@ fn main() -> Result<()> {
         "Hakana\\ShapeTypeFromConstant",
         "Hakana\\SpecialTypes\\LiteralString",
         "Hakana\\TestOnly",
+        "Hakana\\TypeAssertion",
         "MessageFormatter",
         "NumberFormatter",
         "ReflectionClass",

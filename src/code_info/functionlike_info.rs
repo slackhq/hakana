@@ -84,6 +84,11 @@ pub struct FunctionLikeInfo {
     pub suppressed_issues: Vec<(IssueKind, HPos)>,
     pub invalid_security_annotations: Vec<(HPos, String)>,
 
+    /// Parameter offset and generic type checked by <<Hakana\TypeAssertion>>.
+    /// The asserted type excludes any null returned when the assertion fails.
+    pub type_assertion: Option<Box<(usize, TUnion)>>,
+    pub invalid_type_assertion_annotation: Option<Box<(HPos, String)>>,
+
     /// Whether this function is deprecated
     pub deprecated: bool,
 
@@ -220,6 +225,8 @@ impl FunctionLikeInfo {
             user_defined: false,
             suppressed_issues: vec![],
             invalid_security_annotations: vec![],
+            type_assertion: None,
+            invalid_type_assertion_annotation: None,
             deprecated: false,
             template_types: vec![],
             has_visitor_issues: false,

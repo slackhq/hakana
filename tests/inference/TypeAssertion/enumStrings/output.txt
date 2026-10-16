@@ -1,0 +1,2 @@
+ERROR: ImpossibleTypeComparison - input.hack:20:20 - Type string(other) is never Number
+ERROR: ImpossibleTypeComparison - input.hack:21:5 - Type string(other) is never Number

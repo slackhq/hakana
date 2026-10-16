@@ -1,0 +1,20 @@
+ERROR: ImpossibleTypeComparison - input.hack:7:25 - Type tuple(int(1)) is never vec<string>
+ERROR: ImpossibleTypeComparison - input.hack:8:5 - Type tuple(int(1)) is never vec<string>
+ERROR: ImpossibleTypeComparison - input.hack:9:33 - Type tuple(int(1)) is never HH\Traversable<string>
+ERROR: ImpossibleTypeComparison - input.hack:10:5 - Type tuple(int(1)) is never HH\Traversable<string>
+ERROR: ImpossibleTypeComparison - input.hack:14:34 - Type shape('id' => int(1)) is never dict<string, string>
+ERROR: ImpossibleTypeComparison - input.hack:15:5 - Type shape('id' => int(1)) is never dict<string, string>
+ERROR: ImpossibleTypeComparison - input.hack:16:28 - Type shape('id' => int(1)) is never dict<int, int>
+ERROR: ImpossibleTypeComparison - input.hack:17:5 - Type shape('id' => int(1)) is never dict<int, int>
+ERROR: ImpossibleTypeComparison - input.hack:21:35 - Type shape('id' => int) is never shape('id' => string)
+ERROR: ImpossibleTypeComparison - input.hack:22:5 - Type shape('id' => int) is never shape('id' => string)
+ERROR: ImpossibleTypeComparison - input.hack:26:15 - Type T:fn-disjoint_bounds is never U:fn-disjoint_bounds
+ERROR: ImpossibleTypeComparison - input.hack:27:5 - Type T:fn-disjoint_bounds is never U:fn-disjoint_bounds
+ERROR: ImpossibleTypeComparison - input.hack:31:24 - Type tuple(int(1), string(a)) is never tuple(int, int)
+ERROR: ImpossibleTypeComparison - input.hack:32:5 - Type tuple(int(1), string(a)) is never tuple(int, int)
+ERROR: ImpossibleTypeComparison - input.hack:33:32 - Type tuple(int(1), string(a)) is never tuple(int, string, int)
+ERROR: ImpossibleTypeComparison - input.hack:34:5 - Type tuple(int(1), string(a)) is never tuple(int, string, int)
+ERROR: ImpossibleTypeComparison - input.hack:38:33 - Type tuple(string(a), int(1)) is never HH\Traversable<string>
+ERROR: ImpossibleTypeComparison - input.hack:39:5 - Type tuple(string(a), int(1)) is never HH\Traversable<string>
+ERROR: ImpossibleTypeComparison - input.hack:40:33 - Type shape('a' => string(b), 'c' => int(1)) is never HH\Traversable<string>
+ERROR: ImpossibleTypeComparison - input.hack:41:5 - Type shape('a' => string(b), 'c' => int(1)) is never HH\Traversable<string>

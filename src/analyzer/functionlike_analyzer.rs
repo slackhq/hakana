@@ -535,6 +535,22 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             );
         }
 
+        if let Some((pos, message)) = functionlike_storage
+            .invalid_type_assertion_annotation
+            .as_deref()
+        {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InvalidTypeAssertionAnnotation,
+                    message.clone(),
+                    *pos,
+                    &Some(functionlike_id),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+
         // Check for missing __Override attribute
         if is_missing_override_attribute {
             analysis_data.maybe_add_issue(

@@ -25,6 +25,7 @@ use hakana_code_info::{
         comparison::{
             atomic_type_comparator::{self, expand_constant_value},
             type_comparison_result::TypeComparisonResult,
+            union_type_comparator,
         },
         get_arraykey, get_int, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, get_string,
         type_combiner,
@@ -232,6 +233,7 @@ pub fn reconcile(
             existing_var_type,
             pos,
             &mut did_remove_type,
+            !assertion.has_equality(),
         );
 
         if let Some(key) = key
@@ -295,6 +297,7 @@ fn refine_atomic_with_union(
     existing_var_type: &TUnion,
     pos: Option<&Pos>,
     did_remove_type: &mut bool,
+    is_type_assertion: bool,
 ) -> TUnion {
     let intersection_type = intersect_union_with_atomic(
         statements_analyzer,
@@ -311,6 +314,32 @@ fn refine_atomic_with_union(
         }
 
         return intersection_type;
+    }
+
+    // Failure to construct an exact intersection does not prove disjointness.
+    // For example, vec<int> and vec<string> share the empty vector, and distinct
+    // generic parameters can have overlapping bounds. Keep the asserted type
+    // as a conservative approximation when the overlap check permits a match.
+    let asserted_type = wrap_atomic(new_type.clone());
+    let can_overlap = if is_type_assertion {
+        union_type_comparator::can_type_assertion_succeed(
+            statements_analyzer.codebase,
+            statements_analyzer.get_file_path(),
+            existing_var_type,
+            &asserted_type,
+        )
+    } else {
+        union_type_comparator::can_expression_types_be_identical(
+            statements_analyzer.codebase,
+            statements_analyzer.get_file_path(),
+            existing_var_type,
+            &asserted_type,
+            true,
+        )
+    };
+    if can_overlap {
+        *did_remove_type = true;
+        return asserted_type;
     }
 
     get_nothing()
