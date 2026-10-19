@@ -1,0 +1,5 @@
+ERROR: RedundantTypeComparison - input.hack:11:17 - Type shape-from(data_type) is always shape-from(data_type)
+ERROR: RedundantTypeComparison - input.hack:12:17 - Type vec<string> is always vec<string>
+ERROR: ImpossibleTypeComparison - input.hack:13:17 - Type int is never shape-from(data_type)
+ERROR: ImpossibleTypeComparison - input.hack:14:17 - Type shape-from(data_type) is never vec<string>
+ERROR: RedundantTypeComparison - input.hack:15:17 - Type int is always ?int

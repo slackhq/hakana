@@ -50,6 +50,7 @@ pub(crate) fn fetch(
     classlike_storage: &ClassLikeInfo,
     template_result: &TemplateResult,
     call_pos: &Pos,
+    is_virtual: bool,
 ) -> TUnion {
     let codebase = statements_analyzer.codebase;
 
@@ -163,6 +164,7 @@ pub(crate) fn fetch(
         functionlike_storage,
         analysis_data,
         call_pos,
+        is_virtual,
     )
 }
 
@@ -257,6 +259,7 @@ fn add_dataflow(
     functionlike_storage: &FunctionLikeInfo,
     analysis_data: &mut FunctionAnalysisData,
     call_pos: &Pos,
+    is_virtual: bool,
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
 
@@ -272,8 +275,45 @@ fn add_dataflow(
     let codebase = statements_analyzer.codebase;
 
     let method_call_node;
+    let exact_method = functionlike_storage
+        .method_info
+        .as_ref()
+        .is_some_and(|method| {
+            method.is_final
+                || method.visibility
+                    == hakana_code_info::member_visibility::MemberVisibility::Private
+        })
+        || codebase
+            .classlike_infos
+            .get(&method_id.0)
+            .is_some_and(|class| class.is_final);
+    return_type_candidate.uri_prefix = (matches!(
+        analysis_data.data_flow_graph.kind,
+        GraphKind::WholeProgram(_)
+    ) && exact_method
+        && functionlike_storage.user_defined
+        && return_type_candidate
+            .types
+            .iter()
+            .all(|ty| ty.is_string() || ty.is_string_subtype())
+        && !functionlike_storage.is_async
+        && !functionlike_storage.ignore_taint_path
+        && functionlike_storage.taint_source_types.is_empty())
+    .then(|| {
+        hakana_code_info::data_flow::uri_prefix::UriPrefix::returning(
+            FunctionLikeIdentifier::Method(declaring_method_id.0, declaring_method_id.1),
+        )
+    });
 
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
+        let suppress_source = !functionlike_storage.not_source_when.is_empty()
+            && functionlike_storage.suppresses_taint_source(
+                &call_expr
+                    .1
+                    .iter()
+                    .map(|arg| analysis_data.get_expr_type(arg.to_expr_ref().pos()))
+                    .collect::<Vec<_>>(),
+            );
         method_call_node = get_tainted_method_node(
             statements_analyzer,
             context,
@@ -287,6 +327,8 @@ fn add_dataflow(
             added_taints,
             removed_taints,
             codebase,
+            suppress_source,
+            is_virtual,
         );
     } else {
         method_call_node = DataFlowNode::get_for_method_return(
@@ -312,7 +354,7 @@ fn add_dataflow(
                     analysis_data.data_flow_graph.add_path(
                         &parent_node.id,
                         &method_call_node.id,
-                        PathKind::Default,
+                        PathKind::StringTransform,
                         vec![],
                         vec![],
                     );
@@ -333,6 +375,93 @@ fn add_dataflow(
                 }
 
                 analysis_data.data_flow_graph.add_node(sink_node);
+            }
+        }
+    }
+
+    if matches!(
+        analysis_data.data_flow_graph.kind,
+        GraphKind::WholeProgram(_)
+    ) && method_id.1 == StrId::CONSTRUCT
+    {
+        let exception_args = super::new_analyzer::native_exception_args(
+            statements_analyzer,
+            Some(functionlike_storage),
+            declaring_method_id,
+            call_expr.1,
+            analysis_data,
+        );
+        if !exception_args.is_empty() {
+            let receiver = DataFlowNode::get_for_this_after_method(
+                method_id,
+                functionlike_storage.return_type_location,
+                Some(statements_analyzer.get_hpos(call_pos)),
+            );
+            for (field, parents) in exception_args {
+                for parent in parents {
+                    analysis_data.data_flow_graph.add_path(
+                        &parent.id,
+                        &receiver.id,
+                        PathKind::PropertyAssignment(
+                            method_id.0,
+                            statements_analyzer.interner.get(field).unwrap(),
+                        ),
+                        vec![],
+                        vec![],
+                    );
+                }
+            }
+            analysis_data.data_flow_graph.add_node(receiver);
+        }
+    }
+
+    if matches!(
+        analysis_data.data_flow_graph.kind,
+        GraphKind::WholeProgram(_)
+    ) && !functionlike_storage.user_defined
+        && matches!(
+            statements_analyzer.interner.lookup(&declaring_method_id.0),
+            "Exception"
+                | "Error"
+                | "Throwable"
+                | "IExceptionWithPureGetMessage"
+                | "ExceptionWithPureGetMessageTrait"
+        )
+        && let Some(lhs) = lhs_expr
+    {
+        let field = match statements_analyzer.interner.lookup(&method_id.1) {
+            "getMessage" => Some("message"),
+            "getCode" => Some("code"),
+            "getPrevious" => Some("previous"),
+            _ => None,
+        };
+        let path = field
+            .map(|field| {
+                PathKind::PropertyFetch(
+                    declaring_method_id.0,
+                    statements_analyzer.interner.get(field).unwrap(),
+                )
+            })
+            .or_else(|| {
+                matches!(
+                    statements_analyzer.interner.lookup(&method_id.1),
+                    "__toString" | "toString"
+                )
+                .then_some(PathKind::Serialize)
+            });
+        if let Some(path) = path {
+            let parents = analysis_data
+                .get_expr_type(lhs.pos())
+                .map(|ty| ty.parent_nodes.clone())
+                .unwrap_or_default();
+            for parent in parents {
+                analysis_data.data_flow_graph.add_path(
+                    &parent.id,
+                    &method_call_node.id,
+                    path.clone(),
+                    vec![],
+                    vec![],
+                );
             }
         }
     }
@@ -373,7 +502,7 @@ fn add_dataflow(
             &FxHashMap::default(),
             &mut analysis_data.data_flow_graph,
             &method_call_node,
-            PathKind::Default,
+            PathKind::StringTransform,
         );
         add_special_param_dataflow(
             statements_analyzer,
@@ -416,7 +545,25 @@ fn add_dataflow(
         .data_flow_graph
         .add_node(method_call_node.clone());
 
-    return_type_candidate.parent_nodes = vec![method_call_node.clone()];
+    if let Some(encoding) = functionlike_storage.return_value_encoding {
+        let formatted_node = DataFlowNode::get_for_local_string(
+            "HTML-safe JSON expression".to_string(),
+            statements_analyzer.get_hpos(call_pos),
+        );
+        analysis_data.data_flow_graph.add_path(
+            &method_call_node.id,
+            &formatted_node.id,
+            PathKind::Encode(encoding),
+            vec![],
+            vec![],
+        );
+        analysis_data
+            .data_flow_graph
+            .add_node(formatted_node.clone());
+        return_type_candidate.parent_nodes = vec![formatted_node];
+    } else {
+        return_type_candidate.parent_nodes = vec![method_call_node.clone()];
+    }
 
     return_type_candidate
 }
@@ -434,71 +581,89 @@ fn get_tainted_method_node(
     added_taints: Vec<SinkType>,
     removed_taints: Vec<SinkType>,
     codebase: &CodebaseInfo,
+    suppress_source: bool,
+    is_virtual: bool,
 ) -> DataFlowNode {
-    let method_call_node;
-
     let data_flow_graph = &mut analysis_data.data_flow_graph;
-    if method_id != declaring_method_id {
-        method_call_node = DataFlowNode::get_for_method_return(
-            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
-            None,
-            if functionlike_storage.specialize_call {
-                Some(statements_analyzer.get_hpos(call_pos))
-            } else {
-                None
-            },
-        );
-
-        let declaring_method_call_node = DataFlowNode::get_for_method_return(
-            &FunctionLikeIdentifier::Method(declaring_method_id.0, declaring_method_id.1),
-            functionlike_storage.return_type_location,
-            if functionlike_storage.specialize_call {
-                Some(statements_analyzer.get_hpos(call_pos))
-            } else {
-                None
-            },
-        );
-
-        data_flow_graph.add_node(declaring_method_call_node.clone());
-        data_flow_graph.add_path(
-            &declaring_method_call_node.id,
-            &method_call_node.id,
-            PathKind::Default,
-            added_taints,
-            removed_taints,
-        );
-    } else {
-        method_call_node = DataFlowNode::get_for_method_return(
-            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
-            functionlike_storage.return_type_location,
-            if functionlike_storage.specialize_call {
-                Some(statements_analyzer.get_hpos(call_pos))
-            } else {
-                None
-            },
-        );
-
-        for classlike_descendant in codebase.get_all_descendants(&method_id.0) {
-            let descendant_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
-                classlike_descendant,
-                declaring_method_id.1,
-            ));
-
-            let declaring_method_call_node = DataFlowNode::get_for_method_return(
-                &FunctionLikeIdentifier::Method(descendant_method_id.0, descendant_method_id.1),
-                functionlike_storage.return_type_location,
-                if functionlike_storage.specialize_call {
-                    Some(statements_analyzer.get_hpos(call_pos))
+    let mut targets = std::collections::BTreeMap::from([(*declaring_method_id, vec![method_id.0])]);
+    if is_virtual || lhs_expr.is_some() {
+        for descendant in codebase.get_all_descendants(&method_id.0) {
+            if codebase.method_exists(&descendant, &method_id.1) {
+                let target = if is_virtual {
+                    codebase.get_declaring_method_id(&MethodIdentifier(descendant, method_id.1))
                 } else {
-                    None
-                },
-            );
-
-            data_flow_graph.add_node(declaring_method_call_node.clone());
+                    *declaring_method_id
+                };
+                targets.entry(target).or_default().push(descendant);
+            }
+        }
+    }
+    let has_receiver_variants =
+        targets.len() > 1 || targets.values().any(|receivers| receivers.len() > 1);
+    let method_call_node = if has_receiver_variants {
+        DataFlowNode::get_for_local_string(
+            format!(
+                "call to {}",
+                method_id.to_string(statements_analyzer.interner)
+            ),
+            statements_analyzer.get_hpos(call_pos),
+        )
+    } else {
+        DataFlowNode::get_for_method_return(
+            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+            functionlike_storage.return_type_location,
+            functionlike_storage
+                .specialize_call
+                .then(|| statements_analyzer.get_hpos(call_pos)),
+        )
+    };
+    let caller = if lhs_var_id.is_some_and(|name| name == "$this") {
+        context
+            .function_context
+            .calling_functionlike_id
+            .and_then(|function| function.as_method_identifier())
+            .filter(|caller| {
+                codebase
+                    .all_classlike_descendants
+                    .get(&caller.0)
+                    .is_some_and(|descendants| !descendants.is_empty())
+            })
+            .map(|caller| {
+                let mut classes = codebase
+                    .get_all_descendants(&caller.0)
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                classes.push(caller.0);
+                classes.sort_unstable();
+                classes.dedup();
+                (caller, std::sync::Arc::new(classes))
+            })
+    } else {
+        None
+    };
+    for (target, mut receivers) in targets {
+        receivers.sort_unstable();
+        receivers.dedup();
+        let target_storage = codebase.get_method(&target).unwrap_or(functionlike_storage);
+        let target_node = DataFlowNode::get_for_method_return(
+            &FunctionLikeIdentifier::Method(target.0, target.1),
+            target_storage.return_type_location,
+            target_storage
+                .specialize_call
+                .then(|| statements_analyzer.get_hpos(call_pos)),
+        );
+        if target_node.id != method_call_node.id {
+            data_flow_graph.add_node(target_node.clone());
             data_flow_graph.add_path(
-                &declaring_method_call_node.id,
+                &target_node.id,
                 &method_call_node.id,
-                PathKind::Default,
+                PathKind::MethodReturn(std::sync::Arc::new(
+                    hakana_code_info::data_flow::path::MethodReceiver {
+                        callee: target,
+                        caller: caller.clone(),
+                        classes: receivers,
+                    },
+                )),
                 added_taints.clone(),
                 removed_taints.clone(),
             );
@@ -609,7 +774,7 @@ fn get_tainted_method_node(
         data_flow_graph.add_node(this_after_method_node);
     }
 
-    if !functionlike_storage.taint_source_types.is_empty() {
+    if !functionlike_storage.taint_source_types.is_empty() && !suppress_source {
         let method_call_node_source = DataFlowNode {
             id: method_call_node.id.clone(),
             kind: DataFlowNodeKind::TaintSource {

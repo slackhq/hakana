@@ -57,6 +57,7 @@ pub struct Config {
 
 #[derive(Clone, Debug)]
 pub struct SecurityConfig {
+    pub ignore_test_files: bool,
     ignore_patterns: Vec<glob::Pattern>,
     ignore_sink_files: FxHashMap<String, Vec<glob::Pattern>>,
     pub max_depth: u8,
@@ -71,9 +72,10 @@ impl Default for SecurityConfig {
 impl SecurityConfig {
     pub fn new() -> Self {
         Self {
+            ignore_test_files: false,
             ignore_patterns: Vec::new(),
             ignore_sink_files: FxHashMap::default(),
-            max_depth: 25,
+            max_depth: 40,
         }
     }
 }
@@ -247,12 +249,23 @@ impl Config {
             .map(|(k, v)| (interner.intern(k), interner.intern(v)))
             .collect();
 
+        self.security_config.ignore_test_files = json_config.security_analysis.ignore_test_files;
         self.security_config.ignore_patterns = json_config
             .security_analysis
             .ignore_files
             .into_iter()
             .map(|v| glob::Pattern::new(&format!("{}/{}", cwd, v)).unwrap())
             .collect();
+        for pair in json_config.security_analysis.ignore_sink_files.keys() {
+            let valid = pair.split_once(" -> ").is_some_and(|(source, sink)| {
+                hakana_code_info::taint::string_to_source_types(source.to_string()).is_some()
+                    && sink != "*"
+                    && !hakana_code_info::taint::string_to_sink_types(sink.to_string()).is_empty()
+            });
+            if !valid {
+                return Err(format!("Invalid security_analysis.ignore_sink_files key {pair:?}: expected an exact \"SourceType -> SinkType\" pair").into());
+            }
+        }
         self.security_config.ignore_sink_files = json_config
             .security_analysis
             .ignore_sink_files
@@ -266,7 +279,13 @@ impl Config {
                 )
             })
             .collect();
-        self.security_config.max_depth = json_config.security_analysis.max_depth.unwrap_or(40);
+        self.security_config.max_depth = json_config
+            .security_analysis
+            .max_depth
+            .unwrap_or(SecurityConfig::default().max_depth);
+        if self.security_config.max_depth == 0 {
+            return Err("security_analysis.max_depth must be greater than zero".into());
+        }
 
         self.strict_falsable_types = json_config.strict_falsable_types;
 
@@ -296,7 +315,13 @@ impl Config {
     }
 
     pub fn allow_issue_kind_in_file(&self, issue_kind: &IssueKind, file: &str) -> bool {
-        if let Some(issue_entries) = self.ignore_issue_patterns.get(issue_kind) {
+        // The config key "TaintedData" applies to all sink kinds. strum parses
+        // the enum's payload as its default (HtmlTag), not as a wildcard.
+        let config_kind = match issue_kind {
+            IssueKind::TaintedData(_) => &IssueKind::TaintedData(Box::default()),
+            kind => kind,
+        };
+        if let Some(issue_entries) = self.ignore_issue_patterns.get(config_kind) {
             for ignore_file_pattern in issue_entries {
                 if ignore_file_pattern.matches(file) {
                     return false;
@@ -308,6 +333,10 @@ impl Config {
     }
 
     pub fn allow_taints_in_file(&self, file: &str) -> bool {
+        if self.security_config.ignore_test_files && self.test_files.iter().any(|p| p.matches(file))
+        {
+            return false;
+        }
         for ignore_file_pattern in &self.security_config.ignore_patterns {
             if ignore_file_pattern.matches(file) {
                 return false;
@@ -347,5 +376,63 @@ impl Config {
         }
 
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn load(json: &str) -> Result<Config, Box<dyn Error>> {
+        let path = std::env::temp_dir().join(format!(
+            "hakana-security-config-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+        ));
+        std::fs::write(&path, json)?;
+        let mut config = Config::new("project".into(), FxHashSet::default());
+        let result = config.update_from_file(&"project".into(), &path, &mut Interner::default());
+        std::fs::remove_file(path)?;
+        result?;
+        Ok(config)
+    }
+
+    #[test]
+    fn test_file_exclusion_requires_explicit_security_opt_in() {
+        let default =
+            load(r#"{"test_files":["src/**/testing/**"],"security_analysis":{}}"#).unwrap();
+        assert!(default.allow_taints_in_file("project/src/api/testing/Fake.hack"));
+        let opted_in = load(r#"{"test_files":["src/**/testing/**"],"security_analysis":{"ignore_test_files":true}}"#).unwrap();
+        assert!(!opted_in.allow_taints_in_file("project/src/api/testing/Fake.hack"));
+        assert!(opted_in.allow_taints_in_file("project/src/api/Handler.hack"));
+    }
+
+    #[test]
+    fn tainted_data_config_filter_covers_all_sink_kinds_only_in_matching_files() {
+        let config = load(r#"{"ignore_issue_files":{"TaintedData":["reviewed.hack"]}}"#).unwrap();
+        for sink in [SinkType::HtmlTag, SinkType::Sql, SinkType::CurlUri] {
+            assert!(!config.allow_issue_kind_in_file(
+                &IssueKind::TaintedData(Box::new(sink.clone())),
+                "project/reviewed.hack"
+            ));
+            assert!(config.allow_issue_kind_in_file(
+                &IssueKind::TaintedData(Box::new(sink)),
+                "project/other.hack"
+            ));
+        }
+        assert!(config.allow_issue_kind_in_file(
+            &IssueKind::InvalidSecurityAnnotation,
+            "project/reviewed.hack"
+        ));
+    }
+
+    #[test]
+    fn misspelled_security_pairs_fail_configuration_loading() {
+        assert!(load(r#"{"security_analysis":{"ignore_sink_files":{"UriRequestHeader -> CurlURL":["reviewed.hack"]}}}"#).is_err());
+        assert!(load(r#"{"security_analysis":{"ignore_sink_files":{"UriRequestHeader->CurlUri":["reviewed.hack"]}}}"#).is_err());
+        assert!(load(r#"{"security_analysis":{"ignore_sink_files":{"UriRequestHeader -> CurlUri":["reviewed.hack"]}}}"#).is_ok());
     }
 }

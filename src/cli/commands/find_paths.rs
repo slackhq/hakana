@@ -21,7 +21,7 @@ pub fn get_subcommand() -> Command<'static> {
         .arg(
             arg!(--"threads" <PATH>)
                 .required(false)
-                .help("How many threads to use"),
+                .help("How many threads to use for file analysis and graph traversal (default: 8)"),
         )
         .arg(
             arg!(--"max-depth" <PATH>)

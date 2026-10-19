@@ -133,8 +133,6 @@ pub(crate) fn analyze_vals(
 
     match vc_kind {
         VcKind::Vec => {
-            let types = array_creation_info.item_value_atomic_types.clone();
-
             let mut known_items = BTreeMap::new();
 
             if array_creation_info.item_key_atomic_types.len() < 20 {
@@ -154,9 +152,9 @@ pub(crate) fn analyze_vals(
 
             let mut new_vec = wrap_atomic(if !known_items.is_empty() {
                 TAtomic::TVec(TVec {
+                    known_count: Some(known_items.len()),
                     known_items: Some(known_items),
                     type_param: Box::new(get_nothing()),
-                    known_count: Some(types.len()),
                     non_empty: true,
                     variadic_type: None,
                 })
@@ -438,6 +436,16 @@ fn analyze_vals_item(
         .cloned()
         .unwrap_or(get_mixed_any());
 
+    if matches!(container_type, VcKind::Keyset) {
+        add_array_key_dataflow(
+            statements_analyzer,
+            &value_item_type,
+            analysis_data,
+            item_value.pos(),
+            array_creation_info,
+        );
+    }
+
     add_array_value_dataflow(
         statements_analyzer,
         &value_item_type,
@@ -526,7 +534,7 @@ fn analyze_keyvals_item(
     );
 
     if key_item_type.is_single()
-        && key_item_type.has_string()
+        && matches!(key_item_type.get_single(), TAtomic::TLiteralString { .. })
         && matches!(container_type, KvcKind::Dict)
     {
         array_creation_info
@@ -610,7 +618,7 @@ fn add_array_value_dataflow(
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
             },
             vec![],
-            vec![],
+            value_type.scalar_taint_removals(),
         );
     }
 
@@ -671,7 +679,7 @@ fn add_array_key_dataflow(
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey)
             },
             vec![],
-            vec![],
+            key_item_type.scalar_taint_removals(),
         );
     }
 

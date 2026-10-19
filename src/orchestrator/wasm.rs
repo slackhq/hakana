@@ -77,6 +77,7 @@ pub fn scan_and_analyze_single_file(
             &analysis_result.program_dataflow_graph,
             &analysis_config,
             &interner,
+            1,
         );
 
         for issue in issues {
@@ -252,7 +253,7 @@ pub fn analyze_single_file(
         file_path,
         hh_fixmes: &aast.1.fixmes,
         comments: &aast.1.comments,
-        file_contents: "".to_string(),
+        file_contents: aast.2.clone(),
     };
 
     let mut file_analyzer = file_analyzer::FileAnalyzer::new(

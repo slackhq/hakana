@@ -5,6 +5,9 @@ use hakana_code_info::assertion::Assertion;
 use hakana_code_info::code_location::{FilePath, StmtStart};
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::ttype::comparison::{
+    type_comparison_result::TypeComparisonResult, union_type_comparator,
+};
 use hakana_code_info::ttype::template::standin_type_replacer::StandinOpts;
 use hakana_code_info::{EFFECT_WRITE_LOCAL, GenericParent, VarId};
 
@@ -56,7 +59,7 @@ pub(crate) fn check_arguments_match(
     unpacked_arg: &Option<aast::Expr<(), ()>>,
     functionlike_id: &FunctionLikeIdentifier,
     functionlike_info: &FunctionLikeInfo,
-    calling_classlike: Option<(StrId, Option<&TAtomic>)>,
+    calling_classlike: Option<(StrId, Option<&TAtomic>, bool)>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     template_result: &mut TemplateResult,
@@ -195,17 +198,18 @@ pub(crate) fn check_arguments_match(
             self_fq_classlike_name = appearing_method_id.0;
         }
 
+        if class_storage.is_none() {
+            return Err(AnalysisError::InternalError(
+                "Class storage does not exist".to_string(),
+                statements_analyzer.get_hpos(function_call_pos),
+            ));
+        }
         method_call_info = Some(MethodCallInfo {
             self_fq_classlike_name,
             declaring_method_id: Some(declaring_method_id),
-            classlike_storage: if let Some(class_storage) = class_storage {
-                class_storage
-            } else {
-                return Err(AnalysisError::InternalError(
-                    "Class storage does not exist".to_string(),
-                    statements_analyzer.get_hpos(function_call_pos),
-                ));
-            },
+            dispatch_class: calling_classlike
+                .filter(|(_, _, is_virtual)| *is_virtual)
+                .map(|(class_name, _, _)| class_name),
         });
     }
 
@@ -361,6 +365,18 @@ pub(crate) fn check_arguments_match(
                 .get_expr_type(arg_expr.pos())
                 .cloned()
                 .unwrap_or(get_mixed_any());
+        }
+
+        if matches!(arg_expr.2, aast::Expr_::FunctionPointer(..))
+            && arg_value_type.has_template_types()
+        {
+            arg_value_type = infer_function_pointer_type(
+                statements_analyzer,
+                &arg_value_type,
+                &param_type,
+                template_result,
+            );
+            analysis_data.set_expr_type(arg_expr.pos(), arg_value_type.clone());
         }
 
         adjust_param_type(
@@ -766,6 +782,15 @@ pub(crate) fn check_arguments_match(
         context.inside_general_use = was_inside_call;
     }
 
+    super::type_assertion_analyzer::check(
+        statements_analyzer,
+        functionlike_info,
+        args,
+        template_result,
+        analysis_data,
+        context,
+    );
+
     // for (_, map) in &template_result.lower_bounds {
     //     for (_, bounds) in map {
     //         if bounds.len() > 1 {
@@ -775,6 +800,85 @@ pub(crate) fn check_arguments_match(
     // }
 
     Ok(())
+}
+
+fn infer_function_pointer_type(
+    statements_analyzer: &StatementsAnalyzer,
+    arg_type: &TUnion,
+    param_type: &TUnion,
+    template_result: &TemplateResult,
+) -> TUnion {
+    let codebase = statements_analyzer.codebase;
+    let expected_type = inferred_type_replacer::replace(param_type, template_result, codebase);
+    let mut pointer_templates = IndexMap::new();
+    for template in arg_type.get_template_types() {
+        if let TAtomic::TGenericParam(TGenericParam {
+            param_name,
+            defining_entity: defining_entity @ GenericParent::FunctionLike(_),
+            as_type,
+        }) = template
+        {
+            pointer_templates
+                .entry(*param_name)
+                .or_insert_with(Vec::new)
+                .push((*defining_entity, Arc::new((**as_type).clone())));
+        }
+    }
+    let mut pointer_result = TemplateResult::new(pointer_templates, IndexMap::new());
+
+    // A generic function reference is instantiated for the callback's inputs.
+    // For example, map(..., Keyset\flatten<>) must infer flatten's Tv before
+    // using its keyset<Tv> return type as a bound for map's output.
+    for arg in &arg_type.types {
+        for expected in &expected_type.types {
+            if let (TAtomic::TClosure(arg), TAtomic::TClosure(expected)) = (arg, expected) {
+                for (arg_param, expected_param) in arg.params.iter().zip(&expected.params) {
+                    if let (Some(arg_param), Some(expected_param)) =
+                        (&arg_param.signature_type, &expected_param.signature_type)
+                    {
+                        standin_type_replacer::replace(
+                            arg_param,
+                            &mut pointer_result,
+                            codebase,
+                            statements_analyzer.interner,
+                            statements_analyzer.get_file_path(),
+                            &Some(expected_param),
+                            None,
+                            None,
+                            StandinOpts::default(),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    for template in arg_type.get_template_types() {
+        if let TAtomic::TGenericParam(TGenericParam { as_type, .. }) = template {
+            let inferred = inferred_type_replacer::replace(
+                &wrap_atomic(template.clone()),
+                &pointer_result,
+                codebase,
+            );
+            let bound = inferred_type_replacer::replace(as_type, &pointer_result, codebase);
+            if !union_type_comparator::is_contained_by(
+                codebase,
+                statements_analyzer.get_file_path(),
+                &inferred,
+                &bound,
+                false,
+                false,
+                false,
+                &mut TypeComparisonResult::new(),
+            ) {
+                // Retain the constraint so ordinary argument checking can
+                // report the invalid callback instead of accepting it.
+                return arg_type.clone();
+            }
+        }
+    }
+
+    inferred_type_replacer::replace(arg_type, &pointer_result, codebase)
 }
 
 fn adjust_param_type(

@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:1:8 - Data from a URL query string found its way to an HTTP response header using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:1:31) ----> composition (input.hack:1:8) ----> header#1 (input.hack:1:8)

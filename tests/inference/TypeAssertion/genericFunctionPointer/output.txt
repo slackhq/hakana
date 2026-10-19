@@ -1,0 +1,2 @@
+ERROR: PossiblyInvalidArgument - input.hack:13:19 - Argument 1 of take_ints expects HH\Container<int>, possibly different type keyset<string> provided
+ERROR: InvalidReturnStatement - input.hack:22:12 - The type vec<T:fn-string_identity> does not match the declared return type vec<int> for invalid_bound

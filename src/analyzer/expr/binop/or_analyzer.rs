@@ -221,6 +221,8 @@ pub(crate) fn analyze<'expr>(
     let tmp_if_body_context = right_context.if_body_context;
     right_context.if_body_context = None;
 
+    right_context.response = left_context.response;
+
     expression_analyzer::analyze(
         statements_analyzer,
         right,
@@ -228,6 +230,11 @@ pub(crate) fn analyze<'expr>(
         &mut right_context,
         true,
     )?;
+
+    context.response = left_context.response.join(right_context.response);
+    if let Some(branch) = &context.if_body_context {
+        branch.borrow_mut().response = context.response;
+    }
 
     right_context.if_body_context = tmp_if_body_context;
 

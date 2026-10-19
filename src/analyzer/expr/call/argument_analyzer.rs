@@ -540,16 +540,20 @@ fn add_dataflow(
 ) {
     let codebase = statements_analyzer.codebase;
 
+    let json_response = matches!(
+        functionlike_id,
+        FunctionLikeIdentifier::Function(
+            hakana_str::StrId::ECHO
+                | hakana_str::StrId::PRINT
+                | hakana_str::StrId::PRINTF
+                | hakana_str::StrId::VAR_DUMP
+        )
+    ) && super::response_effects::is_scalar_output(input_type)
+        && context.response.content_type
+            == crate::scope::response_context::ResponseContentType::Json;
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
-        if !function_param.propagate_taint
-            && function_param.taint_sinks.is_none()
-            && (!input_type.has_taintable_value() || !param_type.has_taintable_value())
-        {
-            return;
-        }
-
         if !context.allow_taints || ignore_taints {
             return;
         }
@@ -581,6 +585,10 @@ fn add_dataflow(
     };
 
     let function_call_hpos = statements_analyzer.get_hpos(function_call_pos);
+    let accepts_html_safe_json = taints.contains(&SinkType::JavaScript)
+        && codebase
+            .get_functionlike(functionlike_id)
+            .is_some_and(|info| info.accepts_html_safe_json);
 
     let method_node = {
         let arg_location = function_param.name_location;
@@ -624,21 +632,31 @@ fn add_dataflow(
         }
     };
 
+    let mut dispatch_nodes = vec![];
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id
             && let Some(method_call_info) = method_call_info
-            && let Some(dependent_classlikes) = codebase
-                .all_classlike_descendants
-                .get(&method_call_info.classlike_storage.name)
+            && let Some(dispatch_class) = method_call_info.dispatch_class
             && method_name != &statements_analyzer.interner.get("__construct").unwrap()
         {
-            for dependent_classlike in dependent_classlikes {
-                if codebase.declaring_method_exists(dependent_classlike, method_name) {
+            let mut targets = rustc_hash::FxHashSet::default();
+            for dependent_classlike in codebase.get_all_descendants(&dispatch_class) {
+                if codebase.method_exists(&dependent_classlike, method_name) {
+                    let target = codebase.get_declaring_method_id(
+                        &hakana_code_info::method_identifier::MethodIdentifier(
+                            dependent_classlike,
+                            *method_name,
+                        ),
+                    );
+                    if !targets.insert(target) {
+                        continue;
+                    }
+                    let target_storage = codebase.get_method(&target);
                     let new_sink = DataFlowNode::get_for_method_argument(
-                        &FunctionLikeIdentifier::Method(*dependent_classlike, *method_name),
+                        &FunctionLikeIdentifier::Method(target.0, target.1),
                         argument_offset,
                         None,
-                        if specialize_taint {
+                        if target_storage.is_some_and(|storage| storage.specialize_call) {
                             Some(function_call_hpos)
                         } else {
                             None
@@ -647,13 +665,7 @@ fn add_dataflow(
 
                     data_flow_graph.add_node(new_sink.clone());
 
-                    data_flow_graph.add_path(
-                        &method_node.id,
-                        &new_sink.id,
-                        PathKind::Default,
-                        vec![],
-                        vec![],
-                    );
+                    dispatch_nodes.push(new_sink);
                 }
             }
         }
@@ -684,21 +696,42 @@ fn add_dataflow(
         }
     }
 
-    // maybe todo prevent numeric types from being tainted
-    // ALTHOUGH numbers may still contain PII
-
     let removed_taints = if data_flow_graph.kind == GraphKind::FunctionBody {
         vec![]
     } else {
-        get_removed_taints_in_comments(statements_analyzer, input_expr.pos())
+        let mut removed = get_removed_taints_in_comments(statements_analyzer, input_expr.pos());
+        removed.extend(get_removed_taints_in_comments(
+            statements_analyzer,
+            function_call_pos,
+        ));
+        removed.extend(input_type.scalar_taint_removals());
+        removed.extend(param_type.scalar_taint_removals());
+        removed.extend(function_param.removed_taints.clone());
+        if json_response {
+            removed.push(SinkType::HtmlTag);
+        }
+        removed
     };
     // TODO add plugin hooks for adding/removing taints
 
     for parent_node in &input_type.parent_nodes {
+        for dispatch_node in &dispatch_nodes {
+            data_flow_graph.add_path(
+                &parent_node.id,
+                &dispatch_node.id,
+                PathKind::Default,
+                vec![],
+                removed_taints.clone(),
+            );
+        }
         data_flow_graph.add_path(
             &parent_node.id,
             &method_node.id,
-            PathKind::Default,
+            if accepts_html_safe_json {
+                PathKind::AcceptHtmlSafeJson
+            } else {
+                PathKind::Default
+            },
             vec![],
             removed_taints.clone(),
         );
@@ -717,8 +750,15 @@ pub(crate) fn get_removed_taints_in_comments(
         .comments
         .iter()
         .filter(|c| {
-            let diff = (input_expr_pos.line() as i64) - (c.0.line() as i64);
-            diff == 0 || diff == 1
+            // A security-ignore applies only to the immediately following expression.
+            // Line-based matching also suppressed unrelated calls on that line.
+            let contents = &statements_analyzer.file_analyzer.file_source.file_contents;
+            let end = c.0.end_offset();
+            let start = input_expr_pos.start_offset();
+            end <= start
+                && contents
+                    .get(end..start)
+                    .is_some_and(|gap| matches!(gap.trim(), "" | "("))
         })
         .collect::<Vec<_>>();
 
@@ -777,7 +817,7 @@ fn get_argument_taints(
             }
             "header" => {
                 if arg_offset == 0 {
-                    // return vec![TaintType::ResponseHeader];
+                    return vec![SinkType::ResponseHeader];
                 }
             }
             "igbinary_unserialize"
@@ -802,11 +842,6 @@ fn get_argument_taints(
             "curl_init" | "getimagesize" => {
                 if arg_offset == 0 {
                     return vec![SinkType::CurlUri];
-                }
-            }
-            "curl_setopt" => {
-                if arg_offset == 2 {
-                    return vec![SinkType::CurlHeader];
                 }
             }
             _ => {}

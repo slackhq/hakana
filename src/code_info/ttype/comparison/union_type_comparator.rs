@@ -1,6 +1,6 @@
 use crate::code_location::FilePath;
 use crate::t_atomic::TGenericParam;
-use crate::ttype::{template::TemplateBound, wrap_atomic};
+use crate::ttype::{get_arrayish_params, template::TemplateBound, wrap_atomic};
 use crate::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
 
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
@@ -413,6 +413,49 @@ pub fn can_expression_types_be_identical(
     type2: &TUnion,
     inside_assertion: bool,
 ) -> bool {
+    can_types_overlap(
+        codebase,
+        file_path,
+        type1,
+        type2,
+        OverlapOptions {
+            inside_assertion,
+            allow_enum_coercion: false,
+        },
+    )
+}
+
+pub fn can_type_assertion_succeed(
+    codebase: &CodebaseInfo,
+    file_path: &FilePath,
+    input_type: &TUnion,
+    asserted_type: &TUnion,
+) -> bool {
+    can_types_overlap(
+        codebase,
+        file_path,
+        input_type,
+        asserted_type,
+        OverlapOptions {
+            inside_assertion: true,
+            allow_enum_coercion: true,
+        },
+    )
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct OverlapOptions {
+    pub inside_assertion: bool,
+    pub allow_enum_coercion: bool,
+}
+
+pub(super) fn can_types_overlap(
+    codebase: &CodebaseInfo,
+    file_path: &FilePath,
+    type1: &TUnion,
+    type2: &TUnion,
+    options: OverlapOptions,
+) -> bool {
     if type1.is_mixed() || type2.is_mixed() {
         return true;
     }
@@ -424,14 +467,62 @@ pub fn can_expression_types_be_identical(
     for type1_part in &type1.types {
         for type2_part in &type2.types {
             if atomic_type_comparator::can_be_identical(
-                codebase,
-                file_path,
-                type1_part,
-                type2_part,
-                inside_assertion,
+                codebase, file_path, type1_part, type2_part, options,
             ) {
                 return true;
             }
+        }
+    }
+
+    false
+}
+
+/// Runtime overlap alone is insufficient for generic bounds: two collection
+/// types can share an empty value while having incompatible type parameters.
+pub fn can_type_bounds_be_compatible(
+    codebase: &CodebaseInfo,
+    file_path: &FilePath,
+    type1: &TUnion,
+    type2: &TUnion,
+) -> bool {
+    if type1.types == type2.types
+        || type1.is_mixed()
+        || type2.is_mixed()
+        || (type1.is_nullable() && type2.is_nullable())
+    {
+        return true;
+    }
+
+    for left in &type1.types {
+        for right in &type2.types {
+            if !atomic_type_comparator::can_be_identical(
+                codebase,
+                file_path,
+                left,
+                right,
+                OverlapOptions {
+                    inside_assertion: false,
+                    allow_enum_coercion: false,
+                },
+            ) {
+                continue;
+            }
+            if let (Some((left_key, left_value)), Some((right_key, right_value))) = (
+                get_arrayish_params(left, codebase),
+                get_arrayish_params(right, codebase),
+            ) {
+                if !can_type_bounds_be_compatible(codebase, file_path, &left_key, &right_key)
+                    || !can_type_bounds_be_compatible(
+                        codebase,
+                        file_path,
+                        &left_value,
+                        &right_value,
+                    )
+                {
+                    continue;
+                }
+            }
+            return true;
         }
     }
 

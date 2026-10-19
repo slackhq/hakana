@@ -107,6 +107,7 @@ pub(crate) fn analyze(
 
     for catch in stmt.1 {
         let mut catch_context = original_context.clone();
+        catch_context.response.forget();
         catch_context.has_returned = false;
 
         for (var_id, after_try_type) in catch_context.locals.clone() {
@@ -295,6 +296,7 @@ pub(crate) fn analyze(
     {
         let finally_scope = finally_scope.borrow();
         let mut finally_context = context.clone();
+        finally_context.response.forget();
 
         finally_context.assigned_var_ids = FxHashMap::default();
         finally_context.possibly_assigned_var_ids = FxHashSet::default();
@@ -365,6 +367,8 @@ pub(crate) fn analyze(
 
     let body_has_returned = !try_block_control_actions.contains(&ControlAction::None);
     context.has_returned = (body_has_returned && all_catches_leave) || finally_has_returned;
+
+    context.response.forget();
 
     Ok(())
 }

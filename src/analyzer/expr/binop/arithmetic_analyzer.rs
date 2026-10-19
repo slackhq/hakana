@@ -20,7 +20,6 @@ use hakana_code_info::{
     },
     t_atomic::TAtomic,
     t_union::TUnion,
-    taint::SinkType,
 };
 use oxidized::{aast, ast, ast_defs::Pos};
 
@@ -423,7 +422,7 @@ pub(crate) fn assign_arithmetic_type(
                 &decision_node.id,
                 PathKind::Default,
                 vec![],
-                vec![],
+                cond_type.scalar_taint_removals(),
             );
         }
     }
@@ -440,15 +439,7 @@ pub(crate) fn assign_arithmetic_type(
                 &decision_node.id,
                 PathKind::Default,
                 vec![],
-                if cond_type.has_string() {
-                    vec![
-                        SinkType::HtmlAttributeUri,
-                        SinkType::CurlUri,
-                        SinkType::RedirectUri,
-                    ]
-                } else {
-                    vec![]
-                },
+                cond_type.scalar_taint_removals(),
             );
         }
     }

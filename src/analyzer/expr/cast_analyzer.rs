@@ -8,7 +8,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_code_info::data_flow::graph::GraphKind;
+use hakana_code_info::data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind};
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use oxidized::aast;
@@ -46,10 +46,26 @@ pub(crate) fn analyze(
 
     // todo emit issues about redundant casts
 
-    if hint_type.has_taintable_value()
-        || analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
+    hint_type.parent_nodes.clone_from(&expr_type.parent_nodes);
+    if analysis_data.data_flow_graph.kind != GraphKind::FunctionBody
+        && !hint_type.parent_nodes.is_empty()
     {
-        hint_type.parent_nodes.clone_from(&expr_type.parent_nodes);
+        let mut removed = hint_type.scalar_taint_removals();
+        removed.extend(expr_type.scalar_taint_removals());
+        if !removed.is_empty() {
+            let node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(expr_pos));
+            for parent in &expr_type.parent_nodes {
+                analysis_data.data_flow_graph.add_path(
+                    &parent.id,
+                    &node.id,
+                    PathKind::Default,
+                    vec![],
+                    removed.clone(),
+                );
+            }
+            analysis_data.data_flow_graph.add_node(node.clone());
+            hint_type.parent_nodes = vec![node];
+        }
     }
 
     analysis_data.set_expr_type(expr_pos, hint_type);

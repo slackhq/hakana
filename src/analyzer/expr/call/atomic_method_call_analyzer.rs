@@ -281,6 +281,7 @@ pub(crate) fn handle_method_call_on_named_object(
                 analysis_data,
                 context,
                 lhs_var_id.as_ref(),
+                true,
             )?;
 
             return_type_candidate = Some(match return_type_candidate {

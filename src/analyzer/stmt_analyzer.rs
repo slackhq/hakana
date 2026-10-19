@@ -39,6 +39,21 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
+    // Loop back-edges and switch fallthrough do not yet carry response summaries.
+    // Start conservatively so a previous iteration cannot change the MIME seen here.
+    let response_barrier = matches!(
+        stmt.1,
+        aast::Stmt_::While(..)
+            | aast::Stmt_::Do(..)
+            | aast::Stmt_::For(..)
+            | aast::Stmt_::Foreach(..)
+            | aast::Stmt_::Switch(..)
+            | aast::Stmt_::Awaitall(..)
+    );
+    let response_output_events = analysis_data.response_output_events;
+    if response_barrier {
+        context.response.invalidate();
+    }
     if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
         if current_stmt_offset.line != stmt.0.line() as u32 {
             analysis_data.current_stmt_offset = Some(StmtStart {
@@ -281,6 +296,14 @@ pub(crate) fn analyze(
     }
 
     analysis_data.applicable_fixme_start = stmt.0.end_offset() as u32;
+
+    if response_barrier {
+        if response_output_events != analysis_data.response_output_events {
+            context.response.forget();
+        } else {
+            context.response.invalidate();
+        }
+    }
 
     Ok(())
 }

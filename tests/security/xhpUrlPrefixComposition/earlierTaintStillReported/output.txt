@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:3:18 - Data from a URL query string found its way to an HTML attribute with url using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:2:17) ----> $base (input.hack:2:1) ----> composition (input.hack:3:18) ----> Facebook\XHP\HTML\a::href (input.hack:3:18)

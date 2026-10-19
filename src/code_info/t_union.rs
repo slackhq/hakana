@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct TUnion {
     pub types: Vec<TAtomic>,
     pub parent_nodes: Vec<DataFlowNode>,
+    /// Whole-value prefix proof used only for subsequent URL concatenation.
+    pub uri_prefix: Option<crate::data_flow::uri_prefix::UriPrefix>,
     pub had_template: bool,
 
     // Whether or not the data in this type could have references to it.
@@ -76,6 +78,7 @@ impl TUnion {
         TUnion {
             types,
             parent_nodes: vec![],
+            uri_prefix: None,
             had_template: false,
             reference_free: false,
             possibly_undefined_from_try: false,
@@ -87,6 +90,27 @@ impl TUnion {
 
     pub fn remove_type(&mut self, bad_type: &TAtomic) {
         self.types.retain(|t| t != bad_type);
+    }
+
+    pub fn uri_prefix(&self) -> Option<crate::data_flow::uri_prefix::UriPrefix> {
+        if self.types.is_empty()
+            || !self
+                .types
+                .iter()
+                .all(|ty| ty.is_string() || ty.is_string_subtype())
+        {
+            return None;
+        }
+        if !self.types.is_empty()
+            && self.types.iter().all(|ty| {
+                matches!(ty, TAtomic::TLiteralString { value }
+                if crate::data_flow::uri_prefix::has_fixed_authority(value))
+            })
+        {
+            Some(Default::default())
+        } else {
+            self.uri_prefix.clone()
+        }
     }
 
     pub fn is_int(&self) -> bool {
@@ -674,25 +698,50 @@ impl TUnion {
     }
 
     pub fn has_taintable_value(&self) -> bool {
-        self.types.iter().any(|assignment_atomic_type| {
-            !matches!(
-                assignment_atomic_type,
-                TAtomic::TInt
-                    | TAtomic::TFloat
-                    | TAtomic::TNull
-                    | TAtomic::TLiteralClassname { .. }
-                    | TAtomic::TLiteralClassPtr { .. }
-                    | TAtomic::TLiteralInt { .. }
-                    | TAtomic::TLiteralString { .. }
-                    | TAtomic::TBool
-                    | TAtomic::TFalse
-                    | TAtomic::TMixedWithFlags(_, _, true, _)
-                    | TAtomic::TTrue
-                    | TAtomic::TEnum { .. }
-                    | TAtomic::TEnumLiteralCase { .. }
-                    | TAtomic::TNum
-            )
-        })
+        // Numeric IDs and flags can still carry authorization or privacy provenance.
+        self.types
+            .iter()
+            .any(|t| !matches!(t, TAtomic::TNull | TAtomic::TNothing))
+    }
+
+    pub fn scalar_taint_removals(&self) -> Vec<crate::taint::SinkType> {
+        use crate::taint::SinkType;
+        if !self.types.is_empty()
+            && self.types.iter().all(|t| {
+                matches!(
+                    t,
+                    TAtomic::TInt
+                        | TAtomic::TFloat
+                        | TAtomic::TNum
+                        | TAtomic::TLiteralInt { .. }
+                        | TAtomic::TBool
+                        | TAtomic::TTrue
+                        | TAtomic::TFalse
+                        | TAtomic::TNull
+                        | TAtomic::TNothing
+                )
+            })
+        {
+            // These values cannot introduce syntax, but they can still select a
+            // filesystem path, numeric network host, executable browser resource,
+            // or unauthorized resource.
+            vec![
+                SinkType::HtmlTag,
+                SinkType::Sql,
+                SinkType::Shell,
+                SinkType::RedirectUri,
+                SinkType::Unserialize,
+                SinkType::Cookie,
+                SinkType::CurlHeader,
+                SinkType::HtmlAttribute,
+                SinkType::HtmlAttributeUri,
+                SinkType::JavaScript,
+                SinkType::Css,
+                SinkType::ResponseHeader,
+            ]
+        } else {
+            vec![]
+        }
     }
 
     pub fn needs_population(&self) -> bool {
@@ -779,7 +828,7 @@ impl PartialEq for TUnion {
             }
         }
 
-        self.parent_nodes == other.parent_nodes
+        self.parent_nodes == other.parent_nodes && self.uri_prefix == other.uri_prefix
     }
 }
 

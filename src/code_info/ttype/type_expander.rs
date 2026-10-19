@@ -76,8 +76,39 @@ pub fn expand_union(
     data_flow_graph: &mut DataFlowGraph,
     cost: &mut u32,
 ) {
-    let mut overall_new_atomic_types = Vec::with_capacity(return_type.types.len());
     let mut overall_extra_data_flow_nodes = vec![];
+
+    // Most unions contain one atomic type. Expand it in place so recursive
+    // expansion does not allocate a replacement vector at every level.
+    if let [atomic] = return_type.types.as_mut_slice() {
+        let mut skip_atomic = false;
+        let mut replacements = Vec::new();
+        expand_atomic(
+            atomic,
+            codebase,
+            interner,
+            file_path,
+            options,
+            data_flow_graph,
+            cost,
+            &mut skip_atomic,
+            &mut replacements,
+            &mut overall_extra_data_flow_nodes,
+        );
+
+        if skip_atomic {
+            return_type.types = if replacements.len() > 1 {
+                type_combiner::combine(replacements, codebase, false)
+            } else {
+                replacements
+            };
+        }
+
+        extend_dataflow_uniquely(&mut return_type.parent_nodes, overall_extra_data_flow_nodes);
+        return;
+    }
+
+    let mut overall_new_atomic_types = Vec::with_capacity(return_type.types.len());
 
     // Take ownership of the types to process them one by one.
     let original_types = std::mem::take(&mut return_type.types);

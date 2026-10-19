@@ -1,14 +1,13 @@
 use crate::tools::Tool;
 use hakana_analyzer::custom_hook::CustomHook;
+use hakana_language_server::server_client::ServerConnection;
 use hakana_protocol::{
     ClientSocket, FindSymbolReferencesRequest, GotoDefinitionByNameRequest, Message, SocketPath,
-    StatusRequest,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::io;
 use std::path::Path;
-use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -74,11 +73,10 @@ impl JsonRpcResponse {
 
 pub struct McpServer {
     root_dir: String,
-    threads: u8,
-    config_path: Option<String>,
     #[allow(dead_code)]
     plugins: Vec<Arc<dyn CustomHook>>,
     socket_path: SocketPath,
+    server_connection: Option<ServerConnection>,
     server_ready: bool,
     initialized: bool,
 }
@@ -86,18 +84,17 @@ pub struct McpServer {
 impl McpServer {
     pub fn new(
         root_dir: String,
-        threads: u8,
-        config_path: Option<String>,
+        _threads: u8,
+        _config_path: Option<String>,
         plugins: Vec<Arc<dyn CustomHook>>,
         _header: String,
     ) -> Self {
         let socket_path = SocketPath::for_project(Path::new(&root_dir));
         Self {
             root_dir,
-            threads,
-            config_path,
             plugins,
             socket_path,
+            server_connection: None,
             server_ready: false,
             initialized: false,
         }
@@ -108,25 +105,12 @@ impl McpServer {
             return Ok(());
         }
 
-        if !self.socket_path.server_exists() {
-            log::info!("Spawning hakana server...");
-            self.spawn_server()?;
-
-            log::info!("Waiting for server to start...");
-            let start = Instant::now();
-            let timeout = Duration::from_secs(300);
-
-            loop {
-                if self.socket_path.server_exists() {
-                    break;
-                }
-                if start.elapsed() > timeout {
-                    return Err("Timed out waiting for hakana server to start".to_string());
-                }
-                tokio::time::sleep(Duration::from_millis(100)).await;
-            }
-            log::info!("Server socket appeared, waiting for analysis to complete...");
-        }
+        log::info!("Connecting to or spawning hakana server...");
+        self.server_connection = Some(
+            ServerConnection::connect_or_spawn(Path::new(&self.root_dir), None)
+                .await
+                .map_err(|e| format!("Failed to connect to or spawn hakana server: {}", e))?,
+        );
 
         self.wait_for_server_ready().await?;
         self.server_ready = true;
@@ -134,58 +118,20 @@ impl McpServer {
         Ok(())
     }
 
-    fn spawn_server(&self) -> Result<(), String> {
-        let current_exe = std::env::current_exe()
-            .map_err(|e| format!("Could not determine current executable: {}", e))?;
-
-        let hakana_exe = current_exe
-            .parent()
-            .map(|p| p.join("hakana"))
-            .unwrap_or_else(|| std::path::PathBuf::from("hakana"));
-
-        let config_path = self
-            .config_path
-            .clone()
-            .unwrap_or_else(|| format!("{}/hakana.json", self.root_dir));
-
-        log::info!(
-            "Spawning: {} server --root {}",
-            hakana_exe.display(),
-            self.root_dir
-        );
-
-        let child = Command::new(&hakana_exe)
-            .arg("server")
-            .arg("--root")
-            .arg(&self.root_dir)
-            .arg("--config")
-            .arg(&config_path)
-            .arg("--threads")
-            .arg(self.threads.to_string())
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn server: {}", e))?;
-
-        std::mem::forget(child);
-
-        Ok(())
-    }
-
     async fn wait_for_server_ready(&self) -> Result<(), String> {
         let start = Instant::now();
         let timeout = Duration::from_secs(300);
+        let server_connection = self
+            .server_connection
+            .as_ref()
+            .ok_or_else(|| "Hakana server connection has not been established".to_string())?;
 
         loop {
             if start.elapsed() > timeout {
                 return Err("Timed out waiting for server to complete analysis".to_string());
             }
 
-            if let Ok(mut client) = ClientSocket::connect(&self.socket_path).await
-                && let Ok(Message::StatusResult(status)) =
-                    client.request(&Message::Status(StatusRequest)).await
-            {
+            if let Ok(status) = server_connection.status().await {
                 if status.ready && !status.analysis_in_progress {
                     log::info!(
                         "\nServer analysis complete: {} files, {} symbols",

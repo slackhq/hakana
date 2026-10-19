@@ -114,6 +114,7 @@ pub(crate) fn analyze<'expr>(
             )
             .ok();
 
+            context.response = isset_context.response;
             analysis_data.get_rc_expr_type(root_expr.pos()).cloned()
         } else {
             None
@@ -241,6 +242,8 @@ fn get_left_expr(
             false,
         ));
     }
+
+    context.response = isset_context.response;
 
     let redefined_vars = isset_context
         .get_redefined_locals(&context.locals, false, &mut FxHashSet::default())

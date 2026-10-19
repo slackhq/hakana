@@ -1519,14 +1519,14 @@ impl TAtomic {
         }
     }
 
-    pub fn is_array_accessible_with_int_or_string_key(&self, interner: &Interner) -> bool {
+    pub fn is_array_accessible_with_int_or_string_key(&self) -> bool {
         match self {
             TAtomic::TDict(TDict { .. }) | TAtomic::TVec(TVec { .. }) | TAtomic::TKeyset { .. } => {
                 true
             }
             TAtomic::TNamedObject(TNamedObject { name, .. }) => matches!(
-                interner.lookup(name),
-                "HH\\KeyedContainer" | "HH\\Container" | "HH\\AnyArray"
+                *name,
+                StrId::KEYED_CONTAINER | StrId::CONTAINER | StrId::ANY_ARRAY
             ),
             _ => false,
         }

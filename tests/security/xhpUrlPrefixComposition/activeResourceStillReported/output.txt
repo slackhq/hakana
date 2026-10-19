@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:4:28 - Data from a URL query string found its way to an executable HTML resource URL using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:3:22) ----> $query (input.hack:3:5) ----> composition (input.hack:4:28) ----> Facebook\XHP\HTML\script::src (input.hack:4:28)

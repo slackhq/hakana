@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:2:10 - Data from a URL query string found its way to a redirect URI using path $_GET --array-fetch--> arrayvalue-fetch (input.hack:2:24) ----> composition (input.hack:2:10) ----> redirect#1 (input.hack:2:10)

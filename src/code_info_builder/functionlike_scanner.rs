@@ -24,9 +24,11 @@ use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::method_info::MethodInfo;
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_atomic::TGenericParam;
+use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::string_to_sink_types;
 use hakana_code_info::taint::string_to_source_types;
 use hakana_code_info::ttype::get_mixed_any;
+use hakana_code_info::ttype::wrap_atomic;
 use hakana_code_info::type_resolution::TypeResolutionContext;
 use hakana_str::{StrId, ThreadedInterner};
 use oxidized::aast;
@@ -316,6 +318,19 @@ pub(crate) fn get_functionlike(
         functionlike_info.params.shrink_to_fit();
     }
 
+    for attribute in user_attributes
+        .iter()
+        .chain(params.iter().flat_map(|param| &param.user_attributes))
+    {
+        if let Some(message) =
+            validate_security_attribute(attribute, params, resolved_names, interner)
+        {
+            functionlike_info
+                .invalid_security_annotations
+                .push((HPos::new(&attribute.name.0, file_source.file_path), message));
+        }
+    }
+
     type_context.template_supers = template_supers;
     functionlike_info.return_type = get_type_from_optional_hint(
         ret.get_hint(),
@@ -338,6 +353,18 @@ pub(crate) fn get_functionlike(
         });
 
         match attribute_name {
+            StrId::HAKANA_TYPE_ASSERTION => {
+                match get_type_assertion(user_attribute, &functionlike_info, type_context, interner)
+                {
+                    Ok(assertion) => functionlike_info.type_assertion = Some(Box::new(assertion)),
+                    Err(message) => {
+                        functionlike_info.invalid_type_assertion_annotation = Some(Box::new((
+                            HPos::new(&user_attribute.name.0, file_source.file_path),
+                            message,
+                        )));
+                    }
+                }
+            }
             StrId::HAKANA_CALLS_SERVICE => {
                 functionlike_info.service_calls = get_spread_params_from_attribute(user_attribute);
             }
@@ -357,6 +384,19 @@ pub(crate) fn get_functionlike(
                 }
 
                 functionlike_info.taint_source_types = source_types;
+            }
+            StrId::HAKANA_SECURITY_ANALYSIS_NOT_SOURCE_WHEN => {
+                let values = get_spread_params_from_attribute(user_attribute);
+                if let Some(parameter) = values.first()
+                    && values.len() > 1
+                    && let Some(offset) = functionlike_info.params.iter().position(|param| {
+                        interner.lookup(param.name.0).trim_start_matches('$')
+                            == parameter.trim_start_matches('$')
+                    })
+                {
+                    functionlike_info.not_source_when.push((offset, values[1..].to_vec()));
+                    functionlike_info.specialize_call = true;
+                }
             }
             StrId::HAKANA_SECURITY_ANALYSIS_SPECIALIZE_CALL => {
                 functionlike_info.specialize_call = true;
@@ -390,6 +430,13 @@ pub(crate) fn get_functionlike(
             }
             StrId::HAKANA_SECURITY_ANALYSIS_IGNORE_PATH_IF_TRUE => {
                 functionlike_info.ignore_taints_if_true = true;
+            }
+            StrId::HAKANA_SECURITY_ANALYSIS_HTML_SAFE_JSON => {
+                functionlike_info.return_value_encoding =
+                    Some(hakana_code_info::data_flow::path::ValueEncoding::HtmlSafeJson);
+            }
+            StrId::HAKANA_SECURITY_ANALYSIS_ACCEPTS_HTML_SAFE_JSON => {
+                functionlike_info.accepts_html_safe_json = true;
             }
             StrId::HAKANA_SECURITY_ANALYSIS_SANITIZE | StrId::HAKANA_FIND_PATHS_SANITIZE => {
                 let string_values = get_spread_params_from_attribute(user_attribute);
@@ -784,6 +831,11 @@ fn convert_param_nodes(
                 param.attributes.push(AttributeInfo { name: *name });
 
                 match *name {
+                    StrId::HAKANA_SECURITY_ANALYSIS_SANITIZE => {
+                        for name in get_spread_params_from_attribute(user_attribute) {
+                            param.removed_taints.extend(string_to_sink_types(name));
+                        }
+                    }
                     StrId::HAKANA_SECURITY_ANALYSIS_SINK => {
                         let string_values = get_spread_params_from_attribute(user_attribute);
 
@@ -835,6 +887,58 @@ fn convert_param_nodes(
         .collect()
 }
 
+fn get_type_assertion(
+    attribute: &aast::UserAttribute<(), ()>,
+    functionlike_info: &FunctionLikeInfo,
+    type_context: &TypeResolutionContext,
+    interner: &ThreadedInterner,
+) -> Result<(usize, TUnion), String> {
+    let values = get_spread_params_from_attribute(attribute);
+    if attribute.params.len() != 2 || values.len() != 2 {
+        return Err(
+            "Hakana\\TypeAssertion expects two string literals: a parameter name and a generic type name"
+                .to_string(),
+        );
+    }
+
+    let offset = functionlike_info
+        .params
+        .iter()
+        .position(|param| {
+            interner.lookup(param.name.0).trim_start_matches('$')
+                == values[0].trim_start_matches('$')
+        })
+        .ok_or_else(|| format!("Unknown type assertion parameter {}", values[0]))?;
+
+    if functionlike_info.params[offset].is_variadic
+        || functionlike_info.params[offset].is_splat
+        || functionlike_info.params[offset].is_inout
+    {
+        return Err("A type assertion parameter must be a single, non-inout value".to_string());
+    }
+
+    let (name, bounds) = type_context
+        .template_type_map
+        .iter()
+        .find(|(name, _)| interner.lookup(*name) == values[1])
+        .ok_or_else(|| format!("Unknown type assertion generic type {}", values[1]))?;
+    let (defining_entity, as_type) = bounds.first().ok_or_else(|| {
+        format!(
+            "Missing bounds for type assertion generic type {}",
+            values[1]
+        )
+    })?;
+
+    Ok((
+        offset,
+        wrap_atomic(TAtomic::TGenericParam(TGenericParam {
+            param_name: *name,
+            defining_entity: *defining_entity,
+            as_type: Box::new((**as_type).clone()),
+        })),
+    ))
+}
+
 fn get_spread_params_from_attribute(user_attribute: &aast::UserAttribute<(), ()>) -> Vec<String> {
     user_attribute
         .params
@@ -847,4 +951,57 @@ fn get_spread_params_from_attribute(user_attribute: &aast::UserAttribute<(), ()>
             }
         })
         .collect::<Vec<_>>()
+}
+
+fn validate_security_attribute(
+    attribute: &aast::UserAttribute<(), ()>,
+    params: &[aast::FunParam<(), ()>],
+    resolved_names: &FxHashMap<u32, StrId>,
+    interner: &ThreadedInterner,
+) -> Option<String> {
+    let name = interner.lookup(*resolved_names.get(&(attribute.name.0.start_offset() as u32))?);
+    let kind = name.strip_prefix("Hakana\\SecurityAnalysis\\")?;
+    let values = get_spread_params_from_attribute(attribute);
+    let reason = match kind {
+        "Source" | "Sink" | "Sanitize" | "RemoveTaintsWhenReturningTrue" => {
+            if values.is_empty() || values.len() != attribute.params.len() {
+                Some("requires one or more literal taint-kind strings".to_string())
+            } else {
+                let invalid = values
+                    .iter()
+                    .filter(|value| {
+                        if kind == "Source" {
+                            string_to_source_types((*value).clone()).is_none()
+                        } else {
+                            string_to_sink_types((*value).clone()).is_empty()
+                        }
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                (!invalid.is_empty())
+                    .then(|| format!("unrecognized taint kind(s): {}", invalid.join(", ")))
+            }
+        }
+        "NotSourceWhen" => {
+            if values.len() < 2 || values.len() != attribute.params.len() {
+                Some("requires a literal parameter name and at least one literal value".to_string())
+            } else if !params.iter().any(|param| {
+                param.name.trim_start_matches('$') == values[0].trim_start_matches('$')
+            }) {
+                Some(format!("unknown parameter {}", values[0]))
+            } else {
+                None
+            }
+        }
+        "IgnorePath"
+        | "IgnorePathIfTrue"
+        | "SpecializeCall"
+        | "SpecializeInstance"
+        | "HtmlSafeJson"
+        | "AcceptsHtmlSafeJson"
+        | "PropagateTaint"
+        | "ShapeSource" => None,
+        _ => Some("unrecognized security attribute".to_string()),
+    };
+    reason.map(|reason| format!("{name}: {reason}"))
 }

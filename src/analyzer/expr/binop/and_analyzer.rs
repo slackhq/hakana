@@ -144,6 +144,8 @@ pub(crate) fn analyze<'expr>(
     );
     right_context.clauses = partitioned_clauses.0;
 
+    right_context.response = left_context.response;
+
     expression_analyzer::analyze(
         statements_analyzer,
         right,
@@ -151,6 +153,11 @@ pub(crate) fn analyze<'expr>(
         &mut right_context,
         true,
     )?;
+
+    context.response = left_context.response.join(right_context.response);
+    if let Some(branch) = &context.if_body_context {
+        branch.borrow_mut().response = context.response;
+    }
 
     handle_paradoxical_condition(statements_analyzer, analysis_data, right, context);
 

@@ -175,17 +175,39 @@ pub(crate) fn add_array_fetch_dataflow(
     value_type: &mut TUnion,
     key_type: &mut TUnion,
 ) {
+    let Some(array_type) = analysis_data.get_rc_expr_type(array_expr_pos).cloned() else {
+        return;
+    };
+
+    add_array_fetch_dataflow_from_parents(
+        statements_analyzer,
+        array_expr_pos,
+        analysis_data,
+        keyed_array_var_id,
+        value_type,
+        key_type,
+        &array_type.parent_nodes,
+    );
+}
+
+/// Destructuring can fetch from an intermediate tuple without an AST expression.
+/// Use its actual parents so that nested fetches retain every offset in the path.
+pub(crate) fn add_array_fetch_dataflow_from_parents(
+    statements_analyzer: &StatementsAnalyzer,
+    array_expr_pos: &Pos,
+    analysis_data: &mut FunctionAnalysisData,
+    keyed_array_var_id: Option<String>,
+    value_type: &mut TUnion,
+    key_type: &mut TUnion,
+    parent_nodes: &[DataFlowNode],
+) {
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &analysis_data.data_flow_graph.kind
         && !value_type.has_taintable_value()
     {
         return;
     }
 
-    if let Some(stmt_var_type) = analysis_data.expr_types.get(&(
-        array_expr_pos.start_offset() as u32,
-        array_expr_pos.end_offset() as u32,
-    )) && !stmt_var_type.parent_nodes.is_empty()
-    {
+    if !parent_nodes.is_empty() {
         // TODO Add events dispatchers
 
         let node_name = if let Some(keyed_array_var_id) = &keyed_array_var_id {
@@ -233,7 +255,7 @@ pub(crate) fn add_array_fetch_dataflow(
                 .add_node(new_parent_node.clone());
         }
 
-        for parent_node in stmt_var_type.parent_nodes.iter() {
+        for parent_node in parent_nodes {
             analysis_data.data_flow_graph.add_path(
                 &parent_node.id,
                 &new_parent_node.id,

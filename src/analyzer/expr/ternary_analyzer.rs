@@ -305,6 +305,24 @@ pub(crate) fn analyze(
     // we do this here so it's accurate, analysis_data might get overwritten for the same position later
     let stmt_else_type = analysis_data.get_rc_expr_type(expr.2.pos()).cloned();
 
+    let response = if stmt_cond_type
+        .as_ref()
+        .is_some_and(|ty| ty.is_always_truthy())
+    {
+        if_context.response
+    } else if stmt_cond_type
+        .as_ref()
+        .is_some_and(|ty| ty.is_always_falsy())
+    {
+        temp_else_context.response
+    } else if lhs_type.as_ref().is_some_and(|ty| ty.is_nothing()) {
+        temp_else_context.response
+    } else if stmt_else_type.as_ref().is_some_and(|ty| ty.is_nothing()) {
+        if_context.response
+    } else {
+        if_context.response.join(temp_else_context.response)
+    };
+
     let assign_var_ifs = if_context.assigned_var_ids.clone();
     let assign_var_else = temp_else_context.assigned_var_ids.clone();
 
@@ -434,6 +452,8 @@ pub(crate) fn analyze(
     } else {
         analysis_data.set_expr_type(pos, get_mixed_any());
     }
+
+    context.response = response;
 
     Ok(())
 }

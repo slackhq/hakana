@@ -522,6 +522,35 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             analysis_data.issue_filter = Some(issue_filter.clone());
         }
 
+        for (pos, message) in &functionlike_storage.invalid_security_annotations {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InvalidSecurityAnnotation,
+                    message.clone(),
+                    *pos,
+                    &Some(functionlike_id),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+
+        if let Some((pos, message)) = functionlike_storage
+            .invalid_type_assertion_annotation
+            .as_deref()
+        {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InvalidTypeAssertionAnnotation,
+                    message.clone(),
+                    *pos,
+                    &Some(functionlike_id),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+
         // Check for missing __Override attribute
         if is_missing_override_attribute {
             analysis_data.maybe_add_issue(
@@ -955,6 +984,26 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     })))
                 }
             }
+        }
+
+        if matches!(
+            analysis_data.data_flow_graph.kind,
+            GraphKind::WholeProgram(_)
+        ) && !functionlike_storage.is_async
+        {
+            let prefix = if context.has_returned && !analysis_data.inferred_return_types.is_empty()
+            {
+                analysis_data.inferred_return_types.iter().try_fold(
+                    hakana_code_info::data_flow::uri_prefix::UriPrefix::default(),
+                    |prefix, ty| ty.uri_prefix().map(|other| prefix.join(other)),
+                )
+            } else {
+                None
+            };
+            analysis_data
+                .data_flow_graph
+                .uri_prefix_returns
+                .insert(functionlike_id, prefix);
         }
 
         let mut effects = 0;

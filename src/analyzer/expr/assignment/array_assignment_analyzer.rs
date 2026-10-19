@@ -451,6 +451,19 @@ fn add_array_assignment_dataflow(
     }
 
     for child_parent_node in &child_expr_type.parent_nodes {
+        if parent_expr_type
+            .types
+            .iter()
+            .any(|atomic| matches!(atomic, TAtomic::TKeyset { .. }))
+        {
+            analysis_data.data_flow_graph.add_path(
+                &child_parent_node.id,
+                &parent_node.id,
+                PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey),
+                vec![],
+                vec![],
+            );
+        }
         if !key_values.is_empty() {
             for key_value in key_values {
                 let key_value = match key_value {

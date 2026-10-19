@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Default)]
 pub struct TestConfig {
+    pub max_depth: Option<u8>,
     pub max_changes_allowed: Option<usize>,
     pub strict_falsable_types: Option<bool>,
     pub find_unused_expressions: Option<bool>,

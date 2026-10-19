@@ -1,8 +1,15 @@
 # Security Analysis in Hakana
 
-Hakana can attempt to find connections between user-controlled input (like `HH\global_get('GET')['name']`) and places that we don’t want unescaped user-controlled input to end up (like `echo "<h1>$name</h1>"` by looking at the ways that data flows through your application (via assignments, function/method calls and array/property access).
+Hakana can attempt to find connections between user-controlled input (like `HH\global_get('_GET')['name']`) and places that we don’t want unescaped user-controlled input to end up (like `echo "<h1>$name</h1>"`) by looking at the ways that data flows through your application (via assignments, function/method calls and array/property access).
 
 You can enable this mode by running `<hakana path> security-check`. When taint analysis is enabled, no other analysis is performed.
+
+`--threads` controls both file analysis and forward graph traversal (default: 8).
+The traversal expands bounded batches of each BFS frontier in parallel, then
+merges results in frontier order using one global visited set. Worker scheduling
+does not change retained witnesses, sink reporting, or the depth limit for a given
+graph. Backward reachability pruning remains serial. `--threads 1` runs traversal
+synchronously; WebAssembly also uses that path.
 
 Tainted input is anything that can be controlled, wholly or in part, by a user of your application. In taint analysis, tainted input is called a _taint source_.
 
@@ -32,6 +39,17 @@ Hakana recognises a number of taint sources, defined in the [SourceType enum](ht
 - `UserPassword` — any data that contains user secrets (e.g. hashed password fields). This must be explicitly annotated in your application with Hakana attributes.
 - `SystemSecret` — any data that contains system secrets (e.g. API keys). This must be explicitly annotated in your application with Hakana attributes.
 
+`UriRequestHeader` and `NonUriRequestHeader` have the same injection policy.
+POST bodies and cookies can reach HTML and URL sinks just as GET parameters can.
+`HH\global_get` recognizes `_GET`, `_REQUEST`, `_POST`, `_COOKIE`, request-derived
+fields of `_SERVER`, and client metadata fields of `_FILES`. Unknown global
+names are conservatively modeled as request data. `file_get_contents('php://input')`
+is also a request source.
+
+Numeric values retain privacy, secret, and authorization-key provenance.
+Numeric conversion can remove syntax-injection taints without making an ID
+authorized or making a secret safe to log.
+
 ## Taint Sinks
 
 Hakana recognises a range of taint sinks, defined in the [SinkType enum](https://github.com/slackhq/hakana/blob/c23bd6183a705a40a1cfe1952b603b97fae9f555/src/code_info/taint.rs#L30)
@@ -45,10 +63,145 @@ Hakana recognises a range of taint sinks, defined in the [SinkType enum](https:/
 - `Cookie` - used for anywhere that saves arbitrary cookie information
 - `CurlHeader` - used for anywhere that sends arbitrary header information in a Curl request
 - `CurlUri` - used for anywhere that sends Curl requests to an arbitrary URI
-- `HtmlAttribute` - used for anywhere that emits arbitrary HTML attributes
-- `HtmlAttributeUri` - used for anywhere that emits arbitrary URIs embedded in HTML code
+- `HtmlAttribute` - unescaped HTML attribute syntax
+- `HtmlAttributeUri` - navigation URLs, including links, base URLs and form destinations
+- `HtmlActiveResourceUri` - script, iframe, object, embed and stylesheet URLs
+- `HtmlMediaUri` - passive media/resource URLs; excluded from default request-injection taints
+- `JavaScript` - script bodies and event-handler attributes
+- `Css` - style bodies and style attributes
+- `ResponseHeader` - the header argument of `header`
 - `Logging` - used for anywhere that logs arbitrary strings
 - `Output` - used for anywhere that `echo`s arbitrary strings
+- `UnauthorizedDataFetchKey` - explicitly annotated data-access keys that require authorization
+
+`curl_setopt` and literal `curl_setopt_array` options distinguish URLs/proxies
+from HTTP headers and harmless options. Unknown options are treated
+conservatively. Native exception messages, codes, and previous exceptions retain
+their field-specific provenance when retrieved.
+
+### XHP attribute contexts
+
+Native XHP HTML elements escape scalar attribute values inside double quotes.
+Those values do not need an `HtmlAttribute` injection check. Mixed/object values
+retain that check because `UnsafeAttributeValue_DEPRECATED` can bypass escaping.
+Custom component rendering does not acquire the native escaping guarantee.
+
+Image `src`/`srcset`, media sources and video posters use `HtmlMediaUri`.
+User control of a passive resource URL alone does not produce an injection report.
+All attribute sinks retain `Output`, so secret disclosure is still reported.
+The media label distinguishes this context for resource policies; the default
+source policy does not enable a separate media-destination check.
+
+Script, iframe, embed, object and stylesheet URLs use `HtmlActiveResourceUri`.
+HTML escaping, URL-component encoding, numeric conversion and a fixed URL prefix
+do not establish that the chosen resource is safe to execute. Existing
+`Sanitize('HtmlAttributeUri')` annotations and URL checks do not clear the new
+active-resource obligation. A reviewed resource builder can explicitly declare
+`Sanitize('HtmlActiveResourceUri')`; `Sanitize('*')` includes it.
+
+`link` classification uses this element's literal `rel`, `as` and `type`, regardless
+of attribute order. Icons, metadata links and known passive preloads are passive;
+stylesheet/module preloads, unknown relations, dynamic discriminators and spreads
+remain conservative. Event handlers still use `JavaScript`, styles use `Css`, and
+iframe `srcdoc` uses `HtmlTag` because the browser parses it as a nested document.
+
+These are sink classifications, not sanitizers: displaying a value in an image
+does not clear its taint before a later script, navigation or raw HTML use.
+
+### Context-specific sanitization
+
+HTML escaping removes HTML-tag taint, and quote escaping (`ENT_QUOTES`) also
+removes HTML-attribute taint. It does not validate a URL scheme or escape
+JavaScript/CSS. `strip_tags` only removes HTML-tag taint when no tags are allowed.
+URL-component encoding is not a JavaScript or CSS sanitizer.
+
+Concatenation only removes URL-destination taint from a suffix after a fixed
+authority or an established relative path. For example,
+`'https://example.com/path/' . $input` fixes the destination, whereas
+`'https://' . $input` does not. Taint in the authority itself remains reportable.
+That guarantee persists through subsequent operands in the same concatenation:
+`'/apps/' . $id . '/' . $section . '?' . $query` cannot turn `$query` into a
+URL scheme or host. This only removes destination-control taints (`HtmlAttributeUri`,
+`CurlUri`, `RedirectUri`); executable-resource, HTML syntax and secret-disclosure
+checks remain. Query parameter names and values should still be URL-encoded to
+keep `&`, `=` and `#` inside their intended parameters.
+
+The prefix guarantee survives assignments and `.=`. Synchronous helpers can
+also establish it when every returning path has a fixed prefix, independently
+of their arguments. Method summaries require an exact implementation (a final
+class/method or a private method). Unknown alternatives, transformations,
+overridable methods, source annotations and recursive dependencies without a
+proof remain conservative. This only affects a later suffix's URL-destination
+obligations; it does not remove taint already carried by the prefix.
+
+## Security configuration and annotation diagnostics
+
+`security_analysis.ignore_files` excludes function-body taint analysis in matching
+files while retaining scanned declarations. Top-level `test_files` does not
+exclude security analysis by default. To explicitly reuse those patterns:
+
+```json
+{
+  "security_analysis": {
+    "ignore_test_files": true
+  }
+}
+```
+
+Review the test patterns before enabling this option: mock APIs and operational
+test tools can have a different security scope from unit-test fixtures.
+
+`security_analysis.ignore_sink_files` takes exact `"SourceType -> SinkType"` keys.
+Despite its historical name, each pattern matches **any file on the trace**,
+not just the sink. Existing behavior is preserved; misspelled pairs now fail
+configuration loading. Prefer an argument-local `HAKANA_SECURITY_IGNORE` when
+only one operation is exempt.
+
+Top-level `ignore_issue_files: {"TaintedData": ["reviewed.hack"]}` suppresses
+taint reports of every sink kind located in the specified file. It does not
+remove the file's graph or stop propagation to later sinks. Other issue kinds
+remain reportable.
+
+`InvalidSecurityAnnotation` reports empty taint lists, unrecognized taint kinds
+or security attribute names, and invalid `NotSourceWhen` parameter names on
+functions, methods and their parameters. Empty lists and unrecognized kinds
+do not remove taint; recognized kinds in a partially invalid list still apply.
+
+### Search limits
+
+The default maximum path depth is 40 and can be overridden by configuration or
+`--max-depth` (1–255). Backward reachability from sinks prunes irrelevant parts
+of the graph before the forward, context-sensitive traversal. Reaching the depth
+limit stops traversal without emitting an issue or failing the security check.
+Findings within the configured depth are still reported; paths beyond that depth
+are not checked.
+
+### Dispatch and collection precision
+
+Virtual calls propagate arguments to implementations reachable from the receiver
+type, rather than connecting a shared parent argument to every override. Explicit
+`parent::`, class `self::`, and named-class calls retain their selected
+implementation; late-static and dynamic calls still consider overrides. Trait
+`self::` calls resolve against their consuming classes. Inherited implementations
+are included when resolving interfaces and subclasses.
+
+Return flows retain compatible receiver classes through calls on `$this`. This
+keeps sibling implementations of generic visitors separate without discarding
+polymorphic returns or data obtained from a different object. Visited states keep
+only narrowed receiver sets; unconstrained and completed receiver contexts merge.
+
+`Keyset\keys` and `Vec\keys` extract key taint, not value taint. The result carries
+those keys as values; keysets also carry them as keys. Array-path matching tracks
+nested containers and distinguishes keys from values, so private dictionary
+values do not taint field-name logging and sensitive dictionary keys still report.
+Keyset literals, appends, conversions, and HSL transformations preserve the
+identity between their keys and values, including through abstract container
+return types.
+
+Unused-expression analysis tracks input usage separately from this taint
+provenance. Builtin transformations can read keys or values without returning
+them, so their argument-to-result usage edges consume the entire argument and
+discard its old collection layout. Discarded results still report as unused.
 
 ## Annotating your code for security analysis
 
@@ -119,6 +272,109 @@ $tainted = $_GET['foo'];
 echo custom_html_escape($tainted);
 ```
 
+On a parameter, `Sanitize` removes the named obligations from that argument's
+path into the callee. It does not sanitize the caller's variable, other
+arguments, or sources read within the callee. This is useful for a URL builder
+whose path argument cannot change the configured origin. It is an asserted
+contract, so review every use of that parameter before annotating it.
+
+### `Hakana\SecurityAnalysis\NotSourceWhen`
+
+Use this on a source function or method to exclude specific literal argument
+values from the source declaration:
+
+```hack
+<<Hakana\SecurityAnalysis\Source('NonUriRequestHeader'),
+  Hakana\SecurityAnalysis\NotSourceWhen('key', 'TRUSTED_PROXY_FIELD')>>
+function request_field(string $key, string $default = ''): string {
+    // ...
+}
+```
+
+The first attribute argument names a parameter; subsequent arguments list exact,
+case-sensitive string values. A call introduces no new source when every possible
+literal value of that argument is listed. Unknown values, mixed trusted/untrusted
+alternatives, and omitted arguments remain conservative. Invalid parameter names
+have no effect.
+
+This is a source contract, not a sanitizer: taint propagated from the function
+body or other arguments, including a tainted default, remains. Wrappers around
+request globals need a call-site boundary model to distinguish their fields.
+Only assert this contract for a field whose origin is trusted in the deployment.
+
+### `Hakana\SecurityAnalysis\HtmlSafeJson`
+
+This describes a function or method returning a complete JSON expression encoded
+for insertion into HTML script text, such as `json_encode($value, JSON_HEX_TAG)`.
+It adds an encoding marker to the return data-flow path. It does not change the
+Hack type or remove the value's source provenance.
+
+Direct `json_encode` calls with a provable `JSON_HEX_TAG` flag also establish the
+marker. Unknown flags remain conservative. A bare encoded JSON expression can
+satisfy a JavaScript sink. Once composed into script text, it requires an audited
+consumer contract as described below. Hakana does not parse JavaScript.
+
+Encoding is tracked separately for each route, so an encoded branch cannot clear
+an unencoded branch's taint. Decoding, string transformations, and container
+fetches invalidate the encoding proof. The marker does not sanitize URL sinks or
+secret output.
+
+### `Hakana\SecurityAnalysis\AcceptsHtmlSafeJson`
+
+This marks a function or method whose JavaScript sinks have been audited to
+handle HTML-safe JSON as complete data values. It applies to native XHP script
+bodies directly inside that function, and to its parameters explicitly marked
+`Sink('JavaScript')`.
+
+```hack
+use type Facebook\XHP\HTML\script;
+
+<<Hakana\SecurityAnalysis\AcceptsHtmlSafeJson>>
+function render_boot_data(mixed $data): script {
+    $json = json_encode($data, JSON_HEX_TAG) as string;
+    return <script>{'window.boot_data = '.$json.';'}</script>;
+}
+```
+
+The audit must establish that encoded values are complete expressions, never
+inserted inside quotes, template strings, comments or regular expressions, and
+never interpreted as code or HTML by consumers such as `eval` or `innerHTML`.
+Values used as navigation destinations or executable resource URLs need separate
+URL sinks or validation, even when their JSON insertion is safe.
+
+The encoding proof survives concatenation, assignment, and helper returns.
+Every tainted route still needs its own proof: raw siblings, raw alternative
+branches, and transformations after encoding retain their reports. The attribute
+only discharges the JavaScript obligation at the audited sink; it does not
+sanitize the function's return value, its callees, event-handler attributes,
+resource URLs, or secret output. Re-audit the contract when script handling
+changes.
+
+### HTTP response context
+
+`BlockContext` carries the current response content type (`Unknown`, `Html`, or
+`Json`) and whether observed output has committed the headers. A known literal
+Content-Type updates that context. Ordinary assignments, pure computation, and
+other named HTTP headers preserve it. A JSON response omits the `HtmlTag` sink
+for scalar `echo`/`print` output; the value's taints and secret-output obligations
+remain intact.
+
+`if`/`else`, ternary, and short-circuit joins retain only facts guaranteed on the
+continuing paths. Headers inside one conditional branch cannot sanitize output
+on another branch or before the header. Unknown calls invalidate the MIME fact;
+output-buffering operations and control-flow joins that may have emitted output
+also forget header mutability. Loops without observed output preserve header
+mutability, so a Content-Type set after the loop can establish a new MIME fact.
+
+The model assumes headers are mutable at function entry and tracks output
+observed in that function. It is not an interprocedural proof about output
+previously sent by callers or hidden inside unknown callees.
+
+`json_encode` and `json_encode_with_error` preserve the response context for all
+input types, including objects and `mixed`. The model assumes serialization
+callbacks do not alter HTTP response state. Effects from evaluating the encoder's
+arguments still apply, as do subsequent explicit header changes.
+
 ### `Hakana\SecurityAnalysis\ShapeSource`
 
 Given a type alias that defines a shape, you can use `ShapeSource` to define per-field source types.
@@ -135,7 +391,7 @@ type user_t = shape(
 
 function takesUser(user_t $user) {
     echo $user['username']; // this is ok
-    echo $user['email']; // this is an error
+    echo $user['password']; // this is an error
 }
 ```
 
@@ -179,6 +435,12 @@ function takesUser(User $user): void {
 ### `HAKANA_SECURITY_IGNORE`
 
 In addition to attributes, Hakana supports using the `HAKANA_SECURITY_IGNORE[<SinkType>]` doc comment to suppress individual paths. This can be used when you want to deliberately do something that would otherwise be considered dangerous.
+
+The comment must immediately precede the affected call, argument, or assignment,
+with only whitespace between them (an argument-list opening parenthesis is also
+allowed). A comment before a call applies to that call's arguments. It does not
+suppress later calls on the same line. For regex match-output propagation,
+place it immediately before the pattern argument.
 
 ```hack
 function check_endpoint(string $s): void {

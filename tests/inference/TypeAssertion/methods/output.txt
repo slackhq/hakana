@@ -1,0 +1,8 @@
+ERROR: ImpossibleTypeComparison - input.hack:23:23 - Type string is never int
+ERROR: RedundantTypeComparison - input.hack:24:23 - Type int is always int
+ERROR: ImpossibleTypeComparison - input.hack:25:23 - Type string is never int
+ERROR: RedundantTypeComparison - input.hack:26:23 - Type int is always int
+ERROR: ImpossibleTypeComparison - input.hack:27:30 - Type string is never int
+ERROR: RedundantTypeComparison - input.hack:28:30 - Type int is always int
+ERROR: ImpossibleTypeComparison - input.hack:29:28 - Type string is never int
+ERROR: RedundantTypeComparison - input.hack:30:28 - Type int is always int

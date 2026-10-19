@@ -285,12 +285,11 @@ fn get_is_assertions(
             )),
             assertion_context.codebase,
         ) {
-            if !union_type_comparator::can_expression_types_be_identical(
+            if !union_type_comparator::can_type_assertion_succeed(
                 codebase,
                 &assertion_context.file_source.file_path,
                 lhs_type,
                 &is_type,
-                true,
             ) {
                 analysis_data.maybe_add_issue(
                     Issue::new(

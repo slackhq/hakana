@@ -16,7 +16,7 @@ use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 use std::{fs, io};
@@ -34,8 +34,6 @@ pub fn analyze_files(
     files_processed: Option<Arc<AtomicU32>>,
 ) -> io::Result<()> {
     let mut group_size = threads as usize;
-
-    let mut path_groups = FxHashMap::default();
 
     if let Some(filter) = filter {
         paths.retain(|str_path| str_path.matches(filter.as_str()).count() > 0);
@@ -55,14 +53,6 @@ pub fn analyze_files(
         group_size = 1;
     }
 
-    for (i, str_path) in paths.iter().enumerate() {
-        let group = i % group_size;
-        path_groups
-            .entry(group)
-            .or_insert_with(Vec::new)
-            .push(str_path);
-    }
-
     let bar = if show_progress {
         let pb = ProgressBar::new(total_file_count);
         let sty = ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
@@ -80,10 +70,15 @@ pub fn analyze_files(
 
     let arc_file_analysis_time = Arc::new(Mutex::new(Duration::default()));
 
-    for (_, path_group) in path_groups {
-        let scan_data = scan_data.clone();
+    // File sizes vary substantially. Claim work as each worker becomes free
+    // instead of leaving workers idle behind a fixed group of expensive files.
+    let paths = Arc::new(paths);
+    let next_path = Arc::new(AtomicUsize::new(0));
 
-        let pgc = path_group.iter().map(|c| (*c).clone()).collect::<Vec<_>>();
+    for _ in 0..group_size.min(paths.len()) {
+        let scan_data = scan_data.clone();
+        let paths = paths.clone();
+        let next_path = next_path.clone();
 
         let analysis_result = analysis_result.clone();
 
@@ -104,7 +99,7 @@ pub fn analyze_files(
             let mut new_analysis_result =
                 AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
-            for str_path in &pgc {
+            while let Some(str_path) = paths.get(next_path.fetch_add(1, Ordering::Relaxed)) {
                 let file_path = FilePath(interner.get(str_path).unwrap());
 
                 if let Some(resolved_names) = resolved_names.get(&file_path) {
@@ -276,7 +271,17 @@ fn analyze_loaded_ast(
         file_path,
         hh_fixmes: &aast.1.fixmes,
         comments: &aast.1.comments,
-        file_contents: if !config.migration_symbols.is_empty() || !config.issues_to_fix.is_empty() {
+        file_contents: if !config.migration_symbols.is_empty()
+            || !config.issues_to_fix.is_empty()
+            || (matches!(
+                config.graph_kind,
+                hakana_code_info::data_flow::graph::GraphKind::WholeProgram(_)
+            ) && aast.1.comments.iter().any(|(_, comment)| {
+                matches!(
+                    comment, oxidized::prim_defs::Comment::CmtBlock(text)
+                    if text.trim_start().starts_with("HAKANA_SECURITY_IGNORE[")
+                )
+            })) {
             match fs::read_to_string(str_path) {
                 Ok(str_file) => str_file,
                 Err(_) => panic!("Could not read {}", str_path),

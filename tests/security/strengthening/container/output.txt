@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:2:30 - Data from a URL query string found its way to an HTML tag using path $_GET ----> $data (input.hack:1:1) --array-fetch--> arrayvalue-fetch (input.hack:2:10) ----> $v (input.hack:2:19) ----> echo#1 (input.hack:2:30)

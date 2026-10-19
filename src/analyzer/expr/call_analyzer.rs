@@ -44,7 +44,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let function_name_expr = &expr.func;
 
-    match &function_name_expr.2 {
+    let result = match &function_name_expr.2 {
         aast::Expr_::Id(boxed_id) => function_call_analyzer::analyze(
             statements_analyzer,
             (
@@ -113,7 +113,17 @@ pub(crate) fn analyze(
             analysis_data,
             context,
         ),
+    };
+    if result.is_ok() {
+        crate::expr::call::response_effects::apply(
+            statements_analyzer,
+            expr,
+            pos,
+            analysis_data,
+            context,
+        );
     }
+    result
 }
 
 /**
@@ -290,12 +300,11 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
                     continue;
                 }
 
-                if !union_type_comparator::can_expression_types_be_identical(
+                if !union_type_comparator::can_type_bounds_be_compatible(
                     codebase,
                     statements_analyzer.get_file_path(),
                     &upper_bound_with_equality.bound_type,
                     &upper_bound.bound_type,
-                    false,
                 ) {
                     analysis_data.maybe_add_issue(
                         Issue::new(
@@ -378,6 +387,7 @@ pub(crate) fn check_method_args(
     context: &mut BlockContext,
     pos: &Pos,
     method_name_pos: Option<&Pos>,
+    is_virtual: bool,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.codebase;
 
@@ -390,7 +400,7 @@ pub(crate) fn check_method_args(
         call_expr.2,
         &functionlike_id,
         functionlike_storage,
-        Some((method_id.0, lhs_type_part)),
+        Some((method_id.0, lhs_type_part, is_virtual)),
         analysis_data,
         context,
         template_result,

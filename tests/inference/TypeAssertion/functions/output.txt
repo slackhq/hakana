@@ -1,0 +1,15 @@
+ERROR: ImpossibleTypeComparison - input.hack:30:17 - Type string is never int
+ERROR: ImpossibleTypeComparison - input.hack:31:22 - Type string is never int
+ERROR: ImpossibleTypeComparison - input.hack:32:19 - Type string is never int
+ERROR: ImpossibleTypeComparison - input.hack:33:25 - Type string is never int
+ERROR: ImpossibleTypeComparison - input.hack:34:17 - Type string is never int
+ERROR: RedundantTypeComparison - input.hack:38:17 - Type int is always int
+ERROR: RedundantTypeComparison - input.hack:39:22 - Type int is always int
+ERROR: RedundantTypeComparison - input.hack:40:19 - Type int is always int
+ERROR: RedundantTypeComparison - input.hack:41:25 - Type int is always int
+ERROR: RedundantTypeComparison - input.hack:42:17 - Type int is always int
+ERROR: ImpossibleTypeComparison - input.hack:46:17 - Type int(123) is never string
+ERROR: RedundantTypeComparison - input.hack:47:17 - Type string(hello) is always string
+ERROR: RedundantTypeComparison - input.hack:48:25 - Type int is always int
+ERROR: ImpossibleTypeComparison - input.hack:52:17 - Type string is never T:fn-generic_impossible
+ERROR: RedundantTypeComparison - input.hack:56:17 - Type T:fn-generic_redundant is always T:fn-generic_redundant

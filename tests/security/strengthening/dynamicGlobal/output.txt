@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:3:6 - Data from a URL query string found its way to an HTML tag using path $_REQUEST ----> return (input.hack:1:52) ----> call to read_global (input.hack:1:37) ----> $data (input.hack:2:1) --array-fetch--> $data['q'] (input.hack:3:14) ----> echo#1 (input.hack:3:6)

@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:1:6 - Data from a server request found its way to an HTML tag using path call to file_get_contents (hhi_embedded_stdlib/builtins_file.hhi:155:4) ----> echo#1 (input.hack:1:6)

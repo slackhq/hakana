@@ -669,7 +669,10 @@ fn get_variable_child_nodes(
     let mut new_child_nodes = FxHashMap::default();
 
     if let Some(forward_edges) = graph.forward_edges.get(generated_source_id) {
-        for (to_id, path) in forward_edges {
+        for (to_id, path) in forward_edges
+            .iter()
+            .flat_map(|(to_id, paths)| paths.iter().map(move |path| (to_id, path)))
+        {
             if graph.sinks.contains_key(to_id) {
                 return None;
             }
@@ -699,7 +702,11 @@ fn get_variable_child_nodes(
             }
 
             let mut new_destination = VariableUseNode {
-                path_types: generated_source.clone().path_types,
+                path_types: if path.kind == PathKind::Aggregate {
+                    vec![]
+                } else {
+                    generated_source.path_types.clone()
+                },
                 kind: generated_source.kind.clone(),
                 pos: generated_source.pos.clone(),
             };

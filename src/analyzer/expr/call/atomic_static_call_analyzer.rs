@@ -266,6 +266,32 @@ fn handle_static_call_on_named_objects(
 
     // Get return types from all classes in the intersection and intersect them
     let mut return_type_candidate: Option<TUnion> = None;
+    let trait_self = context
+        .function_context
+        .calling_class
+        .is_some_and(|class| codebase.trait_exists(&class));
+    let is_virtual = match &expr.0.2 {
+        aast::ClassId_::CIstatic | aast::ClassId_::CIreified(_) => true,
+        aast::ClassId_::CIself => trait_self,
+        aast::ClassId_::CIexpr(class_expr) => match &class_expr.2 {
+            aast::Expr_::Id(class_id) => {
+                let resolved_class = statements_analyzer
+                    .file_analyzer
+                    .resolved_names
+                    .get(&(class_id.0.start_offset() as u32));
+                resolved_class == Some(&StrId::STATIC)
+                    || (trait_self && resolved_class == Some(&StrId::SELF))
+                    || matches!(
+                        lhs_type_part,
+                        TAtomic::TGenericClassname { .. }
+                            | TAtomic::TGenericClassPtr { .. }
+                            | TAtomic::TGenericParam { .. }
+                    )
+            }
+            _ => true,
+        },
+        _ => false,
+    };
 
     for classlike_name in &classlike_names {
         let class_return_type = existing_atomic_method_call_analyzer::analyze(
@@ -280,6 +306,7 @@ fn handle_static_call_on_named_objects(
             analysis_data,
             context,
             None,
+            is_virtual,
         )?;
 
         return_type_candidate = Some(match return_type_candidate {

@@ -4,6 +4,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use hakana_code_info::analysis_result::Replacement;
+use hakana_code_info::data_flow::uri_prefix::{UriPrefix, has_fixed_authority};
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TGenericParam;
 use hakana_code_info::t_union::TUnion;
@@ -65,13 +66,24 @@ pub(crate) fn analyze_concat_nodes(
 
     let decision_node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(stmt_pos));
 
-    let mut has_slash = false;
-    let mut has_query = false;
     let mut nonempty_string = false;
 
     let mut existing_literal_string_values: Option<Vec<String>> = Some(vec!["".to_string()]);
-
-    for (i, concat_node) in concat_nodes.iter().enumerate() {
+    let mut literal_uri_prefix = true;
+    let mut safe_uri_prefix: Option<UriPrefix> = None;
+    for (offset, concat_node) in concat_nodes.iter().enumerate() {
+        // Once a literal prefix has fixed the authority, every later operand is
+        // still in its path/query/fragment, even after dynamic path segments.
+        // Losing the full literal value does not lose this narrower guarantee.
+        if literal_uri_prefix
+            && existing_literal_string_values
+                .as_ref()
+                .is_some_and(|values| {
+                    !values.is_empty() && values.iter().all(|value| has_fixed_authority(value))
+                })
+        {
+            safe_uri_prefix = Some(UriPrefix::default());
+        }
         let mut new_literal_string_values = vec![];
 
         if let aast::Expr_::String(simple_string) = &concat_node.2 {
@@ -85,13 +97,6 @@ pub(crate) fn analyze_concat_nodes(
             if !simple_string.is_empty() {
                 nonempty_string = true;
             }
-
-            if simple_string.contains(&b'/') {
-                has_slash = true;
-            }
-            if simple_string.contains(&b'?') {
-                has_query = true;
-            }
         } else {
             let expr_type = analysis_data
                 .expr_types
@@ -102,17 +107,16 @@ pub(crate) fn analyze_concat_nodes(
                 .cloned();
 
             if let Some(expr_type) = expr_type {
+                // A literal alternative alongside an unknown string cannot
+                // establish a prefix. Keep this proof separate from type inference.
+                literal_uri_prefix &= expr_type
+                    .types
+                    .iter()
+                    .all(|t| matches!(t, TAtomic::TLiteralString { .. }));
                 let mut local_nonempty_string = true;
                 for t in &expr_type.types {
                     match t {
                         TAtomic::TLiteralString { value, .. } => {
-                            if value.contains('/') {
-                                has_slash = true;
-                            }
-                            if value.contains('?') {
-                                has_query = true;
-                            }
-
                             if value.is_empty() {
                                 local_nonempty_string = false;
                             }
@@ -178,24 +182,38 @@ pub(crate) fn analyze_concat_nodes(
                     nonempty_string = true;
                 }
 
+                let mut removed_taints = expr_type.scalar_taint_removals();
+                if safe_uri_prefix
+                    .as_ref()
+                    .is_some_and(|prefix| prefix.dependencies.is_empty())
+                {
+                    removed_taints.extend([
+                        SinkType::HtmlAttributeUri,
+                        SinkType::CurlUri,
+                        SinkType::RedirectUri,
+                    ]);
+                }
                 for old_parent_node in &expr_type.parent_nodes {
                     analysis_data.data_flow_graph.add_path(
                         &old_parent_node.id,
                         &decision_node.id,
-                        PathKind::Default,
+                        safe_uri_prefix
+                            .as_ref()
+                            .filter(|prefix| !prefix.dependencies.is_empty())
+                            .map_or(PathKind::StringComposition, |prefix| {
+                                PathKind::UriSuffix(prefix.clone())
+                            }),
                         vec![],
-                        if i > 0 && (has_slash || has_query) {
-                            vec![
-                                SinkType::HtmlAttributeUri,
-                                SinkType::CurlUri,
-                                SinkType::RedirectUri,
-                            ]
-                        } else {
-                            vec![]
-                        },
+                        removed_taints.clone(),
                     );
                 }
+                // Do not sanitize the prefix's own edge. Only later operands
+                // can benefit from the whole-value guarantee.
+                if offset == 0 && safe_uri_prefix.is_none() {
+                    safe_uri_prefix = expr_type.uri_prefix();
+                }
             } else {
+                literal_uri_prefix = false;
                 nonempty_string = false;
                 all_literals = false;
                 existing_literal_string_values = None;
@@ -229,6 +247,12 @@ pub(crate) fn analyze_concat_nodes(
     };
 
     result_type.parent_nodes.push(decision_node.clone());
+    if matches!(
+        analysis_data.data_flow_graph.kind,
+        hakana_code_info::data_flow::graph::GraphKind::WholeProgram(_)
+    ) {
+        result_type.uri_prefix = safe_uri_prefix;
+    }
 
     analysis_data.data_flow_graph.add_node(decision_node);
 
