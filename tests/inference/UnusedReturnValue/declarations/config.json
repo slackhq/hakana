@@ -1,0 +1,5 @@
+{
+    "allowed_issues": ["UnusedReturnValue", "UnusedOptionalParameter", "UnusedFunctionCall"],
+    "find_unused_expressions": true,
+    "test_files": ["*.test.hack"]
+}

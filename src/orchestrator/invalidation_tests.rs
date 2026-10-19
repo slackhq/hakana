@@ -24,6 +24,15 @@ impl Project {
         edits: &[(&str, &str)],
         previous: Option<(AnalysisResult, SuccessfulScanData)>,
     ) -> (AnalysisResult, SuccessfulScanData) {
+        self.analyze_edits_with_unused(edits, previous, false)
+    }
+
+    fn analyze_edits_with_unused(
+        &self,
+        edits: &[(&str, &str)],
+        previous: Option<(AnalysisResult, SuccessfulScanData)>,
+        check_call_usage: bool,
+    ) -> (AnalysisResult, SuccessfulScanData) {
         let changes = edits
             .iter()
             .map(|(name, source)| {
@@ -35,6 +44,13 @@ impl Project {
         let mut config = Config::new(self.0.to_string_lossy().into_owned(), FxHashSet::default());
         config.ast_diff = true;
         config.collect_goto_definition_locations = true;
+        if check_call_usage {
+            config.find_unused_definitions = true;
+            config.allowed_issues = Some(FxHashSet::from_iter([
+                IssueKind::UnusedReturnValue,
+                IssueKind::UnusedOptionalParameter,
+            ]));
+        }
         let (previous_result, previous_scan) = match previous {
             Some((result, scan)) => (Some(result), scan),
             None => (None, SuccessfulScanData::default()),
@@ -55,6 +71,73 @@ impl Project {
             || {},
         )
         .unwrap()
+    }
+}
+
+#[test]
+fn production_call_usage_is_replaced_when_callers_change() {
+    for (declaration, call) in [
+        ("function value(int $x = 1): int { return $x; }", "value"),
+        (
+            "final class Values {
+                public static function value(int $x = 1): int { return $x; }
+                public function __toString(): string { return ''; }
+            }",
+            "Values::value",
+        ),
+    ] {
+        let project = Project::new();
+        let consumed = format!("function caller(): void {{ echo {call}(1); }}");
+        let discarded = format!("function caller(): void {{ {call}(); }}");
+        let before = project.analyze_edits_with_unused(
+            &[("value.hack", declaration), ("caller.hack", &consumed)],
+            None,
+            true,
+        );
+        assert!(
+            before
+                .0
+                .emitted_definition_issues
+                .values()
+                .all(Vec::is_empty)
+        );
+        let after =
+            project.analyze_edits_with_unused(&[("caller.hack", &discarded)], Some(before), true);
+        let kinds = after
+            .0
+            .emitted_definition_issues
+            .values()
+            .flatten()
+            .map(|issue| issue.kind.clone())
+            .collect::<FxHashSet<_>>();
+        assert_eq!(
+            kinds,
+            FxHashSet::from_iter([
+                IssueKind::UnusedReturnValue,
+                IssueKind::UnusedOptionalParameter,
+            ])
+        );
+        let restored =
+            project.analyze_edits_with_unused(&[("caller.hack", &consumed)], Some(after), true);
+        assert!(
+            restored
+                .0
+                .emitted_definition_issues
+                .values()
+                .all(Vec::is_empty)
+        );
+        let removed = project.analyze_edits_with_unused(
+            &[("caller.hack", "function caller(): void {}")],
+            Some(restored),
+            true,
+        );
+        assert!(
+            removed
+                .0
+                .emitted_definition_issues
+                .values()
+                .all(Vec::is_empty)
+        );
     }
 }
 

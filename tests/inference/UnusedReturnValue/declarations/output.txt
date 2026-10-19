@@ -1,0 +1,10 @@
+ERROR: UnusedReturnValue - input.hack:1:10 - The return value of discarded is never used by production callers
+ERROR: UnusedOptionalParameter - input.hack:1:24 - Optional parameter $x of discarded is never supplied by production callers; its default is always used
+ERROR: UnusedReturnValue - input.hack:3:16 - The return value of discarded_async is never used by production callers
+ERROR: UnusedOptionalParameter - input.hack:3:36 - Optional parameter $x of discarded_async is never supplied by production callers; its default is always used
+ERROR: UnusedReturnValue - input.hack:4:16 - The return value of joined is never used by production callers
+ERROR: UnusedReturnValue - input.hack:10:10 - The return value of closure_discard is never used by production callers
+ERROR: UnusedReturnValue - input.hack:12:10 - The return value of global_discard is never used by production callers
+ERROR: UnusedReturnValue - input.hack:14:16 - The return value of piped_join is never used by production callers
+ERROR: UnusedReturnValue - input.hack:15:10 - The return value of conditional is never used by production callers
+ERROR: UnusedFunctionCall - input.hack:46:2 - This is annotated with MustUse but the returned value is not used

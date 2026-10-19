@@ -65,6 +65,7 @@ pub(crate) fn find_unused_definitions(
     }
 
     check_enum_exclusivity(analysis_result, codebase, interner, config);
+    crate::unused_call_results::check(analysis_result, config, codebase, interner, ignored_paths);
 
     let referenced_symbols_and_members = analysis_result.symbol_references.back_references();
     let mut test_symbols = codebase
@@ -271,7 +272,7 @@ pub(crate) fn find_unused_definitions(
                 });
 
                 if config.can_add_issue(&issue) {
-                    if config.add_fixmes {
+                    if config.add_fixmes && config.issues_to_fix.contains(&issue.kind) {
                         analysis_result
                             .replacements
                             .entry(pos.file_path)

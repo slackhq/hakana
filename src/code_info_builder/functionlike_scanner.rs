@@ -182,6 +182,19 @@ pub(crate) fn get_functionlike(
     );
 
     let mut functionlike_info = FunctionLikeInfo::new(definition_location, meta_start);
+    // The parser inserts synthetic property assignments for promoted parameters.
+    // Their positions point into the signature, not the actual function body.
+    let params_end = params
+        .iter()
+        .map(|param| param.pos.end_offset())
+        .max()
+        .unwrap_or(0);
+    functionlike_info.first_statement_offset = stmts
+        .iter()
+        .find(|stmt| {
+            stmt.0.start_offset() >= params_end && stmt.0.start_offset() < def_pos.end_offset()
+        })
+        .map(|stmt| stmt.0.start_offset() as u32);
 
     let mut template_supers = vec![];
 
@@ -394,7 +407,9 @@ pub(crate) fn get_functionlike(
                             == parameter.trim_start_matches('$')
                     })
                 {
-                    functionlike_info.not_source_when.push((offset, values[1..].to_vec()));
+                    functionlike_info
+                        .not_source_when
+                        .push((offset, values[1..].to_vec()));
                     functionlike_info.specialize_call = true;
                 }
             }
@@ -868,6 +883,8 @@ fn convert_param_nodes(
             param.is_optional = match &param_node.info {
                 ast::FunParamInfo::ParamOptional(expr) => {
                     if let Some(expr) = expr {
+                        param.default_value_location =
+                            Some(HPos::new(expr.pos(), file_source.file_path));
                         let default = simple_type_inferer::infer(expr, resolved_names, false);
 
                         if let Some(default) = default {

@@ -1,0 +1,4 @@
+{
+    "allowed_issues": ["UnusedOptionalParameter"],
+    "test_files": ["*.test.hack"]
+}

@@ -34,6 +34,33 @@ pub fn augment_with_local_config(dir: &str, analysis_config: &mut config::Config
         if let Some(find_unused_expressions) = test_config.find_unused_expressions {
             analysis_config.find_unused_expressions = find_unused_expressions;
         }
+        if let Some(allowed_issues) = test_config.allowed_issues {
+            analysis_config.all_custom_issues.extend(
+                analysis_config
+                    .hooks
+                    .iter()
+                    .flat_map(|hook| hook.get_custom_issue_names())
+                    .map(str::to_string),
+            );
+            analysis_config.allowed_issues = Some(
+                allowed_issues
+                    .iter()
+                    .map(|name| {
+                        IssueKind::from_str_custom(name, &analysis_config.all_custom_issues)
+                            .unwrap()
+                    })
+                    .collect(),
+            );
+        }
+        analysis_config.test_files.extend(
+            test_config
+                .test_files
+                .iter()
+                .map(|pattern| glob::Pattern::new(&format!("{dir}/{pattern}")).unwrap()),
+        );
+        analysis_config.parameter_fix_allowlist = test_config
+            .parameter_fix_allowlist
+            .map(|parameters| parameters.into_iter().collect());
         if !test_config.plugins.is_empty() {
             analysis_config.plugin_config = test_config.plugins;
         }

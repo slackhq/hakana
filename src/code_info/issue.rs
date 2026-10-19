@@ -155,6 +155,8 @@ pub enum IssueKind {
     UnusedPrivateProperty,
     UnusedPublicOrProtectedMethod,
     UnusedPublicOrProtectedProperty,
+    UnusedReturnValue,
+    UnusedOptionalParameter,
     UnusedStatement,
     UnusedTrait,
     UnusedTypeDefinition,
@@ -167,7 +169,8 @@ pub enum IssueKind {
     VariableDefinedOutsideIf,
 }
 
-static AUTOFIXABLE_ISSUES: [IssueKind; 27] = [
+static AUTOFIXABLE_ISSUES: [IssueKind; 28] = [
+    IssueKind::UnusedOptionalParameter,
     IssueKind::UnusedClass,
     IssueKind::UnusedTypeDefinition,
     IssueKind::UnusedFunction,
@@ -251,6 +254,8 @@ impl IssueKind {
             Self::UnusedClass
                 | Self::UnusedTypeDefinition
                 | Self::UnusedFunction
+                | Self::UnusedReturnValue
+                | Self::UnusedOptionalParameter
                 | Self::UnusedInterface
                 | Self::UnusedPrivateProperty
                 | Self::UnusedPrivateMethod

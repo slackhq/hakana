@@ -87,6 +87,10 @@ pub(crate) fn analyze(
 
     match &stmt.1 {
         aast::Stmt_::Expr(boxed) => {
+            let stmt_offset = analysis_data.current_stmt_offset;
+            if statements_analyzer.get_config().find_unused_definitions {
+                crate::expr::call_usage::mark_discarded(boxed, statements_analyzer, analysis_data);
+            }
             expression_analyzer::analyze(
                 statements_analyzer,
                 boxed,
@@ -94,6 +98,10 @@ pub(crate) fn analyze(
                 context,
                 false,
             )?;
+            // Argument lists and nested expressions may move the fixme cursor.
+            // Statement-level diagnostics belong before the complete expression.
+            analysis_data.current_stmt_offset = stmt_offset;
+            analysis_data.current_stmt_end = Some(stmt.0.end_offset() as u32);
 
             if statements_analyzer.get_config().find_unused_expressions {
                 detect_unused_statement_expressions(
@@ -315,9 +323,8 @@ fn detect_unused_statement_expressions(
     stmt: &aast::Stmt<(), ()>,
     context: &mut BlockContext,
 ) {
-    if let Some(issue_kind) =
-        has_unused_must_use(boxed, statements_analyzer, analysis_data, context)
-    {
+    let must_use_issue = has_unused_must_use(boxed, statements_analyzer, analysis_data, context);
+    if let Some(issue_kind) = must_use_issue {
         analysis_data.maybe_add_issue(
             Issue::new(
                 issue_kind,

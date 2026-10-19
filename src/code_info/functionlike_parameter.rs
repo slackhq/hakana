@@ -27,6 +27,7 @@ pub struct FunctionLikeParameter {
     pub is_nullable: bool,
 
     pub default_type: Option<DefaultType>,
+    pub default_value_location: Option<HPos>,
 
     pub location: HPos,
 
@@ -75,6 +76,7 @@ impl FunctionLikeParameter {
             is_optional: false,
             is_nullable: false,
             default_type: None,
+            default_value_location: None,
             location,
             name_location,
             signature_type_location: None,

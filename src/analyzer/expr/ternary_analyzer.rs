@@ -232,6 +232,7 @@ pub(crate) fn analyze(
     let mut temp_else_context = post_if_context.clone();
     // Check if there is an expression for the true case
     if let Some(if_branch) = expr.1 {
+        if_context.inside_short_circuit = true;
         expression_analyzer::analyze(
             statements_analyzer,
             if_branch,
@@ -239,6 +240,7 @@ pub(crate) fn analyze(
             &mut if_context,
             true,
         )?;
+        if_context.inside_short_circuit = context.inside_short_circuit;
 
         analysis_data.combine_effects(if_branch.pos(), pos, pos);
 
@@ -292,6 +294,7 @@ pub(crate) fn analyze(
         .0;
     }
 
+    temp_else_context.inside_short_circuit = true;
     expression_analyzer::analyze(
         statements_analyzer,
         expr.2,
@@ -299,6 +302,7 @@ pub(crate) fn analyze(
         &mut temp_else_context,
         true,
     )?;
+    temp_else_context.inside_short_circuit = context.inside_short_circuit;
 
     analysis_data.combine_effects(expr.2.pos(), pos, pos);
 

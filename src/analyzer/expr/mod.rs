@@ -6,6 +6,7 @@ pub(crate) mod binop;
 pub(crate) mod binop_analyzer;
 pub(crate) mod call;
 pub(crate) mod call_analyzer;
+pub(crate) mod call_usage;
 pub(crate) mod cast_analyzer;
 pub(crate) mod closure_analyzer;
 pub(crate) mod collection_analyzer;

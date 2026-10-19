@@ -204,6 +204,8 @@ pub(crate) fn analyze(
     );
 
     for inner_expr in &parts.2 {
+        let was_inside_string_fragment = context.inside_string_fragment;
+        context.inside_string_fragment |= matches!(inner_expr.2, aast::Expr_::String(_));
         expression_analyzer::analyze(
             statements_analyzer,
             inner_expr,
@@ -211,6 +213,7 @@ pub(crate) fn analyze(
             context,
             true,
         )?;
+        context.inside_string_fragment = was_inside_string_fragment;
 
         analysis_data.combine_effects(inner_expr.pos(), pos, pos);
 

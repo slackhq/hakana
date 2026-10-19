@@ -362,6 +362,8 @@ pub(crate) fn analyze(
         }
         aast::Expr_::String2(exprs) => {
             for concat_node in exprs {
+                let was_inside_string_fragment = context.inside_string_fragment;
+                context.inside_string_fragment |= matches!(concat_node.2, aast::Expr_::String(_));
                 expression_analyzer::analyze(
                     statements_analyzer,
                     concat_node,
@@ -369,6 +371,7 @@ pub(crate) fn analyze(
                     context,
                     true,
                 )?;
+                context.inside_string_fragment = was_inside_string_fragment;
             }
 
             let result_type = analyze_concat_nodes(
@@ -945,6 +948,20 @@ fn analyze_function_pointer(
             }
         }
     };
+
+    // A production function pointer can escape to a callback or dynamic caller.
+    // Neither its eventual argument count nor result consumption is known.
+    crate::expr::call_usage::record(
+        statements_analyzer,
+        analysis_data,
+        context,
+        &id,
+        hakana_code_info::symbol_references::CallUsage {
+            return_value_used: true,
+            unknown_args: true,
+            ..Default::default()
+        },
+    );
 
     match &id {
         FunctionLikeIdentifier::Function(name) => {

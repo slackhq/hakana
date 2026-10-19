@@ -71,6 +71,7 @@ pub struct FunctionLikeInfo {
     pub name_location: Option<HPos>,
 
     pub params: Vec<FunctionLikeParameter>,
+    pub first_statement_offset: Option<u32>,
 
     pub return_type: Option<TUnion>,
 
@@ -205,10 +206,11 @@ impl FunctionLikeInfo {
     pub fn suppresses_taint_source(&self, arguments: &[Option<&TUnion>]) -> bool {
         self.not_source_when.iter().any(|(offset, values)| {
             arguments.get(*offset).and_then(|ty| *ty).is_some_and(|ty| {
-                !ty.types.is_empty() && ty.types.iter().all(|t| {
-                    matches!(t, crate::t_atomic::TAtomic::TLiteralString { value }
+                !ty.types.is_empty()
+                    && ty.types.iter().all(|t| {
+                        matches!(t, crate::t_atomic::TAtomic::TLiteralString { value }
                         if values.contains(value))
-                })
+                    })
             })
         })
     }
@@ -219,6 +221,7 @@ impl FunctionLikeInfo {
             meta_start,
             name_location: None,
             params: Vec::new(),
+            first_statement_offset: None,
             return_type: None,
             return_type_location: None,
             is_populated: false,

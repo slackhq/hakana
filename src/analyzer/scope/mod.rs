@@ -75,6 +75,14 @@ pub struct BlockContext {
      */
     pub inside_conditional: bool,
 
+    /// A short-circuit operand or ternary arm where inserting await requires
+    /// Hack's optional allow_conditional_await_syntax feature.
+    pub inside_short_circuit: bool,
+
+    /// Literal XHP text or a fragment of an interpolated string, rather than
+    /// a standalone string expression.
+    pub inside_string_fragment: bool,
+
     /**
      * Whether or not we're inside an isset call
      *
@@ -196,6 +204,8 @@ impl BlockContext {
             possibly_assigned_var_ids: FxHashSet::default(),
 
             inside_conditional: false,
+            inside_short_circuit: false,
+            inside_string_fragment: false,
             inside_isset: false,
             inside_unset: false,
             inside_class_exists: false,

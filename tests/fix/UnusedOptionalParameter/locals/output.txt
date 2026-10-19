@@ -1,0 +1,44 @@
+type options_t = shape(?'enabled' => bool);
+
+function options(string $name): string {
+	$opts = shape();
+	$limit = null;
+	if ($limit is nonnull) {
+		$name .= (string)$limit;
+	}
+	return $name.(string)Shapes::idx($opts, 'enabled', false);
+}
+
+final class Example {
+	public async function work(
+		string $name,
+	): Awaitable<string> {
+		/* A configurable prefix. */
+		$prefix = 'a,b';
+		$enabled = true;
+		return $prefix.$name.($enabled ? 'yes' : 'no');
+	}
+}
+
+function inline(): int { $value = 1; return $value; }
+
+function generic<<<__Enforceable>> reify T>(T $value): T {
+	$limit = 2;
+	echo $limit;
+	return $value;
+}
+
+function heredoc(): string {
+	$value = 2;
+	return <<<TEXT
+{ $value }, it's text.
+TEXT;
+}
+
+async function run(Example $example): Awaitable<void> {
+	echo options('name');
+	echo await $example->work('name');
+	echo inline();
+	echo heredoc();
+	echo generic<int>(1);
+}

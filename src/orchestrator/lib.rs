@@ -37,7 +37,9 @@ mod ast_differ;
 mod cache;
 mod diff;
 pub mod file;
+mod optional_parameter_fixer;
 pub mod scanner;
+mod unused_call_results;
 mod unused_symbols;
 pub mod wasm;
 

@@ -1,0 +1,2 @@
+ERROR: UnusedOptionalParameter - input.hack:1:56 - Optional parameter $unused of optional is never supplied by production callers; its default is always used
+ERROR: UnusedOptionalParameter - input.hack:12:34 - Optional parameter $option of async_option is never supplied by production callers; its default is always used

@@ -1,0 +1,7 @@
+/** A stable API. */
+/* HAKANA_FIXME[UnusedOptionalParameter] Optional parameter $one of value is never supplied by production callers; its default is always used */
+function value(int $one = 1, int $two = 2): int { return $one + $two; }
+
+function run(): void {
+	echo value();
+}

@@ -29,6 +29,8 @@ pub struct Config {
     pub find_unused_definitions: bool,
     pub allowed_issues: Option<FxHashSet<IssueKind>>,
     pub issues_to_fix: FxHashSet<IssueKind>,
+    /// Optional rollout allowlist: fully qualified function/method + "::$parameter".
+    pub parameter_fix_allowlist: Option<FxHashSet<String>>,
     pub graph_kind: GraphKind,
     pub ignore_files: Vec<String>,
     pub test_files: Vec<glob::Pattern>,
@@ -96,6 +98,7 @@ impl Config {
             ignore_all_issues_in_patterns: vec![],
             security_config: SecurityConfig::new(),
             issues_to_fix: FxHashSet::default(),
+            parameter_fix_allowlist: None,
             hooks: vec![],
             add_fixmes: false,
             remove_fixmes: false,
@@ -133,6 +136,9 @@ impl Config {
         self.ignore_mixed_issues.hash(&mut hasher);
         self.add_fixmes.hash(&mut hasher);
         self.remove_fixmes.hash(&mut hasher);
+        if let Some(parameters) = &self.parameter_fix_allowlist {
+            hash_sorted(parameters.iter().cloned().collect(), &mut hasher);
+        }
         self.in_migration.hash(&mut hasher);
         self.in_codegen.hash(&mut hasher);
         self.collect_goto_definition_locations.hash(&mut hasher);

@@ -1,0 +1,2 @@
+ERROR: UnusedOptionalParameter - input.hack:5:12 - Optional parameter $omitted of named_options is never supplied by production callers; its default is always used
+ERROR: UnusedOptionalParameter - input.hack:10:41 - Optional parameter $option of Example::__construct is never supplied by production callers; its default is always used

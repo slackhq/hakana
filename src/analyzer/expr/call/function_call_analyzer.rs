@@ -770,7 +770,14 @@ pub(crate) fn check_implicit_asio_join(
     // If the candidate method is not callable from the current context, report an issue but don't autofix,
     // to make the optimization possibility known without emitting invalid code.
     if statements_analyzer.should_autofix(context, analysis_data, &issue)
-        && can_call_async_version(statements_analyzer, context, functionlike_id, async_version)
+        && !(context.inside_async && context.inside_short_circuit)
+        && can_call_async_version(
+            statements_analyzer,
+            context,
+            functionlike_id,
+            async_version,
+            lhs_expr.is_some(),
+        )
     {
         if let Some(replacement_fn) = get_async_version_name(
             async_version,
@@ -892,6 +899,7 @@ fn can_call_async_version(
     context: &BlockContext,
     sync_version: FunctionLikeIdentifier,
     async_version: FunctionLikeIdentifier,
+    is_instance_call: bool,
 ) -> bool {
     // If the async version is a method, consider whether it's visible from the calling context.
     if let Some(method_id) = async_version.as_method_identifier() {
@@ -925,6 +933,13 @@ fn can_call_async_version(
                     .get_method(&resolved_async_version_id)
                     .and_then(|method| method.method_info.as_ref())?;
 
+                // Replacing only the method name preserves the original receiver.
+                // A wrapper delegating to a static method requires a different
+                // receiver, whose evaluation we cannot safely remove here.
+                if is_instance_call && method_info.is_static {
+                    return None;
+                }
+
                 let calling_class = context.function_context.calling_class;
 
                 match method_info.visibility {
@@ -939,7 +954,7 @@ fn can_call_async_version(
             })
             .unwrap_or(false)
     } else {
-        true
+        !is_instance_call
     }
 }
 

@@ -9,6 +9,10 @@ pub struct TestConfig {
     pub max_changes_allowed: Option<usize>,
     pub strict_falsable_types: Option<bool>,
     pub find_unused_expressions: Option<bool>,
+    pub parameter_fix_allowlist: Option<Vec<String>>,
+    pub allowed_issues: Option<Vec<String>>,
+    #[serde(default)]
+    pub test_files: Vec<String>,
     #[serde(default)]
     pub plugins: FxHashMap<String, serde_json::Value>,
 }

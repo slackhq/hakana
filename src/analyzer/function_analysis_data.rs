@@ -24,6 +24,7 @@ pub struct TypeVariableBounds {
 
 pub struct FunctionAnalysisData {
     pub expr_types: FxHashMap<(u32, u32), Rc<TUnion>>,
+    pub discarded_call_results: FxHashSet<(u32, u32)>,
     pub if_true_assertions: FxHashMap<(u32, u32), FxHashMap<String, Vec<Assertion>>>,
     pub if_false_assertions: FxHashMap<(u32, u32), FxHashMap<String, Vec<Assertion>>>,
     pub data_flow_graph: DataFlowGraph,
@@ -52,6 +53,7 @@ pub struct FunctionAnalysisData {
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
+    fixme_comment_end_lines: FxHashSet<u32>,
     pub hakana_fixme_or_ignores: BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>>,
     pub matched_ignore_positions: FxHashSet<(u32, u32)>,
     pub previously_used_fixme_positions: FxHashMap<(u32, u32), (u32, u32)>,
@@ -84,6 +86,7 @@ impl FunctionAnalysisData {
     ) -> Self {
         Self {
             expr_types: FxHashMap::default(),
+            discarded_call_results: FxHashSet::default(),
             data_flow_graph,
             case_scopes: Vec::new(),
             issues_to_emit: Vec::new(),
@@ -102,6 +105,18 @@ impl FunctionAnalysisData {
             current_stmt_end,
             applicable_fixme_start,
             hh_fixmes: file_source.hh_fixmes.clone(),
+            fixme_comment_end_lines: comments
+                .iter()
+                .filter_map(|(pos, comment)| {
+                    let text = match comment {
+                        Comment::CmtBlock(text) | Comment::CmtLine(text) => text,
+                    };
+                    (text.contains("FIXME[")
+                        || text.contains("IGNORE[")
+                        || text.contains("IGNORE_ERROR["))
+                    .then_some(pos.to_raw_span().end.line() as u32)
+                })
+                .collect(),
             symbol_references: SymbolReferences::new(),
             issue_filter: None,
             expr_effects: FxHashMap::default(),
@@ -189,7 +204,11 @@ impl FunctionAnalysisData {
                         } else {
                             " ".to_string() + &issue.description
                         },
-                        if insertion_start.add_newline {
+                        if insertion_start.add_newline
+                            && !self
+                                .fixme_comment_end_lines
+                                .contains(&insertion_start.line.saturating_sub(1))
+                        {
                             "\n".to_string() + &"\t".repeat(insertion_start.column as usize)
                         } else {
                             " ".to_string()

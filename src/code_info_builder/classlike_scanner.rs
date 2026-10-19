@@ -443,6 +443,18 @@ pub(crate) fn scan(
             if let Some(enum_node) = &classlike_node.enum_ {
                 signature_end = enum_node.base.0.end_offset() as u32;
 
+                // Ordinary enums can include other enums with `use`, including
+                // transitively. Populate their constants just as for enum classes.
+                for included in &enum_node.includes {
+                    if let oxidized::ast::Hint_::Happly(name, _) = &*included.1
+                        && let Some(included_name) =
+                            resolved_names.get(&(name.0.start_offset() as u32))
+                    {
+                        storage.enum_class_extends.push(*included_name);
+                        signature_end = included.0.end_offset() as u32;
+                    }
+                }
+
                 storage.enum_underlying_type = Some(
                     get_type_from_hint(
                         &enum_node.base.1,
@@ -457,7 +469,7 @@ pub(crate) fn scan(
                 );
 
                 if let Some(constraint) = &enum_node.constraint {
-                    signature_end = constraint.0.end_offset() as u32;
+                    signature_end = signature_end.max(constraint.0.end_offset() as u32);
 
                     storage.enum_as_type = Some(
                         get_type_from_hint(

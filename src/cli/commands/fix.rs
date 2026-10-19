@@ -34,6 +34,11 @@ pub fn get_subcommand() -> Command<'static> {
                 .help("Filter the files that are fixed"),
         )
         .arg(
+            arg!(--"parameter-allowlist" <PATH>).required(false).help(
+                "JSON array of Function::$parameter or Class::method::$parameter names to fix",
+            ),
+        )
+        .arg(
             arg!(--"threads" <PATH>)
                 .required(false)
                 .help("How many threads to use"),
@@ -71,6 +76,21 @@ pub fn handle(
 
     config.find_unused_expressions = issue_kind.requires_dataflow_analysis();
     config.find_unused_definitions = issue_kind.is_unused_definition();
+    if let Some(path) = sub_matches.value_of("parameter-allowlist") {
+        if issue_kind != IssueKind::UnusedOptionalParameter {
+            eprintln!("--parameter-allowlist requires --issue UnusedOptionalParameter");
+            exit(1);
+        }
+        config.parameter_fix_allowlist = Some(
+            std::fs::read_to_string(path)
+                .map_err(|error| error.to_string())
+                .and_then(|json| serde_json::from_str(&json).map_err(|error| error.to_string()))
+                .unwrap_or_else(|error| {
+                    eprintln!("Invalid parameter allowlist: {error}");
+                    exit(1);
+                }),
+        );
+    }
     config.issues_to_fix.insert(issue_kind);
 
     let config_path = config_path.unwrap();

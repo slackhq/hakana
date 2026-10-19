@@ -146,6 +146,7 @@ pub(crate) fn analyze<'expr>(
 
     right_context.response = left_context.response;
 
+    right_context.inside_short_circuit = true;
     expression_analyzer::analyze(
         statements_analyzer,
         right,
@@ -153,6 +154,7 @@ pub(crate) fn analyze<'expr>(
         &mut right_context,
         true,
     )?;
+    right_context.inside_short_circuit = context.inside_short_circuit;
 
     context.response = left_context.response.join(right_context.response);
     if let Some(branch) = &context.if_body_context {

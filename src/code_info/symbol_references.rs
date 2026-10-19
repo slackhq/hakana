@@ -33,8 +33,33 @@ impl InvalidSymbols {
     }
 }
 
+/// Usage observed at production call sites. Kept per caller so incremental
+/// analysis can replace a caller's contribution when its body changes.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CallUsage {
+    pub return_value_used: bool,
+    pub max_positional_args: usize,
+    pub named_args: FxHashSet<usize>,
+    pub unknown_args: bool,
+}
+
+impl CallUsage {
+    pub fn extend(&mut self, other: &Self) {
+        self.return_value_used |= other.return_value_used;
+        self.max_positional_args = self.max_positional_args.max(other.max_positional_args);
+        self.named_args.extend(&other.named_args);
+        self.unknown_args |= other.unknown_args;
+    }
+
+    pub fn supplies(&self, offset: usize) -> bool {
+        self.unknown_args || offset < self.max_positional_args || self.named_args.contains(&offset)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SymbolReferences {
+    pub production_call_usage: FxHashMap<(StrId, StrId), FxHashMap<(StrId, StrId), CallUsage>>,
+    pub non_production_call_usage: FxHashMap<(StrId, StrId), FxHashMap<(StrId, StrId), CallUsage>>,
     // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
     pub symbol_references_to_symbols: FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 
@@ -51,6 +76,8 @@ pub struct SymbolReferences {
 impl SymbolReferences {
     pub fn new() -> Self {
         Self {
+            production_call_usage: FxHashMap::default(),
+            non_production_call_usage: FxHashMap::default(),
             symbol_references_to_symbols: FxHashMap::default(),
             symbol_references_to_symbols_in_signature: FxHashMap::default(),
             symbol_references_to_overridden_members: FxHashMap::default(),
@@ -294,6 +321,18 @@ impl SymbolReferences {
     }
 
     pub fn extend(&mut self, other: Self) {
+        for (caller, calls) in other.non_production_call_usage {
+            let existing = self.non_production_call_usage.entry(caller).or_default();
+            for (callee, usage) in calls {
+                existing.entry(callee).or_default().extend(&usage);
+            }
+        }
+        for (caller, calls) in other.production_call_usage {
+            let existing = self.production_call_usage.entry(caller).or_default();
+            for (callee, usage) in calls {
+                existing.entry(callee).or_default().extend(&usage);
+            }
+        }
         for (k, v) in other.symbol_references_to_symbols {
             self.symbol_references_to_symbols
                 .entry(k)
@@ -559,6 +598,10 @@ impl SymbolReferences {
         // these feed unused-symbol detection; a stale entry from a re-analyzed caller
         // would keep a parent method looking referenced after its last call was removed
         self.symbol_references_to_overridden_members
+            .retain(|symbol, _| !is_invalid(symbol));
+        self.production_call_usage
+            .retain(|symbol, _| !is_invalid(symbol));
+        self.non_production_call_usage
             .retain(|symbol, _| !is_invalid(symbol));
     }
 }

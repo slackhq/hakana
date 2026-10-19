@@ -66,6 +66,16 @@ pub(crate) fn check_arguments_match(
     function_call_pos: &Pos,
     function_name_pos: Option<&Pos>,
 ) -> Result<(), AnalysisError> {
+    crate::expr::call_usage::record_call(
+        statements_analyzer,
+        analysis_data,
+        context,
+        functionlike_id,
+        functionlike_info,
+        args,
+        unpacked_arg.is_some(),
+        function_call_pos,
+    );
     let functionlike_params = &functionlike_info.params;
     // todo handle map and filter
 

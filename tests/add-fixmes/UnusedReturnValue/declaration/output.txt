@@ -1,0 +1,25 @@
+/**
+ * A stable API.
+ */
+/* HAKANA_FIXME[UnusedReturnValue] The return value of value is never used by production callers */
+<<__Deprecated('use the new API')>>
+function value(): int { return 1; }
+
+/** Documentation for the class. */
+final class Example {
+	/** Documentation for the method. */
+	/* HAKANA_FIXME[UnusedReturnValue] The return value of Example::value is never used by production callers */
+	public async function value(): Awaitable<int> { return 1; }
+
+	/**
+	 * Documentation ending on the declaration's line.
+	 */
+	/* HAKANA_FIXME[UnusedReturnValue] The return value of Example::inlineValue is never used by production callers */
+	public function inlineValue(): int { return 2; }
+}
+
+async function run(Example $example): Awaitable<void> {
+	value();
+	await $example->value();
+	$example->inlineValue();
+}
