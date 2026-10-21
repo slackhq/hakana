@@ -4,7 +4,7 @@ use parser_core_types::{
     syntax_by_ref::positioned_syntax::PositionedSyntax, syntax_error::SyntaxError,
 };
 use positioned_by_ref_parser::{parse_script, scan_leading_php_trivia, scan_leading_xhp_trivia};
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 #[derive(Clone, Debug)]
 pub struct Trivia {
     pub kind: String,
@@ -82,21 +82,29 @@ impl Node {
     pub fn trailing(&self) -> &[Trivia] {
         self.last().map_or(&[], |t| &t.trailing)
     }
-    pub fn without_leading(&self) -> (Vec<Trivia>, Self) {
+    pub fn without_leading(&self) -> (Vec<Trivia>, Cow<'_, Self>) {
+        if self.leading().is_empty() {
+            return (vec![], Cow::Borrowed(self));
+        }
         let mut n = self.clone();
         let tr = n
             .first_mut()
             .map(|t| std::mem::take(&mut t.leading))
             .unwrap_or_default();
-        (tr, n)
+        (tr, Cow::Owned(n))
     }
-    pub fn without_trailing(&self) -> (Self, Vec<Trivia>) {
+    pub fn without_trailing(&self) -> (Cow<'_, Self>, Vec<Trivia>) {
+        // In particular, the last argument of a call may be an entire closure.
+        // Avoid cloning that subtree when there is no trivia to detach.
+        if self.trailing().is_empty() {
+            return (Cow::Borrowed(self), vec![]);
+        }
         let mut n = self.clone();
         let tr = n
             .last_mut()
             .map(|t| std::mem::take(&mut t.trailing))
             .unwrap_or_default();
-        (n, tr)
+        (Cow::Owned(n), tr)
     }
     pub fn with_leading(&self, tr: Vec<Trivia>) -> Self {
         let mut n = self.clone();
@@ -141,6 +149,15 @@ impl Node {
             }
         }
     }
+    fn all_tokens_mut<'a>(&'a mut self, out: &mut Vec<&'a mut Token>) {
+        if let Some(t) = &mut self.token {
+            out.push(t);
+        } else {
+            for c in &mut self.children {
+                c.all_tokens_mut(out);
+            }
+        }
+    }
 }
 fn convert<'a>(
     n: &'a PositionedSyntax<'a>,
@@ -150,7 +167,7 @@ fn convert<'a>(
     if let Some(t) = n.get_token() {
         let start = t.start_offset();
         let end = start + t.width();
-        let xhp = matches!(format!("{:?}", t.kind()).as_str(), "XHPBody");
+        let xhp = t.kind() == parser_core_types::token_kind::TokenKind::XHPBody;
         let scan = |offset, width| {
             let tr = if xhp {
                 scan_leading_xhp_trivia(arena, src, offset, width)
@@ -206,22 +223,24 @@ pub fn parse(text: &str, xhp_modifier: bool) -> (Node, Vec<SyntaxError>) {
     let mut node = convert(&root, &arena, &src);
     // Hakana's lexer intentionally leaves block comments in leading trivia for
     // analysis. Restore upstream attachment locally, without changing that lexer.
-    let mut refs = vec![];
-    node.all_tokens(&mut refs);
-    let mut tokens: Vec<Token> = refs.into_iter().cloned().collect();
+    let mut tokens = vec![];
+    node.all_tokens_mut(&mut tokens);
     for i in 1..tokens.len() {
-        if tokens[i]
+        let (before, after) = tokens.split_at_mut(i);
+        let previous = &mut before[i - 1];
+        let current = &mut after[0];
+        if current
             .leading
             .first()
             .is_none_or(|t| t.kind != "DelimitedComment")
         {
             continue;
         }
-        if tokens[i - 1].trailing.iter().any(|t| t.kind == "EndOfLine") {
+        if previous.trailing.iter().any(|t| t.kind == "EndOfLine") {
             continue;
         }
         let mut count = 0;
-        for tr in &tokens[i].leading {
+        for tr in &current.leading {
             if matches!(tr.kind.as_str(), "FixMe" | "Ignore" | "IgnoreError") {
                 break;
             }
@@ -230,18 +249,7 @@ pub fn parse(text: &str, xhp_modifier: bool) -> (Node, Vec<SyntaxError>) {
                 break;
             }
         }
-        let moved: Vec<_> = tokens[i].leading.drain(..count).collect();
-        tokens[i - 1].trailing.extend(moved);
+        previous.trailing.extend(current.leading.drain(..count));
     }
-    fn update(n: &mut Node, tokens: &mut impl Iterator<Item = Token>) {
-        if n.token.is_some() {
-            n.token = tokens.next();
-        } else {
-            for c in &mut n.children {
-                update(c, tokens);
-            }
-        }
-    }
-    update(&mut node, &mut tokens.into_iter());
     (node, errors)
 }

@@ -9,6 +9,9 @@ use std::{
     collections::{BTreeMap as Map, BTreeSet as Set},
 };
 pub type Range = (usize, usize);
+// Rule IDs are dense within a group. Keep unbound rules distinct from rules
+// bound to false: the search uses that distinction when pruning candidates.
+type Bindings = Vec<Option<bool>>;
 #[derive(Clone, Debug)]
 pub struct Atom {
     pub text: String,
@@ -64,8 +67,9 @@ impl Chunk {
 pub struct Group {
     pub chunks: Vec<Chunk>,
     rules: Vec<Rule>,
-    deps: Map<usize, Vec<usize>>,
+    deps: Vec<Vec<usize>>,
     nests: Vec<Nesting>,
+    span_count: usize,
     indent: usize,
 }
 impl Group {
@@ -75,43 +79,39 @@ impl Group {
             (a.min(s), b.max(e))
         })
     }
-    fn always(&self) -> Map<usize, bool> {
+    fn always(&self) -> Bindings {
         self.rules
             .iter()
-            .enumerate()
-            .filter(|(_, r)| **r == Rule::Always)
-            .map(|(i, _)| (i, true))
+            .map(|r| (*r == Rule::Always).then_some(true))
             .collect()
     }
-    fn propagate(&self, mut rbm: Map<usize, bool>) -> Map<usize, bool> {
+    fn propagate(&self, mut rbm: Bindings) -> Bindings {
         for id in rbm
             .iter()
-            .filter(|(_, v)| **v)
-            .map(|(id, _)| *id)
+            .enumerate()
+            .filter_map(|(id, v)| (*v == Some(true)).then_some(id))
             .collect::<Vec<_>>()
         {
-            for parent in self.deps.get(&id).into_iter().flatten() {
+            for parent in &self.deps[id] {
                 if self.rules[*parent] == Rule::Parental {
-                    rbm.insert(*parent, true);
+                    rbm[*parent] = Some(true);
                 }
             }
         }
         rbm
     }
-    fn initial(&self) -> Map<usize, bool> {
+    fn initial(&self) -> Bindings {
         self.propagate(self.always())
     }
-    fn valid(&self, rbm: &Map<usize, bool>) -> bool {
-        rbm.iter().all(|(id, b)| {
-            !*b || self
-                .deps
-                .get(id)
-                .into_iter()
-                .flatten()
-                .all(|p| self.rules[*p] != Rule::Parental || rbm.get(p) != Some(&false))
+    fn valid(&self, rbm: &Bindings) -> bool {
+        rbm.iter().enumerate().all(|(id, b)| {
+            *b != Some(true)
+                || self.deps[id]
+                    .iter()
+                    .all(|p| self.rules[*p] != Rule::Parental || rbm[*p] != Some(false))
         })
     }
-    fn source_breaks(&self, src: &str, mut rbm: Map<usize, bool>) -> Map<usize, bool> {
+    fn source_breaks(&self, src: &str, mut rbm: Bindings) -> Bindings {
         let mut prev = 0;
         for c in &self.chunks {
             let (s, e) = c.range();
@@ -120,7 +120,7 @@ impl Group {
                 .get(prev..s)
                 .is_some_and(|x| x.contains(&b'\n'))
             {
-                rbm.insert(c.rule.unwrap(), true);
+                rbm[c.rule.unwrap()] = Some(true);
             }
             prev = e;
         }
@@ -286,10 +286,13 @@ impl<'a> Builder<'a> {
         }
     }
     fn push_group(&mut self) {
+        let deps = (0..self.rules.len())
+            .map(|id| self.deps.remove(&id).unwrap_or_default())
+            .collect();
         self.groups.push(Group {
             chunks: std::mem::take(&mut self.chunks),
             rules: std::mem::take(&mut self.rules),
-            deps: std::mem::take(&mut self.deps),
+            deps,
             nests: std::mem::replace(
                 &mut self.nests,
                 vec![Nesting {
@@ -298,6 +301,7 @@ impl<'a> Builder<'a> {
                 }],
             ),
             indent: self.indent,
+            span_count: self.next_span,
         });
         self.nest = 0;
         self.next_span = 0;
@@ -529,23 +533,23 @@ pub fn build(env: &Config, doc: &Doc) -> Vec<Group> {
 }
 #[derive(Clone, Debug)]
 struct State {
-    rbm: Map<usize, bool>,
-    nesting: Set<usize>,
+    rbm: Bindings,
+    nesting: Vec<bool>,
     cost: i32,
     overflow: usize,
-    candidates: Set<usize>,
+    candidates: Vec<usize>,
     unprocessed: usize,
-    partial: Set<usize>,
+    partial: Vec<usize>,
 }
-fn broken(rbm: &Map<usize, bool>, r: usize) -> bool {
-    rbm.get(&r) == Some(&true)
+fn broken(rbm: &Bindings, r: usize) -> bool {
+    rbm[r] == Some(true)
 }
 impl State {
     fn indent(&self, g: &Group, c: &Chunk) -> usize {
         let mut result = g.indent;
         let mut n = Some(c.nest);
         while let Some(id) = n {
-            let active = self.nesting.contains(&id);
+            let active = self.nesting[id];
             if active && id != 0 {
                 result += 1;
             }
@@ -558,25 +562,28 @@ impl State {
         }
         result
     }
-    fn make(env: &Config, g: &Group, mut rbm: Map<usize, bool>) -> Self {
+    fn make(env: &Config, g: &Group, mut rbm: Bindings) -> Self {
         let mut s = Self {
-            rbm: Map::new(),
-            nesting: Set::new(),
+            rbm: vec![],
+            nesting: vec![false; g.nests.len()],
             cost: 0,
             overflow: 0,
-            candidates: Set::new(),
+            candidates: vec![],
             unprocessed: 0,
-            partial: Set::new(),
+            partial: vec![],
         };
-        let mut seen = Set::new();
+        let mut seen = vec![false; g.nests.len()];
         for c in &g.chunks {
-            if seen.insert(c.nest) && broken(&rbm, c.rule.unwrap()) {
-                s.nesting.insert(c.nest);
+            if !seen[c.nest] {
+                seen[c.nest] = true;
+                s.nesting[c.nest] = broken(&rbm, c.rule.unwrap());
             }
         }
         let mut lines = vec![];
         let mut len: usize = 0;
-        let mut rules = Set::new();
+        // Line membership only needs iteration, not sorting or set lookups.
+        // Repeated rule IDs are harmless; the flags below deduplicate them.
+        let mut rules = vec![];
         for c in &g.chunks {
             let r = c.rule.unwrap();
             let split = broken(&rbm, r);
@@ -596,46 +603,68 @@ impl State {
             } else {
                 len += length;
             }
-            rules.insert(r);
+            if rules.last() != Some(&r) {
+                rules.push(r);
+            }
         }
         lines.push((len.saturating_sub(env.line_width), rules));
         s.overflow = lines.iter().map(|(n, _)| n).sum();
-        let mut spans: Set<usize> = Set::new();
+        let mut spans = vec![false; g.span_count];
         for c in &g.chunks {
             if broken(&rbm, c.rule.unwrap()) {
-                spans.extend(&c.spans);
+                for id in &c.spans {
+                    spans[*id] = true;
+                }
             }
         }
-        s.cost = spans.len() as i32
+        s.cost = spans.iter().filter(|b| **b).count() as i32
             + rbm
                 .iter()
-                .filter(|(_, v)| **v)
-                .map(|(id, _)| g.rules[*id].cost())
+                .enumerate()
+                .filter(|(_, v)| **v == Some(true))
+                .map(|(id, _)| g.rules[id].cost())
                 .sum::<i32>();
-        let bound: Set<_> = rbm.keys().copied().collect();
-        let mut dead = Set::new();
+        let mut dead = vec![false; g.rules.len()];
+        let mut candidates = vec![false; g.rules.len()];
         for (overflow, rules) in &lines {
-            let unbound: Set<_> = rules.difference(&bound).copied().collect();
-            if *overflow == 0 || unbound.is_empty() {
-                dead.extend(unbound);
+            if *overflow == 0 || rules.iter().all(|r| rbm[*r].is_some()) {
+                for r in rules {
+                    if rbm[*r].is_none() {
+                        dead[*r] = true;
+                    }
+                }
             } else {
-                s.candidates = rules.clone();
+                for r in rules {
+                    candidates[*r] = true;
+                }
                 break;
             }
         }
-        for r in s.candidates.clone() {
-            s.candidates.extend(g.deps.get(&r).into_iter().flatten());
-        }
-        for id in dead.difference(&s.candidates) {
-            rbm.entry(*id).or_insert(false);
-        }
-        let bound: Set<_> = rbm.keys().copied().collect();
-        for (overflow, rules) in &lines {
-            if !rules.is_subset(&bound) {
-                s.unprocessed += overflow;
-                s.partial.extend(rules.intersection(&bound));
+        // Expand the original candidate set once, as in hackfmt. Iterating a
+        // growing set here would also expand dependencies of dependencies.
+        for r in set_ids(&candidates) {
+            for parent in &g.deps[r] {
+                candidates[*parent] = true;
             }
         }
+        for (id, dead) in dead.into_iter().enumerate() {
+            if dead && !candidates[id] && rbm[id].is_none() {
+                rbm[id] = Some(false);
+            }
+        }
+        let mut partial = vec![false; g.rules.len()];
+        for (overflow, rules) in &lines {
+            if rules.iter().any(|r| rbm[*r].is_none()) {
+                s.unprocessed += overflow;
+                for r in rules {
+                    if rbm[*r].is_some() {
+                        partial[*r] = true;
+                    }
+                }
+            }
+        }
+        s.candidates = set_ids(&candidates);
+        s.partial = set_ids(&partial);
         s.rbm = rbm;
         s
     }
@@ -644,14 +673,10 @@ impl State {
             .cmp(&b.cost)
             .then(self.overflow.cmp(&b.overflow))
             .then_with(|| {
-                let ids: Set<_> = self.rbm.keys().chain(b.rbm.keys()).copied().collect();
-                for id in ids {
-                    let c = broken(&self.rbm, id).cmp(&broken(&b.rbm, id));
-                    if c != Ordering::Equal {
-                        return c;
-                    }
-                }
-                Ordering::Equal
+                self.rbm
+                    .iter()
+                    .map(|v| v.unwrap_or(false))
+                    .cmp(b.rbm.iter().map(|v| v.unwrap_or(false)))
             })
     }
     fn better(&self, b: &Self) -> bool {
@@ -660,24 +685,33 @@ impl State {
     fn overlaps(&self, b: &Self) -> bool {
         self.unprocessed == b.unprocessed
             && self.partial.len() == b.partial.len()
-            && self.partial.iter().all(|r| self.rbm.get(r) == b.rbm.get(r))
+            && self.partial.iter().all(|r| self.rbm[*r] == b.rbm[*r])
     }
     fn expand(&self, env: &Config, g: &Group) -> Vec<Self> {
         let mut rbm = self.rbm.clone();
         let mut result = vec![];
         for id in &self.candidates {
-            if self.rbm.contains_key(id) {
+            if self.rbm[*id].is_some() {
                 continue;
             }
             let mut next = rbm.clone();
-            next.insert(*id, true);
+            next[*id] = Some(true);
             if g.valid(&next) {
-                rbm.insert(*id, false);
+                rbm[*id] = Some(false);
                 result.push(Self::make(env, g, next));
             }
         }
         result
     }
+}
+// Preserve the ascending ID order used by hackfmt's ordered sets. Candidate
+// order and binding comparison both affect which equally good layout wins.
+fn set_ids(flags: &[bool]) -> Vec<usize> {
+    flags
+        .iter()
+        .enumerate()
+        .filter_map(|(id, set)| set.then_some(id))
+        .collect()
 }
 #[derive(Default)]
 struct Queue(Vec<State>);
@@ -741,7 +775,7 @@ fn solve_group(env: &Config, g: &Group, range: Option<Range>, src: &str) -> Stat
     let rbm = if let Some(range) =
         range.filter(|r| contains(g.range(), r.0) || contains(g.range(), r.1))
     {
-        let source = g.source_breaks(src, Map::new());
+        let source = g.source_breaks(src, vec![None; g.rules.len()]);
         let mut inside = Set::new();
         let mut outside = Set::new();
         for c in &g.chunks {
@@ -751,19 +785,20 @@ fn solve_group(env: &Config, g: &Group, range: Option<Range>, src: &str) -> Stat
                 outside.insert(c.rule.unwrap());
             }
         }
-        let mut bindings: Map<_, _> = source
+        let mut bindings: Bindings = source
             .into_iter()
-            .filter(|(id, b)| *b && outside.contains(id))
+            .enumerate()
+            .map(|(id, b)| b.filter(|b| *b && outside.contains(&id)))
             .collect();
-        for (id, _) in g.always() {
-            if inside.contains(&id) {
-                bindings.insert(id, true);
+        for (id, b) in g.always().into_iter().enumerate() {
+            if b.is_some() && inside.contains(&id) {
+                bindings[id] = b;
             }
         }
         let propagated = g.propagate(bindings.clone());
-        for (id, b) in propagated {
-            if inside.contains(&id) && !outside.contains(&id) {
-                bindings.insert(id, b);
+        for (id, b) in propagated.into_iter().enumerate() {
+            if b.is_some() && inside.contains(&id) && !outside.contains(&id) {
+                bindings[id] = b;
             }
         }
         bindings
@@ -771,6 +806,9 @@ fn solve_group(env: &Config, g: &Group, range: Option<Range>, src: &str) -> Stat
         g.initial()
     };
     let mut best = State::make(env, g, rbm);
+    if best.overflow == 0 {
+        return best;
+    }
     let mut q = Queue::default();
     for s in best.expand(env, g) {
         q.push(s);

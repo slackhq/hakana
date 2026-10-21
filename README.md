@@ -79,6 +79,19 @@ copy or regenerate them. Rust tests additionally check exact whole-file idempote
 on those upstream fixtures. For faster development, build `cargo build -p hakana-format`
 and run the harness with `--program target/debug/hakana-format --standalone`.
 
+To benchmark a source directory using its nearest `.hhconfig` without editing
+the source files:
+
+```bash
+python3 scripts/benchmark_hackfmt.py path/to/source
+python3 scripts/benchmark_hackfmt.py path/to/source --baseline /tmp/hakana-before
+```
+
+The baseline option alternates timing runs and checks that both binaries produce
+identical output for every file, using temporary copies. Save the old release
+binary before rebuilding. Add `--json timings.json` to save measurements or
+`--profile profile.json.gz` to record a separate CPU profile with `samply`.
+
 ## Type assertion helpers
 
 Type-checking helpers can opt into the impossible and redundant comparison diagnostics

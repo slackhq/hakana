@@ -614,7 +614,8 @@ impl Formatter<'_> {
                 && t.text.contains("hackfmt-ignore")
         }) {
             let leading = n.leading();
-            let (node, tr) = n.with_leading(leading[i..].to_vec()).without_trailing();
+            let node = n.with_leading(leading[i..].to_vec());
+            let (node, tr) = node.without_trailing();
             let text = node.text();
             return cat(vec![
                 trivia(&leading[..i], true),
