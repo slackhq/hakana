@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 hakana-format = { path = "../formatter" }
+hakana-file-discovery = { path = "../file_discovery" }
 hakana-orchestrator = { path = "../orchestrator" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }

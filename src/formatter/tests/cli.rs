@@ -80,6 +80,164 @@ fn check_and_inplace_do_not_rewrite_unchanged_or_invalid_files() {
 }
 
 #[test]
+fn recursive_paths_preserve_order_config_and_unique_files() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir_all(root.path().join("src/nested")).unwrap();
+    fs::write(root.path().join(".hhconfig"), "hackfmt.indent_width = 2\n").unwrap();
+    fs::write(
+        root.path().join("src/.hhconfig"),
+        "hackfmt.indent_width = 4\n",
+    )
+    .unwrap();
+    let original = "function f():void{foo(1,2);}";
+    let files = [
+        "src/a.hack",
+        "src/nested/b.php",
+        "src/nested/c.hhi",
+        "src/z.hh",
+        "extra.hack",
+    ];
+    for path in files {
+        fs::write(root.path().join(path), original).unwrap();
+    }
+    fs::write(root.path().join("src/nested/ignored.txt"), "not Hack").unwrap();
+    let mut args = [
+        "--check-formatting",
+        "--jobs",
+        "4",
+        "src",
+        "extra.hack",
+        "src/nested",
+        "./src/a.hack",
+    ];
+    let check = run(root.path(), &args, "");
+    assert!(check.status.success(), "{:?}", check.stderr);
+    assert!(check.stderr.is_empty());
+    assert_eq!(
+        String::from_utf8_lossy(&check.stdout),
+        files.join("\n") + "\n"
+    );
+    for path in files {
+        assert_eq!(
+            fs::read_to_string(root.path().join(path)).unwrap(),
+            original
+        );
+    }
+    args[2] = "1";
+    assert_same_output(&check, &run(root.path(), &args, ""));
+    args[0] = "--in-place";
+    args[2] = "4";
+    let formatted = run(root.path(), &args, "");
+    assert!(formatted.status.success(), "{:?}", formatted.stderr);
+    assert!(formatted.stdout.is_empty());
+    for path in files {
+        assert_eq!(
+            fs::read_to_string(root.path().join(path)).unwrap(),
+            "function f(): void {\n    foo(1, 2);\n}\n"
+        );
+    }
+    assert_eq!(
+        fs::read_to_string(root.path().join("src/nested/ignored.txt")).unwrap(),
+        "not Hack"
+    );
+    args[0] = "--check-formatting";
+    assert!(run(root.path(), &args, "").stdout.is_empty());
+}
+
+#[test]
+fn directory_inputs_require_bulk_mode_and_empty_directories_are_noops() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir(root.path().join("empty.hack")).unwrap();
+    for args in [
+        vec!["empty.hack"],
+        vec!["--line-range", "1", "2", "empty.hack"],
+    ] {
+        let result = run(root.path(), &args, "");
+        assert_eq!(result.status.code(), Some(3));
+        assert!(result.stdout.is_empty());
+        assert!(
+            String::from_utf8_lossy(&result.stderr).contains("Directory inputs require --in-place")
+        );
+    }
+    for mode in ["--in-place", "--check-formatting", "--linttool"] {
+        let result = run(root.path(), &[mode, "empty.hack"], "");
+        assert!(result.status.success(), "{:?}", result.stderr);
+        assert!(result.stdout.is_empty());
+        assert!(result.stderr.is_empty());
+    }
+}
+
+#[test]
+fn linttool_expands_directories_in_file_lists() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir_all(root.path().join("src/nested")).unwrap();
+    let original = "function f():void{foo(1,2);}";
+    fs::write(root.path().join("src/nested/a.hack"), original).unwrap();
+    let skipped = format!("// @noformat\n{original}");
+    fs::write(root.path().join("src/skipped.hack"), &skipped).unwrap();
+    fs::write(root.path().join("src/ignored.txt"), original).unwrap();
+    fs::write(root.path().join("paths.txt"), "src\n./src/nested/a.hack\n").unwrap();
+    let direct = run(root.path(), &["--linttool", "src"], "");
+    let listed = run(root.path(), &["--linttool", "@paths.txt"], "");
+    assert_same_output(&direct, &listed);
+    assert!(listed.status.success(), "{:?}", listed.stderr);
+    assert!(listed.stderr.is_empty());
+    let output = String::from_utf8(listed.stdout).unwrap();
+    assert_eq!(output.lines().count(), 1);
+    let report: serde_json::Value = serde_json::from_str(output.trim()).unwrap();
+    assert_eq!(report["path"], "src/nested/a.hack");
+    assert_eq!(
+        fs::read_to_string(root.path().join("src/nested/a.hack")).unwrap(),
+        original
+    );
+    assert_eq!(
+        fs::read_to_string(root.path().join("src/skipped.hack")).unwrap(),
+        skipped
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn directory_symlinks_are_followed_and_cycles_are_reported() {
+    use std::os::unix::fs::symlink;
+
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir(root.path().join("src")).unwrap();
+    let original = "function f():void{foo(1,2);}";
+    fs::write(root.path().join("src/a.hack"), original).unwrap();
+    symlink("src", root.path().join("linked")).unwrap();
+    symlink("a.hack", root.path().join("src/b.hack")).unwrap();
+    let result = run(
+        root.path(),
+        &["--check-formatting", "linked", "src", "src/b.hack"],
+        "",
+    );
+    assert!(result.status.success(), "{:?}", result.stderr);
+    assert!(result.stderr.is_empty());
+    assert_eq!(result.stdout, b"linked/a.hack\n");
+
+    // An explicitly skipped extension must not hide its supported target.
+    symlink("a.hack", root.path().join("src/alias.txt")).unwrap();
+    let result = run(
+        root.path(),
+        &["--check-formatting", "src/alias.txt", "src"],
+        "",
+    );
+    assert!(result.status.success());
+    assert_eq!(result.stdout, b"src/a.hack\n");
+    assert!(String::from_utf8_lossy(&result.stderr).contains("Unexpected file extension"));
+
+    symlink(".", root.path().join("src/loop")).unwrap();
+    let result = run(root.path(), &["--in-place", "src"], "");
+    assert_eq!(result.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("loop"));
+    assert_eq!(
+        fs::read_to_string(root.path().join("src/a.hack")).unwrap(),
+        original
+    );
+}
+
+#[test]
 fn diff_dry_run_and_write_preserve_unselected_functions() {
     let root = tempfile::tempdir().unwrap();
     let file = root.path().join("source.hack");

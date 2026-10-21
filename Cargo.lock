@@ -1065,6 +1065,7 @@ dependencies = [
  "hakana-aast-helper",
  "hakana-analyzer",
  "hakana-code-info",
+ "hakana-file-discovery",
  "hakana-format",
  "hakana-language-server",
  "hakana-lint",
@@ -1130,10 +1131,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "hakana-file-discovery"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "walkdir",
+]
+
+[[package]]
 name = "hakana-format"
 version = "0.1.0"
 dependencies = [
  "bumpalo",
+ "hakana-file-discovery",
  "operator",
  "parser_core_types",
  "positioned_by_ref_parser",

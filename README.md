@@ -55,6 +55,8 @@ It accepts both tagged PHP files and tagless `.hack` files.
 hakana format source.hack                     # Print formatted source
 hakana format < source.hack                   # Read from stdin
 hakana format --in-place source.hack other.hack
+hakana format --in-place src/ other.hack      # Recursively format a directory
+hakana format --check-formatting src/         # Recursively check a directory
 hakana format --check-formatting source.hack  # Print paths needing formatting
 hakana format --line-range 10 20 source.hack  # Print formatted selected lines
 git diff -U0 | hakana format --diff-dry-run --root .
@@ -63,6 +65,13 @@ git diff -U0 | hakana format --diff-dry-run --root .
 `--check-formatting` retains hackfmt's exit-code behavior: finding a formatting
 change prints the path and does not itself make the command fail. Use
 `hakana format --help` for width, indentation, range, and formatting-version options.
+
+In-place, check, and `--linttool` modes accept any mix of files and directories.
+Directories are searched recursively for `.hack`, `.php`, `.hhi`, and `.hh` files,
+following symlinks like `hakana lint`. Overlapping inputs are deduplicated, and
+directory entries are sorted for stable output. Traversal errors are reported.
+Without `--root`, configuration is found starting from the first input file's
+parent or the first input directory itself.
 
 Batch check, in-place, lint, and diff modes format files in parallel, using the
 available CPU count capped at eight workers by default. Set `--jobs N` (or `-j N`)

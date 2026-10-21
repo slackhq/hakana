@@ -1,0 +1,13 @@
+[package]
+name = "hakana-file-discovery"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+walkdir = "2"
+
+[dev-dependencies]
+tempfile = "3"

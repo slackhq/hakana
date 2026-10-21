@@ -1,12 +1,12 @@
 use clap::{Command, arg};
 use hakana_code_info::analysis_result::{CheckPointEntry, CheckPointEntryLevel};
+use hakana_file_discovery::{DiscoveryOptions, discover_files};
 use line_break_map::LineBreakMap;
 use rustc_hash::FxHashSet;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use walkdir::WalkDir;
 
 pub fn get_subcommand() -> Command<'static> {
     Command::new("lint")
@@ -190,50 +190,55 @@ pub fn handle(
         vec![root_dir.to_string()]
     };
 
+    let discovered_files = match discover_files(
+        &paths_to_lint,
+        DiscoveryOptions {
+            sort_by_file_name: false,
+            deduplicate: false,
+            keep_explicit_files: false,
+            ignore_errors: true,
+        },
+        |path| {
+            let path_str = path.to_string_lossy();
+            path_str.ends_with(".hack") || path_str.ends_with(".php")
+        },
+    ) {
+        Ok(files) => files,
+        Err(error) => {
+            eprintln!("Error discovering files to lint: {error}");
+            *had_error = true;
+            return;
+        }
+    };
+
     let mut files_to_lint = Vec::new();
     let mut skipped_codeowner_files = 0;
-    for base_path in paths_to_lint {
-        for entry in WalkDir::new(&base_path)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            let path = entry.path();
-            if !path.is_file() {
+    for path in discovered_files {
+        if skip_codeowners {
+            let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+            let canonical_root = std::path::Path::new(&root_dir)
+                .canonicalize()
+                .unwrap_or_else(|_| std::path::PathBuf::from(&root_dir));
+
+            let relative_path = if let Ok(rel) = canonical_path.strip_prefix(&canonical_root) {
+                format!("/{}", rel.to_string_lossy())
+            } else {
+                format!("/{}", path.to_string_lossy().trim_start_matches("./"))
+            };
+
+            let has_codeowner = codeowner_exact_files.contains(&relative_path)
+                || codeowner_patterns.iter().any(|pattern| {
+                    pattern.matches(&relative_path)
+                        || pattern.matches(relative_path.trim_start_matches('/'))
+                });
+
+            if has_codeowner {
+                skipped_codeowner_files += 1;
                 continue;
             }
-
-            let path_str = path.to_string_lossy();
-            if !path_str.ends_with(".hack") && !path_str.ends_with(".php") {
-                continue;
-            }
-
-            if skip_codeowners {
-                let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-                let canonical_root = std::path::Path::new(&root_dir)
-                    .canonicalize()
-                    .unwrap_or_else(|_| std::path::PathBuf::from(&root_dir));
-
-                let relative_path = if let Ok(rel) = canonical_path.strip_prefix(&canonical_root) {
-                    format!("/{}", rel.to_string_lossy())
-                } else {
-                    format!("/{}", path_str.trim_start_matches("./"))
-                };
-
-                let has_codeowner = codeowner_exact_files.contains(&relative_path)
-                    || codeowner_patterns.iter().any(|pattern| {
-                        pattern.matches(&relative_path)
-                            || pattern.matches(relative_path.trim_start_matches('/'))
-                    });
-
-                if has_codeowner {
-                    skipped_codeowner_files += 1;
-                    continue;
-                }
-            }
-
-            files_to_lint.push(path.to_path_buf());
         }
+
+        files_to_lint.push(path);
     }
 
     if skip_codeowners && skipped_codeowner_files > 0 {

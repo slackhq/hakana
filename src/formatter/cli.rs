@@ -1,6 +1,7 @@
 //! Command-line compatibility with hackfmt, shared by `hakana format` and the
 //! small formatter development binary. Formatting never initializes analysis.
 use crate::{Config, FormatError, ranges};
+use hakana_file_discovery::{DiscoveryOptions, discover_files};
 use std::{
     fs,
     io::{self, Read},
@@ -59,7 +60,11 @@ fn root_for(file: Option<&str>) -> PathBuf {
     let start = file
         .map(|f| {
             let p = cwd.join(f);
-            p.parent().unwrap_or(&cwd).to_path_buf()
+            if p.is_dir() {
+                p
+            } else {
+                p.parent().unwrap_or(&cwd).to_path_buf()
+            }
         })
         .unwrap_or_else(|| cwd.clone());
     for p in start.ancestors() {
@@ -69,12 +74,34 @@ fn root_for(file: Option<&str>) -> PathBuf {
     }
     cwd
 }
-fn is_hack(path: &str) -> bool {
+fn is_hack(path: impl AsRef<Path>) -> bool {
     matches!(
-        Path::new(path).extension().and_then(|s| s.to_str()),
+        path.as_ref().extension().and_then(|s| s.to_str()),
         Some("php" | "hack" | "hhi" | "hh")
     )
 }
+
+fn expand_paths(paths: &[String]) -> Result<Vec<String>, FormatError> {
+    discover_files(
+        paths,
+        DiscoveryOptions {
+            sort_by_file_name: true,
+            deduplicate: true,
+            keep_explicit_files: true,
+            ignore_errors: false,
+        },
+        |path| is_hack(path),
+    )
+    .map_err(|e| invalid(e.to_string()))?
+    .into_iter()
+    .map(|path| {
+        path.to_str()
+            .map(str::to_owned)
+            .ok_or_else(|| invalid(format!("Non-UTF-8 path: {}", path.display())))
+    })
+    .collect()
+}
+
 #[derive(Default)]
 struct Options {
     files: Vec<String>,
@@ -234,6 +261,11 @@ fn validate(o: &Options) -> Result<(), FormatError> {
     }
     if range && o.at.is_some() {
         return Err(invalid("--at-char expects no range"));
+    }
+    if !o.inplace && !o.check && o.files.iter().any(|path| Path::new(path).is_dir()) {
+        return Err(invalid(
+            "Directory inputs require --in-place, --check-formatting, or --linttool",
+        ));
     }
     Ok(())
 }
@@ -419,7 +451,7 @@ fn run_options(o: Options) -> Result<(), FormatError> {
             }
         }
         return process_files(
-            &paths,
+            &expand_paths(&paths)?,
             jobs,
             |path| {
                 if !is_hack(path) {
@@ -486,7 +518,7 @@ fn run_options(o: Options) -> Result<(), FormatError> {
     }
     if o.inplace || o.check {
         return process_files(
-            &o.files,
+            &expand_paths(&o.files)?,
             jobs,
             |path| {
                 if !is_hack(path) {
@@ -598,7 +630,7 @@ pub fn run(args: impl Iterator<Item = String>) -> i32 {
     let args: Vec<_> = args.collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "Usage: hakana format [OPTIONS] [FILE ...]\n\nFormat Hack source; reads stdin when FILE is omitted.\n\n  -i, --in-place              Update files in place\n  --check-formatting         Print files that need formatting\n  -j, --jobs N               Maximum workers (default: CPUs, capped at 8; 1 runs sequentially)\n  --range START END          Format a 1-based byte range (end exclusive)\n  --line-range START END     Format an inclusive line range\n  --at-char OFFSET           Format at a 0-based byte offset\n  --indent-width N           Spaces per indentation level (default 2)\n  --line-width N             Maximum line width (default 80)\n  --tabs                     Indent with tabs\n  --version N                Select hackfmt formatting rules\n  --format-generated-code   Format generated sections\n  --root DIRECTORY          Directory containing .hhconfig\n  --diff, --diff-dry-run     Format changed lines from a diff on stdin"
+            "Usage: hakana format [OPTIONS] [PATH ...]\n\nFormat Hack source; reads stdin when PATH is omitted.\nDirectories are searched recursively in in-place, check, and linttool modes.\nFollows symlinks and selects .hack, .php, .hhi, and .hh files.\n\n  -i, --in-place              Update files in place\n  --check-formatting         Print files that need formatting\n  -j, --jobs N               Maximum workers (default: CPUs, capped at 8; 1 runs sequentially)\n  --range START END          Format a 1-based byte range (end exclusive)\n  --line-range START END     Format an inclusive line range\n  --at-char OFFSET           Format at a 0-based byte offset\n  --indent-width N           Spaces per indentation level (default 2)\n  --line-width N             Maximum line width (default 80)\n  --tabs                     Indent with tabs\n  --version N                Select hackfmt formatting rules\n  --format-generated-code   Format generated sections\n  --root DIRECTORY          Directory containing .hhconfig\n  --diff, --diff-dry-run     Format changed lines from a diff on stdin"
         );
         return 0;
     }
