@@ -1,0 +1,1 @@
+ERROR: InvalidReturnStatement - input.hack:16:9 - The type shape('name' => string(task), 'status' => int(42)) does not match the declared return type shape-from(Labels) for invalid_label

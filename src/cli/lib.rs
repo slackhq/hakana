@@ -32,6 +32,11 @@ pub async fn init(
     test_runner: &TestRunner,
     custom_linters: Vec<Box<dyn hakana_lint::Linter>>,
 ) {
+    // Formatting is independent of analysis configuration, logging, and caches.
+    if env::args().nth(1).as_deref() == Some("format") {
+        exit(hakana_format::cli::run(env::args().skip(2)));
+    }
+
     let mut all_custom_issues = vec![];
 
     for analysis_hook in &analysis_hooks {
@@ -63,6 +68,9 @@ pub async fn init(
         .subcommand(commands::test::get_subcommand())
         .subcommand(commands::find_executable::get_subcommand())
         .subcommand(commands::lint::get_subcommand())
+        .subcommand(
+            Command::new("format").about("Format Hack source using hackfmt-compatible rules"),
+        )
         .subcommand(commands::cyclomatic_complexity::get_subcommand())
         .subcommand(commands::server::get_subcommand())
         .get_matches();

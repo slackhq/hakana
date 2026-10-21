@@ -1,3 +1,4 @@
 ERROR: UnnecessaryAsyncAnnotation - input.hack:2:27 - This function is marked async but has no async behaviour
 ERROR: UnnecessaryAsyncAnnotation - main.hack:1:16 - This function is marked async but has no async behaviour
+ERROR: UnusedReturnValue - main.hack:1:16 - The return value of main_async is never used by production callers
 ERROR: ImplicitAsioJoin - main.hack:3:12 - Call to a method Svc::fetch that just wraps an async version Svc::fetch_async

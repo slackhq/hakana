@@ -10,7 +10,7 @@
       {
         "file": "tests/references/crossFileReferences/input.hack",
         "start_offset": 183,
-        "end_offset": 196
+        "end_offset": 189
       },
       {
         "file": "tests/references/crossFileReferences/input.hack",

@@ -44,7 +44,11 @@ pub fn infer(
         aast::Expr_::Shape(shape_fields) => {
             let mut known_items = BTreeMap::new();
 
-            for (shape_field_name, field_expr) in shape_fields {
+            for field in shape_fields {
+                let aast::ShapeExprField::SFField(shape_field_name, field_expr) = field else {
+                    // Splat values need full expression analysis.
+                    return None;
+                };
                 if let ast_defs::ShapeFieldName::SFlitStr((_, str)) = shape_field_name {
                     let field_type = infer(field_expr, resolved_names, false);
 
@@ -204,6 +208,7 @@ pub fn infer(
         aast::Expr_::Eif(_) => None,
         aast::Expr_::New(..) => None,
         aast::Expr_::Omitted => None,
+        aast::Expr_::DestructureShape(_) | aast::Expr_::DestructureTuple(_) => None,
         aast::Expr_::This => todo!(),
         aast::Expr_::Invalid(..) => todo!(),
         aast::Expr_::Lvar(..) => todo!(),

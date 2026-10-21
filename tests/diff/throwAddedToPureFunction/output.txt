@@ -1,0 +1,1 @@
+ERROR: UnusedReturnValue - input.hack:1:10 - The return value of pure_fn is never used by production callers

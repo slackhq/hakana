@@ -25,19 +25,59 @@ This tool is not designed to be run on every keypress, but it has a language ser
 
 Clone this repo, install Rust and Cargo if you haven't already.
 
-Run `git submodule init && git submodule update` to ensure HHVM is present (Hakana borrows HHVM's parser).
+Run `./init.sh` to initialize the pinned submodules and apply `hhvm-patch.diff`.
+The patch enables WASM compilation and retains Hakana's support for legacy bool
+casts and `unset` targets.
 
-Then run `cd third-party/hhvm && git apply ../../hhvm-patch.diff && cd ../../` to apply a few patches that enable WASM compilation.
+`third-party/xhp-lib` is vendored from the webapp checkout's
+`vendor/facebook/xhp-lib`. Its source revision is recorded in
+`third-party/xhp-lib.vendor.json`. Keep this directory identical to that copy when
+refreshing it; XHP no longer requires a separate submodule checkout.
 
 Then run `cargo build --release`
 
-That will create a binary at `./target/release/hakana-default`
+That will create a binary at `./target/release/hakana`
 
 ## Running tests
 
 You can run all tests with: `cargo run --bin hakana --release test tests`
 
 You can run an individual test with `cargo run --bin hakana test <path-to-test-dir>`
+
+## Formatting Hack
+
+`hakana format` implements HHVM's hackfmt rules in Rust using the same full-fidelity
+parser as Hakana. It preserves comments and honors generated/manual sections,
+formatting suppressions, and `hackfmt.*` settings in the nearest `.hhconfig`.
+It accepts both tagged PHP files and tagless `.hack` files.
+
+```sh
+hakana format source.hack                     # Print formatted source
+hakana format < source.hack                   # Read from stdin
+hakana format --in-place source.hack other.hack
+hakana format --check-formatting source.hack  # Print paths needing formatting
+hakana format --line-range 10 20 source.hack  # Print formatted selected lines
+git diff -U0 | hakana format --diff-dry-run --root .
+```
+
+`--check-formatting` retains hackfmt's exit-code behavior: finding a formatting
+change prints the path and does not itself make the command fail. Use
+`hakana format --help` for width, indentation, range, and formatting-version options.
+
+The `hakana-format` library exposes whole-file, byte-range, line-interval, and
+format-at-offset operations independently of type analysis. To verify compatibility:
+
+```sh
+cargo build --release --bin hakana
+python3 scripts/test_hackfmt.py
+cargo test -p hakana-format
+```
+
+The harness reads fixtures, flags, configuration, expected output, IDE cases, and
+OCaml range assertions directly from `third-party/hhvm/hphp/hack/test`; it does not
+copy or regenerate them. Rust tests additionally check exact whole-file idempotence
+on those upstream fixtures. For faster development, build `cargo build -p hakana-format`
+and run the harness with `--program target/debug/hakana-format --standalone`.
 
 ## Type assertion helpers
 

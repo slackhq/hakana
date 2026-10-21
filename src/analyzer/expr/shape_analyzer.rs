@@ -1,6 +1,7 @@
 use crate::{
     expression_analyzer, function_analysis_data::FunctionAnalysisData, scope::BlockContext,
-    statements_analyzer::StatementsAnalyzer, stmt_analyzer::AnalysisError,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    stmt_analyzer::AnalysisError,
 };
 use hakana_code_info::ttype::{get_mixed_any, wrap_atomic};
 use hakana_code_info::{
@@ -10,6 +11,7 @@ use hakana_code_info::{
         node::DataFlowNode,
         path::{ArrayDataKind, PathKind},
     },
+    issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
@@ -22,7 +24,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    shape_fields: &Vec<(ShapeFieldName, aast::Expr<(), ()>)>,
+    shape_fields: &[aast::ShapeExprField<(), ()>],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -34,7 +36,30 @@ pub(crate) fn analyze(
     let mut effects = 0;
 
     let mut known_items = BTreeMap::new();
-    for (name, value_expr) in shape_fields {
+    for field in shape_fields {
+        let (name, value_expr) = match field {
+            aast::ShapeExprField::SFField(name, expr) => (name, expr),
+            aast::ShapeExprField::SFSplat(expr) => {
+                expression_analyzer::analyze(
+                    statements_analyzer,
+                    expr,
+                    analysis_data,
+                    context,
+                    true,
+                )?;
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UnrecognizedExpression,
+                        "Shape splat analysis is not supported".to_string(),
+                        statements_analyzer.get_hpos(expr.pos()),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+                return Err(AnalysisError::UserError);
+            }
+        };
         let start_pos = match name {
             ShapeFieldName::SFlitStr(name) => &name.0,
             ShapeFieldName::SFclassConst(lhs, _) => &lhs.0,

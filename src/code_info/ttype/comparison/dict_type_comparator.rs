@@ -101,6 +101,26 @@ pub(crate) fn is_contained_by(
                         }
                     }
 
+                    // A typed open shape constrains fields beyond its named ones too.
+                    if let Some((_, unknown_field_type)) = container_params {
+                        for (key, (_, input_property_type)) in input_known_items.iter() {
+                            if !container_known_items.contains_key(key)
+                                && !union_type_comparator::is_contained_by(
+                                    codebase,
+                                    file_path,
+                                    input_property_type,
+                                    unknown_field_type,
+                                    false,
+                                    input_property_type.ignore_falsable_issues,
+                                    inside_assertion,
+                                    atomic_comparison_result,
+                                )
+                            {
+                                all_types_contain = false;
+                            }
+                        }
+                    }
+
                     if all_types_contain {
                         match (input_params, container_params) {
                             (None, None) => {

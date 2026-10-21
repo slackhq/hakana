@@ -663,6 +663,8 @@ pub(crate) fn analyze(
             analysis_data.copy_effects(boxed.pos(), &expr.1);
         }
         aast::Expr_::This
+        | aast::Expr_::DestructureShape(_)
+        | aast::Expr_::DestructureTuple(_)
         | aast::Expr_::Omitted
         | aast::Expr_::Dollardollar(_)
         | aast::Expr_::ExpressionTree(_)

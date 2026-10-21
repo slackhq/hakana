@@ -1,0 +1,2 @@
+ERROR: UnusedReturnValue - input.hack:2:28 - The return value of Foo::bar is never used by production callers
+ERROR: UnusedReturnValue - other.hack:1:10 - The return value of Foo is never used by production callers

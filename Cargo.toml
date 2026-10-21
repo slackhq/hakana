@@ -43,6 +43,7 @@ members = [
     "src/orchestrator",
     "src/language_server",
     "src/lint",
+    "src/formatter",
     "src/logger",
     "src/js_interop",
     "src/executable_code_finder",

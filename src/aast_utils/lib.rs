@@ -8,7 +8,10 @@ use naming_visitor::Scanner;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
 use oxidized::scoured_comments::ScouredComments;
-use oxidized::{aast, aast_visitor::visit};
+use oxidized::{
+    aast,
+    aast_visitor::{AstParams, NodeMut, VisitorMut, visit, visit_mut},
+};
 use parser_core_types::{indexed_source_text::IndexedSourceText, source_text::SourceText};
 use relative_path::{Prefix, RelativePath};
 use rustc_hash::FxHashMap;
@@ -26,6 +29,37 @@ type AastParseResult = (
     Vec<ParserError>,
 );
 
+// Keep the representation consumed by Hakana's name, member, and call resolvers.
+// HHVM now lowers `parent` to CIparent; those resolvers use the identifier and
+// its source offset to resolve the parent and preserve forwarding-call behavior.
+struct ParentClassIds;
+
+impl<'ast> VisitorMut<'ast> for ParentClassIds {
+    type Params = AstParams<(), std::convert::Infallible>;
+
+    fn object(&mut self) -> &mut dyn VisitorMut<'ast, Params = Self::Params> {
+        self
+    }
+
+    fn visit_class_id(
+        &mut self,
+        context: &mut (),
+        id: &'ast mut aast::ClassId<(), ()>,
+    ) -> Result<(), std::convert::Infallible> {
+        if matches!(id.2, aast::ClassId_::CIparent) {
+            id.2 = aast::ClassId_::CIexpr(aast::Expr(
+                (),
+                id.1.clone(),
+                aast::Expr_::Id(Box::new(oxidized::ast_defs::Id(
+                    id.1.clone(),
+                    "parent".to_owned(),
+                ))),
+            ));
+        }
+        id.recurse(context, self)
+    }
+}
+
 pub fn get_aast_for_path_and_contents(
     file_path: FilePath,
     file_path_str: &str,
@@ -39,12 +73,12 @@ pub fn get_aast_for_path_and_contents(
     let text = SourceText::make(relative_path.clone(), file_contents.as_bytes());
     let indexed_source_text = IndexedSourceText::new(text.clone());
 
-    let mut parser_env = AastParserEnv::default();
-    parser_env.parser_options.disable_hh_ignore_error = 0;
-    parser_env.include_line_comments = true;
-    parser_env.scour_comments = true;
+    let mut parser_env = AastParserEnv {
+        include_line_comments: true,
+        scour_comments: true,
+        ..AastParserEnv::default()
+    };
     parser_env.parser_options.enable_xhp_class_modifier = true;
-    parser_env.parser_options.disallow_silence = true;
     parser_env.parser_options.allow_unstable_features = true;
 
     let mut parser_result = match aast_parser::AastParser::from_text(
@@ -114,7 +148,8 @@ pub fn get_aast_for_path_and_contents(
         syntax_errors.push(err);
     }
 
-    let aast = parser_result.aast;
+    let mut aast = parser_result.aast;
+    visit_mut(&mut ParentClassIds, &mut (), &mut aast).unwrap();
 
     // rewrite positional data for comments because it comes out wrong in the AST
     for (pos, comment) in parser_result.scoured_comments.comments.iter_mut() {

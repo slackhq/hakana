@@ -1,4 +1,4 @@
-<<file: __EnableUnstableFeatures('named_parameters', 'named_parameters_use')>>
+<<file: __EnableUnstableFeatures('named_parameters')>>
 
 type int_type = int;
 

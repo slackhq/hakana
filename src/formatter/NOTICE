@@ -1,0 +1,5 @@
+The formatter is a Rust port of hackfmt from HHVM, hphp/hack/src/hackfmt.
+Copyright (c) Meta Platforms, Inc. and affiliates.
+Copyright (c) Facebook, Inc. and its affiliates.
+The upstream MIT license is included in LICENSE.
+Upstream fixtures remain in third-party/hhvm and are not duplicated here.

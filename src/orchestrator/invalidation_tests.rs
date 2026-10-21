@@ -142,6 +142,80 @@ fn production_call_usage_is_replaced_when_callers_change() {
 }
 
 #[test]
+fn scanned_parse_errors_suspend_unused_definition_checks_until_fixed() {
+    let project = Project::new();
+    let before = project.analyze_edits_with_unused(
+        &[
+            ("value.hack", "function value(): int { return 1; }"),
+            ("caller.hack", "function caller(): void { value(); }"),
+        ],
+        None,
+        true,
+    );
+    let unused_return_count = |result: &AnalysisResult| {
+        result
+            .emitted_definition_issues
+            .values()
+            .flatten()
+            .filter(|issue| issue.kind == IssueKind::UnusedReturnValue)
+            .count()
+    };
+    assert_eq!(unused_return_count(&before.0), 1);
+
+    let broken = project.analyze_edits_with_unused(
+        &[("broken.hack", "function broken( {")],
+        Some(before),
+        true,
+    );
+    assert!(
+        broken.0.has_invalid_hack_files,
+        "Scanner errors must mark the analysis as incomplete"
+    );
+    assert!(
+        broken
+            .0
+            .emitted_issues
+            .values()
+            .flatten()
+            .any(|issue| issue.kind == IssueKind::InvalidHackFile)
+    );
+    assert!(
+        broken
+            .0
+            .emitted_definition_issues
+            .values()
+            .all(Vec::is_empty)
+    );
+
+    // An unrelated edit must not lose the error or resume global diagnostics
+    // while the invalid file remains unchanged.
+    let still_broken = project.analyze_edits_with_unused(
+        &[(
+            "caller.hack",
+            "function caller(): void { value(); value(); }",
+        )],
+        Some(broken),
+        true,
+    );
+    assert!(still_broken.0.has_invalid_hack_files);
+    assert!(
+        still_broken
+            .0
+            .emitted_definition_issues
+            .values()
+            .all(Vec::is_empty)
+    );
+
+    let fixed = project.analyze_edits_with_unused(
+        &[("broken.hack", "function fixed(): void {}")],
+        Some(still_broken),
+        true,
+    );
+    assert!(!fixed.0.has_invalid_hack_files);
+    assert_eq!(unused_return_count(&fixed.0), 1);
+}
+
+#[test]
 fn top_level_dependency_is_reanalyzed() {
     let project = Project::new();
     let caller = "function takes_int(int $x): void {}\ntakes_int(foo());\n";

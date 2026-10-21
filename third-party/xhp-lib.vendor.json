@@ -1,0 +1,8 @@
+{
+  "source_repository": "webapp",
+  "source_path": "vendor/facebook/xhp-lib",
+  "source_commit": "6ce4e97f4283629af36ad16701c879729ed01867",
+  "source_tree": "1bd01238ad2b18c5b9fe41b6862f3f5446e3ecbf",
+  "file_count": 211,
+  "license": "MIT"
+}

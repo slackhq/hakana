@@ -611,6 +611,10 @@ fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
 fn add_invalid_files(scan_data: &SuccessfulScanData, analysis_result: &mut AnalysisResult) {
     for (file_path, file_info) in &scan_data.codebase.files {
         for parser_error in &file_info.parser_errors {
+            // Files rejected by the scanner never reach analyze_file, which
+            // normally sets this flag. Retained scan errors must also suspend
+            // global unused-definition checks on subsequent incremental runs.
+            analysis_result.has_invalid_hack_files = true;
             analysis_result.emitted_issues.insert(
                 *file_path,
                 vec![match parser_error {

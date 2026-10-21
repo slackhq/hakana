@@ -1,4 +1,4 @@
-<<file: __EnableUnstableFeatures('named_parameters', 'named_parameters_use')>>
+<<file: __EnableUnstableFeatures('named_parameters')>>
 
 function foo(int $a, named int $b, named int $c): void {}
 

@@ -143,6 +143,18 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual(),
             );
         }
+        aast::Def::ClassAlias(boxed) => {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::UnrecognizedStatement,
+                    "Class alias analysis is not supported".to_string(),
+                    statements_analyzer.get_hpos(boxed.name.pos()),
+                    &None,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
         aast::Def::SetModule(boxed) => {
             analysis_data.maybe_add_issue(
                 Issue::new(

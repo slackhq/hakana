@@ -1,0 +1,2 @@
+ERROR: InvalidArgument - input.hack:9:14 - Argument 1 of accept_item expects class<Item>|classname<Item>, different type Other::class provided
+ERROR: InvalidArgument - input.hack:10:14 - Argument 1 of accept_item expects class<Item>|classname<Item>, different type nameof Other provided

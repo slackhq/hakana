@@ -1,1 +1,2 @@
+ERROR: UnusedReturnValue - input.hack:19:21 - The return value of B::bat is never used by production callers
 ERROR: InvalidReturnStatement - input.hack:21:16 - The type string(a) does not match the declared return type int for B::bat

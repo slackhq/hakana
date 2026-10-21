@@ -1,0 +1,9 @@
+{
+  "roots": [ "src/", "tests" ],
+  "builtinLinters": "all",
+  "disabledLinters": [
+    "Facebook\\HHAST\\UseStatementWithAsLinter",
+    "Facebook\\HHAST\\UnusedUseClauseLinter",
+    "Facebook\\HHAST\\GroupUseStatementsLinter"
+  ]
+}

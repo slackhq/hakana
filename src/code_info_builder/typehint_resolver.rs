@@ -286,8 +286,15 @@ fn get_shape_type_from_hints(
     file_path: FilePath,
 ) -> TAtomic {
     let mut known_items = BTreeMap::new();
+    let mut has_splat = false;
 
-    for field in &shape_info.field_map {
+    for element in &shape_info.field_map {
+        let oxidized::aast_defs::ShapeElement::SEField(field) = element else {
+            // Splat hints may refer to aliases which have not been populated yet.
+            // Keep the shape open rather than incorrectly treating it as closed.
+            has_splat = true;
+            continue;
+        };
         let field_type = get_type_from_hint(
             &field.hint.1,
             classlike_name,
@@ -318,8 +325,23 @@ fn get_shape_type_from_hints(
     }
 
     TAtomic::TDict(TDict {
-        params: if shape_info.allows_unknown_fields {
-            Some((Box::new(get_arraykey(true)), Box::new(get_mixed_any())))
+        params: if shape_info.allows_unknown_fields || has_splat {
+            let value_type = if has_splat {
+                get_mixed_any()
+            } else if let Some(hint) = &shape_info.unknown_fields_type {
+                get_type_from_hint(
+                    &hint.1,
+                    classlike_name,
+                    type_context,
+                    resolved_names,
+                    file_path,
+                    hint.0.start_offset() as u32,
+                )
+                .unwrap_or_else(get_mixed_any)
+            } else {
+                get_mixed_any()
+            };
+            Some((Box::new(get_arraykey(true)), Box::new(value_type)))
         } else {
             None
         },
@@ -617,6 +639,35 @@ pub fn get_type_from_hint(
                             resolved_names,
                             file_path,
                             false,
+                        )
+                    } else {
+                        get_reference_type(
+                            id,
+                            extra_info,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                            file_path,
+                        )
+                    }
+                }
+                "class_or_classname" | "HH\\class_or_classname" => {
+                    if let Some(param) = extra_info.first() {
+                        types.push(get_classname_type_from_hint(
+                            param,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                            file_path,
+                            false,
+                        ));
+                        get_classname_type_from_hint(
+                            param,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                            file_path,
+                            true,
                         )
                     } else {
                         get_reference_type(
@@ -951,13 +1002,23 @@ pub fn get_type_references_from_hint(
             }
         }
         Hint_::Hshape(shape_info) => {
-            for field in &shape_info.field_map {
-                refs.extend(get_type_references_from_hint(&field.hint, resolved_names));
-
-                if let ast_defs::ShapeFieldName::SFclassConst(lhs, _) = &field.name {
-                    let lhs_name = resolved_names.get(&(lhs.0.start_offset() as u32)).unwrap();
-                    refs.push((*lhs_name, lhs.0.start_offset(), lhs.0.end_offset()));
+            for element in &shape_info.field_map {
+                match element {
+                    oxidized::aast_defs::ShapeElement::SEField(field) => {
+                        refs.extend(get_type_references_from_hint(&field.hint, resolved_names));
+                        if let ast_defs::ShapeFieldName::SFclassConst(lhs, _) = &field.name {
+                            let lhs_name =
+                                resolved_names.get(&(lhs.0.start_offset() as u32)).unwrap();
+                            refs.push((*lhs_name, lhs.0.start_offset(), lhs.0.end_offset()));
+                        }
+                    }
+                    oxidized::aast_defs::ShapeElement::SESplat(hint) => {
+                        refs.extend(get_type_references_from_hint(hint, resolved_names));
+                    }
                 }
+            }
+            if let Some(hint) = &shape_info.unknown_fields_type {
+                refs.extend(get_type_references_from_hint(hint, resolved_names));
             }
         }
         Hint_::Htuple(tuple_info) => {

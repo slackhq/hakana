@@ -1,0 +1,1 @@
+ERROR: UnusedReturnValue - input.hack:9:25 - The return value of B::bb is never used by production callers

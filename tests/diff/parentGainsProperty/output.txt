@@ -1,0 +1,1 @@
+ERROR: UnusedReturnValue - input.hack:2:21 - The return value of C::m is never used by production callers

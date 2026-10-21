@@ -281,10 +281,14 @@ impl<'ast> Visitor<'ast> for Scanner {
                 Ok(())
             }
             Expr_::Shape(vec) => {
-                for tuple in vec {
+                for field in vec {
+                    let expr = match field {
+                        aast::ShapeExprField::SFField(_, expr)
+                        | aast::ShapeExprField::SFSplat(expr) => expr,
+                    };
                     // a single-line shape field is always coverable
-                    if is_single_line(&tuple.1.1) {
-                        push_pos(&tuple.1.1, c);
+                    if is_single_line(expr.pos()) {
+                        push_pos(expr.pos(), c);
                     }
                 }
                 push_end(&p.1, c);
