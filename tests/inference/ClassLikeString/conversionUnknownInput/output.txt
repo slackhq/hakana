@@ -1,0 +1,6 @@
+ERROR: LessSpecificArgument - input.hack:11:16 - Argument 1 of accept_struct expects class<Struct>, parent type class<object> provided
+ERROR: LessSpecificArgument - input.hack:11:39 - Argument 1 of HH\classname_to_class expects class<any>|classname<any>, parent type string provided
+ERROR: MixedArgument - input.hack:19:32 - Argument 1 of HH\classname_to_class expects class<any>|classname<any>, mixed provided
+ERROR: LessSpecificArgument - input.hack:23:32 - Argument 1 of HH\classname_to_class expects class<any>|classname<any>, parent type string provided
+ERROR: MixedArgument - input.hack:27:32 - Argument 1 of HH\class_to_classname expects class<any>|classname<any>, mixed provided
+ERROR: MixedArgument - input.hack:31:58 - Argument 1 of HH\classname_to_class_strict_isolation_backdoor expects class<any>|classname<any>, mixed provided

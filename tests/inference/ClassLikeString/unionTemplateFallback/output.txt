@@ -1,0 +1,17 @@
+ERROR: InvalidReturnStatement - input.hack:10:9 - The type ?class<object> does not match the declared return type int for nullable_string
+ERROR: NullableReturnStatement - input.hack:10:9 - The declared return type int for nullable_string is not nullable, but the function returns ?class<object>
+ERROR: LessSpecificArgument - input.hack:10:24 - Argument 1 of nullable_class expects class<any>|classname<any>|null, parent type string provided
+ERROR: InvalidReturnStatement - input.hack:14:9 - The type ?class<object> does not match the declared return type int for nullable_mixed
+ERROR: NullableReturnStatement - input.hack:14:9 - The declared return type int for nullable_mixed is not nullable, but the function returns ?class<object>
+ERROR: MixedArgument - input.hack:14:24 - Argument 1 of nullable_class expects class<any>|classname<any>, mixed provided
+ERROR: InvalidReturnStatement - input.hack:38:9 - The type ?class<object> does not match the declared return type int for uncovered_string
+ERROR: NullableReturnStatement - input.hack:38:9 - The declared return type int for uncovered_string is not nullable, but the function returns ?class<object>
+ERROR: LessSpecificArgument - input.hack:38:22 - Argument 1 of class_or_int expects class<any>|classname<any>|int, parent type string provided
+ERROR: InvalidReturnStatement - input.hack:42:9 - The type ?class<object> does not match the declared return type int for partly_covered_union
+ERROR: NullableReturnStatement - input.hack:42:9 - The declared return type int for partly_covered_union is not nullable, but the function returns ?class<object>
+ERROR: PossiblyInvalidArgument - input.hack:42:22 - Argument 1 of class_or_int expects class<any>|classname<any>|int, possibly different type bool|int provided
+ERROR: InvalidReturnStatement - input.hack:64:9 - The type vec<int> does not match the declared return type vec<string> for other_template_preserves_bound
+ERROR: InvalidReturnStatement - input.hack:79:9 - The type Child does not match the declared return type Item for bounded_template_preserves_bound
+ERROR: InvalidReturnStatement - input.hack:87:9 - The type ?classname<object> does not match the declared return type int for nullable_name_string
+ERROR: NullableReturnStatement - input.hack:87:9 - The declared return type int for nullable_name_string is not nullable, but the function returns ?classname<object>
+ERROR: LessSpecificArgument - input.hack:87:23 - Argument 1 of nullable_name expects ?classname<any>, parent type string provided

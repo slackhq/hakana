@@ -12,7 +12,7 @@ use crate::{
     t_atomic::TDict,
     ttype::{
         add_union_type,
-        comparison::union_type_comparator,
+        comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
         get_arrayish_params, get_arraykey, get_mixed, get_mixed_any, get_mixed_maybe_from_loop,
         get_value_param, type_combiner,
         type_expander::{self, StaticClassType, TypeExpansionOptions},
@@ -131,7 +131,7 @@ pub fn replace(
             input_arg_offset,
             input_arg_pos,
             opts,
-            original_atomic_types.len() == 1,
+            &original_atomic_types,
             &mut had_template,
         ))
     }
@@ -165,7 +165,7 @@ fn handle_atomic_standin(
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
     opts: StandinOpts,
-    was_single: bool,
+    union_atomic_types: &[TAtomic],
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
     let normalized_key = if let TAtomic::TNamedObject(TNamedObject { name, .. }) = atomic_type {
@@ -230,7 +230,7 @@ fn handle_atomic_standin(
             input_arg_offset,
             input_arg_pos,
             opts,
-            was_single,
+            union_atomic_types,
         );
     }
 
@@ -256,7 +256,7 @@ fn handle_atomic_standin(
             input_arg_offset,
             input_arg_pos,
             opts,
-            was_single,
+            union_atomic_types.len() == 1,
         );
     }
 
@@ -1096,7 +1096,7 @@ fn handle_template_param_class_standin(
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
     opts: StandinOpts,
-    was_single: bool,
+    union_atomic_types: &[TAtomic],
 ) -> Vec<TAtomic> {
     if let TAtomic::TGenericClassname {
         defining_entity,
@@ -1172,10 +1172,41 @@ fn handle_template_param_class_standin(
 
             let generic_param = if !valid_input_atomic_types.is_empty() {
                 Some(TUnion::new(valid_input_atomic_types))
-            } else if was_single {
-                Some(get_mixed_any())
             } else {
-                None
+                // Inputs accepted by other union members should not bind this
+                // template, e.g. an int passed to classname<T> | int. Otherwise
+                // use any, including for class<T> | classname<T> and nullable
+                // classlike parameters whose input gives us no class type.
+                let other_union_types = TUnion::new(
+                    union_atomic_types
+                        .iter()
+                        .filter(|t| {
+                            !matches!(
+                                t,
+                                TAtomic::TGenericClassname { .. }
+                                    | TAtomic::TGenericClassPtr { .. }
+                            )
+                        })
+                        .cloned()
+                        .collect(),
+                );
+
+                if !other_union_types.types.is_empty()
+                    && union_type_comparator::is_contained_by(
+                        codebase,
+                        file_path,
+                        input_type,
+                        &other_union_types,
+                        false,
+                        false,
+                        true, // Check other templates against their bounds.
+                        &mut TypeComparisonResult::new(),
+                    )
+                {
+                    None
+                } else {
+                    Some(get_mixed_any())
+                }
             };
 
             // sometimes templated class-strings can contain nested templates
@@ -1313,7 +1344,7 @@ fn handle_template_param_type_standin(
     input_arg_offset: Option<usize>,
     input_arg_pos: Option<HPos>,
     opts: StandinOpts,
-    was_single: bool,
+    use_mixed_fallback: bool,
 ) -> Vec<TAtomic> {
     if let TAtomic::TGenericTypename {
         defining_entity,
@@ -1366,7 +1397,7 @@ fn handle_template_param_type_standin(
 
             let generic_param = if !valid_input_atomic_types.is_empty() {
                 Some(TUnion::new(valid_input_atomic_types))
-            } else if was_single {
+            } else if use_mixed_fallback {
                 Some(get_mixed_any())
             } else {
                 None
