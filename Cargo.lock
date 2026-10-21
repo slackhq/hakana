@@ -1137,6 +1137,7 @@ dependencies = [
  "operator",
  "parser_core_types",
  "positioned_by_ref_parser",
+ "rayon",
  "regex",
  "relative_path",
  "serde_json",

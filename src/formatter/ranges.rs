@@ -4,6 +4,11 @@ use crate::{
     engine::{self, Group, Range},
     syntax::Node,
 };
+use parser_core_types::{syntax_kind::SyntaxKind, trivia_kind::TriviaKind};
+use std::sync::LazyLock;
+
+static BEGIN_MANUAL_SECTION: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"/\* BEGIN MANUAL SECTION [^*]*\*/").unwrap());
 pub fn lines(text: &str) -> Vec<Range> {
     let mut start = 0;
     let mut result = vec![];
@@ -18,15 +23,19 @@ pub fn lines(text: &str) -> Vec<Range> {
     result
 }
 pub fn expand_lines(text: &str, r: Range) -> Range {
+    let bytes = text.as_bytes();
     let mut end = r.1.max(r.0).min(text.len());
-    let mut start = r.0.min(end);
-    for (s, e) in lines(text) {
-        if start > s && start < e {
-            start = s;
-        }
-        if end > s && end < e {
-            end = e;
-        }
+    let start = bytes[..r.0.min(end)]
+        .iter()
+        .rposition(|b| *b == b'\n')
+        .map_or(0, |i| i + 1);
+    // An end already at a line boundary stays there. Like lines(), count a
+    // virtual newline after an unterminated final line.
+    if end > 0 && bytes[end - 1] != b'\n' {
+        end = bytes[end..]
+            .iter()
+            .position(|b| *b == b'\n')
+            .map_or(text.len() + 1, |i| end + i + 1);
     }
     (start, end)
 }
@@ -83,18 +92,21 @@ fn suppressed(env: &Config, root: &Node, text: &str) -> Vec<Range> {
     let mut fixmes = vec![];
     let mut manual = vec![];
     let mut start = None;
-    let begin = regex::Regex::new(r"/\* BEGIN MANUAL SECTION [^*]*\*/").unwrap();
     for token in tokens {
         for tr in token.leading.iter().chain(&token.trailing) {
-            if matches!(tr.kind.as_str(), "FixMe" | "Ignore" | "IgnoreError")
-                || matches!(tr.kind.as_str(), "DelimitedComment" | "SingleLineComment")
-                    && tr.text.contains("@lint-ignore")
+            if matches!(
+                tr.kind,
+                TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError
+            ) || matches!(
+                tr.kind,
+                TriviaKind::DelimitedComment | TriviaKind::SingleLineComment
+            ) && tr.text.contains("@lint-ignore")
             {
                 let (s, e) = expand_lines(text, (tr.start, tr.end()));
                 fixmes.push(expand_lines(text, (s, e + 1)));
             }
-            if tr.kind == "DelimitedComment" {
-                if begin.is_match(&tr.text) {
+            if tr.kind == TriviaKind::DelimitedComment {
+                if BEGIN_MANUAL_SECTION.is_match(&tr.text) {
                     start = Some(tr.end());
                 } else if tr.text == "/* END MANUAL SECTION */"
                     && let Some(s) = start.take()
@@ -117,6 +129,7 @@ fn suppressed(env: &Config, root: &Node, text: &str) -> Vec<Range> {
     }
     union(fixmes)
 }
+
 pub fn atoms(groups: &[Group]) -> Vec<Range> {
     groups
         .iter()
@@ -228,8 +241,8 @@ pub fn at_offset(
         return Err("Offset must point to the last character of a token".into());
     }
     let mut parent = path.pop().unwrap();
-    if parent.kind == "CompoundStatement"
-        && let Some(grand) = path.last().filter(|n| n.kind != "SyntaxList")
+    if parent.kind == SyntaxKind::CompoundStatement
+        && let Some(grand) = path.last().filter(|n| n.kind != SyntaxKind::SyntaxList)
     {
         parent = grand;
     }
@@ -241,4 +254,35 @@ pub fn at_offset(
         range,
         engine::solve(env, groups, Some(range), text, false, false),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn line_expansion_matches_line_table_at_every_byte_boundary() {
+        for text in ["", "\n", "abc", "abc\n", "\nabc\n\nx", "a\r\nb", "α🙂\nz"] {
+            let bounds = lines(text);
+            for start in 0..=text.len() + 2 {
+                for end in 0..=text.len() + 2 {
+                    let mut expected_end = end.max(start).min(text.len());
+                    let mut expected_start = start.min(expected_end);
+                    for &(s, e) in &bounds {
+                        if s < expected_start && expected_start < e {
+                            expected_start = s;
+                        }
+                        if s < expected_end && expected_end < e {
+                            expected_end = e;
+                        }
+                    }
+                    assert_eq!(
+                        expand_lines(text, (start, end)),
+                        (expected_start, expected_end),
+                        "{text:?} at {start}..{end}"
+                    );
+                }
+            }
+        }
+    }
 }

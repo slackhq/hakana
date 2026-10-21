@@ -97,6 +97,7 @@ struct Options {
     version: Option<u32>,
     tabs: bool,
     generated: bool,
+    jobs: Option<usize>,
 }
 fn options(args: impl Iterator<Item = String>) -> Result<Options, FormatError> {
     let mut o = Options::default();
@@ -142,6 +143,13 @@ fn options(args: impl Iterator<Item = String>) -> Result<Options, FormatError> {
             }
             "--version" => {
                 o.version = Some(value()?.parse().map_err(|_| invalid("Invalid version"))?)
+            }
+            "-j" | "--jobs" => {
+                let jobs = value()?.parse().map_err(|_| invalid("Invalid job count"))?;
+                if jobs == 0 {
+                    return Err(invalid("Job count must be at least 1"));
+                }
+                o.jobs = Some(jobs);
             }
             "--tabs" => o.tabs = true,
             "--format-generated-code" => o.generated = true,
@@ -338,6 +346,51 @@ fn formatting_config(o: &Options, root: &Path) -> Config {
     c.format_generated_code |= o.generated;
     c
 }
+
+/// Compute a bounded batch concurrently, then consume its results in input
+/// order. Workers never print or write files. In particular, a fatal error
+/// prevents later results from being applied, just as in the sequential CLI.
+fn process_files<T: Sync, R: Send>(
+    items: &[T],
+    jobs: usize,
+    work: impl Fn(&T) -> R + Sync,
+    mut consume: impl FnMut(&T, R) -> Result<(), FormatError>,
+) -> Result<(), FormatError> {
+    #[cfg(not(target_family = "wasm"))]
+    if jobs > 1 && items.len() > 1 {
+        use rayon::prelude::*;
+        let jobs = jobs.min(items.len());
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(jobs)
+            .thread_name(|i| format!("hakana-format-{i}"))
+            .stack_size(8 * 1024 * 1024)
+            .build()
+            .map_err(|e| invalid(format!("Cannot start formatter workers: {e}")))?;
+        // Bound retained source/output buffers as well as the worker count.
+        for batch in items.chunks(jobs.saturating_mul(4)) {
+            let results = pool.install(|| batch.par_iter().map(&work).collect::<Vec<_>>());
+            for (item, result) in batch.iter().zip(results) {
+                consume(item, result)?;
+            }
+        }
+        return Ok(());
+    }
+    // WASM uses the same serial path as --jobs 1.
+    let _ = jobs;
+    for item in items {
+        consume(item, work(item))?;
+    }
+    Ok(())
+}
+
+fn parse_error(path: &str, e: &FormatError) {
+    eprintln!(
+        "{}\nParse error in file: {path}",
+        e.message
+            .trim_end_matches("\nFile failed to parse without errors")
+    );
+}
+
 fn run_options(o: Options) -> Result<(), FormatError> {
     validate(&o)?;
     let root = o
@@ -351,6 +404,11 @@ fn run_options(o: Options) -> Result<(), FormatError> {
         )));
     }
     let c = formatting_config(&o, &root);
+    let jobs = o.jobs.unwrap_or_else(|| {
+        std::thread::available_parallelism()
+            .map_or(1, usize::from)
+            .min(8)
+    });
     if o.lint {
         let mut paths = vec![];
         for f in o.files.iter().rev() {
@@ -360,49 +418,63 @@ fn run_options(o: Options) -> Result<(), FormatError> {
                 paths.push(f.clone());
             }
         }
-        for path in paths {
-            if !is_hack(&path) {
-                continue;
-            }
-            let text = read(Path::new(&path))?;
-            if text.contains("@noformat") {
-                continue;
-            }
-            if let Ok(formatted) = crate::format(&text, &c)
-                && formatted != text
-            {
-                let value = serde_json::json!({"path":path,"line":1,"char":1,"code":"HACKFORMAT","severity":o.severity.as_deref().unwrap_or("warning"),"original":text,"replacement":formatted,"name":"format","description":"This file is not formatted. Use `arc f` to keep it formatted."});
-                println!("{value}");
-            }
-        }
-        return Ok(());
+        return process_files(
+            &paths,
+            jobs,
+            |path| {
+                if !is_hack(path) {
+                    return Ok(None);
+                }
+                let text = read(Path::new(path))?;
+                if text.contains("@noformat") {
+                    return Ok(None);
+                }
+                Ok(crate::format(&text, &c)
+                    .ok()
+                    .filter(|formatted| *formatted != text)
+                    .map(|formatted| (text, formatted)))
+            },
+            |path, result: Result<_, FormatError>| {
+                if let Some((text, formatted)) = result? {
+                    let value = serde_json::json!({"path":path,"line":1,"char":1,"code":"HACKFORMAT","severity":o.severity.as_deref().unwrap_or("warning"),"original":text,"replacement":formatted,"name":"format","description":"This file is not formatted. Use `arc f` to keep it formatted."});
+                    println!("{value}");
+                }
+                Ok(())
+            },
+        );
     }
     if o.diff {
         let input = stdin()?;
         let root = o.diff_root.as_ref().unwrap_or(&root);
         let mut changes = vec![];
-        for (path, intervals) in diff_files(&input)? {
-            if !is_hack(&path) {
-                continue;
-            }
-            let file = root.join(&path);
-            if !file.is_file() {
-                return Err(error(
-                    format!("Invalid diff: No such file or directory: {path}"),
-                    4,
-                ));
-            }
-            let text = read(&file)?;
-            match crate::format_intervals(&text, &c, &intervals) {
-                Ok(out) => changes.push((file, path, out)),
-                Err(e) if e.exit_code == 2 => eprintln!(
-                    "{}\nParse error in file: {path}",
-                    e.message
-                        .trim_end_matches("\nFile failed to parse without errors")
-                ),
-                Err(e) => return Err(error(format!("Invalid diff: {}", e.message), 4)),
-            }
-        }
+        process_files(
+            &diff_files(&input)?,
+            jobs,
+            |(path, intervals)| {
+                if !is_hack(path) {
+                    return Ok(None);
+                }
+                let file = root.join(path);
+                if !file.is_file() {
+                    return Err(error(
+                        format!("Invalid diff: No such file or directory: {path}"),
+                        4,
+                    ));
+                }
+                let text = read(&file)?;
+                Ok(Some((file, crate::format_intervals(&text, &c, intervals))))
+            },
+            |(path, _), result: Result<_, FormatError>| {
+                if let Some((file, formatted)) = result? {
+                    match formatted {
+                        Ok(out) => changes.push((file, path.clone(), out)),
+                        Err(e) if e.exit_code == 2 => parse_error(path, &e),
+                        Err(e) => return Err(error(format!("Invalid diff: {}", e.message), 4)),
+                    }
+                }
+                Ok(())
+            },
+        )?;
         for (file, path, out) in changes {
             if o.dry {
                 print!("*** {path}\n{out}");
@@ -413,31 +485,53 @@ fn run_options(o: Options) -> Result<(), FormatError> {
         return Ok(());
     }
     if o.inplace || o.check {
-        for path in &o.files {
-            if !is_hack(path) {
-                eprintln!("Unexpected file extension (probably not a Hack file): {path}");
-                continue;
-            }
-            let text = read(Path::new(path))?;
-            match crate::format(&text, &c) {
-                Ok(out) if out != text => {
-                    if o.check {
-                        println!("{path}");
-                    } else {
-                        fs::write(path, out).map_err(|e| invalid(e.to_string()))?;
+        return process_files(
+            &o.files,
+            jobs,
+            |path| {
+                if !is_hack(path) {
+                    return Ok(None);
+                }
+                let text = read(Path::new(path))?;
+                let formatted = crate::format(&text, &c);
+                Ok(Some((text, formatted)))
+            },
+            |path, result: Result<_, FormatError>| {
+                let Some((text, formatted)) = result? else {
+                    eprintln!("Unexpected file extension (probably not a Hack file): {path}");
+                    return Ok(());
+                };
+                match formatted {
+                    Ok(out) if out != text => {
+                        if o.check {
+                            println!("{path}");
+                        } else {
+                            // An earlier write may have changed this file via a
+                            // duplicate path, symlink, or hard link. Reformat a
+                            // changed source rather than applying stale output.
+                            let current = read(Path::new(path))?;
+                            let out = if current == text {
+                                out
+                            } else {
+                                match crate::format(&current, &c) {
+                                    Ok(out) => out,
+                                    Err(e) => {
+                                        parse_error(path, &e);
+                                        return Ok(());
+                                    }
+                                }
+                            };
+                            if out != current {
+                                fs::write(path, out).map_err(|e| invalid(e.to_string()))?;
+                            }
+                        }
                     }
+                    Ok(_) => (),
+                    Err(e) => parse_error(path, &e),
                 }
-                Ok(_) => (),
-                Err(e) => {
-                    eprintln!(
-                        "{}\nParse error in file: {path}",
-                        e.message
-                            .trim_end_matches("\nFile failed to parse without errors")
-                    );
-                }
-            }
-        }
-        return Ok(());
+                Ok(())
+            },
+        );
     }
     let file = o.files.first();
     if let Some(path) = file.or(o.logging_filename.as_ref())
@@ -504,7 +598,7 @@ pub fn run(args: impl Iterator<Item = String>) -> i32 {
     let args: Vec<_> = args.collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "Usage: hakana format [OPTIONS] [FILE ...]\n\nFormat Hack source; reads stdin when FILE is omitted.\n\n  -i, --in-place              Update files in place\n  --check-formatting         Print files that need formatting\n  --range START END          Format a 1-based byte range (end exclusive)\n  --line-range START END     Format an inclusive line range\n  --at-char OFFSET           Format at a 0-based byte offset\n  --indent-width N           Spaces per indentation level (default 2)\n  --line-width N             Maximum line width (default 80)\n  --tabs                     Indent with tabs\n  --version N                Select hackfmt formatting rules\n  --format-generated-code   Format generated sections\n  --root DIRECTORY          Directory containing .hhconfig\n  --diff, --diff-dry-run     Format changed lines from a diff on stdin"
+            "Usage: hakana format [OPTIONS] [FILE ...]\n\nFormat Hack source; reads stdin when FILE is omitted.\n\n  -i, --in-place              Update files in place\n  --check-formatting         Print files that need formatting\n  -j, --jobs N               Maximum workers (default: CPUs, capped at 8; 1 runs sequentially)\n  --range START END          Format a 1-based byte range (end exclusive)\n  --line-range START END     Format an inclusive line range\n  --at-char OFFSET           Format at a 0-based byte offset\n  --indent-width N           Spaces per indentation level (default 2)\n  --line-width N             Maximum line width (default 80)\n  --tabs                     Indent with tabs\n  --version N                Select hackfmt formatting rules\n  --format-generated-code   Format generated sections\n  --root DIRECTORY          Directory containing .hhconfig\n  --diff, --diff-dry-run     Format changed lines from a diff on stdin"
         );
         return 0;
     }

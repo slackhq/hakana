@@ -64,6 +64,11 @@ git diff -U0 | hakana format --diff-dry-run --root .
 change prints the path and does not itself make the command fail. Use
 `hakana format --help` for width, indentation, range, and formatting-version options.
 
+Batch check, in-place, lint, and diff modes format files in parallel, using the
+available CPU count capped at eight workers by default. Set `--jobs N` (or `-j N`)
+to choose the limit; `--jobs 1` runs sequentially. Diagnostics and writes retain
+each mode's existing order. Single-file/stdin requests and WASM use sequential formatting.
+
 The `hakana-format` library exposes whole-file, byte-range, line-interval, and
 format-at-offset operations independently of type analysis. To verify compatibility:
 
@@ -91,6 +96,8 @@ The baseline option alternates timing runs and checks that both binaries produce
 identical output for every file, using temporary copies. Save the old release
 binary before rebuilding. Add `--json timings.json` to save measurements or
 `--profile profile.json.gz` to record a separate CPU profile with `samply`.
+Profiles include worker threads. Use `--jobs N` and `--baseline-jobs N` to compare
+worker counts when both binaries support these options.
 
 ## Type assertion helpers
 

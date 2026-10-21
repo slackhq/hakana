@@ -7,6 +7,7 @@ use crate::{
 };
 use Doc::*;
 use Rule::*;
+use parser_core_types::{syntax_kind::SyntaxKind, token_kind::TokenKind, trivia_kind::TriviaKind};
 pub struct Formatter<'a> {
     pub env: &'a Config,
 }
@@ -21,10 +22,10 @@ fn string(s: String, w: usize) -> Doc {
     }
 }
 fn has_nl(tr: &[Trivia]) -> bool {
-    tr.iter().any(|t| t.kind == "EndOfLine")
+    tr.iter().any(|t| t.kind == TriviaKind::EndOfLine)
 }
 fn has_ws(tr: &[Trivia]) -> bool {
-    tr.iter().any(|t| t.kind == "WhiteSpace")
+    tr.iter().any(|t| t.kind == TriviaKind::WhiteSpace)
 }
 fn ignores(tr: &[Trivia]) -> Doc {
     cat(tr.iter().map(|t| Ignore(t.text.len())).collect())
@@ -35,7 +36,7 @@ fn invisibles(tr: &[Trivia]) -> Doc {
         .iter()
         .map(|t| {
             let d = Ignore(t.text.len());
-            if t.kind == "EndOfLine" {
+            if t.kind == TriviaKind::EndOfLine {
                 n += 1;
                 cat(vec![d, if n <= 1 { BlankLine } else { Nil }])
             } else {
@@ -88,8 +89,12 @@ fn trivia(tr: &[Trivia], is_leading: bool) -> Doc {
     let mut leading = is_leading;
     let mut indent = 0;
     for t in tr {
-        match t.kind.as_str() {
-            "ExtraTokenError" | "FixMe" | "Ignore" | "IgnoreError" | "DelimitedComment" => {
+        match t.kind {
+            TriviaKind::ExtraTokenError
+            | TriviaKind::FixMe
+            | TriviaKind::Ignore
+            | TriviaKind::IgnoreError
+            | TriviaKind::DelimitedComment => {
                 let ws = has_ws(if leading { &a.leading } else { &a.trailing });
                 a.flush();
                 let mut lines = t.text.split('\n');
@@ -112,8 +117,11 @@ fn trivia(tr: &[Trivia], is_leading: bool) -> Doc {
                         Comment(line[cut..].into(), line.len() - cut),
                     ]));
                 }
-                let should_break =
-                    leading && !matches!(t.kind.as_str(), "FixMe" | "Ignore" | "IgnoreError");
+                let should_break = leading
+                    && !matches!(
+                        t.kind,
+                        TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError
+                    );
                 a.comment = Some(cat(vec![
                     if should_break {
                         Newline
@@ -127,7 +135,7 @@ fn trivia(tr: &[Trivia], is_leading: bool) -> Doc {
                 a.delimited = true;
                 leading = false;
             }
-            "FallThrough" | "SingleLineComment" => {
+            TriviaKind::FallThrough | TriviaKind::SingleLineComment => {
                 a.flush();
                 a.comment = Some(cat(vec![
                     if leading { Newline } else { Space },
@@ -136,7 +144,7 @@ fn trivia(tr: &[Trivia], is_leading: bool) -> Doc {
                 a.delimited = false;
                 leading = false;
             }
-            "EndOfLine" => {
+            TriviaKind::EndOfLine => {
                 indent = 0;
                 if leading {
                     a.leading.push(t.clone());
@@ -146,7 +154,7 @@ fn trivia(tr: &[Trivia], is_leading: bool) -> Doc {
                 }
                 leading = true;
             }
-            "WhiteSpace" => {
+            TriviaKind::WhiteSpace => {
                 if leading {
                     indent = t.text.len();
                     a.leading.push(t.clone());
@@ -154,7 +162,6 @@ fn trivia(tr: &[Trivia], is_leading: bool) -> Doc {
                     a.trailing.push(t.clone());
                 }
             }
-            _ => panic!("unhandled trivia {}", t.kind),
         }
     }
     if a.docs.is_empty() {
@@ -169,10 +176,14 @@ fn trivia(tr: &[Trivia], is_leading: bool) -> Doc {
     }
 }
 fn unwrap_item(n: &Node) -> &Node {
-    if n.kind == "ListItem" { n.c(0) } else { n }
+    if n.kind == SyntaxKind::ListItem {
+        n.c(0)
+    } else {
+        n
+    }
 }
 fn op(n: &Node) -> operator::Operator {
-    operator::Operator::trailing_from_token(n.token.as_ref().unwrap().raw_kind)
+    operator::Operator::trailing_from_token(n.token.as_ref().unwrap().kind)
 }
 impl Formatter<'_> {
     fn list(&self, n: &Node, before: Doc, after: Doc, last: Doc) -> Doc {
@@ -213,13 +224,13 @@ impl Formatter<'_> {
         }
     }
     fn compound(&self, n: &Node, collapse: bool, space: bool) -> Doc {
-        if n.kind == "CompoundStatement" {
+        if n.kind == SyntaxKind::CompoundStatement {
             cat(vec![
                 Space,
                 self.block(n.c(0), n.c(2), self.all(n.c(1)), collapse),
                 if space { Space } else { Nil },
             ])
-        } else if n.kind == "Token" {
+        } else if matches!(n.kind, SyntaxKind::Token(_)) {
             self.t(n)
         } else {
             cat(vec![Newline, Block(vec![self.t(n)])])
@@ -254,20 +265,22 @@ impl Formatter<'_> {
     }
     fn bad_braces(&self, n: &Node) -> bool {
         let n = unwrap_item(n);
-        match n.kind.as_str() {
-            "LambdaExpression" if n.c(4).kind == "CompoundStatement" => false,
-            "FunctionCallExpression" => n.c(0).kind == "MemberSelectionExpression",
-            "ConditionalExpression"
-            | "BinaryExpression"
-            | "MemberSelectionExpression"
-            | "FieldSpecifier"
-            | "FieldInitializer"
-            | "ElementInitializer"
-            | "LambdaExpression"
-            | "XHPExpression"
-            | "IsExpression"
-            | "AsExpression"
-            | "NullableAsExpression" => true,
+        match n.kind {
+            SyntaxKind::LambdaExpression if n.c(4).kind == SyntaxKind::CompoundStatement => false,
+            SyntaxKind::FunctionCallExpression => {
+                n.c(0).kind == SyntaxKind::MemberSelectionExpression
+            }
+            SyntaxKind::ConditionalExpression
+            | SyntaxKind::BinaryExpression
+            | SyntaxKind::MemberSelectionExpression
+            | SyntaxKind::FieldSpecifier
+            | SyntaxKind::FieldInitializer
+            | SyntaxKind::ElementInitializer
+            | SyntaxKind::LambdaExpression
+            | SyntaxKind::XHPExpression
+            | SyntaxKind::IsExpression
+            | SyntaxKind::AsExpression
+            | SyntaxKind::NullableAsExpression => true,
             _ => false,
         }
     }
@@ -284,9 +297,9 @@ impl Formatter<'_> {
         }
     }
     fn arg_item(&self, n: &Node) -> Doc {
-        match n.kind.as_str() {
-            "ListItem" => cat(vec![self.arg_item(n.c(0)), self.t(n.c(1))]),
-            "BinaryExpression" if !n.c(1).is_token(".") => {
+        match n.kind {
+            SyntaxKind::ListItem => cat(vec![self.arg_item(n.c(0)), self.t(n.c(1))]),
+            SyntaxKind::BinaryExpression if !n.c(1).is_token(".") => {
                 self.binary(n.c(0), n.c(1), n.c(2), true)
             }
             _ => self.t(n),
@@ -339,23 +352,23 @@ impl Formatter<'_> {
         let mut parental = true;
         if let Some(last) = xs.last() {
             let last_item = unwrap_item(last);
-            if last_item.kind == "DecoratedExpression" && last_item.c(0).is_token("...") {
+            if last_item.kind == SyntaxKind::DecoratedExpression && last_item.c(0).is_token("...") {
                 allow = false;
             }
             if !spaces {
-                let doc_literal = last_item.kind == "LiteralExpression"
+                let doc_literal = last_item.kind == SyntaxKind::LiteralExpression
                     && last_item.first().is_some_and(|t| {
                         matches!(
-                            t.kind.as_str(),
-                            "HeredocStringLiteral"
-                                | "NowdocStringLiteral"
-                                | "HeredocStringLiteralHead"
+                            t.kind,
+                            TokenKind::HeredocStringLiteral
+                                | TokenKind::NowdocStringLiteral
+                                | TokenKind::HeredocStringLiteralHead
                         )
                     });
                 let trailing_ok = args.trailing().is_empty()
                     || self.env.version(3)
                         && doc_literal
-                        && r.leading().iter().all(|t| t.kind == "WhiteSpace");
+                        && r.leading().iter().all(|t| t.kind == TriviaKind::WhiteSpace);
                 let leading_ok = if xs.len() == 1 {
                     l.trailing().is_empty()
                 } else {
@@ -372,9 +385,9 @@ impl Formatter<'_> {
     fn fn_args(&self, args: &Node, r: &Node) -> Doc {
         let allow = args.list().last().is_none_or(|x| {
             let x = unwrap_item(x);
-            match x.kind.as_str() {
-                "ParameterDeclaration" => x.c(8).missing(),
-                "ClosureParameterTypeSpecifier" => x.c(7).missing(),
+            match x.kind {
+                SyntaxKind::ParameterDeclaration => x.c(8).missing(),
+                SyntaxKind::ClosureParameterTypeSpecifier => x.c(7).missing(),
                 _ => true,
             }
         });
@@ -410,16 +423,16 @@ impl Formatter<'_> {
         ])
     }
     fn lambda_body(&self, n: &Node) -> Doc {
-        if n.kind == "CompoundStatement" {
+        if n.kind == SyntaxKind::CompoundStatement {
             self.compound(n, true, false)
-        } else if n.kind == "XHPExpression" {
+        } else if n.kind == SyntaxKind::XHPExpression {
             rule(Parental, cat(vec![Space, Split, Nest(vec![self.t(n)])]))
         } else {
             cat(vec![Space, SplitWith(1), Nest(vec![self.t(n)])])
         }
     }
     fn consequence(&self, body: &Node, previous: &Node) -> Doc {
-        if body.kind == "CompoundStatement" {
+        if body.kind == SyntaxKind::CompoundStatement {
             self.compound(body, false, true)
         } else {
             cat(vec![
@@ -452,7 +465,7 @@ impl Formatter<'_> {
             ]);
         }
         fn flatten<'a>(n: &'a Node, precedence: usize, out: &mut Vec<&'a Node>) {
-            if n.kind == "BinaryExpression"
+            if n.kind == SyntaxKind::BinaryExpression
                 && op(n.c(1)).precedence(&Default::default()) == precedence
             {
                 flatten(n.c(0), precedence, out);
@@ -468,7 +481,7 @@ impl Formatter<'_> {
         xs.push(o);
         flatten(r, p, &mut xs);
         let operand = |n: &Node| {
-            if n.kind == "BinaryExpression" {
+            if n.kind == SyntaxKind::BinaryExpression {
                 self.binary(n.c(0), n.c(1), n.c(2), true)
             } else {
                 self.t(n)
@@ -523,7 +536,7 @@ impl Formatter<'_> {
             Option<(&'a Node, &'a Node, &'a Node)>,
         );
         fn flatten(n: &Node) -> (&Node, Vec<Member<'_>>) {
-            let (member, args, targs) = if n.kind == "FunctionCallExpression" {
+            let (member, args, targs) = if n.kind == SyntaxKind::FunctionCallExpression {
                 (
                     n.c(0),
                     Some((n.c(2), n.c(3), n.c(4))),
@@ -533,8 +546,8 @@ impl Formatter<'_> {
                 (n, None, None)
             };
             if !matches!(
-                member.kind.as_str(),
-                "MemberSelectionExpression" | "SafeMemberSelectionExpression"
+                member.kind,
+                SyntaxKind::MemberSelectionExpression | SyntaxKind::SafeMemberSelectionExpression
             ) {
                 return (n, vec![]);
             }
@@ -543,7 +556,7 @@ impl Formatter<'_> {
             (first, chain)
         }
         let (first, chain) = flatten(n);
-        let first_doc = if first.kind == "FunctionCallExpression" {
+        let first_doc = if first.kind == SyntaxKind::FunctionCallExpression {
             cat(vec![
                 self.t(first.c(0)),
                 self.t(first.c(1)),
@@ -610,8 +623,10 @@ impl Formatter<'_> {
     }
     pub fn t(&self, n: &Node) -> Doc {
         if let Some(i) = n.leading().iter().position(|t| {
-            matches!(t.kind.as_str(), "DelimitedComment" | "SingleLineComment")
-                && t.text.contains("hackfmt-ignore")
+            matches!(
+                t.kind,
+                TriviaKind::DelimitedComment | TriviaKind::SingleLineComment
+            ) && t.text.contains("hackfmt-ignore")
         }) {
             let leading = n.leading();
             let node = n.with_leading(leading[i..].to_vec());
@@ -627,16 +642,26 @@ impl Formatter<'_> {
         }
         if let Some(tok) = &n.token {
             let mut lead = tok.leading.as_slice();
-            if tok.kind == "EndOfFile" {
+            if tok.kind == TokenKind::EndOfFile {
                 while lead.last().is_some_and(Trivia::invisible) {
                     lead = &lead[..lead.len() - 1];
                 }
             }
-            let text = if tok.kind == "EndOfFile" {
+            let text = if tok.kind == TokenKind::EndOfFile {
                 Nil
-            } else if (tok.kind.contains("StringLiteral")
-                && (tok.kind != "XHPStringLiteral" || self.env.version(2)))
-                || tok.kind == "StringLiteralBody"
+            } else if matches!(
+                tok.kind,
+                TokenKind::SingleQuotedStringLiteral
+                    | TokenKind::DoubleQuotedStringLiteral
+                    | TokenKind::DoubleQuotedStringLiteralHead
+                    | TokenKind::DoubleQuotedStringLiteralTail
+                    | TokenKind::HeredocStringLiteral
+                    | TokenKind::HeredocStringLiteralHead
+                    | TokenKind::HeredocStringLiteralTail
+                    | TokenKind::NowdocStringLiteral
+                    | TokenKind::XHPStringLiteral
+                    | TokenKind::StringLiteralBody
+            ) && (tok.kind != TokenKind::XHPStringLiteral || self.env.version(2))
             {
                 string(tok.text.clone(), tok.text.len())
             } else {
@@ -653,52 +678,57 @@ impl Formatter<'_> {
         let sp = |i| present(c(i), Space);
         let nl = |i| present(c(i), Newline);
         let mods = |i| self.list(c(i), Nil, Space, Space);
-        match n.kind.as_str() {
-            "Missing" => Nil,
-            "Script" => all(0),
-            "EndOfFile" => t(0),
-            "SyntaxList" => self.all(n),
-            "SimpleTypeSpecifier"
-            | "VariableExpression"
-            | "PipeVariableExpression"
-            | "PropertyDeclarator"
-            | "ConstantDeclarator"
-            | "ScopeResolutionExpression"
-            | "EmbeddedMemberSelectionExpression"
-            | "EmbeddedSubscriptExpression"
-            | "PostfixUnaryExpression"
-            | "XHPRequired"
-            | "XHPLateinit"
-            | "XHPSimpleClassAttribute"
-            | "XHPClose"
-            | "TypeConstant"
-            | "GenericTypeSpecifier"
-            | "NullableTypeSpecifier"
-            | "LikeTypeSpecifier"
-            | "VariablePattern"
-            | "ShapeSplatSpecifier"
-            | "ShapeSplatExpression"
-            | "ListItem" => self.simple(n),
-            "LiteralExpression" => {
+        match n.kind {
+            SyntaxKind::Missing => Nil,
+            SyntaxKind::Script => all(0),
+            SyntaxKind::EndOfFile => t(0),
+            SyntaxKind::SyntaxList => self.all(n),
+            SyntaxKind::SimpleTypeSpecifier
+            | SyntaxKind::VariableExpression
+            | SyntaxKind::PipeVariableExpression
+            | SyntaxKind::PropertyDeclarator
+            | SyntaxKind::ConstantDeclarator
+            | SyntaxKind::ScopeResolutionExpression
+            | SyntaxKind::EmbeddedMemberSelectionExpression
+            | SyntaxKind::EmbeddedSubscriptExpression
+            | SyntaxKind::PostfixUnaryExpression
+            | SyntaxKind::XHPRequired
+            | SyntaxKind::XHPLateinit
+            | SyntaxKind::XHPSimpleClassAttribute
+            | SyntaxKind::XHPClose
+            | SyntaxKind::TypeConstant
+            | SyntaxKind::GenericTypeSpecifier
+            | SyntaxKind::NullableTypeSpecifier
+            | SyntaxKind::LikeTypeSpecifier
+            | SyntaxKind::VariablePattern
+            | SyntaxKind::ShapeSplatSpecifier
+            | SyntaxKind::ShapeSplatExpression
+            | SyntaxKind::ListItem => self.simple(n),
+            SyntaxKind::LiteralExpression => {
                 let literal = t(0);
-                match c(0).last().map(|t| t.kind.as_str()).unwrap_or("") {
-                    "HeredocStringLiteral"
-                    | "HeredocStringLiteralHead"
-                    | "HeredocStringLiteralTail"
-                    | "NowdocStringLiteral" => Literal(Box::new(literal)),
-                    "DecimalLiteral" | "OctalLiteral" | "HexadecimalLiteral" | "BinaryLiteral"
-                    | "FloatingLiteral" => Number(Box::new(literal)),
+                match c(0).last().map(|t| t.kind).unwrap_or(TokenKind::EndOfFile) {
+                    TokenKind::HeredocStringLiteral
+                    | TokenKind::HeredocStringLiteralHead
+                    | TokenKind::HeredocStringLiteralTail
+                    | TokenKind::NowdocStringLiteral => Literal(Box::new(literal)),
+                    TokenKind::DecimalLiteral
+                    | TokenKind::OctalLiteral
+                    | TokenKind::HexadecimalLiteral
+                    | TokenKind::BinaryLiteral
+                    | TokenKind::FloatingLiteral => Number(Box::new(literal)),
                     _ => literal,
                 }
             }
-            "PrefixedStringExpression" => self.simple(n),
-            "MarkupSection" => cat(vec![t(0), nl(0), t(1)]),
-            "MarkupSuffix" | "ExpressionStatement" => cat(vec![self.simple(n), Newline]),
-            "ReifiedTypeArgument" | "FunctionCtxTypeSpecifier" | "NamespaceDeclarationHeader" => {
-                cat(vec![t(0), Space, t(1)])
+            SyntaxKind::PrefixedStringExpression => self.simple(n),
+            SyntaxKind::MarkupSection => cat(vec![t(0), nl(0), t(1)]),
+            SyntaxKind::MarkupSuffix | SyntaxKind::ExpressionStatement => {
+                cat(vec![self.simple(n), Newline])
             }
-            "QualifiedName" | "ModuleName" => all(0),
-            "EnumDeclaration" => cat(vec![
+            SyntaxKind::ReifiedTypeArgument
+            | SyntaxKind::FunctionCtxTypeSpecifier
+            | SyntaxKind::NamespaceDeclarationHeader => cat(vec![t(0), Space, t(1)]),
+            SyntaxKind::QualifiedName | SyntaxKind::ModuleName => all(0),
+            SyntaxKind::EnumDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 mods(1),
@@ -712,7 +742,7 @@ impl Formatter<'_> {
                 self.block(c(7), c(10), cat(vec![all(8), all(9)]), true),
                 Newline,
             ]),
-            "Enumerator" => {
+            SyntaxKind::Enumerator => {
                 let value = t(2);
                 cat(vec![
                     t(0),
@@ -725,7 +755,7 @@ impl Formatter<'_> {
                     Newline,
                 ])
             }
-            "EnumUse" | "TraitUse" => cat(vec![
+            SyntaxKind::EnumUse | SyntaxKind::TraitUse => cat(vec![
                 t(0),
                 if c(1).list().len() > 1 {
                     rule(
@@ -738,7 +768,7 @@ impl Formatter<'_> {
                 t(2),
                 Newline,
             ]),
-            "AliasDeclaration" => cat(vec![
+            SyntaxKind::AliasDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 mods(1),
@@ -757,7 +787,7 @@ impl Formatter<'_> {
                 t(9),
                 Newline,
             ]),
-            "ContextAliasDeclaration" => cat(vec![
+            SyntaxKind::ContextAliasDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 t(1),
@@ -773,11 +803,11 @@ impl Formatter<'_> {
                 t(7),
                 Newline,
             ]),
-            "CaseTypeDeclaration" => {
+            SyntaxKind::CaseTypeDeclaration => {
                 let bar = c(9)
                     .list()
                     .first()
-                    .is_some_and(|x| x.kind == "CaseTypeVariant" && !x.c(0).missing());
+                    .is_some_and(|x| x.kind == SyntaxKind::CaseTypeVariant && !x.c(0).missing());
                 cat(vec![
                     t(0),
                     nl(0),
@@ -808,8 +838,8 @@ impl Formatter<'_> {
                     Newline,
                 ])
             }
-            "CaseTypeVariant" => Span(vec![t(0), sp(0), t(1), sp(2), t(2)]),
-            "ClassAliasDeclaration" => cat(vec![
+            SyntaxKind::CaseTypeVariant => Span(vec![t(0), sp(0), t(1), sp(2), t(2)]),
+            SyntaxKind::ClassAliasDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 all(1),
@@ -826,7 +856,7 @@ impl Formatter<'_> {
                 t(9),
                 Newline,
             ]),
-            "PropertyDeclaration" => {
+            SyntaxKind::PropertyDeclaration => {
                 let declaration = cat(vec![mods(1), t(2), self.declarators(c(3)), t(4), Newline]);
                 if c(0).missing() {
                     declaration
@@ -838,10 +868,10 @@ impl Formatter<'_> {
                     )
                 }
             }
-            "NamespaceDeclaration" => cat(vec![t(0), t(1), Newline]),
-            "NamespaceBody" => cat(vec![Space, self.block(c(0), c(2), all(1), true)]),
-            "NamespaceEmptyBody" => t(0),
-            "NamespaceUseDeclaration" => cat(vec![
+            SyntaxKind::NamespaceDeclaration => cat(vec![t(0), t(1), Newline]),
+            SyntaxKind::NamespaceBody => cat(vec![Space, self.block(c(0), c(2), all(1), true)]),
+            SyntaxKind::NamespaceEmptyBody => t(0),
+            SyntaxKind::NamespaceUseDeclaration => cat(vec![
                 t(0),
                 Space,
                 t(1),
@@ -853,7 +883,7 @@ impl Formatter<'_> {
                 t(3),
                 Newline,
             ]),
-            "NamespaceGroupUseDeclaration" => cat(vec![
+            SyntaxKind::NamespaceGroupUseDeclaration => cat(vec![
                 t(0),
                 Space,
                 t(1),
@@ -863,15 +893,17 @@ impl Formatter<'_> {
                 t(6),
                 Newline,
             ]),
-            "NamespaceUseClause" => cat(vec![t(0), sp(0), t(1), sp(2), t(2), sp(3), t(3)]),
-            "FunctionDeclaration" => cat(vec![
+            SyntaxKind::NamespaceUseClause => {
+                cat(vec![t(0), sp(0), t(1), sp(2), t(2), sp(3), t(3)])
+            }
+            SyntaxKind::FunctionDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 t(1),
                 self.compound(c(2), true, true),
                 Newline,
             ]),
-            "FunctionDeclarationHeader" => cat(vec![
+            SyntaxKind::FunctionDeclarationHeader => cat(vec![
                 Span(vec![mods(0), t(1), Space, t(2), t(3), t(4), Split]),
                 self.fn_args(c(5), c(6)),
                 t(7),
@@ -883,7 +915,7 @@ impl Formatter<'_> {
                 sp(11),
                 t(11),
             ]),
-            "WhereClause" => {
+            SyntaxKind::WhereClause => {
                 let xs = c(1).list();
                 let ds = xs
                     .iter()
@@ -901,8 +933,8 @@ impl Formatter<'_> {
                     .collect();
                 rule(Parental, cat(vec![Space, Split, t(0), Nest(ds)]))
             }
-            "WhereConstraint" => cat(vec![t(0), Space, t(1), Space, t(2)]),
-            "TypeRefinement" => {
+            SyntaxKind::WhereConstraint => cat(vec![t(0), Space, t(1), Space, t(2)]),
+            SyntaxKind::TypeRefinement => {
                 let sep = if c(3).list().len() > 1 {
                     Newline
                 } else {
@@ -924,7 +956,7 @@ impl Formatter<'_> {
                     t(4),
                 ])
             }
-            "TypeInRefinement" | "CtxInRefinement" => Span(vec![
+            SyntaxKind::TypeInRefinement | SyntaxKind::CtxInRefinement => Span(vec![
                 t(0),
                 Space,
                 t(1),
@@ -934,8 +966,8 @@ impl Formatter<'_> {
                 t(4),
                 present(c(5), cat(vec![Space, SplitWith(3), Nest(vec![t(5)])])),
             ]),
-            "Contexts" => self.argish(c(0), c(1), c(2), true, false, false),
-            "MethodishDeclaration" => cat(vec![
+            SyntaxKind::Contexts => self.argish(c(0), c(1), c(2), true, false, false),
+            SyntaxKind::MethodishDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 t(1),
@@ -947,8 +979,10 @@ impl Formatter<'_> {
                 t(3),
                 Newline,
             ]),
-            "MethodishTraitResolution" => cat(vec![t(0), nl(0), t(1), t(2), t(3), t(4), Newline]),
-            "ClassishDeclaration" => {
+            SyntaxKind::MethodishTraitResolution => {
+                cat(vec![t(0), nl(0), t(1), t(2), t(3), t(4), Newline])
+            }
+            SyntaxKind::ClassishDeclaration => {
                 let ancestors = |kw: usize, list: usize| {
                     if c(kw).missing() {
                         Nil
@@ -980,8 +1014,10 @@ impl Formatter<'_> {
                     t(10),
                 ])
             }
-            "ClassishBody" => cat(vec![Space, self.block(c(0), c(2), all(1), true), Newline]),
-            "RequireClause" | "RequireClauseConstraint" => {
+            SyntaxKind::ClassishBody => {
+                cat(vec![Space, self.block(c(0), c(2), all(1), true), Newline])
+            }
+            SyntaxKind::RequireClause | SyntaxKind::RequireClauseConstraint => {
                 let value_i = n.children.len() - 2;
                 let value = t(value_i);
                 let mut ds = vec![];
@@ -995,7 +1031,7 @@ impl Formatter<'_> {
                 ]);
                 cat(ds)
             }
-            "ConstDeclaration" => cat(vec![
+            SyntaxKind::ConstDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 mods(1),
@@ -1006,7 +1042,7 @@ impl Formatter<'_> {
                 t(5),
                 Newline,
             ]),
-            "TypeConstDeclaration" => cat(vec![
+            SyntaxKind::TypeConstDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 mods(1),
@@ -1024,7 +1060,7 @@ impl Formatter<'_> {
                 t(9),
                 Newline,
             ]),
-            "ContextConstDeclaration" => cat(vec![
+            SyntaxKind::ContextConstDeclaration => cat(vec![
                 mods(0),
                 Space,
                 t(1),
@@ -1041,7 +1077,7 @@ impl Formatter<'_> {
                 t(8),
                 Newline,
             ]),
-            "ParameterDeclaration" => {
+            SyntaxKind::ParameterDeclaration => {
                 let mut ds = vec![
                     self.attribute(c(0)),
                     present(c(0), cat(vec![Space, SplitWith(1)])),
@@ -1061,7 +1097,7 @@ impl Formatter<'_> {
                 ds.push(t(10));
                 cat(ds)
             }
-            "FileAttributeSpecification" => cat(vec![
+            SyntaxKind::FileAttributeSpecification => cat(vec![
                 t(0),
                 t(1),
                 t(2),
@@ -1069,11 +1105,11 @@ impl Formatter<'_> {
                 self.nest(c(4), self.args(c(3), false), false),
                 Newline,
             ]),
-            "OldAttributeSpecification" => self.attribute(n),
-            "AttributizedSpecifier" => cat(vec![self.attribute(c(0)), Space, t(1)]),
-            "InclusionExpression" => cat(vec![
+            SyntaxKind::OldAttributeSpecification => self.attribute(n),
+            SyntaxKind::AttributizedSpecifier => cat(vec![self.attribute(c(0)), Space, t(1)]),
+            SyntaxKind::InclusionExpression => cat(vec![
                 t(0),
-                if c(1).kind == "ParenthesizedExpression" {
+                if c(1).kind == SyntaxKind::ParenthesizedExpression {
                     Nil
                 } else {
                     Space
@@ -1081,22 +1117,22 @@ impl Formatter<'_> {
                 SplitWith(1),
                 t(1),
             ]),
-            "InclusionDirective" => cat(vec![t(0), t(1), Newline]),
-            "CompoundStatement" => cat(vec![self.compound(n, false, false), Newline]),
-            "UnsetStatement" => cat(vec![
+            SyntaxKind::InclusionDirective => cat(vec![t(0), t(1), Newline]),
+            SyntaxKind::CompoundStatement => cat(vec![self.compound(n, false, false), Newline]),
+            SyntaxKind::UnsetStatement => cat(vec![
                 t(0),
                 self.argish(c(1), c(2), c(3), false, false, false),
                 t(4),
                 Newline,
             ]),
-            "WhileStatement" => cat(vec![
+            SyntaxKind::WhileStatement => cat(vec![
                 t(0),
                 Space,
                 self.condition(c(1), c(2), c(3)),
                 self.compound(c(4), false, true),
                 Newline,
             ]),
-            "UsingStatementBlockScoped" => cat(vec![
+            SyntaxKind::UsingStatementBlockScoped => cat(vec![
                 t(0),
                 sp(0),
                 t(1),
@@ -1114,10 +1150,10 @@ impl Formatter<'_> {
                 self.compound(c(5), false, true),
                 Newline,
             ]),
-            "UsingStatementFunctionScoped" => {
+            SyntaxKind::UsingStatementFunctionScoped => {
                 cat(vec![t(0), sp(0), t(1), Space, t(2), t(3), Newline])
             }
-            "IfStatement" => cat(vec![
+            SyntaxKind::IfStatement => cat(vec![
                 t(0),
                 Space,
                 self.condition(c(1), c(2), c(3)),
@@ -1125,22 +1161,22 @@ impl Formatter<'_> {
                 t(5),
                 Newline,
             ]),
-            "ElseClause" => cat(vec![
+            SyntaxKind::ElseClause => cat(vec![
                 t(0),
-                if c(1).kind == "IfStatement" {
+                if c(1).kind == SyntaxKind::IfStatement {
                     cat(vec![Space, t(1), Space])
                 } else {
                     self.consequence(c(1), c(0))
                 },
             ]),
-            "TryStatement" => cat(vec![
+            SyntaxKind::TryStatement => cat(vec![
                 t(0),
                 self.compound(c(1), false, true),
                 all(2),
                 t(3),
                 Newline,
             ]),
-            "CatchClause" => cat(vec![
+            SyntaxKind::CatchClause => cat(vec![
                 t(0),
                 Space,
                 self.delimited(
@@ -1152,8 +1188,8 @@ impl Formatter<'_> {
                 ),
                 self.compound(c(5), false, true),
             ]),
-            "FinallyClause" => cat(vec![t(0), Space, self.compound(c(1), false, true)]),
-            "DoStatement" => cat(vec![
+            SyntaxKind::FinallyClause => cat(vec![t(0), Space, self.compound(c(1), false, true)]),
+            SyntaxKind::DoStatement => cat(vec![
                 t(0),
                 Space,
                 self.compound(c(1), false, true),
@@ -1163,7 +1199,7 @@ impl Formatter<'_> {
                 t(6),
                 Newline,
             ]),
-            "ForStatement" => cat(vec![
+            SyntaxKind::ForStatement => cat(vec![
                 t(0),
                 Space,
                 t(1),
@@ -1189,7 +1225,7 @@ impl Formatter<'_> {
                 self.compound(c(8), false, true),
                 Newline,
             ]),
-            "ForeachStatement" => cat(vec![
+            SyntaxKind::ForeachStatement => cat(vec![
                 t(0),
                 Space,
                 self.delimited(
@@ -1218,7 +1254,7 @@ impl Formatter<'_> {
                 self.compound(c(9), false, true),
                 Newline,
             ]),
-            "SwitchStatement" => cat(vec![
+            SyntaxKind::SwitchStatement => cat(vec![
                 t(0),
                 Space,
                 self.delimited(c(1), c(3), t(2), true, false),
@@ -1226,13 +1262,14 @@ impl Formatter<'_> {
                 self.block(c(4), c(6), all(5), true),
                 Newline,
             ]),
-            "SwitchSection" => {
+            SyntaxKind::SwitchSection => {
                 let (tr, labels) = c(0).without_leading();
                 let split = tr
                     .iter()
-                    .rposition(|t| t.kind == "FallThrough")
+                    .rposition(|t| t.kind == TriviaKind::FallThrough)
                     .map_or(0, |i| i + 1);
-                let scoped = c(1).list().len() == 1 && c(1).list()[0].kind == "CompoundStatement";
+                let scoped =
+                    c(1).list().len() == 1 && c(1).list()[0].kind == SyntaxKind::CompoundStatement;
                 cat(vec![
                     if split == 0 {
                         trivia(&tr, true)
@@ -1247,9 +1284,9 @@ impl Formatter<'_> {
                     t(2),
                 ])
             }
-            "CaseLabel" => cat(vec![t(0), Space, t(1), t(2)]),
-            "DefaultLabel" | "SwitchFallthrough" => self.simple(n),
-            "MatchStatement" => cat(vec![
+            SyntaxKind::CaseLabel => cat(vec![t(0), Space, t(1), t(2)]),
+            SyntaxKind::DefaultLabel | SyntaxKind::SwitchFallthrough => self.simple(n),
+            SyntaxKind::MatchStatement => cat(vec![
                 t(0),
                 Space,
                 self.delimited(c(1), c(3), t(2), true, false),
@@ -1257,19 +1294,19 @@ impl Formatter<'_> {
                 self.block(c(4), c(6), all(5), true),
                 Newline,
             ]),
-            "MatchStatementArm" => cat(vec![
+            SyntaxKind::MatchStatementArm => cat(vec![
                 t(0),
                 Space,
                 t(1),
                 Space,
-                if c(2).kind == "CompoundStatement" {
+                if c(2).kind == SyntaxKind::CompoundStatement {
                     self.compound(c(2), true, false)
                 } else {
                     cat(vec![SplitWith(1), Nest(vec![t(2)])])
                 },
                 Newline,
             ]),
-            "ReturnStatement" | "ThrowStatement" => cat(vec![
+            SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement => cat(vec![
                 t(0),
                 present(
                     c(1),
@@ -1282,12 +1319,14 @@ impl Formatter<'_> {
                 t(2),
                 Newline,
             ]),
-            "YieldBreakStatement" => cat(vec![t(0), Space, t(1), t(2)]),
-            "BreakStatement" | "ContinueStatement" => cat(vec![self.simple(n), Newline]),
-            "EchoStatement" => cat(vec![
+            SyntaxKind::YieldBreakStatement => cat(vec![t(0), Space, t(1), t(2)]),
+            SyntaxKind::BreakStatement | SyntaxKind::ContinueStatement => {
+                cat(vec![self.simple(n), Newline])
+            }
+            SyntaxKind::EchoStatement => cat(vec![
                 t(0),
                 if c(1).list().len() == 1
-                    && unwrap_item(&c(1).list()[0]).kind == "ParenthesizedExpression"
+                    && unwrap_item(&c(1).list()[0]).kind == SyntaxKind::ParenthesizedExpression
                 {
                     self.t(unwrap_item(&c(1).list()[0]))
                 } else {
@@ -1296,11 +1335,13 @@ impl Formatter<'_> {
                 t(2),
                 Newline,
             ]),
-            "ConcurrentStatement" => {
+            SyntaxKind::ConcurrentStatement => {
                 cat(vec![t(0), Space, self.compound(c(1), false, true), Newline])
             }
-            "SimpleInitializer" => cat(vec![Space, t(0), Space, SplitWith(1), Nest(vec![t(1)])]),
-            "AnonymousFunction" => cat(vec![
+            SyntaxKind::SimpleInitializer => {
+                cat(vec![Space, t(0), Space, SplitWith(1), Nest(vec![t(1)])])
+            }
+            SyntaxKind::AnonymousFunction => cat(vec![
                 self.attribute(c(0)),
                 sp(0),
                 t(1),
@@ -1319,13 +1360,13 @@ impl Formatter<'_> {
                 t(11),
                 self.compound(c(12), true, false),
             ]),
-            "AnonymousFunctionUseClause" => cat(vec![
+            SyntaxKind::AnonymousFunctionUseClause => cat(vec![
                 Space,
                 t(0),
                 Space,
                 self.argish(c(1), c(2), c(3), true, false, false),
             ]),
-            "ConstructorPattern" => cat(vec![
+            SyntaxKind::ConstructorPattern => cat(vec![
                 t(0),
                 self.argish(
                     c(1),
@@ -1336,8 +1377,8 @@ impl Formatter<'_> {
                     false,
                 ),
             ]),
-            "RefinementPattern" => cat(vec![t(0), t(1), Space, t(2)]),
-            "LambdaExpression" => cat(vec![
+            SyntaxKind::RefinementPattern => cat(vec![t(0), t(1), Space, t(2)]),
+            SyntaxKind::LambdaExpression => cat(vec![
                 self.attribute(c(0)),
                 sp(0),
                 t(1),
@@ -1347,7 +1388,7 @@ impl Formatter<'_> {
                 t(3),
                 self.lambda_body(c(4)),
             ]),
-            "LambdaSignature" => cat(vec![
+            SyntaxKind::LambdaSignature => cat(vec![
                 t(0),
                 t(1),
                 t(2),
@@ -1360,15 +1401,15 @@ impl Formatter<'_> {
                 sp(7),
                 t(8),
             ]),
-            "CastExpression" => Span(n.children.iter().map(|n| self.t(n)).collect()),
-            "MemberSelectionExpression"
-            | "SafeMemberSelectionExpression"
-            | "FunctionCallExpression" => self.chain(n),
-            "YieldExpression" => cat(vec![t(0), Space, SplitWith(1), Nest(vec![t(1)])]),
-            "PrefixUnaryExpression" => cat(vec![
+            SyntaxKind::CastExpression => Span(n.children.iter().map(|n| self.t(n)).collect()),
+            SyntaxKind::MemberSelectionExpression
+            | SyntaxKind::SafeMemberSelectionExpression
+            | SyntaxKind::FunctionCallExpression => self.chain(n),
+            SyntaxKind::YieldExpression => cat(vec![t(0), Space, SplitWith(1), Nest(vec![t(1)])]),
+            SyntaxKind::PrefixUnaryExpression => cat(vec![
                 t(0),
                 if matches!(c(0).token_text(), "await" | "delay" | "readonly" | "clone")
-                    || c(0).is_token("print") && c(1).kind != "ParenthesizedExpression"
+                    || c(0).is_token("print") && c(1).kind != SyntaxKind::ParenthesizedExpression
                 {
                     Space
                 } else {
@@ -1376,16 +1417,17 @@ impl Formatter<'_> {
                 },
                 t(1),
             ]),
-            "BinaryExpression" => self.binary(c(0), c(1), c(2), false),
-            "IsExpression" | "AsExpression" | "NullableAsExpression" | "UpcastExpression" => {
-                cat(vec![
-                    t(0),
-                    Space,
-                    SplitWith(1),
-                    Nest(vec![t(1), Space, t(2)]),
-                ])
-            }
-            "ConditionalExpression" => lazy(
+            SyntaxKind::BinaryExpression => self.binary(c(0), c(1), c(2), false),
+            SyntaxKind::IsExpression
+            | SyntaxKind::AsExpression
+            | SyntaxKind::NullableAsExpression
+            | SyntaxKind::UpcastExpression => cat(vec![
+                t(0),
+                Space,
+                SplitWith(1),
+                Nest(vec![t(1), Space, t(2)]),
+            ]),
+            SyntaxKind::ConditionalExpression => lazy(
                 Parental,
                 t(0),
                 Nest(vec![
@@ -1414,16 +1456,18 @@ impl Formatter<'_> {
                     },
                 ]),
             ),
-            "FunctionPointerExpression" => self.simple(n),
-            "EvalExpression" => cat(vec![t(0), self.braced(c(1), c(2), c(3))]),
-            "IssetExpression" => cat(vec![
+            SyntaxKind::FunctionPointerExpression => self.simple(n),
+            SyntaxKind::EvalExpression => cat(vec![t(0), self.braced(c(1), c(2), c(3))]),
+            SyntaxKind::IssetExpression => cat(vec![
                 t(0),
                 self.argish(c(1), c(2), c(3), false, false, false),
             ]),
-            "ParenthesizedExpression" => self.condition(c(0), c(1), c(2)),
-            "NameofExpression" | "ObjectCreationExpression" => cat(vec![t(0), Space, t(1)]),
-            "ETSpliceExpression" => cat(vec![t(0), self.condition(c(1), c(2), c(3))]),
-            "BracedExpression" => cat(vec![
+            SyntaxKind::ParenthesizedExpression => self.condition(c(0), c(1), c(2)),
+            SyntaxKind::NameofExpression | SyntaxKind::ObjectCreationExpression => {
+                cat(vec![t(0), Space, t(1)])
+            }
+            SyntaxKind::ETSpliceExpression => cat(vec![t(0), self.condition(c(1), c(2), c(3))]),
+            SyntaxKind::BracedExpression => cat(vec![
                 t(0),
                 Split,
                 rule(
@@ -1435,12 +1479,12 @@ impl Formatter<'_> {
                     cat(vec![Nest(vec![t(1)]), Split, t(2)]),
                 ),
             ]),
-            "EmbeddedBracedExpression" => cat(vec![t(0), Nest(vec![t(1)]), t(2)]),
-            "ListExpression" | "ConstructorCall" => cat(vec![
+            SyntaxKind::EmbeddedBracedExpression => cat(vec![t(0), Nest(vec![t(1)]), t(2)]),
+            SyntaxKind::ListExpression | SyntaxKind::ConstructorCall => cat(vec![
                 t(0),
                 self.argish(c(1), c(2), c(3), true, false, false),
             ]),
-            "CollectionLiteralExpression" => cat(vec![
+            SyntaxKind::CollectionLiteralExpression => cat(vec![
                 t(0),
                 Space,
                 self.argish(
@@ -1452,7 +1496,7 @@ impl Formatter<'_> {
                     false,
                 ),
             ]),
-            "AnonymousClass" => {
+            SyntaxKind::AnonymousClass => {
                 let ancestors = |kw: usize, list: usize| {
                     present(
                         c(kw),
@@ -1482,11 +1526,11 @@ impl Formatter<'_> {
                     t(8),
                 ])
             }
-            "DarrayIntrinsicExpression"
-            | "DictionaryIntrinsicExpression"
-            | "KeysetIntrinsicExpression"
-            | "VarrayIntrinsicExpression"
-            | "VectorIntrinsicExpression" => cat(vec![
+            SyntaxKind::DarrayIntrinsicExpression
+            | SyntaxKind::DictionaryIntrinsicExpression
+            | SyntaxKind::KeysetIntrinsicExpression
+            | SyntaxKind::VarrayIntrinsicExpression
+            | SyntaxKind::VectorIntrinsicExpression => cat(vec![
                 t(0),
                 t(1),
                 self.argish(
@@ -1498,7 +1542,7 @@ impl Formatter<'_> {
                     false,
                 ),
             ]),
-            "ElementInitializer" => cat(vec![
+            SyntaxKind::ElementInitializer => cat(vec![
                 t(0),
                 Space,
                 t(1),
@@ -1506,17 +1550,19 @@ impl Formatter<'_> {
                 SplitWith(1),
                 Nest(vec![t(2)]),
             ]),
-            "SubscriptExpression" => cat(vec![t(0), self.braced(c(1), c(2), c(3))]),
-            "AwaitableCreationExpression" => cat(vec![
+            SyntaxKind::SubscriptExpression => cat(vec![t(0), self.braced(c(1), c(2), c(3))]),
+            SyntaxKind::AwaitableCreationExpression => cat(vec![
                 self.attribute(c(0)),
                 sp(0),
                 t(1),
                 sp(1),
                 self.compound(c(2), false, false),
             ]),
-            "XHPChildrenDeclaration" => cat(vec![t(0), Space, t(1), t(2), Newline]),
-            "XHPChildrenParenthesizedList" => self.argish(c(0), c(1), c(2), false, false, false),
-            "XHPCategoryDeclaration" => cat(vec![
+            SyntaxKind::XHPChildrenDeclaration => cat(vec![t(0), Space, t(1), t(2), Newline]),
+            SyntaxKind::XHPChildrenParenthesizedList => {
+                self.argish(c(0), c(1), c(2), false, false, false)
+            }
+            SyntaxKind::XHPCategoryDeclaration => cat(vec![
                 t(0),
                 rule(
                     Parental,
@@ -1525,13 +1571,13 @@ impl Formatter<'_> {
                 t(2),
                 Newline,
             ]),
-            "XHPEnumType" => cat(vec![
+            SyntaxKind::XHPEnumType => cat(vec![
                 t(0),
                 t(1),
                 Space,
                 self.argish(c(2), c(3), c(4), true, false, false),
             ]),
-            "XHPClassAttributeDeclaration" => cat(vec![
+            SyntaxKind::XHPClassAttributeDeclaration => cat(vec![
                 t(0),
                 match c(1).list() {
                     [] => Nil,
@@ -1541,10 +1587,14 @@ impl Formatter<'_> {
                 t(2),
                 Newline,
             ]),
-            "XHPClassAttribute" => cat(vec![t(0), Space, t(1), sp(2), t(2), sp(3), t(3)]),
-            "XHPSimpleAttribute" => Span(vec![t(0), t(1), SplitWith(1), Nest(vec![t(2)])]),
-            "XHPSpreadAttribute" => Span(vec![t(0), t(1), SplitWith(1), Nest(vec![t(2)]), t(3)]),
-            "XHPOpen" => {
+            SyntaxKind::XHPClassAttribute => cat(vec![t(0), Space, t(1), sp(2), t(2), sp(3), t(3)]),
+            SyntaxKind::XHPSimpleAttribute => {
+                Span(vec![t(0), t(1), SplitWith(1), Nest(vec![t(2)])])
+            }
+            SyntaxKind::XHPSpreadAttribute => {
+                Span(vec![t(0), t(1), SplitWith(1), Nest(vec![t(2)]), t(3)])
+            }
+            SyntaxKind::XHPOpen => {
                 let end = cat(vec![
                     if c(3).is_token("/>") {
                         cat(vec![Space, present(c(2), Split)])
@@ -1573,14 +1623,17 @@ impl Formatter<'_> {
                     },
                 ])
             }
-            "XHPExpression" => {
+            SyntaxKind::XHPExpression => {
                 let body = if c(1).missing() {
                     present(c(2), Split)
                 } else {
                     let mut prev = false;
                     let mut ds = vec![];
                     for node in c(1).list() {
-                        let is_body = node.token.as_ref().is_some_and(|t| t.kind == "XHPBody");
+                        let is_body = node
+                            .token
+                            .as_ref()
+                            .is_some_and(|t| t.kind == TokenKind::XHPBody);
                         let (leading, node) = node.without_leading();
                         let preserved = |tr: &[Trivia]| {
                             if is_body {
@@ -1600,7 +1653,7 @@ impl Formatter<'_> {
                         } else {
                             let cut = leading
                                 .iter()
-                                .position(|t| t.kind == "EndOfLine")
+                                .position(|t| t.kind == TriviaKind::EndOfLine)
                                 .map_or(leading.len(), |i| i + 1);
                             cat(vec![
                                 ignores(&leading[..cut]),
@@ -1635,7 +1688,9 @@ impl Formatter<'_> {
                 };
                 Override(Box::new(cat(vec![t(0), Nest(vec![body]), close])))
             }
-            "VarrayTypeSpecifier" | "VectorTypeSpecifier" | "KeysetTypeSpecifier" => {
+            SyntaxKind::VarrayTypeSpecifier
+            | SyntaxKind::VectorTypeSpecifier
+            | SyntaxKind::KeysetTypeSpecifier => {
                 let contents = self.comma(c(2), c(3), false);
                 let clean = c(1).trailing().is_empty()
                     && c(2).leading().is_empty()
@@ -1652,7 +1707,7 @@ impl Formatter<'_> {
                     },
                 ])
             }
-            "TypeParameter" => cat(vec![
+            SyntaxKind::TypeParameter => cat(vec![
                 self.attribute(c(0)),
                 sp(0),
                 t(1),
@@ -1662,19 +1717,21 @@ impl Formatter<'_> {
                 sp(4),
                 self.list(c(4), Nil, Space, Nil),
             ]),
-            "TypeConstraint" | "PackageExpression" => cat(vec![t(0), Space, t(1)]),
-            "ContextConstraint" => cat(vec![Space, t(0), Space, t(1)]),
-            "DarrayTypeSpecifier" => {
+            SyntaxKind::TypeConstraint | SyntaxKind::PackageExpression => {
+                cat(vec![t(0), Space, t(1)])
+            }
+            SyntaxKind::ContextConstraint => cat(vec![Space, t(0), Space, t(1)]),
+            SyntaxKind::DarrayTypeSpecifier => {
                 let args = Node {
-                    kind: "SyntaxList".into(),
+                    kind: SyntaxKind::SyntaxList,
                     children: vec![
                         Node {
-                            kind: "ListItem".into(),
+                            kind: SyntaxKind::ListItem,
                             children: vec![c(2).clone(), c(3).clone()],
                             token: None,
                         },
                         Node {
-                            kind: "ListItem".into(),
+                            kind: SyntaxKind::ListItem,
                             children: vec![c(4).clone(), c(5).clone()],
                             token: None,
                         },
@@ -1686,11 +1743,13 @@ impl Formatter<'_> {
                     self.argish(c(1), &args, c(6), true, false, false),
                 ])
             }
-            "DictionaryTypeSpecifier" | "TupleTypeExplicitSpecifier" => cat(vec![
-                t(0),
-                self.argish(c(1), c(2), c(3), true, false, false),
-            ]),
-            "ClosureTypeSpecifier" => cat(vec![
+            SyntaxKind::DictionaryTypeSpecifier | SyntaxKind::TupleTypeExplicitSpecifier => {
+                cat(vec![
+                    t(0),
+                    self.argish(c(1), c(2), c(3), true, false, false),
+                ])
+            }
+            SyntaxKind::ClosureTypeSpecifier => cat(vec![
                 t(0),
                 t(1),
                 sp(1),
@@ -1707,7 +1766,7 @@ impl Formatter<'_> {
                 t(10),
                 t(11),
             ]),
-            "ClosureParameterTypeSpecifier" => cat(vec![
+            SyntaxKind::ClosureParameterTypeSpecifier => cat(vec![
                 t(0),
                 sp(0),
                 t(1),
@@ -1722,10 +1781,10 @@ impl Formatter<'_> {
                 t(6),
                 t(7),
             ]),
-            "TupleOrUnionOrIntersectionElementTypeSpecifier" => {
+            SyntaxKind::TupleOrUnionOrIntersectionElementTypeSpecifier => {
                 cat(vec![t(0), sp(0), t(1), t(2), t(3)])
             }
-            "ClassPtrTypeSpecifier" | "ClassnameTypeSpecifier" => {
+            SyntaxKind::ClassPtrTypeSpecifier | SyntaxKind::ClassnameTypeSpecifier => {
                 let contents = self.comma(c(2), c(3), false);
                 let clean = c(1).trailing().is_empty()
                     && c(2).leading().is_empty()
@@ -1742,7 +1801,7 @@ impl Formatter<'_> {
                     },
                 ])
             }
-            "FieldSpecifier" => cat(vec![
+            SyntaxKind::FieldSpecifier => cat(vec![
                 t(0),
                 t(1),
                 Space,
@@ -1751,7 +1810,7 @@ impl Formatter<'_> {
                 SplitWith(1),
                 Nest(vec![t(3)]),
             ]),
-            "FieldInitializer" => cat(vec![
+            SyntaxKind::FieldInitializer => cat(vec![
                 t(0),
                 Space,
                 t(1),
@@ -1759,8 +1818,8 @@ impl Formatter<'_> {
                 SplitWith(1),
                 Nest(vec![t(2)]),
             ]),
-            "AbsentFieldSpecifier" => cat(vec![t(0), Space, t(1)]),
-            "ShapeTypeSpecifier" => {
+            SyntaxKind::AbsentFieldSpecifier => cat(vec![t(0), Space, t(1)]),
+            SyntaxKind::ShapeTypeSpecifier => {
                 let has_ellipsis = !c(3).missing() || !c(4).missing();
                 let force = c(1).trailing_newline() && (!c(2).missing() || has_ellipsis);
                 let contents = if has_ellipsis {
@@ -1778,19 +1837,19 @@ impl Formatter<'_> {
                 };
                 cat(vec![t(0), contents])
             }
-            "ShapeExpression" | "TupleExpression" => {
+            SyntaxKind::ShapeExpression | SyntaxKind::TupleExpression => {
                 let mut fields = Node {
-                    kind: "SyntaxList".into(),
+                    kind: SyntaxKind::SyntaxList,
                     children: c(2).list().to_vec(),
                     token: None,
                 };
                 if !c(3).missing() {
                     fields.children.push(Node {
-                        kind: "ListItem".into(),
+                        kind: SyntaxKind::ListItem,
                         children: vec![
                             c(3).clone(),
                             Node {
-                                kind: "Missing".into(),
+                                kind: SyntaxKind::Missing,
                                 children: vec![],
                                 token: None,
                             },
@@ -1805,24 +1864,24 @@ impl Formatter<'_> {
                         &fields,
                         c(4),
                         c(3).missing(),
-                        n.kind == "ShapeExpression"
+                        n.kind == SyntaxKind::ShapeExpression
                             && c(1).trailing_newline()
                             && !fields.children.is_empty(),
                         false,
                     ),
                 ])
             }
-            "TypeArguments" | "TypeParameters" | "TupleTypeSpecifier" => {
-                self.argish(c(0), c(1), c(2), true, false, false)
-            }
-            "UnionTypeSpecifier" | "IntersectionTypeSpecifier" => {
+            SyntaxKind::TypeArguments
+            | SyntaxKind::TypeParameters
+            | SyntaxKind::TupleTypeSpecifier => self.argish(c(0), c(1), c(2), true, false, false),
+            SyntaxKind::UnionTypeSpecifier | SyntaxKind::IntersectionTypeSpecifier => {
                 let xs = c(1).list();
                 let ds = xs
                     .iter()
                     .enumerate()
                     .map(|(i, x)| {
                         cat(vec![
-                            if x.kind == "ListItem" {
+                            if x.kind == SyntaxKind::ListItem {
                                 cat(vec![self.t(x.c(0)), present(x.c(1), Space), self.t(x.c(1))])
                             } else {
                                 self.t(x)
@@ -1837,9 +1896,9 @@ impl Formatter<'_> {
                     .collect();
                 self.delimited(c(0), c(2), cat(ds), true, false)
             }
-            "PrefixedCodeExpression" => cat(vec![
+            SyntaxKind::PrefixedCodeExpression => cat(vec![
                 t(0),
-                if c(2).kind == "CompoundStatement" {
+                if c(2).kind == SyntaxKind::CompoundStatement {
                     cat(vec![
                         t(1),
                         self.block(c(2).c(0), c(2).c(2), self.all(c(2).c(1)), true),
@@ -1849,13 +1908,13 @@ impl Formatter<'_> {
                     self.braced(c(1), c(2), c(3))
                 },
             ]),
-            "DecoratedExpression" => cat(vec![
+            SyntaxKind::DecoratedExpression => cat(vec![
                 t(0),
                 if c(0).is_token("inout") { Space } else { Nil },
                 t(1),
             ]),
-            "NamedArgument" | "EnumClassLabelExpression" => self.simple(n),
-            "EnumClassDeclaration" => cat(vec![
+            SyntaxKind::NamedArgument | SyntaxKind::EnumClassLabelExpression => self.simple(n),
+            SyntaxKind::EnumClassDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 mods(1),
@@ -1892,8 +1951,10 @@ impl Formatter<'_> {
                 self.block(c(9), c(11), all(10), true),
                 Newline,
             ]),
-            "EnumClassEnumerator" => cat(vec![mods(0), t(1), sp(1), t(2), t(3), t(4), Newline]),
-            "ModuleDeclaration" => cat(vec![
+            SyntaxKind::EnumClassEnumerator => {
+                cat(vec![mods(0), t(1), sp(1), t(2), t(3), t(4), Newline])
+            }
+            SyntaxKind::ModuleDeclaration => cat(vec![
                 t(0),
                 nl(0),
                 t(1),
@@ -1905,8 +1966,8 @@ impl Formatter<'_> {
                 self.block(c(4), c(5), Nil, true),
                 Newline,
             ]),
-            "ModuleMembershipDeclaration" => cat(vec![t(0), Space, t(1), t(2), Newline]),
-            _ => panic!("unhandled formatter syntax {}", n.kind),
+            SyntaxKind::ModuleMembershipDeclaration => cat(vec![t(0), Space, t(1), t(2), Newline]),
+            _ => panic!("unhandled formatter syntax {:?}", n.kind),
         }
     }
 }

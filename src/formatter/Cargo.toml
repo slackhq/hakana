@@ -19,5 +19,8 @@ regex = "1"
 serde_json = "1"
 operator = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/operator" }
 
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+rayon = "1"
+
 [dev-dependencies]
 tempfile = "3"

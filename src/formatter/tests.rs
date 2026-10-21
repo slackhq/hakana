@@ -1,5 +1,6 @@
 use super::*;
 use crate::{format, format_at_offset, format_intervals, format_range, syntax};
+use parser_core_types::token_kind::TokenKind;
 
 fn assert_stable(source: &str, config: &Config) -> String {
     let formatted = format(source, config).unwrap();
@@ -7,18 +8,18 @@ fn assert_stable(source: &str, config: &Config) -> String {
     formatted
 }
 
-fn token_stream(source: &str, config: &Config) -> Vec<(String, String)> {
+fn token_stream(source: &str, config: &Config) -> Vec<(TokenKind, String)> {
     let (root, errors) = syntax::parse(source, config.enable_xhp_class_modifier);
     assert!(errors.is_empty(), "{errors:?}");
     let mut tokens = vec![];
     root.all_tokens(&mut tokens);
     tokens
         .iter()
-        .filter(|t| t.kind != "Comma")
+        .filter(|t| t.kind != TokenKind::Comma)
         .map(|t| {
             (
-                t.kind.clone(),
-                if t.kind == "Hashbang" {
+                t.kind,
+                if t.kind == TokenKind::Hashbang {
                     String::new()
                 } else {
                     t.text.clone()
@@ -141,4 +142,38 @@ fn incompatible_cli_modes_are_rejected() {
         let options = options(args.into_iter().map(str::to_owned)).unwrap();
         assert_eq!(validate(&options).unwrap_err().exit_code, 3);
     }
+}
+
+#[test]
+#[cfg(not(target_family = "wasm"))]
+fn file_workers_overlap_but_results_are_consumed_in_order() {
+    use std::sync::{Condvar, Mutex};
+    use std::time::Duration;
+
+    let started = (Mutex::new(0), Condvar::new());
+    let consumer_thread = std::thread::current().id();
+    let mut results = vec![];
+    process_files(
+        &(0..12).collect::<Vec<_>>(),
+        2,
+        |i| {
+            assert_ne!(std::thread::current().id(), consumer_thread);
+            let (lock, ready) = &started;
+            let mut count = lock.lock().unwrap();
+            *count += 1;
+            ready.notify_all();
+            let (_count, timeout) = ready
+                .wait_timeout_while(count, Duration::from_secs(5), |n| *n < 2)
+                .unwrap();
+            assert!(!timeout.timed_out(), "File work did not run concurrently");
+            i * 2
+        },
+        |i, result| {
+            assert_eq!(std::thread::current().id(), consumer_thread);
+            results.push((*i, result));
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(results, (0..12).map(|i| (i, i * 2)).collect::<Vec<_>>());
 }

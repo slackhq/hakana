@@ -32,7 +32,7 @@ def invoke(command: list[str]) -> subprocess.CompletedProcess:
     return result
 
 
-def compare_outputs(programs: dict[str, Path], paths: list[Path],
+def compare_outputs(programs: dict[str, Path], job_flags: dict[str, list[str]], paths: list[Path],
                     directory: Path, config_root: Path) -> None:
     with tempfile.TemporaryDirectory(prefix='hakana-format-benchmark-') as temp:
         for name, program in programs.items():
@@ -43,7 +43,7 @@ def compare_outputs(programs: dict[str, Path], paths: list[Path],
                 shutil.copyfile(path, copy)
                 copies.append(str(copy))
             invoke([str(program), 'format', '--root', str(config_root),
-                    '--in-place', *copies])
+                    *job_flags[name], '--in-place', *copies])
         different = [
             path.relative_to(directory) for path in paths
             if (Path(temp) / 'baseline' / path.relative_to(directory)).read_bytes()
@@ -59,11 +59,17 @@ def main() -> None:
     parser.add_argument('directory', type=Path)
     parser.add_argument('--program', type=Path, default=ROOT / 'target/release/hakana')
     parser.add_argument('--baseline', type=Path)
+    parser.add_argument('--jobs', type=int, help='Worker count for the current binary')
+    parser.add_argument('--baseline-jobs', type=int, help='Worker count for a baseline supporting --jobs')
     parser.add_argument('--root', type=Path, help='Directory containing .hhconfig')
     parser.add_argument('--runs', type=int, default=5)
     parser.add_argument('--json', type=Path, help='Write timing results as JSON')
     parser.add_argument('--profile', type=Path, help='Save a samply profile (.json.gz)')
     args = parser.parse_args()
+    if any(jobs is not None and jobs < 1 for jobs in [args.jobs, args.baseline_jobs]):
+        parser.error('Worker counts must be at least one')
+    if args.baseline_jobs is not None and args.baseline is None:
+        parser.error('--baseline-jobs requires --baseline')
     directory = args.directory.resolve()
     if not directory.is_dir() or args.runs < 1:
         parser.error('An existing source directory and at least one run are required')
@@ -78,9 +84,12 @@ def main() -> None:
     if args.baseline:
         programs['baseline'] = args.baseline.resolve()
     programs['current'] = args.program.resolve()
+    jobs = {'baseline': args.baseline_jobs, 'current': args.jobs}
+    job_flags = {name: ['--jobs', str(jobs[name])] if jobs[name] is not None else []
+                 for name in programs}
     commands = {
         name: [str(program), 'format', '--root', str(config_root),
-               '--check-formatting', *map(str, paths)]
+               *job_flags[name], '--check-formatting', *map(str, paths)]
         for name, program in programs.items()
     }
     size = sum(p.stat().st_size for p in paths)
@@ -105,18 +114,19 @@ def main() -> None:
         print(f'{name} median: {median:.3f}s ({size / median / 1_000_000:.2f} MB/s)')
     if args.baseline:
         print(f'Speedup: {medians["baseline"] / medians["current"]:.2f}x', flush=True)
-        compare_outputs(programs, paths, directory, config_root)
+        compare_outputs(programs, job_flags, paths, directory, config_root)
     if args.json:
         args.json.write_text(json.dumps({
             'directory': str(directory), 'files': len(paths), 'bytes': size,
             'config_root': str(config_root),
             'programs': {name: str(path) for name, path in programs.items()},
+            'jobs': {name: jobs[name] for name in programs},
             'seconds': times, 'median_seconds': medians,
         }, indent=2) + '\n')
     if args.profile:
         subprocess.run(
             ['samply', 'record', '--save-only', '--unstable-presymbolicate',
-             '--main-thread-only', '-o', str(args.profile),
+             '-o', str(args.profile),
              '--', *commands['current']],
             check=True,
         )

@@ -2,18 +2,19 @@
 use parser_core_types::{
     lexable_token::LexableToken, source_text::SourceText,
     syntax_by_ref::positioned_syntax::PositionedSyntax, syntax_error::SyntaxError,
+    syntax_kind::SyntaxKind, token_kind::TokenKind, trivia_kind::TriviaKind,
 };
 use positioned_by_ref_parser::{parse_script, scan_leading_php_trivia, scan_leading_xhp_trivia};
 use std::{borrow::Cow, sync::Arc};
 #[derive(Clone, Debug)]
 pub struct Trivia {
-    pub kind: String,
+    pub kind: TriviaKind,
     pub text: String,
     pub start: usize,
 }
 impl Trivia {
     pub fn invisible(&self) -> bool {
-        matches!(self.kind.as_str(), "WhiteSpace" | "EndOfLine")
+        matches!(self.kind, TriviaKind::WhiteSpace | TriviaKind::EndOfLine)
     }
     pub fn end(&self) -> usize {
         self.start + self.text.len()
@@ -21,8 +22,7 @@ impl Trivia {
 }
 #[derive(Clone, Debug)]
 pub struct Token {
-    pub raw_kind: parser_core_types::token_kind::TokenKind,
-    pub kind: String,
+    pub kind: TokenKind,
     pub text: String,
     pub start: usize,
     pub leading: Vec<Trivia>,
@@ -30,7 +30,7 @@ pub struct Token {
 }
 #[derive(Clone, Debug)]
 pub struct Node {
-    pub kind: String,
+    pub kind: SyntaxKind,
     pub children: Vec<Node>,
     pub token: Option<Token>,
 }
@@ -41,12 +41,12 @@ impl Node {
         &self.children[i]
     }
     pub fn missing(&self) -> bool {
-        self.kind == "Missing"
+        self.kind == SyntaxKind::Missing
     }
     pub fn list(&self) -> &[Node] {
         if self.missing() {
             &[]
-        } else if self.kind == "SyntaxList" {
+        } else if self.kind == SyntaxKind::SyntaxList {
             &self.children
         } else {
             std::slice::from_ref(self)
@@ -114,7 +114,9 @@ impl Node {
         n
     }
     pub fn trailing_newline(&self) -> bool {
-        self.trailing().iter().any(|t| t.kind == "EndOfLine")
+        self.trailing()
+            .iter()
+            .any(|t| t.kind == TriviaKind::EndOfLine)
     }
     pub fn text(&self) -> String {
         if let Some(t) = &self.token {
@@ -167,7 +169,7 @@ fn convert<'a>(
     if let Some(t) = n.get_token() {
         let start = t.start_offset();
         let end = start + t.width();
-        let xhp = t.kind() == parser_core_types::token_kind::TokenKind::XHPBody;
+        let xhp = t.kind() == TokenKind::XHPBody;
         let scan = |offset, width| {
             let tr = if xhp {
                 scan_leading_xhp_trivia(arena, src, offset, width)
@@ -176,7 +178,7 @@ fn convert<'a>(
             };
             tr.into_iter()
                 .map(|t| Trivia {
-                    kind: format!("{:?}", t.kind),
+                    kind: t.kind,
                     text: String::from_utf8_lossy(&src.text()[t.offset..t.offset + t.width])
                         .into_owned(),
                     start: t.offset,
@@ -184,11 +186,10 @@ fn convert<'a>(
                 .collect()
         };
         Node {
-            kind: "Token".into(),
+            kind: SyntaxKind::Token(t.kind()),
             children: vec![],
             token: Some(Token {
-                raw_kind: t.kind(),
-                kind: format!("{:?}", t.kind()),
+                kind: t.kind(),
                 text: String::from_utf8_lossy(&src.text()[start..end]).into_owned(),
                 start,
                 leading: scan(start - t.leading_width(), t.leading_width()),
@@ -197,7 +198,7 @@ fn convert<'a>(
         }
     } else {
         Node {
-            kind: format!("{:?}", n.kind()),
+            kind: n.kind(),
             children: n.iter_children().map(|c| convert(c, arena, src)).collect(),
             token: None,
         }
@@ -232,20 +233,27 @@ pub fn parse(text: &str, xhp_modifier: bool) -> (Node, Vec<SyntaxError>) {
         if current
             .leading
             .first()
-            .is_none_or(|t| t.kind != "DelimitedComment")
+            .is_none_or(|t| t.kind != TriviaKind::DelimitedComment)
         {
             continue;
         }
-        if previous.trailing.iter().any(|t| t.kind == "EndOfLine") {
+        if previous
+            .trailing
+            .iter()
+            .any(|t| t.kind == TriviaKind::EndOfLine)
+        {
             continue;
         }
         let mut count = 0;
         for tr in &current.leading {
-            if matches!(tr.kind.as_str(), "FixMe" | "Ignore" | "IgnoreError") {
+            if matches!(
+                tr.kind,
+                TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError
+            ) {
                 break;
             }
             count += 1;
-            if tr.kind == "EndOfLine" {
+            if tr.kind == TriviaKind::EndOfLine {
                 break;
             }
         }

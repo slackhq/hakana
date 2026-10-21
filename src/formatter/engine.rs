@@ -69,6 +69,8 @@ pub struct Group {
     rules: Vec<Rule>,
     deps: Vec<Vec<usize>>,
     nests: Vec<Nesting>,
+    nest_rules: Vec<Option<usize>>,
+    chunk_rules: Vec<usize>,
     span_count: usize,
     indent: usize,
 }
@@ -289,10 +291,24 @@ impl<'a> Builder<'a> {
         let deps = (0..self.rules.len())
             .map(|id| self.deps.remove(&id).unwrap_or_default())
             .collect();
+        // Only the first chunk at each nesting level controls whether that
+        // level contributes indentation. This is independent of search state.
+        let mut nest_rules = vec![None; self.nests.len()];
+        let chunk_rules = self
+            .chunks
+            .iter()
+            .map(|c| {
+                let rule = c.rule.unwrap();
+                nest_rules[c.nest].get_or_insert(rule);
+                rule
+            })
+            .collect();
         self.groups.push(Group {
             chunks: std::mem::take(&mut self.chunks),
             rules: std::mem::take(&mut self.rules),
             deps,
+            nest_rules,
+            chunk_rules,
             nests: std::mem::replace(
                 &mut self.nests,
                 vec![Nesting {
@@ -534,7 +550,7 @@ pub fn build(env: &Config, doc: &Doc) -> Vec<Group> {
 #[derive(Clone, Debug)]
 struct State {
     rbm: Bindings,
-    nesting: Vec<bool>,
+    indents: Vec<usize>,
     cost: i32,
     overflow: usize,
     candidates: Vec<usize>,
@@ -545,78 +561,66 @@ fn broken(rbm: &Bindings, r: usize) -> bool {
     rbm[r] == Some(true)
 }
 impl State {
-    fn indent(&self, g: &Group, c: &Chunk) -> usize {
-        let mut result = g.indent;
-        let mut n = Some(c.nest);
-        while let Some(id) = n {
-            let active = self.nesting[id];
-            if active && id != 0 {
-                result += 1;
-            }
-            let nest = &g.nests[id];
-            n = if active && nest.skip {
-                nest.parent.and_then(|p| g.nests[p].parent)
-            } else {
-                nest.parent
-            };
-        }
-        result
+    fn indent(&self, c: &Chunk) -> usize {
+        self.indents[c.nest]
     }
     fn make(env: &Config, g: &Group, mut rbm: Bindings) -> Self {
         let mut s = Self {
             rbm: vec![],
-            nesting: vec![false; g.nests.len()],
+            indents: Vec::with_capacity(g.nests.len()),
             cost: 0,
             overflow: 0,
             candidates: vec![],
             unprocessed: 0,
             partial: vec![],
         };
-        let mut seen = vec![false; g.nests.len()];
-        for c in &g.chunks {
-            if !seen[c.nest] {
-                seen[c.nest] = true;
-                s.nesting[c.nest] = broken(&rbm, c.rule.unwrap());
-            }
+        // Parents precede children, so compute each indentation depth once
+        // instead of walking the same ancestor chain for every split chunk.
+        for (id, nest) in g.nests.iter().enumerate() {
+            let active = g.nest_rules[id].is_some_and(|r| broken(&rbm, r));
+            let parent = if active && nest.skip {
+                nest.parent.and_then(|p| g.nests[p].parent)
+            } else {
+                nest.parent
+            };
+            s.indents
+                .push(parent.map_or(g.indent, |p| s.indents[p]) + usize::from(active && id != 0));
         }
         let mut lines = vec![];
         let mut len: usize = 0;
-        // Line membership only needs iteration, not sorting or set lookups.
-        // Repeated rule IDs are harmless; the flags below deduplicate them.
-        let mut rules = vec![];
-        for c in &g.chunks {
+        let mut line_start = 0;
+        let mut spans = vec![false; g.span_count];
+        for (i, c) in g.chunks.iter().enumerate() {
             let r = c.rule.unwrap();
             let split = broken(&rbm, r);
             let length = c.len
                 + usize::from(c.comma.is_some_and(|(id, _)| broken(&rbm, id)))
                 + if split && c.indentable {
-                    env.indent_width * s.indent(g, c)
+                    env.indent_width * s.indent(c)
                 } else {
                     usize::from(c.space)
                 };
             if split {
+                // Each line borrows its rule IDs from the group. Repeated IDs
+                // are harmless: the flags below deduplicate set membership.
                 lines.push((
                     len.saturating_sub(env.line_width),
-                    std::mem::take(&mut rules),
+                    &g.chunk_rules[line_start..i],
                 ));
+                line_start = i;
                 len = length;
-            } else {
-                len += length;
-            }
-            if rules.last() != Some(&r) {
-                rules.push(r);
-            }
-        }
-        lines.push((len.saturating_sub(env.line_width), rules));
-        s.overflow = lines.iter().map(|(n, _)| n).sum();
-        let mut spans = vec![false; g.span_count];
-        for c in &g.chunks {
-            if broken(&rbm, c.rule.unwrap()) {
                 for id in &c.spans {
                     spans[*id] = true;
                 }
+            } else {
+                len += length;
             }
         }
+        lines.push((
+            len.saturating_sub(env.line_width),
+            &g.chunk_rules[line_start..],
+        ));
+        s.overflow = lines.iter().map(|(n, _)| n).sum();
         s.cost = spans.iter().filter(|b| **b).count() as i32
             + rbm
                 .iter()
@@ -624,10 +628,19 @@ impl State {
                 .filter(|(_, v)| **v == Some(true))
                 .map(|(id, _)| g.rules[id].cost())
                 .sum::<i32>();
+        if s.overflow == 0 {
+            // Every line fits: all remaining line rules are dead, and there
+            // are no candidates or partially processed lines to collect.
+            for id in &g.chunk_rules {
+                rbm[*id].get_or_insert(false);
+            }
+            s.rbm = rbm;
+            return s;
+        }
         let mut dead = vec![false; g.rules.len()];
         let mut candidates = vec![false; g.rules.len()];
-        for (overflow, rules) in &lines {
-            if *overflow == 0 || rules.iter().all(|r| rbm[*r].is_some()) {
+        for &(overflow, rules) in &lines {
+            if overflow == 0 || rules.iter().all(|r| rbm[*r].is_some()) {
                 for r in rules {
                     if rbm[*r].is_none() {
                         dead[*r] = true;
@@ -653,7 +666,7 @@ impl State {
             }
         }
         let mut partial = vec![false; g.rules.len()];
-        for (overflow, rules) in &lines {
+        for &(overflow, rules) in &lines {
             if rules.iter().any(|r| rbm[*r].is_none()) {
                 s.unprocessed += overflow;
                 for r in rules {
@@ -857,7 +870,7 @@ pub fn solve(
             if broken(&s.rbm, c.rule.unwrap()) {
                 group_subs.push(Sub::Newline);
                 if !c.empty() && c.indentable {
-                    group_subs.push(Sub::Indent(s.indent(g, c)));
+                    group_subs.push(Sub::Indent(s.indent(c)));
                 }
             } else if c.space {
                 group_subs.push(Sub::Space);
