@@ -211,14 +211,14 @@ fn hakana_suppressions_are_positioned_like_hh_fixme() {
 }
 
 #[test]
-fn lint_ignore_is_only_recognized_in_single_line_comments() {
+fn lint_ignore_is_recognized_in_line_and_block_comments() {
     let config = Config::default();
     assert_eq!(
         assert_stable(
             "function f(): void {\n  // @lint-ignore\n  $a   =  bar(  );\n  $b   =  1;\n  $b   =  1;\n  /* @lint-ignore */\n  $c   =  bar(  );\n}\n",
             &config
         ),
-        "function f(): void {\n  // @lint-ignore\n  $a   =  bar(  );\n  $b = 1;\n  $b = 1;\n  /* @lint-ignore */\n  $c = bar();\n}\n"
+        "function f(): void {\n  // @lint-ignore\n  $a   =  bar(  );\n  $b = 1;\n  $b = 1;\n  /* @lint-ignore */\n  $c   =  bar(  );\n}\n"
     );
 }
 

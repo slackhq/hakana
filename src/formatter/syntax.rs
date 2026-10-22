@@ -21,7 +21,7 @@ impl Trivia {
     }
     /// HH_FIXME/HH_IGNORE_ERROR comments, `/* HHAST_FIXME[...] */`, Hakana's
     /// own `/* HAKANA_FIXME[...] */` and `/* HAKANA_IGNORE[...] */`, and
-    /// `// @lint-ignore` comments.
+    /// comments containing `@lint-ignore`.
     pub fn is_fixme_comment(&self) -> bool {
         match self.kind {
             TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError => true,
@@ -31,6 +31,7 @@ impl Trivia {
                 ["HAKANA_FIXME[", "HAKANA_IGNORE[", "HHAST_FIXME["]
                     .iter()
                     .any(|prefix| body.starts_with(prefix))
+                    || self.text.contains("@lint-ignore")
             }
             TriviaKind::SingleLineComment => self.text.contains("@lint-ignore"),
             _ => false,
