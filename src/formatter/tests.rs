@@ -211,6 +211,18 @@ fn hakana_suppressions_are_positioned_like_hh_fixme() {
 }
 
 #[test]
+fn lint_ignore_is_only_recognized_in_single_line_comments() {
+    let config = Config::default();
+    assert_eq!(
+        assert_stable(
+            "function f(): void {\n  // @lint-ignore\n  $a   =  bar(  );\n  $b   =  1;\n  $b   =  1;\n  /* @lint-ignore */\n  $c   =  bar(  );\n}\n",
+            &config
+        ),
+        "function f(): void {\n  // @lint-ignore\n  $a   =  bar(  );\n  $b = 1;\n  $b = 1;\n  /* @lint-ignore */\n  $c = bar();\n}\n"
+    );
+}
+
+#[test]
 fn offset_is_a_byte_position_and_invalid_ranges_are_errors() {
     let source = "function f():void { $x = \"🙂\"; }\n";
     let config = Config::default();

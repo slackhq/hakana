@@ -19,9 +19,10 @@ impl Trivia {
     pub fn end(&self) -> usize {
         self.start + self.text.len()
     }
-    /// HH_FIXME/HH_IGNORE_ERROR comments, plus `/* HHAST_FIXME[...] */` and
-    /// Hakana's own `/* HAKANA_FIXME[...] */` and `/* HAKANA_IGNORE[...] */`.
-    pub fn is_fixme(&self) -> bool {
+    /// HH_FIXME/HH_IGNORE_ERROR comments, `/* HHAST_FIXME[...] */`, Hakana's
+    /// own `/* HAKANA_FIXME[...] */` and `/* HAKANA_IGNORE[...] */`, and
+    /// `// @lint-ignore` comments.
+    pub fn is_fixme_comment(&self) -> bool {
         match self.kind {
             TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError => true,
             TriviaKind::DelimitedComment => {
@@ -31,6 +32,7 @@ impl Trivia {
                     .iter()
                     .any(|prefix| body.starts_with(prefix))
             }
+            TriviaKind::SingleLineComment => self.text.contains("@lint-ignore"),
             _ => false,
         }
     }
@@ -261,7 +263,7 @@ pub fn parse(text: &str, xhp_modifier: bool) -> (Node, Vec<SyntaxError>) {
         }
         let mut count = 0;
         for tr in &current.leading {
-            if tr.is_fixme() {
+            if tr.is_fixme_comment() {
                 break;
             }
             count += 1;
