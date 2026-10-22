@@ -613,7 +613,7 @@ fn run_options(o: Options) -> Result<(), FormatError> {
         } else {
             crate::format_range(&text, &c, range.0, range.1.min(text.len()))?
         };
-        if !o.raw && !out.ends_with('\n') {
+        if !o.raw && !out.is_empty() && !out.ends_with('\n') {
             out.push('\n');
         }
         print!("{out}");

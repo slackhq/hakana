@@ -437,7 +437,10 @@ impl<'a> Builder<'a> {
             Newline => self.hard(),
             BlankLine => {
                 self.hard();
-                if self.chunks.last().is_none_or(|c| !c.append) {
+                // Separate existing content, but never start a file with a blank
+                // line. Chunks also empty between top-level groups.
+                let at_start = self.groups.is_empty() && self.chunks.is_empty();
+                if !at_start && self.chunks.last().is_none_or(|c| !c.append) {
                     let r = self.create(Rule::Always);
                     let mut c = Chunk::new(Some(r), self.nest, self.end);
                     c.atoms.push(Atom {

@@ -83,6 +83,86 @@ fn tagless_unicode_comments_and_tokens_are_preserved() {
 }
 
 #[test]
+fn leading_blank_lines_are_removed_before_code_and_comments() {
+    let config = Config::default();
+    for body in [
+        "function f(): void {}\n",
+        "namespace Example;\n\nfunction f(): void {}\n",
+        "use type Example\\Item;\n",
+        "type Item = int;\n",
+        "final class Item {}\n",
+        "/** Header comment. */\nfunction f(): void {}\n",
+        "// Header comment.\nfunction f(): void {}\n",
+        "<<__EntryPoint>>\nfunction main(): void {}\n",
+    ] {
+        let expected = assert_stable(body, &config);
+        assert!(!expected.starts_with('\n'));
+        for prefix in ["", "\n", "\n\n\n", "\t \n", "\r\n", " \t\r\n\r\n", "   "] {
+            let source = format!("{prefix}{body}");
+            assert_eq!(
+                assert_stable(&source, &config),
+                expected,
+                "prefix {prefix:?}, body {body:?}"
+            );
+        }
+    }
+    for source in ["\n", "\n\n\n", "\t \n", "\r\n\r\n"] {
+        assert_eq!(assert_stable(source, &config), "");
+    }
+}
+
+#[test]
+fn blank_lines_after_headers_and_between_declarations_are_preserved() {
+    let config = Config::default();
+    for (source, expected) in [
+        (
+            "<?hh\n\n\n\nfunction f(): void {}\n",
+            "<?hh\n\nfunction f(): void {}\n",
+        ),
+        (
+            "#!/usr/bin/env hhvm\n\n\nfunction f(): void {}\n",
+            "#!/usr/bin/env hhvm\n\nfunction f(): void {}\n",
+        ),
+        (
+            "// c\n\nfunction f(): void {}\n",
+            "// c\n\nfunction f(): void {}\n",
+        ),
+        (
+            "\n\n// c\n\nfunction f(): void {}\n",
+            "// c\n\nfunction f(): void {}\n",
+        ),
+        (
+            "function a(): void {}\n\nfunction b(): void {}\n\nfunction c(): void {}\n",
+            "function a(): void {}\n\nfunction b(): void {}\n\nfunction c(): void {}\n",
+        ),
+    ] {
+        assert_eq!(assert_stable(source, &config), expected);
+    }
+}
+
+#[test]
+fn leading_blank_lines_are_removed_only_in_selected_ranges() {
+    let config = Config::default();
+    let first = "\n\nfunction first():void {foo(1,2);}\n";
+    let second = "\nfunction second():void {bar(3,4);}\n";
+    let source = format!("{first}{second}");
+    let formatted_first = "function first(): void {\n  foo(1, 2);\n}\n";
+    assert_eq!(
+        format_range(&source, &config, 0, first.len()).unwrap(),
+        formatted_first
+    );
+    assert_eq!(format_range(&source, &config, 0, 2).unwrap(), "");
+    assert_eq!(
+        format_intervals(&source, &config, &[(1, 3)]).unwrap(),
+        format!("{formatted_first}{second}")
+    );
+    assert_eq!(
+        format_intervals(&source, &config, &[(5, 5)]).unwrap(),
+        format!("{first}\nfunction second(): void {{\n  bar(3, 4);\n}}\n")
+    );
+}
+
+#[test]
 fn format_intervals_preserves_unselected_text() {
     let source = "function first():void {foo(1,2);}\n\nfunction second():void {bar(3,4);}\n";
     let formatted = format_intervals(source, &Config::default(), &[(1, 1)]).unwrap();
@@ -100,6 +180,7 @@ fn generated_source_and_empty_input_are_stable() {
         "",
         "// @generated\nfunction x():void {f(1,2);}",
         "// @generated\n",
+        "\n\n// @generated\nfunction x():void {f(1,2);}",
     ] {
         assert_eq!(assert_stable(text, &Config::default()), text);
     }

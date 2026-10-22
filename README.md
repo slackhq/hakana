@@ -50,6 +50,8 @@ You can run an individual test with `cargo run --bin hakana test <path-to-test-d
 parser as Hakana. It preserves comments and honors generated/manual sections,
 formatting suppressions, and `hackfmt.*` settings in the nearest `.hhconfig`.
 It accepts both tagged PHP files and tagless `.hack` files.
+Leading blank lines before the first code or comment in tagless files are removed.
+Blank lines after headers and between declarations are preserved.
 
 ```sh
 hakana format source.hack                     # Print formatted source

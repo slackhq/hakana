@@ -42,6 +42,43 @@ fn stdin_and_parse_errors() {
 }
 
 #[test]
+fn leading_blank_lines_are_removed_in_range_and_diff_modes() {
+    let root = tempfile::tempdir().unwrap();
+    let first = "\n\nfunction first():void {foo(1,2);}\n";
+    let second = "\nfunction second():void {bar(3,4);}\n";
+    let source = format!("{first}{second}");
+    fs::write(root.path().join("source.hack"), &source).unwrap();
+    let end = (first.len() + 1).to_string();
+    let formatted_first = "function first(): void {\n  foo(1, 2);\n}\n";
+    for args in [
+        vec!["--range", "1", &end, "source.hack"],
+        vec!["--line-range", "1", "3", "source.hack"],
+    ] {
+        let result = run(root.path(), &args, "");
+        assert!(result.status.success(), "{:?}", result.stderr);
+        assert!(result.stderr.is_empty());
+        assert_eq!(result.stdout, formatted_first.as_bytes());
+    }
+    for args in [
+        vec!["--range", "1", "3", "source.hack"],
+        vec!["--line-range", "1", "2", "source.hack"],
+    ] {
+        let result = run(root.path(), &args, "");
+        assert!(result.status.success(), "{:?}", result.stderr);
+        assert!(result.stderr.is_empty());
+        assert!(result.stdout.is_empty());
+    }
+    let diff = "--- a/source.hack\n+++ b/source.hack\n@@ -1,3 +1,3 @@\n-\n-\n-function first():void {foo(0,0);}\n+\n+\n+function first():void {foo(1,2);}\n";
+    let result = run(root.path(), &["--diff"], diff);
+    assert!(result.status.success(), "{:?}", result.stderr);
+    assert!(result.stderr.is_empty());
+    assert_eq!(
+        fs::read_to_string(root.path().join("source.hack")).unwrap(),
+        format!("{formatted_first}{second}")
+    );
+}
+
+#[test]
 fn check_and_inplace_do_not_rewrite_unchanged_or_invalid_files() {
     let root = tempfile::tempdir().unwrap();
     let file = root.path().join("source.hack");
