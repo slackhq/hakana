@@ -187,6 +187,30 @@ fn generated_source_and_empty_input_are_stable() {
 }
 
 #[test]
+fn hakana_suppressions_are_positioned_like_hh_fixme() {
+    let config = Config::default();
+    let template = "function f(): void {\n  $a   =  1;\n  X\n  $y = bar(  1,2);\n  $b   =  1;\n  $x = foo(  1,2); X\n  $c   =  1;\n  $c   =  1;\n  X $q   =   $y->foo(  );\n  $d   =  1;\n  $d   =  1;\n  return  X  bar(1,\n    2);\n}\n";
+    let hh_fixme = "/* HH_FIXME[4110] */";
+    let expected = assert_stable(&template.replace('X', hh_fixme), &config);
+    for comment in [
+        "/* HAKANA_FIXME[MixedMethodCall] */",
+        "/* HAKANA_IGNORE[MixedMethodCall] */",
+        "/** HAKANA_FIXME[MixedMethodCall] */",
+        "/* HHAST_FIXME[UnusedParameter] */",
+    ] {
+        assert_eq!(
+            assert_stable(&template.replace('X', comment), &config),
+            expected.replace(hh_fixme, comment),
+            "comment {comment:?}"
+        );
+    }
+    assert_eq!(
+        assert_stable(&template.replace('X', "/* HAKANA_NOTE */"), &config),
+        "function f(): void {\n  $a = 1;\n  /* HAKANA_NOTE */\n  $y = bar(1, 2);\n  $b = 1;\n  $x = foo(1, 2); /* HAKANA_NOTE */\n  $c = 1;\n  $c = 1;\n  /* HAKANA_NOTE */ $q = $y->foo();\n  $d = 1;\n  $d = 1;\n  return /* HAKANA_NOTE */ bar(1, 2);\n}\n"
+    );
+}
+
+#[test]
 fn offset_is_a_byte_position_and_invalid_ranges_are_errors() {
     let source = "function f():void { $x = \"🙂\"; }\n";
     let config = Config::default();

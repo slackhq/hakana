@@ -94,13 +94,11 @@ fn suppressed(env: &Config, root: &Node, text: &str) -> Vec<Range> {
     let mut start = None;
     for token in tokens {
         for tr in token.leading.iter().chain(&token.trailing) {
-            if matches!(
-                tr.kind,
-                TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError
-            ) || matches!(
-                tr.kind,
-                TriviaKind::DelimitedComment | TriviaKind::SingleLineComment
-            ) && tr.text.contains("@lint-ignore")
+            if tr.is_fixme()
+                || matches!(
+                    tr.kind,
+                    TriviaKind::DelimitedComment | TriviaKind::SingleLineComment
+                ) && tr.text.contains("@lint-ignore")
             {
                 let (s, e) = expand_lines(text, (tr.start, tr.end()));
                 fixmes.push(expand_lines(text, (s, e + 1)));

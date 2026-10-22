@@ -19,6 +19,21 @@ impl Trivia {
     pub fn end(&self) -> usize {
         self.start + self.text.len()
     }
+    /// HH_FIXME/HH_IGNORE_ERROR comments, plus `/* HHAST_FIXME[...] */` and
+    /// Hakana's own `/* HAKANA_FIXME[...] */` and `/* HAKANA_IGNORE[...] */`.
+    pub fn is_fixme(&self) -> bool {
+        match self.kind {
+            TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError => true,
+            TriviaKind::DelimitedComment => {
+                let body = self.text.trim_start_matches("/*");
+                let body = body.strip_prefix('*').unwrap_or(body).trim_start();
+                ["HAKANA_FIXME[", "HAKANA_IGNORE[", "HHAST_FIXME["]
+                    .iter()
+                    .any(|prefix| body.starts_with(prefix))
+            }
+            _ => false,
+        }
+    }
 }
 #[derive(Clone, Debug)]
 pub struct Token {
@@ -246,10 +261,7 @@ pub fn parse(text: &str, xhp_modifier: bool) -> (Node, Vec<SyntaxError>) {
         }
         let mut count = 0;
         for tr in &current.leading {
-            if matches!(
-                tr.kind,
-                TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError
-            ) {
+            if tr.is_fixme() {
                 break;
             }
             count += 1;
