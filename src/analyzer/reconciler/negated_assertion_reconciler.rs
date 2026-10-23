@@ -4,6 +4,7 @@ use super::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::statements_analyzer::StatementsAnalyzer;
+use hakana_code_info::codebase_info::symbols::SymbolKind;
 use hakana_code_info::t_atomic::{TDict, TNamedObject};
 use hakana_code_info::ttype::{
     comparison::{
@@ -221,8 +222,11 @@ fn subtract_complex_type(
                     .classlike_infos
                     .get(existing_classlike_name)
                 {
-                    // handle __Sealed classes, negating where possible
+                    // Only abstract classes and interfaces are exhausted by their
+                    // __Sealed children; concrete classes can also be instantiated directly.
                     if let Some(child_classlikes) = &classlike_storage.child_classlikes
+                        && (classlike_storage.is_abstract
+                            || matches!(classlike_storage.kind, SymbolKind::Interface))
                         && child_classlikes.contains(assertion_classlike_name)
                     {
                         handle_negated_class(

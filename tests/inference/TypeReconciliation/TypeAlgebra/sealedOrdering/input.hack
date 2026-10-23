@@ -1,5 +1,5 @@
 <<__Sealed(B::class, C::class)>>
-class A {}
+abstract class A {}
 final class B extends A {
   public function foo(): int {
     return rand(0, 10);
