@@ -19,6 +19,24 @@ impl Trivia {
     pub fn end(&self) -> usize {
         self.start + self.text.len()
     }
+    /// HH_FIXME/HH_IGNORE_ERROR comments, `/* HHAST_FIXME[...] */`, Hakana's
+    /// own `/* HAKANA_FIXME[...] */` and `/* HAKANA_IGNORE[...] */`, and
+    /// comments containing `@lint-ignore`.
+    pub fn is_fixme_comment(&self) -> bool {
+        match self.kind {
+            TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError => true,
+            TriviaKind::DelimitedComment => {
+                let body = self.text.trim_start_matches("/*");
+                let body = body.strip_prefix('*').unwrap_or(body).trim_start();
+                ["HAKANA_FIXME[", "HAKANA_IGNORE[", "HHAST_FIXME["]
+                    .iter()
+                    .any(|prefix| body.starts_with(prefix))
+                    || self.text.contains("@lint-ignore")
+            }
+            TriviaKind::SingleLineComment => self.text.contains("@lint-ignore"),
+            _ => false,
+        }
+    }
 }
 #[derive(Clone, Debug)]
 pub struct Token {
@@ -246,10 +264,7 @@ pub fn parse(text: &str, xhp_modifier: bool) -> (Node, Vec<SyntaxError>) {
         }
         let mut count = 0;
         for tr in &current.leading {
-            if matches!(
-                tr.kind,
-                TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError
-            ) {
+            if tr.is_fixme_comment() {
                 break;
             }
             count += 1;
