@@ -1,6 +1,7 @@
 //! Command-line compatibility with hackfmt, shared by `hakana format` and the
 //! small formatter development binary. Formatting never initializes analysis.
 use crate::{Config, FormatError, ranges};
+use clap::{Arg, ArgMatches, Command, value_parser};
 use hakana_file_discovery::{DiscoveryOptions, discover_files};
 use std::{
     fs,
@@ -126,80 +127,135 @@ struct Options {
     generated: bool,
     jobs: Option<usize>,
 }
-fn options(args: impl Iterator<Item = String>) -> Result<Options, FormatError> {
-    let mut o = Options::default();
-    let mut args = args.peekable();
-    while let Some(arg) = args.next() {
-        let mut value = || {
-            args.next()
-                .ok_or_else(|| invalid(format!("Missing value for {arg}")))
-        };
-        match arg.as_str() {
-            "--test" => (),
-            "--root" => o.root = Some(value()?.into()),
-            "--diff-root" => o.diff_root = Some(value()?.into()),
-            "--filename-for-logging" => o.logging_filename = Some(value()?),
-            "--range" | "--line-range" | "--test-raw-range" => {
-                let a = value()?
-                    .parse::<usize>()
-                    .map_err(|_| invalid("Invalid range"))?;
-                let b = value()?
-                    .parse::<usize>()
-                    .map_err(|_| invalid("Invalid range"))?;
-                if arg == "--line-range" {
-                    o.line_range = Some((a, b));
-                } else {
-                    o.range = Some((a, b));
-                    o.raw = arg == "--test-raw-range";
-                }
-            }
-            "--at-char" => o.at = Some(value()?.parse().map_err(|_| invalid("Invalid offset"))?),
-            "--indent-width" => {
-                o.indent = Some(
-                    value()?
-                        .parse()
-                        .map_err(|_| invalid("Invalid indent width"))?,
-                )
-            }
-            "--line-width" => {
-                o.width = Some(
-                    value()?
-                        .parse()
-                        .map_err(|_| invalid("Invalid line width"))?,
-                )
-            }
-            "--version" => {
-                o.version = Some(value()?.parse().map_err(|_| invalid("Invalid version"))?)
-            }
-            "-j" | "--jobs" => {
-                let jobs = value()?.parse().map_err(|_| invalid("Invalid job count"))?;
-                if jobs == 0 {
-                    return Err(invalid("Job count must be at least 1"));
-                }
-                o.jobs = Some(jobs);
-            }
-            "--tabs" => o.tabs = true,
-            "--format-generated-code" => o.generated = true,
-            "-i" | "--in-place" => o.inplace = true,
-            "--check-formatting" | "--check" => o.check = true,
-            "--diff" => o.diff = true,
-            "--diff-dry-run" => {
-                o.diff = true;
-                o.dry = true;
-            }
-            "--linttool" => o.lint = true,
-            "--linttool-severity" => o.severity = Some(value()?),
-            "--test-ide" => o.ide = true,
-            "--" => {
-                o.files.extend(args);
-                break;
-            }
-            "-" => (),
-            x if x.starts_with('-') => return Err(invalid(format!("Unknown option {x}"))),
-            _ => o.files.push(arg),
-        }
+fn positive(s: &str) -> Result<usize, String> {
+    match s.parse::<usize>() {
+        Ok(0) => Err("must be at least 1".into()),
+        Ok(n) => Ok(n),
+        Err(e) => Err(e.to_string()),
     }
-    Ok(o)
+}
+/// The `format` subcommand, shared by `hakana format` and `hakana-format`.
+pub fn command() -> Command<'static> {
+    let value = |name: &'static str, value_name: &'static str| {
+        Arg::new(name)
+            .long(name)
+            .takes_value(true)
+            .value_name(value_name)
+    };
+    let range = |name: &'static str| {
+        Arg::new(name)
+            .long(name)
+            .takes_value(true)
+            .number_of_values(2)
+            .value_names(&["START", "END"])
+            .value_parser(value_parser!(usize))
+    };
+    let flag = |name: &'static str| Arg::new(name).long(name);
+    Command::new("format")
+        .about("Format Hack source using hackfmt-compatible rules")
+        .after_help(
+            "Reads stdin when PATH is omitted.\nDirectories are searched recursively in in-place, check, and linttool modes.\nFollows symlinks and selects .hack, .php, .hhi, and .hh files.",
+        )
+        .args_override_self(true)
+        .arg(
+            Arg::new("paths")
+                .value_name("PATH")
+                .multiple_values(true)
+                .help("Files or directories to format; @FILE lists paths in --linttool mode"),
+        )
+        .arg(flag("in-place").short('i').help("Update files in place"))
+        .arg(
+            flag("check-formatting")
+                .alias("check")
+                .help("Print files that need formatting"),
+        )
+        .arg(
+            value("jobs", "N")
+                .short('j')
+                .value_parser(positive)
+                .help("Maximum workers (default: CPUs, capped at 8; 1 runs sequentially)"),
+        )
+        .arg(range("range").help("Format a 1-based byte range (end exclusive)"))
+        .arg(range("line-range").help("Format an inclusive line range"))
+        .arg(range("test-raw-range").hide(true))
+        .arg(
+            value("at-char", "OFFSET")
+                .value_parser(value_parser!(usize))
+                .help("Format at a 0-based byte offset"),
+        )
+        .arg(
+            value("indent-width", "N")
+                .value_parser(value_parser!(usize))
+                .help("Spaces per indentation level (default 2)"),
+        )
+        .arg(
+            value("line-width", "N")
+                .value_parser(value_parser!(usize))
+                .help("Maximum line width (default 80)"),
+        )
+        .arg(flag("tabs").help("Indent with tabs"))
+        .arg(
+            value("version", "N")
+                .value_parser(value_parser!(u32))
+                .help("Select hackfmt formatting rules"),
+        )
+        .arg(flag("format-generated-code").help("Format generated sections"))
+        .arg(value("root", "DIRECTORY").help("Directory containing .hhconfig"))
+        .arg(
+            value("diff-root", "DIRECTORY")
+                .help("Directory that paths in --diff input are relative to"),
+        )
+        .arg(flag("diff").help("Format changed lines from a diff on stdin"))
+        .arg(flag("diff-dry-run").help("Print --diff results instead of writing files"))
+        .arg(flag("linttool").help("Report unformatted files as lint JSON"))
+        .arg(value("linttool-severity", "SEVERITY").help("Severity for --linttool output"))
+        .arg(value("filename-for-logging", "PATH").help("Filename to assume for stdin"))
+        .arg(flag("test-ide").hide(true))
+        .arg(flag("test").hide(true))
+}
+fn options_from(m: &ArgMatches) -> Options {
+    let string = |name| m.get_one::<String>(name).cloned();
+    let range = |name| {
+        m.get_many::<usize>(name).map(|mut v| {
+            let a = *v.next().unwrap();
+            (a, *v.next().unwrap())
+        })
+    };
+    let raw_range = range("test-raw-range");
+    Options {
+        files: m
+            .get_many::<String>("paths")
+            .into_iter()
+            .flatten()
+            .filter(|path| *path != "-")
+            .cloned()
+            .collect(),
+        root: string("root").map(PathBuf::from),
+        diff_root: string("diff-root").map(PathBuf::from),
+        raw: raw_range.is_some(),
+        range: raw_range.or_else(|| range("range")),
+        line_range: range("line-range"),
+        at: m.get_one("at-char").copied(),
+        ide: m.is_present("test-ide"),
+        inplace: m.is_present("in-place"),
+        check: m.is_present("check-formatting"),
+        diff: m.is_present("diff") || m.is_present("diff-dry-run"),
+        dry: m.is_present("diff-dry-run"),
+        lint: m.is_present("linttool"),
+        severity: string("linttool-severity"),
+        logging_filename: string("filename-for-logging"),
+        indent: m.get_one("indent-width").copied(),
+        width: m.get_one("line-width").copied(),
+        version: m.get_one("version").copied(),
+        tabs: m.is_present("tabs"),
+        generated: m.is_present("format-generated-code"),
+        jobs: m.get_one("jobs").copied(),
+    }
+}
+fn options(args: impl Iterator<Item = String>) -> Result<Options, clap::Error> {
+    let matches =
+        command().try_get_matches_from(std::iter::once("hakana format".to_owned()).chain(args))?;
+    Ok(options_from(&matches))
 }
 fn validate(o: &Options) -> Result<(), FormatError> {
     if o.lint {
@@ -627,14 +683,15 @@ fn run_options(o: Options) -> Result<(), FormatError> {
 #[path = "tests.rs"]
 mod tests;
 pub fn run(args: impl Iterator<Item = String>) -> i32 {
-    let args: Vec<_> = args.collect();
-    if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!(
-            "Usage: hakana format [OPTIONS] [PATH ...]\n\nFormat Hack source; reads stdin when PATH is omitted.\nDirectories are searched recursively in in-place, check, and linttool modes.\nFollows symlinks and selects .hack, .php, .hhi, and .hh files.\n\n  -i, --in-place              Update files in place\n  --check-formatting         Print files that need formatting\n  -j, --jobs N               Maximum workers (default: CPUs, capped at 8; 1 runs sequentially)\n  --range START END          Format a 1-based byte range (end exclusive)\n  --line-range START END     Format an inclusive line range\n  --at-char OFFSET           Format at a 0-based byte offset\n  --indent-width N           Spaces per indentation level (default 2)\n  --line-width N             Maximum line width (default 80)\n  --tabs                     Indent with tabs\n  --version N                Select hackfmt formatting rules\n  --format-generated-code   Format generated sections\n  --root DIRECTORY          Directory containing .hhconfig\n  --diff, --diff-dry-run     Format changed lines from a diff on stdin"
-        );
-        return 0;
-    }
-    match options(args.into_iter()).and_then(run_options) {
+    let o = match options(args) {
+        Ok(o) => o,
+        Err(e) => {
+            let _ = e.print();
+            // hackfmt reports invalid arguments with exit code 3.
+            return if e.use_stderr() { 3 } else { 0 };
+        }
+    };
+    match run_options(o) {
         Ok(()) => 0,
         Err(e) => {
             eprintln!("{}", e.message);

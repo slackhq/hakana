@@ -1143,6 +1143,7 @@ name = "hakana-format"
 version = "0.1.0"
 dependencies = [
  "bumpalo",
+ "clap",
  "hakana-file-discovery",
  "operator",
  "parser_core_types",

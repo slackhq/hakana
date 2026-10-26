@@ -68,9 +68,7 @@ pub async fn init(
         .subcommand(commands::test::get_subcommand())
         .subcommand(commands::find_executable::get_subcommand())
         .subcommand(commands::lint::get_subcommand())
-        .subcommand(
-            Command::new("format").about("Format Hack source using hackfmt-compatible rules"),
-        )
+        .subcommand(hakana_format::cli::command())
         .subcommand(commands::cyclomatic_complexity::get_subcommand())
         .subcommand(commands::server::get_subcommand())
         .get_matches();
