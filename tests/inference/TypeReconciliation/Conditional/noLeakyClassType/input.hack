@@ -3,12 +3,12 @@ final class A {
     public dict<arraykey, mixed> $bar = dict[];
 
     public function setter() : void {
-        if ($this->foo) {
+        if (!C\is_empty($this->foo)) {
             $this->foo = dict[];
         }
     }
 
     public function iffer() : bool {
-        return $this->foo || $this->bar;
+        return !C\is_empty($this->foo) || !C\is_empty($this->bar);
     }
 }

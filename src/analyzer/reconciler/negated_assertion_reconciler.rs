@@ -458,7 +458,7 @@ pub(crate) fn handle_literal_negated_equality(
                     did_remove_type = true;
 
                     if value.is_empty() {
-                        acceptable_types.push(TAtomic::TStringWithFlags(false, true, false));
+                        acceptable_types.push(TAtomic::TStringWithFlags(true, false));
                     } else {
                         acceptable_types.push(existing_atomic_type);
                     }
@@ -472,16 +472,13 @@ pub(crate) fn handle_literal_negated_equality(
                     acceptable_types.push(existing_atomic_type);
                 }
             },
-            TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) => match assertion_type {
+            TAtomic::TStringWithFlags(_, is_nonspecific_literal) => match assertion_type {
                 TAtomic::TLiteralString { value, .. } => {
                     did_remove_type = true;
 
                     if value.is_empty() {
-                        acceptable_types.push(TAtomic::TStringWithFlags(
-                            false,
-                            true,
-                            is_nonspecific_literal,
-                        ));
+                        acceptable_types
+                            .push(TAtomic::TStringWithFlags(true, is_nonspecific_literal));
                     } else {
                         acceptable_types.push(existing_atomic_type);
                     }

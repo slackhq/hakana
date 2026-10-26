@@ -550,7 +550,7 @@ fn expand_atomic(
             t
         } else {
             *skip_key = true;
-            new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
+            new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false));
             return;
         };
 
@@ -559,7 +559,7 @@ fn expand_atomic(
 
         if type_definition.is_literal_string && options.expand_hakana_types {
             *skip_key = true;
-            new_return_type_parts.push(TAtomic::TStringWithFlags(false, false, true));
+            new_return_type_parts.push(TAtomic::TStringWithFlags(false, true));
             return;
         }
 
@@ -788,7 +788,7 @@ fn expand_atomic(
                 .collect(),
             _ => {
                 *skip_key = true;
-                new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
+                new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false));
                 return;
             }
         };
@@ -855,7 +855,7 @@ fn expand_atomic(
 
         if !found_any {
             *skip_key = true;
-            new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
+            new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false));
             return;
         }
 

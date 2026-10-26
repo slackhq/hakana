@@ -999,7 +999,7 @@ fn fix_function_return_type(function_name: StrId, functionlike_storage: &mut Fun
         // falsable strings
         StrId::PASSWORD_HASH => {
             let mut false_or_null_or_string = TUnion::new(vec![
-                TAtomic::TStringWithFlags(false, true, false),
+                TAtomic::TStringWithFlags(true, false),
                 TAtomic::TFalse,
                 TAtomic::TNull,
             ]);

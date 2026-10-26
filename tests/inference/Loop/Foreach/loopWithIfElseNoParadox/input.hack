@@ -12,4 +12,4 @@ foreach (vec[1, 2, 3] as $i) {
   } else {} // if else is removed, no failure
 }
 
-if ($a) {}
+if (!C\is_empty($a)) {}

@@ -145,7 +145,7 @@ pub fn infer(
                 value: value.to_string(),
             }
         } else {
-            TAtomic::TStringWithFlags(true, false, true)
+            TAtomic::TStringWithFlags(true, true)
         }),
         aast::Expr_::Tuple(values) => {
             let mut entries = BTreeMap::new();
@@ -170,7 +170,7 @@ pub fn infer(
         }
         aast::Expr_::Binop(boxed) => {
             if let ast_defs::Bop::Dot = boxed.bop {
-                Some(TAtomic::TStringWithFlags(true, false, true))
+                Some(TAtomic::TStringWithFlags(true, true))
             } else {
                 None
             }

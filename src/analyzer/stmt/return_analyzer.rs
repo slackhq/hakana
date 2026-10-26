@@ -231,7 +231,7 @@ pub(crate) fn analyze(
                             t,
                             TAtomic::TMixed
                                 | TAtomic::TMixedFromLoopIsset
-                                | TAtomic::TMixedWithFlags(_, _, _, false)
+                                | TAtomic::TMixedWithFlags(_, false)
                         )
                     });
 

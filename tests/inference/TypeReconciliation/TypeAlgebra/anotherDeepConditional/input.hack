@@ -8,11 +8,11 @@ function foo(dict<string, int> $arr, int $l): bool {
 	$s = false;
 
 	if (
-		($a && $a > $l) ||
-		($b && $b > $l) ||
-		($c && $c > $l) ||
-		($d && $d > $l) ||
-		($e && $e > $l)
+		($a !== null && $a > $l) ||
+		($b !== null && $b > $l) ||
+		($c !== null && $c > $l) ||
+		($d !== null && $d > $l) ||
+		($e !== null && $e > $l)
 	) {
 		$s = true;
 	}

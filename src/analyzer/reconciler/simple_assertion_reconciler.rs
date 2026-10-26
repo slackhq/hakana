@@ -39,7 +39,7 @@ pub(crate) fn reconcile(
     let assertion_type = assertion.get_type();
 
     if let Some(assertion_type) = assertion_type
-        && let TAtomic::TMixedWithFlags(_, _, _, true) = assertion_type
+        && let TAtomic::TMixedWithFlags(_, true) = assertion_type
     {
         return Some(subtract_null(
             assertion,
@@ -197,72 +197,48 @@ fn reconcile_truthy(
 
     let mut acceptable_types = vec![];
 
+    // Conditions must be bool, so a truthy check is a check for `true`.
     for atomic in existing_var_types {
-        // if any atomic in the union is either always falsy, we remove it.
-        // If not always truthy, we mark the check as not redundant.
-        if atomic.is_falsy() {
-            did_remove_type = true;
-        } else if !atomic.is_truthy() || new_var_type.possibly_undefined_from_try {
-            did_remove_type = true;
-
-            match atomic {
-                TAtomic::TGenericParam(TGenericParam { ref as_type, .. }) => {
-                    if !as_type.is_mixed() {
-                        let atomic = atomic.replace_template_extends(reconcile_truthy(
-                            assertion,
-                            as_type,
-                            None,
-                            false,
-                            analysis_data,
-                            statements_analyzer,
-                            None,
-                            calling_functionlike_id,
-                            suppressed_issues,
-                        ));
-
-                        acceptable_types.push(atomic);
-                    } else {
-                        acceptable_types.push(atomic);
-                    }
-                }
-                TAtomic::TTypeVariable { .. } => {
-                    did_remove_type = true;
-                    acceptable_types.push(atomic);
-                }
-                TAtomic::TBool => {
-                    acceptable_types.push(TAtomic::TTrue);
-                }
-                TAtomic::TVec(TVec { .. }) => {
-                    acceptable_types.push(atomic.get_non_empty_vec(None));
-                }
-                TAtomic::TDict(TDict { .. }) => {
-                    acceptable_types.push(atomic.clone().make_non_empty_dict());
-                }
-                TAtomic::TMixed => {
-                    acceptable_types.push(TAtomic::TMixedWithFlags(false, true, false, false));
-                }
-                TAtomic::TMixedWithFlags(is_any, false, false, _) => {
-                    acceptable_types.push(TAtomic::TMixedWithFlags(is_any, true, false, false));
-                }
-                TAtomic::TMixedFromLoopIsset => {
-                    acceptable_types.push(TAtomic::TMixedWithFlags(false, true, false, true));
-                }
-                TAtomic::TString => {
-                    acceptable_types.push(TAtomic::TStringWithFlags(true, false, false));
-                }
-                TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) => {
-                    acceptable_types.push(TAtomic::TStringWithFlags(
-                        true,
-                        false,
-                        is_nonspecific_literal,
-                    ));
-                }
-                _ => {
-                    acceptable_types.push(atomic);
-                }
+        match atomic {
+            TAtomic::TTrue => {
+                acceptable_types.push(atomic);
             }
-        } else {
-            acceptable_types.push(atomic);
+            TAtomic::TFalse | TAtomic::TNull => {
+                did_remove_type = true;
+            }
+            TAtomic::TBool => {
+                did_remove_type = true;
+                acceptable_types.push(TAtomic::TTrue);
+            }
+            TAtomic::TGenericParam(TGenericParam { ref as_type, .. }) if !as_type.is_mixed() => {
+                did_remove_type = true;
+                let atomic = atomic.replace_template_extends(reconcile_truthy(
+                    assertion,
+                    as_type,
+                    None,
+                    false,
+                    analysis_data,
+                    statements_analyzer,
+                    None,
+                    calling_functionlike_id,
+                    suppressed_issues,
+                ));
+
+                acceptable_types.push(atomic);
+            }
+            // A value that is `true` cannot be null
+            TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => {
+                did_remove_type = true;
+                acceptable_types.push(TAtomic::TMixedWithFlags(false, true));
+            }
+            TAtomic::TMixedWithFlags(is_any, _) => {
+                did_remove_type = true;
+                acceptable_types.push(TAtomic::TMixedWithFlags(is_any, true));
+            }
+            _ => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
         }
     }
 
@@ -313,10 +289,10 @@ fn reconcile_isset(
         if let TAtomic::TNull = atomic {
             did_remove_type = true;
         } else if let TAtomic::TMixed = atomic {
-            acceptable_types.push(TAtomic::TMixedWithFlags(false, false, false, true));
+            acceptable_types.push(TAtomic::TMixedWithFlags(false, true));
             did_remove_type = true;
-        } else if let TAtomic::TMixedWithFlags(is_any, false, _, false) = atomic {
-            acceptable_types.push(TAtomic::TMixedWithFlags(is_any, false, false, true));
+        } else if let TAtomic::TMixedWithFlags(is_any, false) = atomic {
+            acceptable_types.push(TAtomic::TMixedWithFlags(is_any, true));
             did_remove_type = true;
         } else {
             acceptable_types.push(atomic);

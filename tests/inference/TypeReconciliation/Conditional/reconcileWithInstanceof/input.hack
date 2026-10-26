@@ -6,5 +6,5 @@ final class B extends A {
 }
 
 function bar(?A $a) : void {
-    if (!$a || ($a is B && $a->b())) {}
+    if ($a === null || ($a is B && $a->b())) {}
 }

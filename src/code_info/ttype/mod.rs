@@ -60,7 +60,7 @@ pub fn get_mixed() -> TUnion {
 
 #[inline]
 pub fn get_mixed_any() -> TUnion {
-    wrap_atomic(TAtomic::TMixedWithFlags(true, false, false, false))
+    wrap_atomic(TAtomic::TMixedWithFlags(true, false))
 }
 
 pub fn get_mixed_maybe_from_loop(from_loop_isset: bool) -> TUnion {
@@ -253,7 +253,7 @@ pub fn deep_generalize_template_bound(union: &TUnion, codebase: &CodebaseInfo) -
 
 fn deep_generalize_atomic(atomic: &TAtomic, codebase: &CodebaseInfo) -> TAtomic {
     match atomic {
-        TAtomic::TLiteralString { .. } => TAtomic::TStringWithFlags(false, false, true),
+        TAtomic::TLiteralString { .. } => TAtomic::TStringWithFlags(false, true),
         TAtomic::TLiteralInt { .. } => TAtomic::TInt,
         TAtomic::TEnumLiteralCase {
             enum_name,
@@ -497,10 +497,10 @@ fn intersect_atomic_with_atomic_simple(
         (TAtomic::TNull, TAtomic::TNull) => {
             return Some(TAtomic::TNull);
         }
-        (TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false, _, false), TAtomic::TNull) => {
+        (TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false), TAtomic::TNull) => {
             return Some(TAtomic::TNull);
         }
-        (TAtomic::TNull, TAtomic::TMixedWithFlags(_, _, _, true)) => return None,
+        (TAtomic::TNull, TAtomic::TMixedWithFlags(_, true)) => return None,
         (
             TAtomic::TObject
             | TAtomic::TClosure(_)

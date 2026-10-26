@@ -7,7 +7,7 @@ function foo(): bool {
 
     $a(true);
 
-    if ($ref->value) {}
+    if ($ref->value === true) {}
 
     return $ref->value;
 }

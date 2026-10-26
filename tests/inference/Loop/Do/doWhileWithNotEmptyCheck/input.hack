@@ -12,6 +12,6 @@ $a = new A();
 do {
     takesA($a);
     $a = $a->a;
-} while ($a);
+} while ($a is nonnull);
 
 if ($a is null) {}

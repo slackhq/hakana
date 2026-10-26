@@ -148,7 +148,7 @@ pub(crate) fn analyze<'expr>(
         .unwrap();
 
         if hint_type.is_nonnull() && ternary_type.is_any() {
-            hint_type = wrap_atomic(TAtomic::TMixedWithFlags(true, false, false, true));
+            hint_type = wrap_atomic(TAtomic::TMixedWithFlags(true, true));
         } else {
             for t in &hint_type.types {
                 if let TAtomic::TReference { name, .. }

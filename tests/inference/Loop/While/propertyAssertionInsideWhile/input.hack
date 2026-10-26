@@ -6,7 +6,7 @@ final class Foo {
     public function one(): bool {
         $has_changes = false;
 
-        while ($this->a) {
+        while (!C\is_empty($this->a)) {
             $has_changes = true;
             $this->alter();
         }
@@ -17,7 +17,7 @@ final class Foo {
     public function two(): bool {
         $has_changes = false;
 
-        while ($this->a || $this->b) {
+        while (!C\is_empty($this->a) || !C\is_empty($this->b)) {
             $has_changes = true;
             $this->alter();
         }
@@ -28,7 +28,7 @@ final class Foo {
     public function three(): bool {
         $has_changes = false;
 
-        while ($this->a || $this->b || $this->c) {
+        while (!C\is_empty($this->a) || !C\is_empty($this->b) || !C\is_empty($this->c)) {
             $has_changes = true;
             $this->alter();
         }
@@ -39,7 +39,7 @@ final class Foo {
     public function four(): bool {
         $has_changes = false;
 
-        while (($this->a && $this->b) || $this->c) {
+        while ((!C\is_empty($this->a) && !C\is_empty($this->b)) || !C\is_empty($this->c)) {
             $has_changes = true;
             $this->alter();
         }

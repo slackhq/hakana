@@ -6,5 +6,5 @@ function parp(dict<string, string> $arr0, dict<string, string> $arr1, dict<strin
         $arr3 += $arr2;
     }
 
-    if ($arr3) {}
+    if ($arr3 is dict<_, _> && !C\is_empty($arr3)) {}
 }

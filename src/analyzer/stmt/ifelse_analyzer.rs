@@ -262,12 +262,12 @@ pub(crate) fn analyze(
 
     context.response = if analysis_data
         .get_expr_type(stmt.0.pos())
-        .is_some_and(|ty| ty.is_always_truthy())
+        .is_some_and(|ty| ty.is_true())
     {
         if_body_context.response
     } else if analysis_data
         .get_expr_type(stmt.0.pos())
-        .is_some_and(|ty| ty.is_always_falsy())
+        .is_some_and(|ty| ty.is_always_false_or_null())
     {
         else_context.response
     } else {

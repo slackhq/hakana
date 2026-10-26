@@ -15,11 +15,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let while_true = match &stmt.0.2 {
-        aast::Expr_::True => true,
-        aast::Expr_::Int(value) => value.parse::<i64>().unwrap() > 0,
-        _ => false,
-    };
+    let while_true = matches!(stmt.0.2, aast::Expr_::True);
 
     let mut while_context = context.clone();
 
@@ -33,7 +29,7 @@ pub(crate) fn analyze(
     let always_enters_loop = if while_true {
         true
     } else if let Some(stmt_cond_type) = analysis_data.get_expr_type(stmt.0.pos()) {
-        stmt_cond_type.is_always_truthy()
+        stmt_cond_type.is_true()
     } else {
         false
     };

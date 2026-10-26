@@ -4,6 +4,6 @@ final class A {
 
 final class B {
     public function barBar(?A $a = null) : void {
-        $b = $a ? $a->fooFoo() : null;
+        $b = $a !== null ? $a->fooFoo() : null;
     }
 }

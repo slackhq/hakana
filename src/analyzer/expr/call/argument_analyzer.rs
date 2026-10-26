@@ -158,9 +158,7 @@ fn get_unpacked_type(
 
                 get_mixed_any()
             }
-            TAtomic::TMixedWithFlags(_, true, _, _)
-            | TAtomic::TMixedWithFlags(_, _, _, true)
-            | TAtomic::TMixed => {
+            TAtomic::TMixedWithFlags(_, true) | TAtomic::TMixed => {
                 for origin in &arg_value_type.parent_nodes {
                     analysis_data.data_flow_graph.add_mixed_data(origin, pos);
                 }
@@ -181,7 +179,7 @@ fn get_unpacked_type(
 
                 get_mixed()
             }
-            TAtomic::TMixedWithFlags(_, _, true, _) | TAtomic::TNothing => get_nothing(),
+            TAtomic::TNothing => get_nothing(),
             _ => {
                 analysis_data.maybe_add_issue(
                     Issue::new(

@@ -1302,8 +1302,8 @@ fn get_redundant_issue(
             statements_analyzer.get_hpos(pos),
             calling_functionlike_id,
         ),
-        Assertion::IsType(TAtomic::TMixedWithFlags(_, _, _, true))
-        | Assertion::IsNotType(TAtomic::TMixedWithFlags(_, _, _, true)) => Issue::new(
+        Assertion::IsType(TAtomic::TMixedWithFlags(_, true))
+        | Assertion::IsNotType(TAtomic::TMixedWithFlags(_, true)) => Issue::new(
             IssueKind::RedundantNonnullTypeComparison,
             format!("{} is always nonnull", key.as_str()),
             statements_analyzer.get_hpos(pos),

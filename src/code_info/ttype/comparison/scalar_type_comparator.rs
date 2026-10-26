@@ -66,39 +66,15 @@ pub fn is_contained_by(
         return true;
     }
 
-    if matches!(
-        container_type_part,
-        TAtomic::TStringWithFlags(false, true, false)
-    ) && matches!(input_type_part, TAtomic::TStringWithFlags(false, true, _))
+    if matches!(container_type_part, TAtomic::TStringWithFlags(true, false))
+        && matches!(input_type_part, TAtomic::TStringWithFlags(true, _))
     {
         return true;
     }
 
-    if matches!(
-        container_type_part,
-        TAtomic::TStringWithFlags(true, false, false)
-    ) && matches!(input_type_part, TAtomic::TStringWithFlags(true, false, _))
+    if matches!(container_type_part, TAtomic::TStringWithFlags(true, true))
+        && matches!(input_type_part, TAtomic::TStringWithFlags(true, true))
     {
-        return true;
-    }
-
-    if matches!(
-        container_type_part,
-        TAtomic::TStringWithFlags(false, true, true)
-    ) && matches!(
-        input_type_part,
-        TAtomic::TStringWithFlags(false, true, true)
-    ) {
-        return true;
-    }
-
-    if matches!(
-        container_type_part,
-        TAtomic::TStringWithFlags(true, false, true)
-    ) && matches!(
-        input_type_part,
-        TAtomic::TStringWithFlags(true, false, true)
-    ) {
         return true;
     }
 
@@ -372,11 +348,8 @@ pub fn is_contained_by(
         return false;
     }
 
-    if let TAtomic::TStringWithFlags(
-        container_is_truthy,
-        container_is_nonempty,
-        container_is_nonspecific_literal,
-    ) = container_type_part
+    if let TAtomic::TStringWithFlags(container_is_nonempty, container_is_nonspecific_literal) =
+        container_type_part
     {
         match input_type_part {
             // During the migration from classname<T> strings to class<T> pointers,
@@ -389,13 +362,8 @@ pub fn is_contained_by(
             | TAtomic::TTypename { .. } => {
                 return true;
             }
-            TAtomic::TStringWithFlags(
-                input_is_truthy,
-                input_is_nonempty,
-                input_is_nonspecific_literal,
-            ) => {
-                if (*input_is_truthy || !container_is_truthy)
-                    && (*input_is_nonempty || !container_is_nonempty)
+            TAtomic::TStringWithFlags(input_is_nonempty, input_is_nonspecific_literal) => {
+                if (*input_is_nonempty || !container_is_nonempty)
                     && (*input_is_nonspecific_literal || *container_is_nonspecific_literal)
                 {
                     return true;
@@ -404,21 +372,13 @@ pub fn is_contained_by(
                 return false;
             }
             TAtomic::TLiteralString { value } => {
-                if value.is_empty() {
-                    return !container_is_truthy && !container_is_nonempty;
-                }
-
-                if value == "0" {
-                    return !container_is_truthy;
-                }
-
-                return true;
+                return !value.is_empty() || !container_is_nonempty;
             }
             _ => {}
         }
     }
 
-    if matches!(input_type_part, TAtomic::TStringWithFlags(false, true, _))
+    if matches!(input_type_part, TAtomic::TStringWithFlags(true, _))
         && matches!(
             container_type_part,
             TAtomic::TLiteralClassname { .. }

@@ -148,7 +148,7 @@ pub(crate) fn get_control_actions(
                 match &stmt.1 {
                     aast::Stmt_::While(boxed) => {
                         if let Some(expr_type) = analysis_data.get_expr_type(&boxed.0.2.1)
-                            && expr_type.is_always_truthy()
+                            && expr_type.is_true()
                         {
                             //infinite while loop that only return don't have an exit path
                             let loop_only_ends = control_actions
@@ -170,7 +170,7 @@ pub(crate) fn get_control_actions(
 
                         if let Some(for_cond) = &boxed.1 {
                             if let Some(expr_type) = analysis_data.get_expr_type(&for_cond.2.1) {
-                                if !expr_type.is_always_truthy() {
+                                if !expr_type.is_true() {
                                     is_infinite_loop = false
                                 }
                             } else {

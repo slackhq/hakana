@@ -309,10 +309,8 @@ pub enum TAtomic {
     TMixed,
     TMixedFromLoopIsset,
     // .0 => TMixedAny
-    // .1 => TTruthyMixed
-    // .2 => TFalsyMixed
-    // .3 => TNonnullMixed
-    TMixedWithFlags(bool, bool, bool, bool),
+    // .1 => TNonnullMixed
+    TMixedWithFlags(bool, bool),
     TNamedObject(TNamedObject),
     TObject,
     TNothing,
@@ -324,10 +322,9 @@ pub enum TAtomic {
     },
     TScalar,
     TString,
-    // .0 => TTruthyString
-    // .1 => TNonEmptyString
-    // .2 => TNonspecificLiteralString
-    TStringWithFlags(bool, bool, bool),
+    // .0 => TNonEmptyString
+    // .1 => TNonspecificLiteralString
+    TStringWithFlags(bool, bool),
     TGenericParam(TGenericParam),
     TGenericClassname {
         param_name: StrId,
@@ -633,24 +630,11 @@ impl TAtomic {
                 str
             }
             TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => "mixed".to_string(),
-            TAtomic::TMixedWithFlags(is_any, is_truthy, is_falsy, is_nonnull) => if *is_any {
-                if *is_truthy {
-                    "truthy-from-any"
-                } else if *is_falsy {
-                    "falsy-from-any"
-                } else if *is_nonnull {
-                    "nonnull-from-any"
-                } else {
-                    "any"
-                }
-            } else if *is_truthy {
-                "truthy-mixed"
-            } else if *is_falsy {
-                "falsy-mixed"
-            } else if *is_nonnull {
-                "nonnull"
-            } else {
-                "mixed"
+            TAtomic::TMixedWithFlags(is_any, is_nonnull) => match (is_any, is_nonnull) {
+                (true, true) => "nonnull-from-any",
+                (true, false) => "any",
+                (false, true) => "nonnull",
+                (false, false) => "mixed",
             }
             .to_string(),
             TAtomic::TNamedObject(TNamedObject {
@@ -738,12 +722,10 @@ impl TAtomic {
             TAtomic::TNum => "num".to_string(),
             TAtomic::TScalar => "scalar".to_string(),
             TAtomic::TString => "string".to_string(),
-            TAtomic::TStringWithFlags(is_truthy, is_non_empty, is_nonspecific_literal) => {
+            TAtomic::TStringWithFlags(is_non_empty, is_nonspecific_literal) => {
                 let mut str = String::new();
 
-                if *is_truthy {
-                    str += "truthy-"
-                } else if *is_non_empty {
+                if *is_non_empty {
                     str += "non-empty-"
                 }
 
@@ -1379,132 +1361,21 @@ impl TAtomic {
         panic!()
     }
 
-    pub fn is_truthy(&self) -> bool {
-        match &self {
-            &TAtomic::TTrue
-            | &TAtomic::TMixedWithFlags(_, true, _, _)
-            | &TAtomic::TStringWithFlags(true, _, _)
-            | &TAtomic::TObject
-            | &TAtomic::TClosure(_)
-            | &TAtomic::TLiteralClassname { .. }
-            | &TAtomic::TLiteralClassPtr { .. }
-            | &TAtomic::TClassPtr { .. }
-            | &TAtomic::TClassname { .. }
-            | &TAtomic::TTypename { .. }
-            | &TAtomic::TAwaitable { .. }
-            | &TAtomic::TObjectIntersection { .. } => true,
-            &TAtomic::TNamedObject(TNamedObject { name, .. }) => !matches!(
-                name,
-                &StrId::CONTAINER
-                    | &StrId::KEYED_CONTAINER
-                    | &StrId::ANY_ARRAY
-                    | &StrId::TRAVERSABLE
-                    | &StrId::KEYED_TRAVERSABLE
-            ),
-            &TAtomic::TLiteralInt { value, .. } => {
-                if *value != 0 {
-                    return true;
-                }
-                false
-            }
-            &TAtomic::TLiteralString { value, .. } => {
-                if !value.is_empty() && value != "0" {
-                    return true;
-                }
-                false
-            }
-            &TAtomic::TDict(TDict {
-                known_items,
-                non_empty,
-                ..
-            }) => {
-                if *non_empty {
-                    return true;
-                }
-
-                if let Some(known_items) = known_items {
-                    for (u, _) in known_items.values() {
-                        if !u {
-                            return true;
-                        }
-                    }
-                }
-
-                false
-            }
-            &TAtomic::TVec(TVec {
-                known_items,
-                non_empty,
-                ..
-            }) => {
-                if *non_empty {
-                    return true;
-                }
-
-                if let Some(known_items) = known_items {
-                    for (possibly_undefined, _) in known_items.values() {
-                        if !possibly_undefined {
-                            return true;
-                        }
-                    }
-                }
-
-                false
-            }
-            _ => false,
-        }
-    }
-
-    pub fn is_falsy(&self) -> bool {
-        match &self {
-            &TAtomic::TFalse | &TAtomic::TNull | &TAtomic::TMixedWithFlags(_, _, true, _) => true,
-            &TAtomic::TLiteralInt { value, .. } => {
-                if *value == 0 {
-                    return true;
-                }
-                false
-            }
-            &TAtomic::TLiteralString { value, .. } => {
-                if value.is_empty() || value == "0" {
-                    return true;
-                }
-                false
-            }
-            &TAtomic::TDict(TDict {
+    /// Whether this is a vec or dict that is known to have no elements.
+    pub fn is_definitely_empty_array(&self) -> bool {
+        match self {
+            TAtomic::TDict(TDict {
                 known_items,
                 non_empty,
                 params,
                 ..
-            }) => {
-                if known_items.is_none() && params.is_none() && !non_empty {
-                    return true;
-                }
-
-                false
-            }
-            &TAtomic::TVec(TVec {
+            }) => known_items.is_none() && params.is_none() && !non_empty,
+            TAtomic::TVec(TVec {
                 known_items,
                 non_empty,
                 type_param,
                 ..
-            }) => {
-                if known_items.is_none() && type_param.is_nothing() && !non_empty {
-                    return true;
-                }
-
-                false
-            }
-            &TAtomic::TKeyset {
-                type_param,
-                non_empty,
-                ..
-            } => {
-                if type_param.is_nothing() && !non_empty {
-                    return true;
-                }
-
-                false
-            }
+            }) => known_items.is_none() && type_param.is_nothing() && !non_empty,
             _ => false,
         }
     }
@@ -1653,14 +1524,12 @@ impl TAtomic {
                     *params.0 = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                 }
                 if let TAtomic::TPlaceholder = params.1.get_single() {
-                    *params.1 =
-                        TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
+                    *params.1 = TUnion::new(vec![TAtomic::TMixedWithFlags(true, false)]);
                 }
             }
             TAtomic::TVec(TVec { type_param, .. }) => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
-                    **type_param =
-                        TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
+                    **type_param = TUnion::new(vec![TAtomic::TMixedWithFlags(true, false)]);
                 }
             }
             TAtomic::TKeyset { type_param, .. } => {
@@ -1686,15 +1555,13 @@ impl TAtomic {
                     if let Some(value_param) = type_params.get_mut(1)
                         && let TAtomic::TPlaceholder = value_param.get_single()
                     {
-                        *value_param =
-                            TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
+                        *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(true, false)]);
                     }
                 } else if name == &StrId::CONTAINER || name == &StrId::TRAVERSABLE {
                     if let Some(value_param) = type_params.get_mut(0)
                         && let TAtomic::TPlaceholder = value_param.get_single()
                     {
-                        *value_param =
-                            TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
+                        *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(true, false)]);
                     }
                 } else {
                     let template_types = codebase
@@ -1715,9 +1582,7 @@ impl TAtomic {
                             *type_param = if let Some(constraint) = constraint {
                                 (**constraint).clone()
                             } else {
-                                TUnion::new(vec![TAtomic::TMixedWithFlags(
-                                    true, false, false, false,
-                                )])
+                                TUnion::new(vec![TAtomic::TMixedWithFlags(true, false)])
                             };
                         }
                     }

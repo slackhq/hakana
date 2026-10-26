@@ -4,6 +4,7 @@ function foo(): void {
         if ($b is int) { }
     }
 }
-function bar(inout ?int $a): void {
+function bar(inout ?int $a): bool {
     $a = 5;
+    return true;
 }

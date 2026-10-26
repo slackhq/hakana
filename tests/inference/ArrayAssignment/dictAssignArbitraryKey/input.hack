@@ -5,5 +5,5 @@ function bar(string $key): void {
         $arr[$key][] = 5;
     }
 
-    if ($arr['a']) {}
+    if (!C\is_empty($arr['a'])) {}
 }

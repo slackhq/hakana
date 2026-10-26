@@ -194,11 +194,11 @@ impl TUnion {
     }
 
     pub fn is_nonnull(&self) -> bool {
-        self.types.len() == 1 && matches!(self.types[0], TAtomic::TMixedWithFlags(_, _, _, true))
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TMixedWithFlags(_, true))
     }
 
     pub fn is_any(&self) -> bool {
-        self.types.len() == 1 && matches!(self.types[0], TAtomic::TMixedWithFlags(true, _, _, _))
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TMixedWithFlags(true, _))
     }
 
     pub fn is_mixed(&self) -> bool {
@@ -232,24 +232,10 @@ impl TUnion {
             return false;
         }
 
-        match &self.types[0] {
-            // eliminate truthy-mixed and nonnull
-            &TAtomic::TMixedWithFlags(_, true, _, _) | &TAtomic::TMixedWithFlags(_, _, _, true) => {
-                false
-            }
-            &TAtomic::TMixed | &TAtomic::TMixedFromLoopIsset | &TAtomic::TMixedWithFlags(..) => {
-                true
-            }
-            _ => false,
-        }
-    }
-
-    pub fn is_falsy_mixed(&self) -> bool {
-        if self.types.len() != 1 {
-            return false;
-        }
-
-        matches!(&self.types[0], &TAtomic::TMixedWithFlags(_, _, true, _))
+        matches!(
+            &self.types[0],
+            &TAtomic::TMixed | &TAtomic::TMixedFromLoopIsset | &TAtomic::TMixedWithFlags(_, false)
+        )
     }
 
     pub fn is_vanilla_mixed(&self) -> bool {
@@ -430,12 +416,12 @@ impl TUnion {
             .any(|atomic| matches!(atomic, TAtomic::TScalar))
     }
 
-    pub fn is_always_truthy(&self) -> bool {
-        self.types.iter().all(|atomic| atomic.is_truthy())
-    }
-
-    pub fn is_always_falsy(&self) -> bool {
-        self.types.iter().all(|atomic| atomic.is_falsy())
+    pub fn is_always_false_or_null(&self) -> bool {
+        !self.types.is_empty()
+            && self
+                .types
+                .iter()
+                .all(|atomic| matches!(atomic, TAtomic::TFalse | TAtomic::TNull))
     }
 
     pub fn is_literal_of(&self, other: &TUnion) -> bool {
@@ -487,7 +473,7 @@ impl TUnion {
                 atomic,
                 TAtomic::TLiteralString { .. }
                     | TAtomic::TLiteralInt { .. }
-                    | TAtomic::TStringWithFlags(_, _, true)
+                    | TAtomic::TStringWithFlags(_, true)
                     | TAtomic::TEnumLiteralCase { .. }
                     | TAtomic::TEnum { .. }
                     | TAtomic::TNull
@@ -766,9 +752,9 @@ impl TUnion {
                 TAtomic::TLiteralString { .. } => {
                     if !generalized_literals
                         .iter()
-                        .any(|t| matches!(t, TAtomic::TStringWithFlags(false, false, true)))
+                        .any(|t| matches!(t, TAtomic::TStringWithFlags(false, true)))
                     {
-                        generalized_literals.push(TAtomic::TStringWithFlags(false, false, true));
+                        generalized_literals.push(TAtomic::TStringWithFlags(false, true));
                     }
                 }
                 TAtomic::TLiteralInt { .. } => {

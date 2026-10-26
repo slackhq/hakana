@@ -7,7 +7,7 @@ final class One {
 
 final class B {
     public function barBar(?One $one = null) : void {
-        if (!$one) {
+        if ($one === null) {
             $one = new One();
         }
         else {

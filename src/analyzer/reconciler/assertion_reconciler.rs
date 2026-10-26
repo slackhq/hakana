@@ -157,7 +157,7 @@ pub fn reconcile(
                 return intersect_simple!(
                     TAtomic::TFalse,
                     TAtomic::TMixed
-                        | TAtomic::TMixedWithFlags(_, false, _, _)
+                        | TAtomic::TMixedWithFlags(_, _)
                         | TAtomic::TScalar
                         | TAtomic::TBool
                         | TAtomic::TMixedFromLoopIsset,
@@ -178,7 +178,7 @@ pub fn reconcile(
                 return intersect_simple!(
                     TAtomic::TTrue,
                     TAtomic::TMixed
-                        | TAtomic::TMixedWithFlags(_, _, false, _)
+                        | TAtomic::TMixedWithFlags(_, _)
                         | TAtomic::TScalar
                         | TAtomic::TBool
                         | TAtomic::TMixedFromLoopIsset,
@@ -546,7 +546,7 @@ pub(crate) fn intersect_atomic_with_atomic(
         (TAtomic::TNull, TAtomic::TNull) => {
             return Some(TAtomic::TNull);
         }
-        (TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false, _, false), TAtomic::TNull) => {
+        (TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false), TAtomic::TNull) => {
             *did_remove_type = true;
             return Some(TAtomic::TNull);
         }
@@ -1040,7 +1040,7 @@ pub(crate) fn intersect_atomic_with_atomic(
         (
             TAtomic::TGenericParam(TGenericParam { as_type, .. })
             | TAtomic::TClassTypeConstant { as_type, .. },
-            TAtomic::TMixedWithFlags(_, _, _, true),
+            TAtomic::TMixedWithFlags(_, true),
         ) => {
             let type_1_atomic = type_1_atomic.replace_template_extends(
                 intersect_union_with_atomic(
@@ -1058,34 +1058,31 @@ pub(crate) fn intersect_atomic_with_atomic(
 
             return Some(type_1_atomic);
         }
-        (TAtomic::TTypeVariable { .. }, TAtomic::TMixedWithFlags(_, _, _, true)) => {
+        (TAtomic::TTypeVariable { .. }, TAtomic::TMixedWithFlags(_, true)) => {
             *did_remove_type = true;
             return Some(type_1_atomic.clone());
         }
-        (TAtomic::TMixed, TAtomic::TMixedWithFlags(_, _, _, true)) => {
+        (TAtomic::TMixed, TAtomic::TMixedWithFlags(_, true)) => {
             *did_remove_type = true;
-            return Some(TAtomic::TMixedWithFlags(false, false, false, true));
+            return Some(TAtomic::TMixedWithFlags(false, true));
         }
-        (
-            TAtomic::TMixedWithFlags(is_any, false, _, false),
-            TAtomic::TMixedWithFlags(_, _, _, true),
-        ) => {
+        (TAtomic::TMixedWithFlags(is_any, false), TAtomic::TMixedWithFlags(_, true)) => {
             *did_remove_type = true;
-            return Some(TAtomic::TMixedWithFlags(*is_any, false, false, true));
+            return Some(TAtomic::TMixedWithFlags(*is_any, true));
         }
-        (TAtomic::TNull, TAtomic::TMixedWithFlags(_, _, _, true)) => return None,
+        (TAtomic::TNull, TAtomic::TMixedWithFlags(_, true)) => return None,
         (
             TAtomic::TNamedObject(TNamedObject {
                 name: StrId::XHP_CHILD,
                 type_params: None,
                 ..
             }),
-            TAtomic::TMixedWithFlags(_, _, _, true),
+            TAtomic::TMixedWithFlags(_, true),
         ) => {
             *did_remove_type = true;
             return Some(type_1_atomic.clone());
         }
-        (_, TAtomic::TMixedWithFlags(_, _, _, true)) => {
+        (_, TAtomic::TMixedWithFlags(_, true)) => {
             return Some(type_1_atomic.clone());
         }
         (

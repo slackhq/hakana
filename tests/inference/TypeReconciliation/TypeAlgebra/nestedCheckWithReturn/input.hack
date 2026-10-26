@@ -3,7 +3,7 @@ function foo(?stdClass $a, ?stdClass $b): void {
         return;
     }
 
-    if ($b) {
+    if ($b !== null) {
         echo "hello";
     }
 }

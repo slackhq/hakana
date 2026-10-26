@@ -7,5 +7,5 @@ function fetchEvent(): ?Event {
 function nextEvent(bool $c): void {
     do {
         $e = fetchEvent();
-    } while ($c && $e);
+    } while ($c && $e !== null);
 }

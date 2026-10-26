@@ -8,7 +8,7 @@ final class Two {
 
 final class B {
     public function barBar(?One $one = null, ?Two $two = null) : void {
-        if ($one !== null && $two) {
+        if ($one !== null && $two !== null) {
             $one->fooFoo();
         }
     }

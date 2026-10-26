@@ -9,12 +9,12 @@ function foo(): void {
         echo $a;
     }
 
-    if (is_dev() && rand(0, 1)) {
+    if (is_dev() && rand(0, 1) !== 0) {
         $a = HH\global_get('_GET')['a'];
         echo $a;
     }
 
-    if (rand(0, 1) && is_dev()) {
+    if (rand(0, 1) !== 0 && is_dev()) {
         $a = HH\global_get('_GET')['a'];
         echo $a;
     }

@@ -5,7 +5,7 @@ final class C extends A {}
 function takesA(A $a): void {}
 
 function foo(?A $a, ?A $b, ?A $c): void {
-    if (!$a || ($b && $c)) {
+    if ($a === null || ($b !== null && $c !== null)) {
         return;
     }
 

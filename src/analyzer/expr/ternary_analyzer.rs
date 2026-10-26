@@ -309,14 +309,11 @@ pub(crate) fn analyze(
     // we do this here so it's accurate, analysis_data might get overwritten for the same position later
     let stmt_else_type = analysis_data.get_rc_expr_type(expr.2.pos()).cloned();
 
-    let response = if stmt_cond_type
-        .as_ref()
-        .is_some_and(|ty| ty.is_always_truthy())
-    {
+    let response = if stmt_cond_type.as_ref().is_some_and(|ty| ty.is_true()) {
         if_context.response
     } else if stmt_cond_type
         .as_ref()
-        .is_some_and(|ty| ty.is_always_falsy())
+        .is_some_and(|ty| ty.is_always_false_or_null())
     {
         temp_else_context.response
     } else if lhs_type.as_ref().is_some_and(|ty| ty.is_nothing()) {
@@ -433,10 +430,10 @@ pub(crate) fn analyze(
         None
     } {
         if if let Some(stmt_cond_type) = stmt_cond_type {
-            if stmt_cond_type.is_always_falsy() {
+            if stmt_cond_type.is_always_false_or_null() {
                 analysis_data.set_rc_expr_type(pos, stmt_else_type.clone());
                 false
-            } else if stmt_cond_type.is_always_truthy() {
+            } else if stmt_cond_type.is_true() {
                 analysis_data.set_expr_type(pos, lhs_type.clone());
                 false
             } else {
