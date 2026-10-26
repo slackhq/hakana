@@ -117,7 +117,11 @@ fn trivia(tr: &[Trivia], is_leading: bool) -> Doc {
                         Comment(line[cut..].into(), line.len() - cut),
                     ]));
                 }
-                let should_break = leading && !t.is_fixme_comment();
+                let should_break = leading
+                    && !matches!(
+                        t.kind,
+                        TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError
+                    );
                 a.comment = Some(cat(vec![
                     if should_break {
                         Newline

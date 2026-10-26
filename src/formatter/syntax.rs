@@ -264,7 +264,10 @@ pub fn parse(text: &str, xhp_modifier: bool) -> (Node, Vec<SyntaxError>) {
         }
         let mut count = 0;
         for tr in &current.leading {
-            if tr.is_fixme_comment() {
+            if matches!(
+                tr.kind,
+                TriviaKind::FixMe | TriviaKind::Ignore | TriviaKind::IgnoreError
+            ) {
                 break;
             }
             count += 1;
