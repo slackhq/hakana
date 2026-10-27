@@ -16,10 +16,10 @@ enum class References: Reference {
   Reference Second = Reference::build(2);
 }
 
-function takesReference(HH\MemberOf<References, Reference> $reference): int {
+function getReferenceId(HH\MemberOf<References, Reference> $reference): int {
   return $reference->getId();
 }
 
 function foo(): int {
-  return takesReference(References::First);
+  return getReferenceId(References::First);
 }
