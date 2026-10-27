@@ -216,7 +216,7 @@ pub fn infer(
         aast::Expr_::Clone(..) => todo!(),
         aast::Expr_::ObjGet(_) => todo!(),
         aast::Expr_::ClassGet(_) => todo!(),
-        aast::Expr_::Call(..) => todo!(),
+        aast::Expr_::Call(..) => None,
         aast::Expr_::String2(..) => todo!(),
         aast::Expr_::PrefixedString(data) => {
             if data.0 == "re" {
