@@ -1,4 +1,4 @@
-use clap::{Command, arg};
+use clap::Args;
 use hakana_code_info::analysis_result::{CheckPointEntry, CheckPointEntryLevel};
 use hakana_file_discovery::{DiscoveryOptions, discover_files};
 use line_break_map::LineBreakMap;
@@ -8,67 +8,55 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("lint")
-        .about("Runs linters on Hack code (HHAST-compatible)")
-        .arg(arg!(--"root" <PATH>).required(false).help(
-            "The root directory that Hakana runs in. Defaults to the current directory",
-        ))
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Path to hhast-lint.json config file — defaults to ./hhast-lint.json"),
-        )
-        .arg(
-            arg!(--"threads" <COUNT>)
-                .required(false)
-                .help("How many threads to use"),
-        )
-        .arg(
-            arg!(--"fix")
-                .required(false)
-                .help("Apply auto-fixes where available"),
-        )
-        .arg(
-            arg!(--"add-fixmes")
-                .required(false)
-                .help("Add HHAST_FIXME comments for linter issues"),
-        )
-        .arg(
-            arg!(--"linter" <NAME>)
-                .required(false)
-                .multiple(true)
-                .help("Run specific linter(s) by HHAST name or kebab-case name. When used with --add-fixmes, only add fixmes for these linter(s)"),
-        )
-        .arg(
-            arg!(--"no-codeowners")
-                .required(false)
-                .help("Skip files that have codeowners (listed in CODEOWNERS file)"),
-        )
-        .arg(
-            arg!(--"debug-timings")
-                .required(false)
-                .help("Show timing information for each linter"),
-        )
-        .arg(
-            arg!(--"debug")
-                .required(false)
-                .help("Add output for debugging"),
-        )
-        .arg(
-            arg!(--"output" <PATH>)
-                .required(false)
-                .help("File to save output to"),
-        )
-        .arg(
-            arg!([PATH] "Optional file or directory to lint (defaults to config roots)")
-                .required(false)
-                .multiple(true),
-        )
+#[derive(Args)]
+pub struct LintArgs {
+    /// The root directory that Hakana runs in. Defaults to the current directory
+    #[arg(long, value_name = "PATH")]
+    pub root: Option<String>,
+
+    /// Path to hhast-lint.json config file — defaults to ./hhast-lint.json
+    #[arg(long, value_name = "PATH")]
+    pub config: Option<String>,
+
+    /// How many threads to use
+    #[arg(long, value_name = "COUNT")]
+    pub threads: Option<usize>,
+
+    /// Apply auto-fixes where available
+    #[arg(long)]
+    pub fix: bool,
+
+    /// Add HHAST_FIXME comments for linter issues
+    #[arg(long)]
+    pub add_fixmes: bool,
+
+    /// Run specific linter(s) by HHAST name or kebab-case name. When used with --add-fixmes, only add fixmes for these linter(s)
+    #[arg(long, value_name = "NAME", num_args = 1..)]
+    pub linter: Option<Vec<String>>,
+
+    /// Skip files that have codeowners (listed in CODEOWNERS file)
+    #[arg(long)]
+    pub no_codeowners: bool,
+
+    /// Show timing information for each linter
+    #[arg(long)]
+    pub debug_timings: bool,
+
+    /// Add output for debugging
+    #[arg(long)]
+    pub debug: bool,
+
+    /// File to save output to
+    #[arg(long, value_name = "PATH")]
+    pub output: Option<String>,
+
+    /// Optional file or directory to lint (defaults to config roots)
+    #[arg(value_name = "PATH")]
+    pub paths: Vec<String>,
 }
 
 pub fn handle(
-    sub_matches: &clap::ArgMatches,
+    args: &LintArgs,
     root_dir: &str,
     had_error: &mut bool,
     custom_linters: Vec<Box<dyn hakana_lint::Linter>>,
@@ -77,20 +65,20 @@ pub fn handle(
     use rustc_hash::FxHashMap;
     use std::sync::Mutex;
 
-    let config_path = sub_matches
-        .value_of("config")
-        .unwrap_or(&format!("{}/hhast-lint.json", root_dir))
-        .to_string();
+    let config_path = args
+        .config
+        .clone()
+        .unwrap_or_else(|| format!("{}/hhast-lint.json", root_dir));
 
-    let apply_fixes = sub_matches.is_present("fix");
-    let add_fixmes = sub_matches.is_present("add-fixmes");
-    let skip_codeowners = sub_matches.is_present("no-codeowners");
-    let debug_timings = sub_matches.is_present("debug-timings");
+    let apply_fixes = args.fix;
+    let add_fixmes = args.add_fixmes;
+    let skip_codeowners = args.no_codeowners;
+    let debug_timings = args.debug_timings;
 
     let specific_linters = Arc::new(
-        sub_matches
-            .values_of("linter")
-            .map(|values| values.map(|s| s.to_string()).collect::<FxHashSet<_>>()),
+        args.linter
+            .as_ref()
+            .map(|values| values.iter().cloned().collect::<FxHashSet<_>>()),
     );
 
     let fixme_linters = Arc::new(if add_fixmes {
@@ -178,8 +166,8 @@ pub fn handle(
 
     let registry = Arc::new(registry);
 
-    let paths_to_lint: Vec<String> = if let Some(paths) = sub_matches.values_of("PATH") {
-        paths.map(|s| s.to_string()).collect()
+    let paths_to_lint: Vec<String> = if !args.paths.is_empty() {
+        args.paths.clone()
     } else if !hhast_config.roots.is_empty() {
         hhast_config
             .roots
@@ -263,11 +251,7 @@ pub fn handle(
         std::time::Duration,
     >::default()));
 
-    let threads = if let Some(val) = sub_matches.value_of("threads").map(|f| f.to_string()) {
-        val.parse::<usize>().unwrap_or(8)
-    } else {
-        8
-    };
+    let threads = args.threads.unwrap_or(8);
 
     let mut group_size = threads;
 
@@ -558,7 +542,7 @@ pub fn handle(
         }
     }
 
-    if let Some(output_path) = sub_matches.value_of("output") {
+    if let Some(output_path) = args.output.as_deref() {
         let entries = checkpoint_entries.lock().unwrap();
         let json = serde_json::to_string_pretty(&*entries).unwrap();
         let mut output_file = fs::File::create(Path::new(output_path)).unwrap();

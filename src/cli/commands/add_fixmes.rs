@@ -1,4 +1,4 @@
-use clap::{Command, arg};
+use clap::Args;
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::issue::IssueKind;
@@ -8,46 +8,25 @@ use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
 
+use super::CommonArgs;
 use crate::helpers::update_files;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("add-fixmes")
-        .about("Adds fixmes to suppress Hakana issues")
-        .arg(
-            arg!(--"root" <PATH>)
-                .required(false)
-                .help("The root directory that Hakana runs in. Defaults to the current directory"),
-        )
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Hakana config path — defaults to ./hakana.json"),
-        )
-        .arg(
-            arg!(--"issue" <PATH>)
-                .required(true)
-                .multiple(true)
-                .help("The issue or issues to add fixmes for"),
-        )
-        .arg(
-            arg!(--"filter" <PATH>)
-                .required(false)
-                .help("Filter the files that have added fixmes"),
-        )
-        .arg(
-            arg!(--"threads" <PATH>)
-                .required(false)
-                .help("How many threads to use"),
-        )
-        .arg(
-            arg!(--"debug")
-                .required(false)
-                .help("Add output for debugging"),
-        )
+#[derive(Args)]
+pub struct AddFixmesArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+
+    /// The issue or issues to add fixmes for
+    #[arg(long, value_name = "PATH", required = true, num_args = 1..)]
+    pub issue: Vec<String>,
+
+    /// Filter the files that have added fixmes
+    #[arg(long, value_name = "PATH")]
+    pub filter: Option<String>,
 }
 
 pub fn handle(
-    sub_matches: &clap::ArgMatches,
+    args: &AddFixmesArgs,
     all_custom_issues: FxHashSet<String>,
     root_dir: &String,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
@@ -57,26 +36,19 @@ pub fn handle(
     show_progress: bool,
     header: &str,
 ) {
-    let filter_issue_strings = sub_matches
-        .values_of("issue")
-        .map(|values| values.collect::<FxHashSet<_>>());
-
     let mut issue_kinds_filter = FxHashSet::default();
 
-    if let Some(filter_issue_strings) = filter_issue_strings {
-        for filter_issue_string in filter_issue_strings {
-            if let Ok(issue_kind) =
-                IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
-            {
-                issue_kinds_filter.insert(issue_kind);
-            } else {
-                println!("Invalid issue type {}", filter_issue_string);
-                exit(1);
-            }
+    for filter_issue_string in &args.issue {
+        if let Ok(issue_kind) = IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
+        {
+            issue_kinds_filter.insert(issue_kind);
+        } else {
+            println!("Invalid issue type {}", filter_issue_string);
+            exit(1);
         }
     }
 
-    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+    let filter = args.filter.clone();
 
     let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
 

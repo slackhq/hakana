@@ -1,4 +1,5 @@
-use clap::{Command, arg};
+use super::CommonArgs;
+use clap::Args;
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
@@ -7,39 +8,21 @@ use rustc_hash::FxHashSet;
 use std::path::Path;
 use std::sync::Arc;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("find-paths")
-        .about("Does whole-program analysis querying")
-        .arg(arg!(--"root" <PATH>).required(false).help(
-            "The root directory that Hakana runs in. Defaults to the current directory",
-        ))
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Hakana config path — defaults to ./hakana.json"),
-        )
-        .arg(
-            arg!(--"threads" <PATH>)
-                .required(false)
-                .help("How many threads to use for file analysis and graph traversal (default: 8)"),
-        )
-        .arg(
-            arg!(--"max-depth" <PATH>)
-                .required(false)
-                .help("Length of the longest allowable path — defaults to 20, and overrides config file value"),
-        )
-        .arg(
-            arg!(--"debug")
-                .required(false)
-                .help("Add output for debugging"),
-        )
+#[derive(Args)]
+pub struct FindPathsArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+
+    /// Length of the longest allowable path — defaults to 20, and overrides config file value
+    #[arg(long, value_name = "PATH")]
+    pub max_depth: Option<u8>,
 }
 
 pub fn handle(
     cwd: &String,
     all_custom_issues: FxHashSet<String>,
     config_path: Option<&Path>,
-    sub_matches: &clap::ArgMatches,
+    args: &FindPathsArgs,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     threads: u8,
     show_progress: bool,
@@ -61,12 +44,7 @@ pub fn handle(
     }
     config.allowed_issues = None;
 
-    config.security_config.max_depth =
-        if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
-            val.parse::<u8>().unwrap()
-        } else {
-            config.security_config.max_depth
-        };
+    config.security_config.max_depth = args.max_depth.unwrap_or(config.security_config.max_depth);
 
     config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();
 

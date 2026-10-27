@@ -1,4 +1,4 @@
-use clap::{Command, arg};
+use clap::Args;
 use hakana_analyzer::config;
 use rustc_hash::FxHashSet;
 use std::fs;
@@ -6,29 +6,25 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("find-executable")
-        .about("Finds all executable lines of code")
-        .arg(
-            arg!(--"root" <PATH>)
-                .required(false)
-                .help("The root directory that Hakana runs in. Defaults to the current directory"),
-        )
-        .arg(
-            arg!(--"output" <PATH>)
-                .required(true)
-                .help("File to save output to"),
-        )
+#[derive(Args)]
+pub struct FindExecutableArgs {
+    /// The root directory that Hakana runs in. Defaults to the current directory
+    #[arg(long, value_name = "PATH")]
+    pub root: Option<String>,
+
+    /// File to save output to
+    #[arg(long, value_name = "PATH")]
+    pub output: String,
 }
 
 pub fn handle(
-    sub_matches: &clap::ArgMatches,
+    args: &FindExecutableArgs,
     root_dir: &str,
     cwd: &String,
     threads: u8,
     show_progress: bool,
 ) {
-    let output_file = sub_matches.value_of("output").unwrap().to_string();
+    let output_file = args.output.clone();
     let config = config::Config::new(root_dir.to_string(), FxHashSet::default());
 
     match executable_finder::scan_files(
