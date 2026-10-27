@@ -44,8 +44,6 @@ pub(crate) struct TypeCombination {
 
     pub dict_alias_name: Option<Option<(StrId, Option<StrId>)>>,
 
-    pub falsy_mixed: Option<bool>,
-    pub truthy_mixed: Option<bool>,
     pub nonnull_mixed: Option<bool>,
     pub any_mixed: bool,
     pub vanilla_mixed: bool,
@@ -79,8 +77,6 @@ impl TypeCombination {
             awaitable_param: None,
             dict_alias_name: None,
             dict_always_shape: true,
-            falsy_mixed: None,
-            truthy_mixed: None,
             nonnull_mixed: None,
             vanilla_mixed: false,
             has_mixed: false,

@@ -1,5 +1,5 @@
 function foo(dict<arraykey, string> $arr) : void {
-    if (!$arr) {
+    if (C\is_empty($arr)) {
         return;
     }
 

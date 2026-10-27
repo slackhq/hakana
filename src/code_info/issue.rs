@@ -82,10 +82,6 @@ pub enum IssueKind {
     MixedPropertyTypeCoercion,
     MixedReturnStatement,
     NoJoinInAsyncFunction,
-    NonBoolCondition,
-    NonBoolNumericCondition,
-    NonBoolStringCondition,
-    NonBoolContainerCondition,
     NonExhaustiveSwitchStatement,
     NonExistentClass,
     NonExistentClassConstant,
@@ -169,7 +165,7 @@ pub enum IssueKind {
     VariableDefinedOutsideIf,
 }
 
-static AUTOFIXABLE_ISSUES: [IssueKind; 28] = [
+static AUTOFIXABLE_ISSUES: [IssueKind; 24] = [
     IssueKind::UnusedOptionalParameter,
     IssueKind::UnusedClass,
     IssueKind::UnusedTypeDefinition,
@@ -192,10 +188,6 @@ static AUTOFIXABLE_ISSUES: [IssueKind; 28] = [
     IssueKind::NoJoinInAsyncFunction,
     IssueKind::ImplicitAsioJoin,
     IssueKind::ImpossibleNullTypeComparison,
-    IssueKind::NonBoolCondition,
-    IssueKind::NonBoolNumericCondition,
-    IssueKind::NonBoolStringCondition,
-    IssueKind::NonBoolContainerCondition,
     IssueKind::MissingIndirectServiceCallsAttribute,
     IssueKind::RedundantIssetCheck,
 ];

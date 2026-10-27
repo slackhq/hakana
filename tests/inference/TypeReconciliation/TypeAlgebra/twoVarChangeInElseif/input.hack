@@ -5,13 +5,13 @@ final class A {
 }
 
 function formatRange(?A $from, ?A $to): void {
-    if (!$to && !$from) {
+    if ($to === null && $from === null) {
         $to = new A();
         $from = new A();
-    } else if (!$from) {
+    } else if ($from === null) {
         $from = new A();
         $from->takesA($to);
-    } else if (!$to) {
+    } else if ($to === null) {
         $to = new A();
         $to->takesA($from);
     }

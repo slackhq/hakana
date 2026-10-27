@@ -191,7 +191,7 @@ fn get_classname_type_from_hint(
             }
         }
     } else {
-        TAtomic::TMixedWithFlags(true, false, false, false)
+        TAtomic::TMixedWithFlags(true, false)
     }
 }
 
@@ -230,7 +230,7 @@ fn get_typename_type_from_hint(
             }
         }
     } else {
-        TAtomic::TMixedWithFlags(true, false, false, false)
+        TAtomic::TMixedWithFlags(true, false)
     }
 }
 
@@ -579,14 +579,14 @@ pub fn get_type_from_hint(
                 "arraykey" => TAtomic::TArraykey { from_any: false },
                 "bool" => TAtomic::TBool,
                 "float" => TAtomic::TFloat,
-                "nonnull" => TAtomic::TMixedWithFlags(false, false, false, true),
+                "nonnull" => TAtomic::TMixedWithFlags(false, true),
                 "null" => TAtomic::TNull,
                 "nothing" => TAtomic::TNothing,
                 "noreturn" => TAtomic::TNothing,
                 "void" => TAtomic::TVoid,
                 "num" => TAtomic::TNum,
                 "mixed" => TAtomic::TMixed,
-                "dynamic" => TAtomic::TMixedWithFlags(true, false, false, false),
+                "dynamic" => TAtomic::TMixedWithFlags(true, false),
                 "vec" | "HH\\vec" | "HH\\varray" | "varray" => {
                     if let Some(first) = extra_info.first() {
                         get_vec_type_from_hint(
@@ -703,9 +703,7 @@ pub fn get_type_from_hint(
                 "vec_or_dict" | "varray_or_darray" => {
                     types.push(TAtomic::TVec(TVec {
                         known_items: None,
-                        type_param: Box::new(wrap_atomic(TAtomic::TMixedWithFlags(
-                            true, false, false, false,
-                        ))),
+                        type_param: Box::new(wrap_atomic(TAtomic::TMixedWithFlags(true, false))),
                         non_empty: false,
                         known_count: None,
                         variadic_type: None,
@@ -714,9 +712,7 @@ pub fn get_type_from_hint(
                         known_items: None,
                         params: Some((
                             Box::new(get_arraykey(true)),
-                            Box::new(wrap_atomic(TAtomic::TMixedWithFlags(
-                                true, false, false, false,
-                            ))),
+                            Box::new(wrap_atomic(TAtomic::TMixedWithFlags(true, false))),
                         )),
                         non_empty: false,
                         shape_name: None,
@@ -737,7 +733,7 @@ pub fn get_type_from_hint(
                                 value: Box::new(inner_type),
                             }
                         } else {
-                            TAtomic::TMixedWithFlags(true, false, false, false)
+                            TAtomic::TMixedWithFlags(true, false)
                         }
                     } else {
                         TAtomic::TAwaitable {
@@ -868,7 +864,7 @@ pub fn get_type_from_hint(
                 hint.0.start_offset() as u32,
             );
         }
-        Hint_::Hnonnull => TAtomic::TMixedWithFlags(false, false, false, true),
+        Hint_::Hnonnull => TAtomic::TMixedWithFlags(false, true),
         Hint_::Habstr(_) => panic!(),
         Hint_::HvecOrDict(_, _) => panic!(),
         Hint_::Hprim(_) => panic!(),

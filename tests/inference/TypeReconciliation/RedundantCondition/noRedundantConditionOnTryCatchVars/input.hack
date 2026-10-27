@@ -9,10 +9,10 @@ function trycatch(): void {
             throw new RuntimeException("Failed");
         }
     } catch (Exception $e) {
-        if ($value) {
+        if ($value !== null) {
             var_export($value);
         }
     }
 
-    if ($value) {}
+    if ($value !== null) {}
 }

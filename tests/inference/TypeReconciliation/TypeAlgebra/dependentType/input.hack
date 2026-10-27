@@ -7,7 +7,7 @@ final class A {
 }
 
 function takesA(?A $a) : void {
-    $is_valid_a = $a && $a->isValid();
+    $is_valid_a = $a !== null && $a->isValid();
 
     if ($is_valid_a) {
         $a->foo();

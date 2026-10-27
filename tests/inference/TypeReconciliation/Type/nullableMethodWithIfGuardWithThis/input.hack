@@ -8,7 +8,7 @@ final class B {
     public function barBar(?A $a = null) : void {
         $this->a = $a;
 
-        if ($this->a) {
+        if ($this->a !== null) {
             $this->a->fooFoo();
         }
     }

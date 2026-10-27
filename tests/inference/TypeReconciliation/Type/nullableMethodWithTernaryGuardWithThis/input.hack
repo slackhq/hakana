@@ -7,6 +7,6 @@ final class B {
 
     public function barBar(?A $a = null) : void {
         $this->a = $a;
-        $b = $this->a ? $this->a->fooFoo() : null;
+        $b = $this->a !== null ? $this->a->fooFoo() : null;
     }
 }

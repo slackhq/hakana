@@ -1,6 +1,7 @@
 $a = vec["b", "c", "d"];
-array_pop(inout $a);
-while ($a) {
-    $letter = array_pop(inout $a);
-    if (!$a) {}
+$a = Vec\take($a, 2);
+while (!C\is_empty($a)) {
+    $letter = C\lastx($a);
+    $a = Vec\take($a, C\count($a) - 1);
+    if (C\is_empty($a)) {}
 }

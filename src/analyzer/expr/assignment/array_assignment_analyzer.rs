@@ -610,7 +610,7 @@ fn update_array_assignment_child_type(
                     // variable keeps its existing type after an assignment
                     collection_types.push(original_type.clone());
                 }
-                _ => collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false)),
+                _ => collection_types.push(TAtomic::TMixedWithFlags(true, false)),
             }
         }
     } else {
@@ -660,7 +660,7 @@ fn update_array_assignment_child_type(
                 }),
                 TAtomic::TMixed | TAtomic::TMixedWithFlags(..) => {
                     // todo handle illegal
-                    collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false))
+                    collection_types.push(TAtomic::TMixedWithFlags(true, false))
                 }
                 TAtomic::TTypeVariable { name } => {
                     if let Some(TypeVariableBounds { upper_bounds, .. }) =
@@ -698,7 +698,7 @@ fn update_array_assignment_child_type(
                     // variable keeps its existing type after an assignment
                     collection_types.push(original_type.clone());
                 }
-                _ => collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false)),
+                _ => collection_types.push(TAtomic::TMixedWithFlags(true, false)),
             }
         }
     }

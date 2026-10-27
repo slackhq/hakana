@@ -5,7 +5,6 @@ use crate::{
     scope::{BlockContext, if_scope::IfScope},
     scope_analyzer::ScopeAnalyzer,
     stmt_analyzer::AnalysisError,
-    truthiness,
 };
 use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -321,7 +320,7 @@ pub(crate) fn handle_paradoxical_condition(
         return;
     };
 
-    if expr_type.is_always_falsy() {
+    if expr_type.is_always_false_or_null() {
         analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::ImpossibleTruthinessCheck,
@@ -335,7 +334,7 @@ pub(crate) fn handle_paradoxical_condition(
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
         );
-    } else if expr_type.is_always_truthy() {
+    } else if expr_type.is_true() {
         analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::RedundantTruthinessCheck,
@@ -350,11 +349,4 @@ pub(crate) fn handle_paradoxical_condition(
             statements_analyzer.get_file_path_actual(),
         );
     }
-
-    truthiness::check_implicit_boolean_conversion(
-        statements_analyzer,
-        analysis_data,
-        context,
-        expr,
-    );
 }

@@ -5,7 +5,7 @@ final class T {
 function foo(
     ?T $t
 ): void {
-    if (!$t) {
+    if ($t is null) {
         $t = new T();
     } else if (rand(0, 1) !== 0) {
         //

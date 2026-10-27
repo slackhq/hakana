@@ -3,8 +3,8 @@ $a = rand(0, 1) !== 0 ? new A() : null;
 
 if (rand(0, 1) !== 0) {
     // do nothing
-} else if (!$a) {
+} else if ($a === null) {
     $a = new A();
 }
 
-if ($a) {}
+if ($a !== null) {}

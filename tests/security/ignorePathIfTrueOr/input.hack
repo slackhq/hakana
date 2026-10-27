@@ -4,7 +4,7 @@ function is_dev(): bool {
 }
 
 function foo(): void {
-    if (rand(0, 1) || is_dev()) {
+    if (rand(0, 1) !== 0 || is_dev()) {
         $a = HH\global_get('_GET')['a'];
         echo $a;
     }

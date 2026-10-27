@@ -129,8 +129,8 @@ pub(crate) fn analyze_concat_nodes(
                                 }
                             }
                         }
-                        TAtomic::TStringWithFlags(is_truthy, _, true) => {
-                            if !is_truthy {
+                        TAtomic::TStringWithFlags(is_nonempty, true) => {
+                            if !is_nonempty {
                                 local_nonempty_string = false;
                             }
                         }
@@ -236,11 +236,7 @@ pub(crate) fn analyze_concat_nodes(
                     .collect(),
             )
         } else {
-            wrap_atomic(TAtomic::TStringWithFlags(
-                nonempty_string,
-                nonempty_string,
-                true,
-            ))
+            wrap_atomic(TAtomic::TStringWithFlags(nonempty_string, true))
         }
     } else {
         get_string()
@@ -316,7 +312,7 @@ fn can_be_coerced_to_string(
             true
         }
 
-        TAtomic::TMixedWithFlags(true, _, _, _) => true,
+        TAtomic::TMixedWithFlags(true, _) => true,
 
         // This generally comes from json_encode and is unlikely
         TAtomic::TFalse => true,

@@ -75,13 +75,9 @@ pub fn replace(
         original_atomic_types.retain(|t| !matches!(t, TAtomic::TNull));
 
         input_type.types = vec![match input_type.types[0] {
-            TAtomic::TMixedWithFlags(any_mixed, truthy_mixed, falsy_mixed, _) => {
-                TAtomic::TMixedWithFlags(any_mixed, truthy_mixed, falsy_mixed, true)
-            }
-            TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => {
-                TAtomic::TMixedWithFlags(false, false, false, true)
-            }
-            _ => TAtomic::TMixedWithFlags(true, false, false, true),
+            TAtomic::TMixedWithFlags(any_mixed, _) => TAtomic::TMixedWithFlags(any_mixed, true),
+            TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => TAtomic::TMixedWithFlags(false, true),
+            _ => TAtomic::TMixedWithFlags(true, true),
         }];
     }
 
@@ -1807,11 +1803,11 @@ fn find_matching_atomic_types_for_template(
                 }
 
                 // todo we can probably do better here
-                matching_atomic_types.push(TAtomic::TMixedWithFlags(true, false, false, false));
+                matching_atomic_types.push(TAtomic::TMixedWithFlags(true, false));
             }
             (TAtomic::TTypeVariable { .. }, _) => {
                 // todo we can probably do better here
-                matching_atomic_types.push(TAtomic::TMixedWithFlags(true, false, false, false));
+                matching_atomic_types.push(TAtomic::TMixedWithFlags(true, false));
             }
             _ => {
                 let input_key =

@@ -6,7 +6,7 @@ final class Foo {
     public function five(): bool {
         $has_changes = false;
 
-        while ($this->a || ($this->b && $this->c)) {
+        while (!C\is_empty($this->a) || (!C\is_empty($this->b) && !C\is_empty($this->c))) {
             $has_changes = true;
             $this->alter();
         }

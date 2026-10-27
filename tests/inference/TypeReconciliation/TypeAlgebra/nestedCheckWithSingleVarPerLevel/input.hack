@@ -1,5 +1,5 @@
 function foo(?stdClass $a, ?stdClass $b): void {
-    if ($a) {
-        if ($b) {}
+    if ($a !== null) {
+        if ($b !== null) {}
     }
 }

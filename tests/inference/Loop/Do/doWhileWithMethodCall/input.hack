@@ -8,6 +8,6 @@ $a = new A();
 
 do {
     $a = $a->getParent();
-} while ($a);
+} while ($a is nonnull);
 
 if ($a is null) {}

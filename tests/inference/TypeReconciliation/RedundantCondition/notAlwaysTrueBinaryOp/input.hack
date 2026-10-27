@@ -1,4 +1,4 @@
 function foo ($a) : void {
-    if (!$a) {}
-    $b = $a && rand(0, 1) !== 0;
+    if ($a is null) {}
+    $b = $a is nonnull && rand(0, 1) !== 0;
 }

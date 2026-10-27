@@ -34,15 +34,9 @@ pub fn combine(
         scrape_type_properties(atomic, &mut combination, codebase, overwrite_empty_array);
     }
 
-    if combination.falsy_mixed.unwrap_or(false)
-        || combination.nonnull_mixed.unwrap_or(false)
-        || combination.any_mixed
-        || combination.truthy_mixed.unwrap_or(false)
-    {
+    if combination.nonnull_mixed.unwrap_or(false) || combination.any_mixed {
         return vec![TAtomic::TMixedWithFlags(
             combination.any_mixed,
-            combination.truthy_mixed.unwrap_or(false),
-            combination.falsy_mixed.unwrap_or(false),
             combination.nonnull_mixed.unwrap_or(false),
         )];
     } else if combination.has_mixed {
@@ -231,8 +225,6 @@ fn scrape_type_properties(
 ) {
     match atomic {
         TAtomic::TMixed => {
-            combination.falsy_mixed = Some(false);
-            combination.truthy_mixed = Some(false);
             combination.mixed_from_loop_isset = Some(false);
             combination.nonnull_mixed = Some(false);
             combination.vanilla_mixed = true;
@@ -252,69 +244,11 @@ fn scrape_type_properties(
             combination.value_types.insert("mixed".to_string(), atomic);
             return;
         }
-        TAtomic::TMixedWithFlags(any, truthy_mixed, falsy_mixed, nonnull_mixed) => {
+        TAtomic::TMixedWithFlags(any, nonnull_mixed) => {
             combination.has_mixed = true;
 
             if any {
                 combination.any_mixed = true;
-            }
-
-            if truthy_mixed {
-                if combination.vanilla_mixed {
-                    return;
-                }
-
-                combination.mixed_from_loop_isset = Some(false);
-
-                if combination.falsy_mixed.unwrap_or(false) {
-                    combination.vanilla_mixed = true;
-                    combination.falsy_mixed = Some(false);
-                    return;
-                }
-
-                if combination.truthy_mixed.is_some() {
-                    return;
-                }
-
-                for existing_value_type in combination.value_types.values() {
-                    if !existing_value_type.is_truthy() {
-                        combination.vanilla_mixed = true;
-                        return;
-                    }
-                }
-
-                combination.truthy_mixed = Some(true);
-            } else {
-                combination.truthy_mixed = Some(false);
-            }
-
-            if falsy_mixed {
-                if combination.vanilla_mixed {
-                    return;
-                }
-
-                combination.mixed_from_loop_isset = Some(false);
-
-                if combination.truthy_mixed.unwrap_or(false) {
-                    combination.vanilla_mixed = true;
-                    combination.truthy_mixed = Some(false);
-                    return;
-                }
-
-                if combination.falsy_mixed.is_some() {
-                    return;
-                }
-
-                for existing_value_type in combination.value_types.values() {
-                    if !existing_value_type.is_falsy() {
-                        combination.vanilla_mixed = true;
-                        return;
-                    }
-                }
-
-                combination.falsy_mixed = Some(true);
-            } else {
-                combination.falsy_mixed = Some(false);
             }
 
             if nonnull_mixed {
@@ -325,12 +259,6 @@ fn scrape_type_properties(
                 combination.mixed_from_loop_isset = Some(false);
 
                 if combination.value_types.contains_key("null") {
-                    combination.vanilla_mixed = true;
-                    return;
-                }
-
-                if combination.falsy_mixed.unwrap_or(false) {
-                    combination.falsy_mixed = Some(false);
                     combination.vanilla_mixed = true;
                     return;
                 }
@@ -350,21 +278,7 @@ fn scrape_type_properties(
         _ => (),
     }
 
-    if combination.falsy_mixed.unwrap_or(false) {
-        if !atomic.is_falsy() {
-            combination.falsy_mixed = Some(false);
-            combination.vanilla_mixed = true;
-        }
-
-        return;
-    } else if combination.truthy_mixed.unwrap_or(false) {
-        if !atomic.is_truthy() {
-            combination.truthy_mixed = Some(false);
-            combination.vanilla_mixed = true;
-        }
-
-        return;
-    } else if combination.nonnull_mixed.unwrap_or(false) {
+    if combination.nonnull_mixed.unwrap_or(false) {
         if let TAtomic::TNull = atomic {
             combination.nonnull_mixed = Some(false);
             combination.vanilla_mixed = true;
@@ -1105,29 +1019,22 @@ fn scrape_type_properties(
         return;
     }
 
-    if let TAtomic::TStringWithFlags(mut is_truthy, mut is_nonempty, is_nonspecific_literal) =
-        atomic
-    {
+    if let TAtomic::TStringWithFlags(mut is_nonempty, is_nonspecific_literal) = atomic {
         if let Some(existing_string_type) = combination.value_types.get_mut("string") {
             if let TAtomic::TString = existing_string_type {
                 return;
             }
 
-            if let TAtomic::TStringWithFlags(
-                existing_is_truthy,
-                existing_is_non_empty,
-                existing_is_nonspecific,
-            ) = existing_string_type
+            if let TAtomic::TStringWithFlags(existing_is_non_empty, existing_is_nonspecific) =
+                existing_string_type
             {
-                if *existing_is_truthy == is_truthy
-                    && *existing_is_non_empty == is_nonempty
+                if *existing_is_non_empty == is_nonempty
                     && *existing_is_nonspecific == is_nonspecific_literal
                 {
                     return;
                 }
 
                 *existing_string_type = TAtomic::TStringWithFlags(
-                    *existing_is_truthy && is_truthy,
                     *existing_is_non_empty && is_nonempty,
                     *existing_is_nonspecific && is_nonspecific_literal,
                 );
@@ -1135,24 +1042,16 @@ fn scrape_type_properties(
             return;
         }
 
-        if is_truthy || is_nonempty {
-            for value in &combination.literal_strings {
-                if value.is_empty() {
-                    is_nonempty = false;
-                    is_truthy = false;
-                    break;
-                } else if value == "0" {
-                    is_truthy = false;
-                }
-            }
+        if is_nonempty && combination.literal_strings.iter().any(|v| v.is_empty()) {
+            is_nonempty = false;
         }
 
         combination.value_types.insert(
             "string".to_string(),
-            if !is_truthy && !is_nonempty && !is_nonspecific_literal {
+            if !is_nonempty && !is_nonspecific_literal {
                 TAtomic::TString
             } else {
-                TAtomic::TStringWithFlags(is_truthy, is_nonempty, is_nonspecific_literal)
+                TAtomic::TStringWithFlags(is_nonempty, is_nonspecific_literal)
             },
         );
 
@@ -1165,15 +1064,12 @@ fn scrape_type_properties(
         if let Some(existing_string_type) = combination.value_types.get_mut("string") {
             match existing_string_type {
                 TAtomic::TString => return,
-                TAtomic::TStringWithFlags(is_truthy, is_nonempty, is_nonspecific_literal) => {
+                TAtomic::TStringWithFlags(is_nonempty, is_nonspecific_literal) => {
                     if value.is_empty() {
-                        *is_truthy = false;
                         *is_nonempty = false;
-                    } else if value == "0" {
-                        *is_truthy = false;
                     }
 
-                    if !*is_truthy && !*is_nonempty && !*is_nonspecific_literal {
+                    if !*is_nonempty && !*is_nonspecific_literal {
                         *existing_string_type = TAtomic::TString;
                     }
 
@@ -1186,10 +1082,6 @@ fn scrape_type_properties(
             combination.value_types.insert(
                 "string".to_string(),
                 TAtomic::TStringWithFlags(
-                    combination
-                        .literal_strings
-                        .iter()
-                        .all(|s| !s.is_empty() && s != "0"),
                     combination.literal_strings.iter().all(|s| !s.is_empty()),
                     true,
                 ),

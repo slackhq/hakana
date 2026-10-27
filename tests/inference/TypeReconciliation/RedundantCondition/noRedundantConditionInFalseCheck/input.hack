@@ -1,2 +1,2 @@
 $ch = curl_init();
-if (!$ch) {}
+if ($ch === false) {}

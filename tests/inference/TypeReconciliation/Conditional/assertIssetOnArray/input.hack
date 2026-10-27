@@ -1,5 +1,5 @@
 function foo(bool $c, vec_or_dict $arr) : void {
-    if ($c && $arr && isset($arr["b"]) && $arr["b"]) {
+    if ($c && !C\is_empty($arr) && isset($arr["b"]) && $arr["b"] === true) {
         return;
     }
 

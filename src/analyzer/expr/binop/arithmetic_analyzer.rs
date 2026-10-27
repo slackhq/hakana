@@ -238,7 +238,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                                 let _ = e1_type_atomic.is_mixed_with_any(&mut has_any)
                                     || e2_type_atomic.is_mixed_with_any(&mut has_any);
 
-                                TAtomic::TMixedWithFlags(has_any, false, false, false)
+                                TAtomic::TMixedWithFlags(has_any, false)
                             } else if (matches!(e1_type_atomic, TAtomic::TNum)
                                 && matches!(
                                     e2_type_atomic,
@@ -347,7 +347,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                                 let _ = e1_type_atomic.is_mixed_with_any(&mut has_any)
                                     || e2_type_atomic.is_mixed_with_any(&mut has_any);
 
-                                TAtomic::TMixedWithFlags(has_any, false, false, false)
+                                TAtomic::TMixedWithFlags(has_any, false)
                             } else if (matches!(e1_type_atomic, TAtomic::TNum)
                                 && matches!(
                                     e2_type_atomic,

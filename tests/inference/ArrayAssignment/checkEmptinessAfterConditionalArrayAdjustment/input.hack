@@ -6,6 +6,6 @@ final class A {
             $this->arr["a"] = "hello";
         }
 
-        if (!$this->arr) {}
+        if (C\is_empty($this->arr)) {}
     }
 }

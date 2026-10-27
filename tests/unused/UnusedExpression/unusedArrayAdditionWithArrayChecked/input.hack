@@ -1,7 +1,7 @@
 $a = vec[];
 
-while (rand(0,1)) {
+while (rand(0,1) !== 0) {
     $a[] = 1;
 }
 
-if ($a) {}
+if (!C\is_empty($a)) {}

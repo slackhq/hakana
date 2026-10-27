@@ -4,7 +4,7 @@ async function foo(vec<int> $vec): Awaitable<int> {
         $i ==> bar($i),
     );
 
-    if ($vec) {
+    if (!C\is_empty($vec)) {
         return $vec[0];
     }
 

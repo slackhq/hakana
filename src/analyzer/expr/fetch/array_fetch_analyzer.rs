@@ -411,8 +411,7 @@ pub(crate) fn get_array_access_type_given_offset(
             }
             TAtomic::TMixed
             | TAtomic::TMixedWithFlags(true, ..)
-            | TAtomic::TMixedWithFlags(_, true, ..)
-            | TAtomic::TMixedWithFlags(_, _, _, true)
+            | TAtomic::TMixedWithFlags(_, true)
             | TAtomic::TNothing => {
                 let new_type = handle_array_access_on_mixed(
                     statements_analyzer,

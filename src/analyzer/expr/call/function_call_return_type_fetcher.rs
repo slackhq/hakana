@@ -425,9 +425,9 @@ fn handle_special_functions(
             if let Some(arg) = args.first() {
                 let arg_expr = arg.to_expr_ref();
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
-                    if expr_type.is_always_truthy() {
+                    if expr_type.is_true() {
                         Some(get_float())
-                    } else if expr_type.is_always_falsy() {
+                    } else if expr_type.is_always_false_or_null() {
                         Some(get_string())
                     } else {
                         None
@@ -451,7 +451,7 @@ fn handle_special_functions(
 
                         if let Some(first_arg_params) = first_arg_params {
                             if first_arg_params.1.all_literals() {
-                                Some(wrap_atomic(TAtomic::TStringWithFlags(true, false, true)))
+                                Some(wrap_atomic(TAtomic::TStringWithFlags(true, true)))
                             } else {
                                 None
                             }
@@ -529,7 +529,7 @@ fn handle_special_functions(
             }
 
             Some(wrap_atomic(if all_literals {
-                TAtomic::TStringWithFlags(false, false, true)
+                TAtomic::TStringWithFlags(false, true)
             } else {
                 TAtomic::TString
             }))
@@ -550,7 +550,7 @@ fn handle_special_functions(
             }
 
             Some(get_vec(wrap_atomic(if all_literals {
-                TAtomic::TStringWithFlags(false, false, true)
+                TAtomic::TStringWithFlags(false, true)
             } else {
                 TAtomic::TString
             })))

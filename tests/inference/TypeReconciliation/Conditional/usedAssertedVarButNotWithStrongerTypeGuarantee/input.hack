@@ -1,9 +1,9 @@
 function broken(bool $b, ?User $u) : void {
-    if ($b || (rand(0, 1) !== 0 && (!$u || takesUser($u)))) {
+    if ($b || (rand(0, 1) !== 0 && ($u === null || takesUser($u)))) {
         return;
     }
 
-    if ($u) {}
+    if ($u !== null) {}
 }
 
 final class User {}

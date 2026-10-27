@@ -1,4 +1,4 @@
 function foo($a) : void {
-    $b = $a ? 1 : 0;
-    $c = $a ? 1 : 0;
+    $b = $a is nonnull ? 1 : 0;
+    $c = $a is nonnull ? 1 : 0;
 }
