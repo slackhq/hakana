@@ -34,16 +34,17 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
-use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TVec};
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TNamedObject, TVec};
 use hakana_code_info::t_union::{TUnion, TypeNode, populate_union_type};
 use hakana_code_info::ttype::template::{
     self, TemplateBound, TemplateResult, inferred_type_replacer, standin_type_replacer,
 };
+use hakana_code_info::ttype::type_combiner;
 use hakana_code_info::ttype::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_code_info::ttype::{
     add_optional_union_type, combine_optional_union_types, combine_union_types,
-    deep_generalize_template_bound, get_arrayish_params, get_arraykey, get_mixed_any, get_nothing,
-    wrap_atomic,
+    deep_generalize_template_bound, get_arrayish_params, get_arraykey, get_int, get_mixed_any,
+    get_nothing, wrap_atomic,
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
@@ -66,7 +67,7 @@ pub(crate) fn check_arguments_match(
     template_result: &mut TemplateResult,
     function_call_pos: &Pos,
     function_name_pos: Option<&Pos>,
-) -> Result<(), AnalysisError> {
+) -> Result<BTreeMap<usize, TUnion>, AnalysisError> {
     crate::expr::call_usage::record_call(
         statements_analyzer,
         analysis_data,
@@ -371,6 +372,15 @@ pub(crate) fn check_arguments_match(
         }
     }
 
+    constrain_membership_templates(
+        statements_analyzer,
+        functionlike_id,
+        functionlike_params,
+        args,
+        analysis_data,
+        template_result,
+    );
+
     let mut reordered_args = args.iter().enumerate().collect::<Vec<_>>();
 
     reordered_args.sort_by(|a, b| {
@@ -520,7 +530,7 @@ pub(crate) fn check_arguments_match(
             )?;
         }
 
-        param_types.insert(argument_offset, param_type);
+        param_types.insert(*argument_offset, param_type);
     }
 
     let mut last_param_type = None;
@@ -797,7 +807,7 @@ pub(crate) fn check_arguments_match(
             functionlike_id,
             &method_call_info,
             function_param,
-            param_types.get(&argument_offset).unwrap(),
+            param_types.get(argument_offset).unwrap(),
             *argument_offset,
             arg,
             false,
@@ -902,7 +912,131 @@ pub(crate) fn check_arguments_match(
     //     }
     // }
 
-    Ok(())
+    Ok(param_types)
+}
+
+fn constrain_membership_templates(
+    statements_analyzer: &StatementsAnalyzer,
+    functionlike_id: &FunctionLikeIdentifier,
+    params: &[FunctionLikeParameter],
+    args: &[aast::Argument<(), ()>],
+    analysis_data: &FunctionAnalysisData,
+    template_result: &mut TemplateResult,
+) {
+    let is_key = match functionlike_id {
+        FunctionLikeIdentifier::Function(
+            StrId::LIB_C_CONTAINS_KEY | StrId::LIB_DICT_CONTAINS_KEY,
+        ) => true,
+        FunctionLikeIdentifier::Function(StrId::LIB_C_CONTAINS | StrId::LIB_DICT_CONTAINS) => false,
+        _ => return,
+    };
+
+    let Some(container_arg) = args.first() else {
+        return;
+    };
+    let Some(container_type) = analysis_data.get_expr_type(container_arg.to_expr_ref().pos())
+    else {
+        return;
+    };
+    let Some(container_param) = params
+        .first()
+        .and_then(|param| param.signature_type.as_ref())
+    else {
+        return;
+    };
+    let Some(lookup_param) = params
+        .get(1)
+        .and_then(|param| param.signature_type.as_ref())
+    else {
+        return;
+    };
+    let codebase = statements_analyzer.codebase;
+    let Some((key_type, value_type)) = get_arrayish_params(container_param.get_single(), codebase)
+    else {
+        return;
+    };
+    let member_type = if is_key { key_type } else { value_type };
+
+    // Infer only from the container, including inherited collection interfaces
+    // and generic/alias bounds. Neither the lookup argument nor explicit type
+    // arguments may widen the resulting membership constraint.
+    let mut container_templates =
+        TemplateResult::new(template_result.template_types.clone(), IndexMap::new());
+    standin_type_replacer::replace(
+        container_param,
+        &mut container_templates,
+        codebase,
+        statements_analyzer.interner,
+        statements_analyzer.get_file_path(),
+        &Some(container_type),
+        Some(0),
+        Some(statements_analyzer.get_hpos(container_arg.to_expr_ref().pos())),
+        StandinOpts::default(),
+    );
+
+    let mut bound = inferred_type_replacer::replace(&member_type, &container_templates, codebase);
+    if bound == member_type {
+        return;
+    }
+    if is_key && container_type.is_vec() {
+        // Even an empty vec has an integer key domain.
+        bound = get_int();
+    } else if bound.is_nothing() {
+        // Empty containers provide no member type to constrain the lookup.
+        return;
+    }
+    // A literal collection describes the member's type, not the only value
+    // the caller may look up (e.g. vec[true] still accepts a bool).
+    for atomic in &mut bound.types {
+        *atomic = match atomic {
+            TAtomic::TStringWithFlags(..) => TAtomic::TString,
+            TAtomic::TTrue | TAtomic::TFalse => TAtomic::TBool,
+            TAtomic::TEnumLiteralCase {
+                enum_name,
+                as_type,
+                underlying_type,
+                ..
+            } => TAtomic::TEnum {
+                name: *enum_name,
+                as_type: as_type.clone(),
+                underlying_type: underlying_type.clone(),
+            },
+            TAtomic::TLiteralClassname { name } => TAtomic::TClassname {
+                as_type: Box::new(TAtomic::TNamedObject(TNamedObject {
+                    name: *name,
+                    type_params: None,
+                    is_this: false,
+                    remapped_params: false,
+                })),
+            },
+            TAtomic::TLiteralClassPtr { name } => TAtomic::TClassPtr {
+                as_type: Box::new(TAtomic::TNamedObject(TNamedObject {
+                    name: *name,
+                    type_params: None,
+                    is_this: false,
+                    remapped_params: false,
+                })),
+            },
+            _ => atomic.clone(),
+        };
+    }
+    bound.types = type_combiner::combine(bound.types, codebase, false);
+
+    for template_type in lookup_param.get_template_types() {
+        if let TAtomic::TGenericParam(TGenericParam {
+            param_name,
+            defining_entity,
+            ..
+        }) = template_type
+            && let Some(bounds) = template_result.template_types.get_mut(param_name)
+        {
+            for (entity, upper_bound) in bounds {
+                if entity == defining_entity {
+                    *upper_bound = Arc::new(bound.clone());
+                }
+            }
+        }
+    }
 }
 
 /// Whether an expression can use the type its parent expects of it: a call, which

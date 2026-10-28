@@ -129,6 +129,7 @@ pub enum IssueKind {
     UnevaluatedCode,
     UnexpectedNamedArgument,
     UnnecessaryAsyncAnnotation,
+    UnnecessaryLegacyIsTruthy,
     UnnecessaryServiceCallsAttribute,
     UnnecessaryShapesIdx,
     UnrecognizedExpression,

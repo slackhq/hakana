@@ -1,2 +1,2 @@
-ERROR: InvalidContainsCheck - input.hack:3:9 - Second arg of HH\Lib\C\contains expects type string, saw int(1)
-ERROR: InvalidContainsCheck - input.hack:20:9 - Second arg of HH\Lib\C\contains expects type string, saw int(1)
+ERROR: InvalidArgument - input.hack:3:27 - Argument 2 of HH\Lib\C\contains expects string, different type int(1) provided
+ERROR: InvalidArgument - input.hack:20:27 - Argument 2 of HH\Lib\C\contains expects string, different type int(1) provided

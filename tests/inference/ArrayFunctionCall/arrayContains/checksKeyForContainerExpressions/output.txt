@@ -1,0 +1,7 @@
+ERROR: InvalidArgument - input.hack:2:54 - Argument 2 of HH\Lib\C\contains_key expects int, different type string provided
+ERROR: InvalidArgument - input.hack:6:54 - Argument 2 of HH\Lib\C\contains_key expects int, different type string(a) provided
+ERROR: InvalidArgument - input.hack:14:47 - Argument 2 of HH\Lib\C\contains_key expects int, different type string provided
+ERROR: InvalidArgument - input.hack:18:43 - Argument 2 of HH\Lib\C\contains_key expects int, different type string provided
+ERROR: LessSpecificArgument - input.hack:30:54 - Argument 2 of HH\Lib\C\contains_key expects int, parent type arraykey provided
+ERROR: InvalidArgument - input.hack:46:43 - Argument 2 of HH\Lib\C\contains_key expects int, different type string provided
+ERROR: InvalidArgument - input.hack:50:77 - Argument 2 of HH\Lib\C\contains_key expects int, different type string provided

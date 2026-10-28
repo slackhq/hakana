@@ -1,0 +1,14 @@
+ERROR: InvalidContainsCheck - input.hack:5:33 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:9:33 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:19:33 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:23:44 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:27:34 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:32:35 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:36:33 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:40:33 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:44:33 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:48:33 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:52:33 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:56:53 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:63:37 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values
+ERROR: InvalidContainsCheck - input.hack:69:33 - HH\Lib\C\contains_key checks vec indexes, but argument 2 is not a recognizable index expression; use HH\Lib\C\contains to check values

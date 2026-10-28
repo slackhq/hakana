@@ -3,10 +3,10 @@ use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::member_visibility::MemberVisibility;
 use hakana_code_info::method_identifier::MethodIdentifier;
-use hakana_code_info::t_atomic::DictKey;
+use hakana_code_info::t_atomic::{DictKey, TAtomic, TGenericParam};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::comparison::union_type_comparator;
-use hakana_code_info::ttype::{get_arrayish_params, get_void};
+use hakana_code_info::ttype::{get_int, get_void};
 use hakana_code_info::{EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, VarId};
 use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -162,7 +162,7 @@ pub(crate) fn analyze(
 
     let functionlike_id = FunctionLikeIdentifier::Function(name);
 
-    arguments_analyzer::check_arguments_match(
+    let param_types = arguments_analyzer::check_arguments_match(
         statements_analyzer,
         expr.1,
         expr.2,
@@ -273,6 +273,15 @@ pub(crate) fn analyze(
     }
 
     match name {
+        StrId::LEGACY_IS_TRUTHY if expr.2.len() == 1 => {
+            crate::truthiness::check_legacy_is_truthy(
+                statements_analyzer,
+                analysis_data,
+                context,
+                expr.2[0].to_expr_ref(),
+                pos,
+            );
+        }
         StrId::INVARIANT => {
             if let Some(first_arg) = &expr.2.first() {
                 process_invariant(
@@ -301,6 +310,21 @@ pub(crate) fn analyze(
         | StrId::LIB_C_CONTAINS_KEY
         | StrId::LIB_DICT_CONTAINS
         | StrId::LIB_DICT_CONTAINS_KEY => {
+            if matches!(
+                name,
+                StrId::LIB_C_CONTAINS_KEY | StrId::LIB_DICT_CONTAINS_KEY
+            ) && expr.2.len() >= 2
+            {
+                check_vec_key_lookup(
+                    statements_analyzer,
+                    expr.2[0].to_expr_ref(),
+                    expr.2[1].to_expr_ref(),
+                    name,
+                    analysis_data,
+                    context,
+                );
+            }
+
             let expr_var_id = expression_identifier::get_var_id(
                 expr.2[0].to_expr_ref(),
                 context.function_context.calling_class,
@@ -308,82 +332,53 @@ pub(crate) fn analyze(
                 Some((statements_analyzer.codebase, statements_analyzer.interner)),
             );
 
-            if (name == StrId::LIB_C_CONTAINS || name == StrId::LIB_DICT_CONTAINS)
-                && expr.2.len() == 2
-            {
-                let container_type = analysis_data
-                    .get_expr_type(expr.2[0].to_expr_ref().pos())
-                    .cloned();
-                let second_arg_type = analysis_data
-                    .get_expr_type(expr.2[1].to_expr_ref().pos())
-                    .cloned();
-                check_array_key_or_value_type(
+            if matches!(name, StrId::LIB_C_CONTAINS_KEY | StrId::LIB_DICT_CONTAINS_KEY)
+                && expr.2.len() >= 2
+                && let Some(expr_var_id) = expr_var_id
+                && let Some(second_arg_type) =
+                    analysis_data.get_expr_type(expr.2[1].to_expr_ref().pos())
+                && let Some(param_type) = param_types.get(&1)
+                // Incompatible arguments already have an argument diagnostic.
+                // Only add key assertions when the lookup can succeed.
+                && union_type_comparator::can_expression_types_be_identical(
                     codebase,
-                    statements_analyzer,
-                    analysis_data,
-                    container_type,
+                    statements_analyzer.get_file_path(),
                     second_arg_type,
-                    pos,
-                    false,
-                    name,
-                    &context.function_context.calling_functionlike_id,
-                );
-            } else if expr.2.len() >= 2 {
-                let container_type = analysis_data
-                    .get_expr_type(expr.2[0].to_expr_ref().pos())
-                    .cloned();
-
-                if let Some(expr_var_id) = expr_var_id {
-                    if let aast::Expr_::String(boxed) = &expr.2[1].to_expr_ref().2 {
-                        let dim_var_id = boxed.to_string();
-                        analysis_data.if_true_assertions.insert(
-                            (pos.start_offset() as u32, pos.end_offset() as u32),
-                            FxHashMap::from_iter([(
-                                expr_var_id.clone(),
-                                vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
-                            )]),
-                        );
-                    } else if let aast::Expr_::Int(boxed) = &expr.2[1].to_expr_ref().2 {
-                        analysis_data.if_true_assertions.insert(
-                            (pos.start_offset() as u32, pos.end_offset() as u32),
-                            FxHashMap::from_iter([(
-                                expr_var_id.clone(),
-                                vec![Assertion::HasArrayKey(DictKey::Int(
-                                    boxed.parse::<u64>().unwrap(),
-                                ))],
-                            )]),
-                        );
-                    } else {
-                        if let Some(dim_var_id) = expression_identifier::get_dim_id(
-                            expr.2[1].to_expr_ref(),
-                            Some((statements_analyzer.codebase, statements_analyzer.interner)),
-                            resolved_names,
-                        ) {
-                            analysis_data.if_true_assertions.insert(
-                                (pos.start_offset() as u32, pos.end_offset() as u32),
-                                FxHashMap::from_iter([(
-                                    format!("{}[{}]", expr_var_id, dim_var_id),
-                                    vec![Assertion::ArrayKeyExists],
-                                )]),
-                            );
-                        }
-
-                        let second_arg_type =
-                            analysis_data.get_expr_type(expr.2[1].to_expr_ref().pos());
-                        if let Some(second_arg_type) = second_arg_type {
-                            check_array_key_or_value_type(
-                                codebase,
-                                statements_analyzer,
-                                analysis_data,
-                                container_type,
-                                Some(second_arg_type.clone()),
-                                pos,
-                                true,
-                                name,
-                                &context.function_context.calling_functionlike_id,
-                            );
-                        }
-                    }
+                    param_type,
+                    true,
+                )
+            {
+                if let aast::Expr_::String(boxed) = &expr.2[1].to_expr_ref().2 {
+                    let dim_var_id = boxed.to_string();
+                    analysis_data.if_true_assertions.insert(
+                        (pos.start_offset() as u32, pos.end_offset() as u32),
+                        FxHashMap::from_iter([(
+                            expr_var_id.clone(),
+                            vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
+                        )]),
+                    );
+                } else if let aast::Expr_::Int(boxed) = &expr.2[1].to_expr_ref().2 {
+                    analysis_data.if_true_assertions.insert(
+                        (pos.start_offset() as u32, pos.end_offset() as u32),
+                        FxHashMap::from_iter([(
+                            expr_var_id.clone(),
+                            vec![Assertion::HasArrayKey(DictKey::Int(
+                                boxed.parse::<u64>().unwrap(),
+                            ))],
+                        )]),
+                    );
+                } else if let Some(dim_var_id) = expression_identifier::get_dim_id(
+                    expr.2[1].to_expr_ref(),
+                    Some((statements_analyzer.codebase, statements_analyzer.interner)),
+                    resolved_names,
+                ) {
+                    analysis_data.if_true_assertions.insert(
+                        (pos.start_offset() as u32, pos.end_offset() as u32),
+                        FxHashMap::from_iter([(
+                            format!("{}[{}]", expr_var_id, dim_var_id),
+                            vec![Assertion::ArrayKeyExists],
+                        )]),
+                    );
                 }
             }
 
@@ -602,6 +597,149 @@ pub(crate) fn check_service_calls(
     }
 }
 
+fn check_vec_key_lookup(
+    statements_analyzer: &StatementsAnalyzer,
+    container: &aast::Expr<(), ()>,
+    key: &aast::Expr<(), ()>,
+    function_name: StrId,
+    analysis_data: &mut FunctionAnalysisData,
+    context: &BlockContext,
+) {
+    let Some(container_type) = analysis_data.get_expr_type(container.pos()) else {
+        return;
+    };
+    if !contains_vec_for_key_lookup(container_type, true) || is_index_expression(key) {
+        return;
+    }
+    let Some(key_type) = analysis_data.get_expr_type(key.pos()) else {
+        return;
+    };
+    // Incompatible key types already get an argument diagnostic. This heuristic
+    // catches integer IDs and values that are type-compatible with vec indexes.
+    if !union_type_comparator::can_expression_types_be_identical(
+        statements_analyzer.codebase,
+        statements_analyzer.get_file_path(),
+        key_type,
+        &get_int(),
+        true,
+    ) {
+        return;
+    }
+
+    analysis_data.maybe_add_issue(
+        Issue::new(
+            IssueKind::InvalidContainsCheck,
+            format!(
+                "{} checks vec indexes, but argument 2 is not a recognizable index expression; use HH\\Lib\\C\\contains to check values",
+                statements_analyzer.interner.lookup(&function_name),
+            ),
+            statements_analyzer.get_hpos(key.pos()),
+            &context.function_context.calling_functionlike_id,
+        ),
+        statements_analyzer.get_config(),
+        statements_analyzer.get_file_path_actual(),
+    );
+}
+
+fn contains_vec_for_key_lookup(type_: &TUnion, allow_empty: bool) -> bool {
+    // An empty vec in a union is often a fallback for a keyed collection. It
+    // cannot contribute any keys, so do not warn about that branch.
+    let allow_empty = allow_empty && type_.types.len() == 1;
+    type_.types.iter().any(|atomic| match atomic {
+        TAtomic::TVec(vec) => {
+            allow_empty
+                || !vec.type_param.is_nothing()
+                || vec
+                    .known_items
+                    .as_ref()
+                    .is_some_and(|items| !items.is_empty())
+        }
+        TAtomic::TGenericParam(TGenericParam { as_type, .. })
+        | TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        }
+        | TAtomic::TClassTypeConstant { as_type, .. } => {
+            contains_vec_for_key_lookup(as_type, allow_empty)
+        }
+        _ => false,
+    })
+}
+
+fn is_index_expression(expr: &aast::Expr<(), ()>) -> bool {
+    match &expr.2 {
+        aast::Expr_::Int(_) => true,
+        aast::Expr_::Lvar(var) => is_index_name(&var.1.1),
+        aast::Expr_::Id(id) => is_index_name(id.1.rsplit('\\').next().unwrap_or(&id.1)),
+        aast::Expr_::ObjGet(member) => {
+            matches!(&member.1.2, aast::Expr_::Id(id) if is_index_name(&id.1))
+                // Mutable loop indexes are sometimes stored in Ref<int>.
+                || (member.3 == ast_defs::PropOrMethod::IsProp
+                    && matches!(&member.1.2, aast::Expr_::Id(id) if id.1 == "value")
+                    && is_index_expression(&member.0))
+        }
+        aast::Expr_::ClassConst(constant) => is_index_name(&constant.1.1),
+        aast::Expr_::ArrayGet(access) => access.1.as_ref().is_some_and(
+            |key| matches!(&key.2, aast::Expr_::String(name) if is_index_name(&name.to_string())),
+        ),
+        aast::Expr_::Call(call) => is_index_expression(&call.func),
+        aast::Expr_::Cast(cast) => is_index_expression(&cast.1),
+        aast::Expr_::As(assertion) => is_index_expression(&assertion.expr),
+        aast::Expr_::Upcast(cast) => is_index_expression(&cast.0),
+        aast::Expr_::Binop(binop) => {
+            matches!(
+                binop.bop,
+                ast_defs::Bop::Plus
+                    | ast_defs::Bop::Minus
+                    | ast_defs::Bop::Star
+                    | ast_defs::Bop::Percent
+            ) && is_index_expression(&binop.lhs)
+                && is_index_expression(&binop.rhs)
+        }
+        aast::Expr_::Unop(unop) => {
+            matches!(
+                unop.0,
+                ast_defs::Uop::Uplus
+                    | ast_defs::Uop::Uminus
+                    | ast_defs::Uop::Uincr
+                    | ast_defs::Uop::Udecr
+                    | ast_defs::Uop::Upincr
+                    | ast_defs::Uop::Updecr
+            ) && is_index_expression(&unop.1)
+        }
+        _ => false,
+    }
+}
+
+fn is_index_name(name: &str) -> bool {
+    let name = name
+        .trim_start_matches('$')
+        .trim_end_matches(|c: char| c.is_ascii_digit());
+    if matches!(name, "i" | "j" | "k" | "n") {
+        return true;
+    }
+    [
+        ("idx", "Idx"),
+        ("index", "Index"),
+        ("key", "Key"),
+        ("offset", "Offset"),
+        ("pos", "Pos"),
+        ("position", "Position"),
+        ("pointer", "Pointer"),
+        ("cursor", "Cursor"),
+        ("row", "Row"),
+        ("col", "Col"),
+        ("column", "Column"),
+    ]
+    .iter()
+    .any(|(lower, camel)| {
+        name.rsplit('_')
+            .next()
+            .is_some_and(|part| part.eq_ignore_ascii_case(lower))
+            || name.ends_with(camel)
+    })
+}
+
 fn process_invariant(
     first_arg: &aast::Expr<(), ()>,
     context: &mut BlockContext,
@@ -666,67 +804,6 @@ fn process_invariant(
         .into_iter()
         .map(Rc::new)
         .collect();
-    }
-}
-
-fn check_array_key_or_value_type(
-    codebase: &CodebaseInfo,
-    statements_analyzer: &StatementsAnalyzer,
-    analysis_data: &mut FunctionAnalysisData,
-    container_type: Option<TUnion>,
-    arg_type: Option<TUnion>,
-    pos: &Pos,
-    is_key: bool,
-    function_name: StrId,
-    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-) {
-    let mut has_valid_container_type = false;
-    let mut error_message = None;
-
-    if let Some(container_type) = container_type {
-        for atomic_type in &container_type.types {
-            let arrayish_params = get_arrayish_params(atomic_type, codebase);
-            if let Some(ref arg_type) = arg_type
-                && let Some((params_key, param_value)) = arrayish_params
-            {
-                let param = if is_key { params_key } else { param_value };
-
-                let offset_type_contained_by_expected =
-                    union_type_comparator::can_expression_types_be_identical(
-                        codebase,
-                        statements_analyzer.get_file_path(),
-                        arg_type,
-                        &param.clone(),
-                        true,
-                    );
-
-                if offset_type_contained_by_expected {
-                    has_valid_container_type = true;
-                } else {
-                    error_message = Some(format!(
-                        "Second arg of {} expects type {}, saw {}",
-                        statements_analyzer.interner.lookup(&function_name),
-                        param.get_id(Some(statements_analyzer.interner)),
-                        arg_type.get_id(Some(statements_analyzer.interner))
-                    ));
-                }
-            };
-        }
-
-        if let Some(error_message) = error_message
-            && !has_valid_container_type
-        {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::InvalidContainsCheck,
-                    error_message,
-                    statements_analyzer.get_hpos(pos),
-                    calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-        }
     }
 }
 
