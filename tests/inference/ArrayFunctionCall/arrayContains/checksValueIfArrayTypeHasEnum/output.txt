@@ -1,1 +1,2 @@
-ERROR: InvalidContainsCheck - input.hack:11:9 - Second arg of HH\Lib\C\contains expects type Test, saw string(BAR)
+ERROR: InvalidArgument - input.hack:11:26 - Argument 2 of HH\Lib\C\contains expects Test, different type string(BAR) provided
+ERROR: PossiblyInvalidArgument - input.hack:16:27 - Argument 2 of HH\Lib\C\contains expects Test, possibly different type string provided

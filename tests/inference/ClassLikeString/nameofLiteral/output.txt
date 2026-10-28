@@ -1,1 +1,2 @@
-ERROR: InvalidContainsCheck - input.hack:27:13 - Second arg of HH\Lib\C\contains_key expects type nameof B, saw classname<A>
+ERROR: PossiblyInvalidArgument - input.hack:14:42 - Argument 2 of HH\Lib\C\contains_key expects classname<B>, possibly different type classname<A>|classname<B> provided
+ERROR: InvalidArgument - input.hack:27:49 - Argument 2 of HH\Lib\C\contains_key expects classname<B>, different type classname<A> provided
