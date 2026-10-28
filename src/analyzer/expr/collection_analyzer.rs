@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
 use hakana_code_info::t_atomic::{TNamedObject, TVec};
 use hakana_code_info::ttype::{
@@ -21,6 +21,7 @@ use oxidized::{
     ast_defs::Pos,
 };
 
+use crate::expr::call::arguments_analyzer::can_use_expected_type;
 use crate::expression_analyzer;
 use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
@@ -116,6 +117,33 @@ pub(crate) fn analyze_vals(
 
     let codebase = statements_analyzer.codebase;
     let mut array_creation_info = ArrayCreationInfo::new();
+
+    // When the vec is expected to have a certain value type (e.g. it's passed
+    // to a `vec<Foo<Bar>>` param), each item is expected to have that type
+    if let VcKind::Vec = vc_kind
+        && let Some(expected_type) = analysis_data
+            .expected_arg_types
+            .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
+        && expected_type.is_single()
+        && let TAtomic::TVec(TVec {
+            type_param,
+            known_items: None,
+            ..
+        }) = expected_type.get_single()
+        && !type_param.is_mixed()
+    {
+        let expected_item_type = Rc::new((**type_param).clone());
+
+        for item in items.iter().filter(|item| can_use_expected_type(item)) {
+            analysis_data.expected_arg_types.insert(
+                (
+                    item.pos().start_offset() as u32,
+                    item.pos().end_offset() as u32,
+                ),
+                expected_item_type.clone(),
+            );
+        }
+    }
 
     // Iterate through all of the items in this collection
     for (offset, item) in items.iter().enumerate() {

@@ -1,0 +1,3 @@
+ERROR: InvalidArgument - input.hack:44:48 - Argument 1 of Sql::greatest expects Sql<SomeTableColumns, int>|int|newtype-alias(HH\EnumClass\Label<SomeTableColumns, Column<int>>), different type #nome provided
+ERROR: InvalidArgument - input.hack:45:22 - Argument 1 of SetExpression::set expects newtype-alias(HH\EnumClass\Label<SomeTableColumns, Column<?arraykey>>), different type #nome provided
+ERROR: InvalidArgument - input.hack:48:40 - Argument 1 of SetExpression::set expects newtype-alias(HH\EnumClass\Label<SomeTableColumns, Column<?arraykey>>), different type #nome provided

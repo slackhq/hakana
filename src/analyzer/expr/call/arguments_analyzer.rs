@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use hakana_code_info::assertion::Assertion;
@@ -34,7 +35,7 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
 use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TVec};
-use hakana_code_info::t_union::{TUnion, populate_union_type};
+use hakana_code_info::t_union::{TUnion, TypeNode, populate_union_type};
 use hakana_code_info::ttype::template::{
     self, TemplateBound, TemplateResult, inferred_type_replacer, standin_type_replacer,
 };
@@ -251,6 +252,90 @@ pub(crate) fn check_arguments_match(
         &class_generic_params,
     );
 
+    let calling_static_type = calling_classlike.and_then(|calling_classlike| calling_classlike.1);
+
+    let call_expected_type =
+        if template_result.template_types.is_empty() || functionlike_info.return_type.is_none() {
+            None
+        } else {
+            analysis_data
+                .expected_arg_types
+                .get(&(
+                    function_call_pos.start_offset() as u32,
+                    function_call_pos.end_offset() as u32,
+                ))
+                .cloned()
+        };
+
+    // Most calls have no expected type, so only expand their param types when one does
+    let enum_label_template_result = if let Some(call_expected_type) = call_expected_type {
+        let expanded_param_types = functionlike_params
+            .iter()
+            .map(|param| {
+                get_param_type(
+                    Some(param),
+                    codebase,
+                    class_storage,
+                    calling_classlike_storage,
+                    calling_static_type,
+                    statements_analyzer,
+                    analysis_data,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        solve_enum_label_templates_from_expected_type(
+            statements_analyzer,
+            functionlike_info,
+            &expanded_param_types,
+            template_result,
+            &call_expected_type,
+            context,
+        )
+    } else {
+        None
+    };
+
+    for (argument_offset, arg) in args.iter().enumerate() {
+        let arg_expr = arg.to_expr_ref();
+
+        if !can_use_expected_type(arg_expr) {
+            continue;
+        }
+
+        // Tell the argument what type its parameter expects, so a generic call
+        // in the argument can solve templates its own arguments can't
+        if let Some(param_offset) = get_param_offset_for_arg(
+            statements_analyzer,
+            functionlike_params,
+            arg,
+            argument_offset,
+        ) {
+            let param_type = get_param_type(
+                functionlike_params.get(param_offset),
+                codebase,
+                class_storage,
+                calling_classlike_storage,
+                calling_static_type,
+                statements_analyzer,
+                analysis_data,
+            );
+
+            let expected_type =
+                inferred_type_replacer::replace(&param_type, template_result, codebase);
+
+            if !expected_type.is_mixed() {
+                analysis_data.expected_arg_types.insert(
+                    (
+                        arg_expr.pos().start_offset() as u32,
+                        arg_expr.pos().end_offset() as u32,
+                    ),
+                    Rc::new(expected_type),
+                );
+            }
+        }
+    }
+
     for arg in args {
         let was_inside_call = context.inside_general_use;
 
@@ -330,6 +415,14 @@ pub(crate) fn check_arguments_match(
             statements_analyzer,
             analysis_data,
         );
+
+        // Put the enum class of each `HH\EnumClass\Label<TEnum, ...>` solved from
+        // the expected type into the param, as class templates are, so a bare
+        // label (`#foo`) resolves against that enum class
+        if let Some(enum_label_template_result) = &enum_label_template_result {
+            param_type =
+                inferred_type_replacer::replace(&param_type, enum_label_template_result, codebase);
+        }
 
         let was_inside_call = context.inside_general_use;
 
@@ -810,6 +903,176 @@ pub(crate) fn check_arguments_match(
     // }
 
     Ok(())
+}
+
+/// Whether an expression can use the type its parent expects of it: a call, which
+/// can solve its templates from it, or a `vec[...]`, which passes it to its items.
+pub(crate) fn can_use_expected_type(expr: &aast::Expr<(), ()>) -> bool {
+    match &expr.2 {
+        aast::Expr_::Call(_) => true,
+        aast::Expr_::ValCollection(boxed) => matches!(boxed.0.1, oxidized::ast::VcKind::Vec),
+        _ => false,
+    }
+}
+
+fn get_param_offset_for_arg(
+    statements_analyzer: &StatementsAnalyzer,
+    functionlike_params: &[FunctionLikeParameter],
+    arg: &aast::Argument<(), ()>,
+    argument_offset: usize,
+) -> Option<usize> {
+    if let aast::Argument::Anamed(sid, _) = arg {
+        let arg_name = &sid.1;
+        return functionlike_params.iter().position(|p| {
+            let param_name = statements_analyzer.interner.lookup(&p.name.0);
+            let clean_name = param_name.strip_prefix('$').unwrap_or(param_name);
+            clean_name == arg_name
+        });
+    }
+
+    if argument_offset < functionlike_params.len() {
+        Some(argument_offset)
+    } else if functionlike_params.last().is_some_and(|p| p.is_variadic) {
+        Some(functionlike_params.len() - 1)
+    } else {
+        None
+    }
+}
+
+/// The templates `TEnum` that appear as `HH\EnumClass\Label<TEnum, ...>` in a param type.
+fn get_enum_label_templates(param_type: &TUnion) -> Vec<(StrId, GenericParent)> {
+    param_type
+        .get_all_child_nodes()
+        .into_iter()
+        .filter_map(|node| {
+            if let TypeNode::Atomic(TAtomic::TTypeAlias {
+                name: StrId::ENUM_CLASS_LABEL,
+                type_params: Some(type_params),
+                ..
+            }) = node
+                && let Some(enum_param) = type_params.first()
+                && enum_param.is_single()
+                && let TAtomic::TGenericParam(TGenericParam {
+                    param_name,
+                    defining_entity,
+                    ..
+                }) = enum_param.get_single()
+            {
+                Some((*param_name, *defining_entity))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Solves the enum class templates of a generic call's label params from the type
+/// its caller expects the call to return, as hh_client does.
+///
+/// A bare enum class label (`#foo`) can only resolve once its param's
+/// `HH\EnumClass\Label<TEnum, ...>` names an enum class. When `TEnum` is a
+/// template of the callee that no other argument binds, e.g.
+///
+///   SetExpression::set(#latest_counted_timestamp, $value)
+///
+/// with `set<TK, T>(Label<TK, Column<T>> $column, ...): SetExpression<TK>`, only
+/// the expected return type (here `SetExpression<SomeEnum>`, from the param the
+/// call is passed to) says what `TEnum` is.
+///
+/// Adds each solved template to $template_result as a lower bound, and returns
+/// them on their own so the caller can put them into the param types. Only
+/// solves label templates, and only as concrete classes, so the expected type
+/// never widens what the call's arguments infer.
+fn solve_enum_label_templates_from_expected_type(
+    statements_analyzer: &StatementsAnalyzer,
+    functionlike_info: &FunctionLikeInfo,
+    expanded_param_types: &[TUnion],
+    template_result: &mut TemplateResult,
+    expected_type: &TUnion,
+    context: &BlockContext,
+) -> Option<TemplateResult> {
+    let return_type = functionlike_info.return_type.as_ref()?;
+
+    let mut label_templates = expanded_param_types
+        .iter()
+        .flat_map(get_enum_label_templates)
+        .filter(|(param_name, defining_entity)| {
+            template_result
+                .template_types
+                .get(param_name)
+                .is_some_and(|entities| entities.iter().any(|(e, _)| e == defining_entity))
+                && !template_result
+                    .lower_bounds
+                    .get(param_name)
+                    .is_some_and(|bounds| bounds.contains_key(defining_entity))
+        })
+        .collect::<Vec<_>>();
+
+    label_templates.dedup();
+
+    if label_templates.is_empty() {
+        return None;
+    }
+
+    let codebase = statements_analyzer.codebase;
+
+    let mut expected_template_result =
+        TemplateResult::new(template_result.template_types.clone(), IndexMap::new());
+
+    standin_type_replacer::replace(
+        return_type,
+        &mut expected_template_result,
+        codebase,
+        statements_analyzer.interner,
+        statements_analyzer.get_file_path(),
+        &Some(expected_type),
+        None,
+        None,
+        StandinOpts {
+            calling_class: None,
+            calling_function: context.function_context.calling_functionlike_id,
+            ..Default::default()
+        },
+    );
+
+    let mut solved = TemplateResult::new(IndexMap::new(), IndexMap::new());
+
+    for (param_name, defining_entity) in label_templates {
+        let Some(bounds) = expected_template_result
+            .lower_bounds
+            .get(&param_name)
+            .and_then(|bounds| bounds.get(&defining_entity))
+        else {
+            continue;
+        };
+
+        let bound_type =
+            standin_type_replacer::get_most_specific_type_from_bounds(bounds, codebase);
+
+        if !bound_type.is_single()
+            || !matches!(bound_type.get_single(), TAtomic::TNamedObject(_))
+            || bound_type.has_template_types()
+        {
+            continue;
+        }
+
+        for result in [&mut *template_result, &mut solved] {
+            result
+                .lower_bounds
+                .entry(param_name)
+                .or_insert_with(FxHashMap::default)
+                .insert(
+                    defining_entity,
+                    vec![TemplateBound::new(bound_type.clone(), 0, None, None)],
+                );
+        }
+    }
+
+    if solved.lower_bounds.is_empty() {
+        None
+    } else {
+        Some(solved)
+    }
 }
 
 fn infer_function_pointer_type(
