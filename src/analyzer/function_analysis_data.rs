@@ -24,6 +24,13 @@ pub struct TypeVariableBounds {
 
 pub struct FunctionAnalysisData {
     pub expr_types: FxHashMap<(u32, u32), Rc<TUnion>>,
+    /// The type a parent expression expects of a sub-expression, keyed by the
+    /// sub-expression's position. A call argument gets its parameter's type
+    /// (with the callee's class templates resolved), and a `vec[...]` item gets
+    /// the value type its vec is expected to have. Generic calls use it to solve
+    /// templates that their arguments can't, e.g. the `TEnum` of a bare enum
+    /// class label passed as `HH\EnumClass\Label<TEnum, ...>`.
+    pub expected_arg_types: FxHashMap<(u32, u32), Rc<TUnion>>,
     pub discarded_call_results: FxHashSet<(u32, u32)>,
     pub if_true_assertions: FxHashMap<(u32, u32), FxHashMap<String, Vec<Assertion>>>,
     pub if_false_assertions: FxHashMap<(u32, u32), FxHashMap<String, Vec<Assertion>>>,
@@ -86,6 +93,7 @@ impl FunctionAnalysisData {
     ) -> Self {
         Self {
             expr_types: FxHashMap::default(),
+            expected_arg_types: FxHashMap::default(),
             discarded_call_results: FxHashSet::default(),
             data_flow_graph,
             case_scopes: Vec::new(),
