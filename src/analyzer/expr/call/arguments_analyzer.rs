@@ -252,35 +252,54 @@ pub(crate) fn check_arguments_match(
         &class_generic_params,
     );
 
-    let expanded_param_types = functionlike_params
-        .iter()
-        .map(|param| {
-            get_param_type(
-                Some(param),
-                codebase,
-                class_storage,
-                calling_classlike_storage,
-                calling_classlike.and_then(|calling_classlike| calling_classlike.1),
-                statements_analyzer,
-                analysis_data,
-            )
-        })
-        .collect::<Vec<_>>();
+    let calling_static_type = calling_classlike.and_then(|calling_classlike| calling_classlike.1);
 
-    let enum_label_template_result = solve_enum_label_templates_from_expected_type(
-        statements_analyzer,
-        functionlike_info,
-        &expanded_param_types,
-        template_result,
-        analysis_data,
-        context,
-        function_call_pos,
-    );
+    let call_expected_type =
+        if template_result.template_types.is_empty() || functionlike_info.return_type.is_none() {
+            None
+        } else {
+            analysis_data
+                .expected_arg_types
+                .get(&(
+                    function_call_pos.start_offset() as u32,
+                    function_call_pos.end_offset() as u32,
+                ))
+                .cloned()
+        };
+
+    // Most calls have no expected type, so only expand their param types when one does
+    let enum_label_template_result = if let Some(call_expected_type) = call_expected_type {
+        let expanded_param_types = functionlike_params
+            .iter()
+            .map(|param| {
+                get_param_type(
+                    Some(param),
+                    codebase,
+                    class_storage,
+                    calling_classlike_storage,
+                    calling_static_type,
+                    statements_analyzer,
+                    analysis_data,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        solve_enum_label_templates_from_expected_type(
+            statements_analyzer,
+            functionlike_info,
+            &expanded_param_types,
+            template_result,
+            &call_expected_type,
+            context,
+        )
+    } else {
+        None
+    };
 
     for (argument_offset, arg) in args.iter().enumerate() {
         let arg_expr = arg.to_expr_ref();
 
-        if matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
+        if !can_use_expected_type(arg_expr) {
             continue;
         }
 
@@ -291,10 +310,19 @@ pub(crate) fn check_arguments_match(
             functionlike_params,
             arg,
             argument_offset,
-        ) && let Some(param_type) = expanded_param_types.get(param_offset)
-        {
+        ) {
+            let param_type = get_param_type(
+                functionlike_params.get(param_offset),
+                codebase,
+                class_storage,
+                calling_classlike_storage,
+                calling_static_type,
+                statements_analyzer,
+                analysis_data,
+            );
+
             let expected_type =
-                inferred_type_replacer::replace(param_type, template_result, codebase);
+                inferred_type_replacer::replace(&param_type, template_result, codebase);
 
             if !expected_type.is_mixed() {
                 analysis_data.expected_arg_types.insert(
@@ -877,6 +905,16 @@ pub(crate) fn check_arguments_match(
     Ok(())
 }
 
+/// Whether an expression can use the type its parent expects of it: a call, which
+/// can solve its templates from it, or a `vec[...]`, which passes it to its items.
+pub(crate) fn can_use_expected_type(expr: &aast::Expr<(), ()>) -> bool {
+    match &expr.2 {
+        aast::Expr_::Call(_) => true,
+        aast::Expr_::ValCollection(boxed) => matches!(boxed.0.1, oxidized::ast::VcKind::Vec),
+        _ => false,
+    }
+}
+
 fn get_param_offset_for_arg(
     statements_analyzer: &StatementsAnalyzer,
     functionlike_params: &[FunctionLikeParameter],
@@ -950,23 +988,10 @@ fn solve_enum_label_templates_from_expected_type(
     functionlike_info: &FunctionLikeInfo,
     expanded_param_types: &[TUnion],
     template_result: &mut TemplateResult,
-    analysis_data: &FunctionAnalysisData,
+    expected_type: &TUnion,
     context: &BlockContext,
-    function_call_pos: &Pos,
 ) -> Option<TemplateResult> {
-    if template_result.template_types.is_empty() {
-        return None;
-    }
-
     let return_type = functionlike_info.return_type.as_ref()?;
-
-    let expected_type = analysis_data
-        .expected_arg_types
-        .get(&(
-            function_call_pos.start_offset() as u32,
-            function_call_pos.end_offset() as u32,
-        ))?
-        .clone();
 
     let mut label_templates = expanded_param_types
         .iter()
@@ -1000,7 +1025,7 @@ fn solve_enum_label_templates_from_expected_type(
         codebase,
         statements_analyzer.interner,
         statements_analyzer.get_file_path(),
-        &Some(&expected_type),
+        &Some(expected_type),
         None,
         None,
         StandinOpts {

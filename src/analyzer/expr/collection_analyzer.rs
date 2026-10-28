@@ -21,6 +21,7 @@ use oxidized::{
     ast_defs::Pos,
 };
 
+use crate::expr::call::arguments_analyzer::can_use_expected_type;
 use crate::expression_analyzer;
 use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
@@ -133,7 +134,7 @@ pub(crate) fn analyze_vals(
     {
         let expected_item_type = Rc::new((**type_param).clone());
 
-        for item in items {
+        for item in items.iter().filter(|item| can_use_expected_type(item)) {
             analysis_data.expected_arg_types.insert(
                 (
                     item.pos().start_offset() as u32,
