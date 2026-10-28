@@ -1,39 +1,27 @@
-use clap::{Command, arg};
+use super::CommonArgs;
+use clap::Args;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_protocol::ClientSocket;
 use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("server")
-        .about("Start or manage the hakana server")
-        .arg(
-            arg!(--"root" <PATH>)
-                .required(false)
-                .help("The root directory that Hakana runs in. Defaults to the current directory"),
-        )
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Hakana config path — defaults to ./hakana.json"),
-        )
-        .arg(
-            arg!(--"threads" <PATH>)
-                .required(false)
-                .help("How many threads to use"),
-        )
-        .arg(
-            arg!(--"debug")
-                .required(false)
-                .help("Add output for debugging"),
-        )
-        .arg(arg!(--"stop").required(false).help("Stop a running server"))
-        .arg(arg!(--"status").required(false).help("Show server status"))
+#[derive(Args)]
+pub struct ServerArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+
+    /// Stop a running server
+    #[arg(long)]
+    pub stop: bool,
+
+    /// Show server status
+    #[arg(long)]
+    pub status: bool,
 }
 
 pub async fn handle(
-    sub_matches: &clap::ArgMatches,
+    args: &ServerArgs,
     root_dir: &str,
     threads: u8,
     header: &str,
@@ -45,7 +33,7 @@ pub async fn handle(
 
     let socket_path = SocketPath::for_project(Path::new(root_dir));
 
-    if sub_matches.is_present("status") {
+    if args.status {
         if !socket_path.server_exists() {
             println!("Server not running");
             return;
@@ -75,7 +63,7 @@ pub async fn handle(
         return;
     }
 
-    if sub_matches.is_present("stop") {
+    if args.stop {
         if !socket_path.server_exists() {
             println!("Server not running");
             return;
@@ -93,9 +81,10 @@ pub async fn handle(
         return;
     }
 
-    let config_path = sub_matches
-        .value_of("config")
-        .map(|s| s.to_string())
+    let config_path = args
+        .common
+        .config
+        .clone()
         .unwrap_or_else(|| format!("{}/hakana.json", root_dir));
 
     let plugins: Vec<Arc<dyn CustomHook>> = analysis_hooks.into_iter().map(Arc::from).collect();

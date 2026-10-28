@@ -1,4 +1,4 @@
-use clap::{Command, arg};
+use clap::Args;
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::issue::IssueKind;
@@ -15,122 +15,86 @@ use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
 
+use super::CommonArgs;
 use crate::helpers::write_analysis_output_files;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("analyze")
-        .alias("analyse")
-        .about("Analyzes code in the current directory")
-        .arg(
-            arg!(--"root" <PATH>)
-                .required(false)
-                .help("The root directory that Hakana runs in. Defaults to the current directory"),
-        )
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Hakana config path — defaults to ./hakana.json"),
-        )
-        .arg(
-            arg!(--"filter" <PATH>)
-                .required(false)
-                .help("Filter the files that are analyzed"),
-        )
-        .arg(
-            arg!(--"ignore" <PATH>)
-                .required(false)
-                .multiple(true)
-                .help("Ignore certain files during analysis"),
-        )
-        .arg(
-            arg!(--"threads" <PATH>)
-                .required(false)
-                .help("How many threads to use"),
-        )
-        .arg(
-            arg!(--"find-unused-expressions")
-                .required(false)
-                .hide(true)
-                .help("No-op: unused expressions are always reported"),
-        )
-        .arg(
-            arg!(--"find-unused-definitions")
-                .required(false)
-                .hide(true)
-                .help("No-op: unused definitions are always reported"),
-        )
-        .arg(
-            arg!(--"show-issue" <PATH>)
-                .required(false)
-                .multiple(true)
-                .help("Only output issues of this/these type(s)"),
-        )
-        .arg(arg!(--"all-issues").required(false).help("Show all issues"))
-        .arg(
-            arg!(--"ignore-mixed-issues")
-                .required(false)
-                .help("Ignore mixed/any issues"),
-        )
-        .arg(
-            arg!(--"show-mixed-function-counts")
-                .required(false)
-                .help("Show which functions we lead to mixed types"),
-        )
-        .arg(
-            arg!(--"print-symbol-usages")
-                .required(false)
-                .help("Output a JSON map of symbol definitions and usages"),
-        )
-        .arg(
-            arg!(--"debug")
-                .required(false)
-                .help("Add output for debugging"),
-        )
-        .arg(
-            arg!(--"show-timing")
-                .required(false)
-                .help("If set, timing info will be displayed"),
-        )
-        .arg(
-            arg!(--"no-cache")
-                .required(false)
-                .help("Whether to ignore the cache"),
-        )
-        .arg(
-            arg!(--"diff")
-                .required(false)
-                .help("Whether perform AST-based diffing to speed up execution"),
-        )
-        .arg(
-            arg!(--"show-issue-stats")
-                .required(false)
-                .help("Output a summary of issue counts"),
-        )
-        .arg(
-            arg!(--"output" <PATH>)
-                .required(false)
-                .help("File to save output to"),
-        )
-        .arg(
-            arg!(--"json-format" <FORMAT>)
-                .required(false)
-                .help("Format for JSON output. Options: checkpoint (default), full, hh_client"),
-        )
-        .arg(
-            arg!(--"standalone")
-                .required(false)
-                .help("Run analysis directly without connecting to server (default for CI)"),
-        )
-        .arg(
-            arg!(--"with-server")
-                .required(false)
-                .help("Use server mode: connect to existing server or spawn one if needed"),
-        )
+#[derive(Args)]
+pub struct AnalyzeArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+
+    /// Filter the files that are analyzed
+    #[arg(long, value_name = "PATH")]
+    pub filter: Option<String>,
+
+    /// Ignore certain files during analysis
+    #[arg(long, value_name = "PATH", num_args = 1..)]
+    pub ignore: Option<Vec<String>>,
+
+    /// No-op: unused expressions are always reported
+    #[arg(long, hide = true)]
+    pub find_unused_expressions: bool,
+
+    /// No-op: unused definitions are always reported
+    #[arg(long, hide = true)]
+    pub find_unused_definitions: bool,
+
+    /// Only output issues of this/these type(s)
+    #[arg(long, value_name = "PATH", num_args = 1..)]
+    pub show_issue: Option<Vec<String>>,
+
+    /// Show all issues
+    #[arg(long)]
+    pub all_issues: bool,
+
+    /// Ignore mixed/any issues
+    #[arg(long)]
+    pub ignore_mixed_issues: bool,
+
+    /// Show which functions we lead to mixed types
+    #[arg(long)]
+    pub show_mixed_function_counts: bool,
+
+    /// Output a JSON map of symbol definitions and usages
+    #[arg(long)]
+    pub print_symbol_usages: bool,
+
+    /// If set, timing info will be displayed
+    #[arg(long)]
+    pub show_timing: bool,
+
+    /// Whether to ignore the cache
+    #[arg(long)]
+    pub no_cache: bool,
+
+    /// Whether perform AST-based diffing to speed up execution
+    #[arg(long)]
+    pub diff: bool,
+
+    /// Output a summary of issue counts
+    #[arg(long)]
+    pub show_issue_stats: bool,
+
+    /// File to save output to
+    #[arg(long, value_name = "PATH")]
+    pub output: Option<String>,
+
+    /// Format for JSON output. Options: checkpoint (default), full, hh_client
+    #[arg(long, value_name = "FORMAT")]
+    pub json_format: Option<String>,
+
+    /// Run analysis directly without connecting to server (default for CI)
+    #[arg(long)]
+    pub standalone: bool,
+
+    /// Use server mode: connect to existing server or spawn one if needed
+    #[arg(long)]
+    pub with_server: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
 pub async fn handle(
-    sub_matches: &clap::ArgMatches,
+    args: &AnalyzeArgs,
     all_custom_issues: FxHashSet<String>,
     root_dir: &String,
     mut analysis_hooks: Vec<Box<dyn CustomHook>>,
@@ -146,9 +110,9 @@ pub async fn handle(
     use std::io::{self, Write};
     use std::time::Duration;
 
-    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
-    let standalone = sub_matches.is_present("standalone");
-    let with_server = sub_matches.is_present("with-server");
+    let filter = args.filter.clone();
+    let standalone = args.standalone;
+    let with_server = args.with_server;
 
     let project_root = Path::new(root_dir);
     let socket_path = SocketPath::for_project(project_root);
@@ -271,27 +235,24 @@ pub async fn handle(
         }
     }
 
-    let output_file = sub_matches.value_of("output").map(|f| f.to_string());
-    let output_format = sub_matches.value_of("json-format").map(|f| f.to_string());
+    let output_file = args.output.clone();
+    let output_format = args.json_format.clone();
 
-    let ignored = sub_matches
-        .values_of("ignore")
-        .map(|values| values.map(|f| f.to_string()).collect::<FxHashSet<_>>());
-    let show_mixed_function_counts = sub_matches.is_present("show-mixed-function-counts");
-    let print_symbol_usages = sub_matches.is_present("print-symbol-usages");
-    let ignore_mixed_issues = sub_matches.is_present("ignore-mixed-issues");
-    let show_issue_stats = sub_matches.is_present("show-issue-stats");
-    let do_ast_diff = sub_matches.is_present("diff");
+    let ignored = args
+        .ignore
+        .as_ref()
+        .map(|values| values.iter().cloned().collect::<FxHashSet<_>>());
+    let show_mixed_function_counts = args.show_mixed_function_counts;
+    let print_symbol_usages = args.print_symbol_usages;
+    let ignore_mixed_issues = args.ignore_mixed_issues;
+    let show_issue_stats = args.show_issue_stats;
+    let do_ast_diff = args.diff;
 
     let mut issue_kinds_filter = FxHashSet::default();
 
-    let filter_issue_strings = sub_matches
-        .values_of("show-issue")
-        .map(|values| values.collect::<FxHashSet<_>>());
+    let show_all_issues = args.all_issues;
 
-    let show_all_issues = sub_matches.is_present("all-issues");
-
-    if let Some(filter_issue_strings) = filter_issue_strings {
+    if let Some(filter_issue_strings) = &args.show_issue {
         for filter_issue_string in filter_issue_strings {
             if let Ok(issue_kind) =
                 IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
@@ -338,7 +299,7 @@ pub async fn handle(
         filter,
         ignored,
         Arc::new(config),
-        if sub_matches.is_present("no-cache") {
+        if args.no_cache {
             None
         } else {
             Some(&cache_dir)

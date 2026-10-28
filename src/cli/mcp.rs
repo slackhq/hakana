@@ -2,7 +2,7 @@
 //!
 //! This module provides the CLI parsing and entry point for running the MCP server.
 
-use clap::{Command, arg};
+use clap::Parser;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_mcp_server::run_mcp_server;
 use std::env;
@@ -15,48 +15,39 @@ pub struct McpConfig {
     pub threads: u8,
 }
 
+/// Hakana MCP (Model Context Protocol) server for LLM integration
+#[derive(Parser)]
+#[command(name = "hakana-mcp")]
+struct McpArgs {
+    /// The root directory that Hakana runs in. Defaults to the current directory
+    #[arg(long, value_name = "PATH")]
+    root: Option<String>,
+
+    /// Hakana config path — defaults to ./hakana.json
+    #[arg(long, value_name = "PATH")]
+    config: Option<String>,
+
+    /// How many threads to use
+    #[arg(long, value_name = "NUM", default_value_t = 8)]
+    threads: u8,
+}
+
 /// Parse command line arguments for the MCP server.
 pub fn parse_args() -> McpConfig {
-    let matches = Command::new("hakana-mcp")
-        .about("Hakana MCP (Model Context Protocol) server for LLM integration")
-        .arg(
-            arg!(--"root" <PATH>)
-                .required(false)
-                .help("The root directory that Hakana runs in. Defaults to the current directory"),
-        )
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Hakana config path — defaults to ./hakana.json"),
-        )
-        .arg(
-            arg!(--"threads" <NUM>)
-                .required(false)
-                .help("How many threads to use (default: 8)"),
-        )
-        .get_matches();
+    let args = McpArgs::parse();
 
     let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
-    let root_dir = matches
-        .get_one::<String>("root")
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| cwd.clone());
+    let root_dir = args.root.unwrap_or(cwd);
 
-    let config_path = matches
-        .get_one::<String>("config")
-        .map(|s| s.to_string())
+    let config_path = args
+        .config
         .unwrap_or_else(|| format!("{}/hakana.json", root_dir));
-
-    let threads: u8 = matches
-        .get_one::<String>("threads")
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(8);
 
     McpConfig {
         root_dir,
         config_path,
-        threads,
+        threads: args.threads,
     }
 }
 

@@ -1,4 +1,4 @@
-use clap::{Command, arg};
+use clap::Args;
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_str::Interner;
@@ -8,50 +8,29 @@ use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
 
+use super::CommonArgs;
 use crate::helpers::update_files;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("migrate")
-        .about("Migrates code in the current directory")
-        .arg(
-            arg!(--"root" <PATH>)
-                .required(false)
-                .help("The root directory that Hakana runs in. Defaults to the current directory"),
-        )
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Hakana config path — defaults to ./hakana.json"),
-        )
-        .arg(
-            arg!(--"migration" <PATH>)
-                .required(true)
-                .help("The migration you want to perform"),
-        )
-        .arg(
-            arg!(--"symbols" <PATH>)
-                .required(true)
-                .help("The path to a list of symbols, separated by newlines"),
-        )
-        .arg(
-            arg!(--"filter" <PATH>)
-                .required(false)
-                .help("Filter the files that are analyzed"),
-        )
-        .arg(
-            arg!(--"threads" <PATH>)
-                .required(false)
-                .help("How many threads to use"),
-        )
-        .arg(
-            arg!(--"debug")
-                .required(false)
-                .help("Add output for debugging"),
-        )
+#[derive(Args)]
+pub struct MigrateArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+
+    /// The migration you want to perform
+    #[arg(long, value_name = "PATH")]
+    pub migration: String,
+
+    /// The path to a list of symbols, separated by newlines
+    #[arg(long, value_name = "PATH")]
+    pub symbols: String,
+
+    /// Filter the files that are analyzed
+    #[arg(long, value_name = "PATH")]
+    pub filter: Option<String>,
 }
 
 pub fn handle(
-    sub_matches: &clap::ArgMatches,
+    args: &MigrateArgs,
     root_dir: &String,
     all_custom_issues: FxHashSet<String>,
     migration_hooks: Vec<Box<dyn CustomHook>>,
@@ -61,8 +40,8 @@ pub fn handle(
     show_progress: bool,
     header: &str,
 ) {
-    let migration_name = sub_matches.value_of("migration").unwrap().to_string();
-    let migration_source = sub_matches.value_of("symbols").unwrap().to_string();
+    let migration_name = args.migration.clone();
+    let migration_source = args.symbols.clone();
 
     let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
     config.hooks = migration_hooks
@@ -116,7 +95,7 @@ pub fn handle(
         exit(1);
     }
 
-    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+    let filter = args.filter.clone();
 
     let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),

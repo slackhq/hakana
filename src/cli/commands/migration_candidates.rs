@@ -1,4 +1,5 @@
-use clap::{Command, arg};
+use super::CommonArgs;
+use clap::Args;
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_language_server::server_client::ServerConnection;
@@ -9,53 +10,30 @@ use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("migration-candidates")
-        .about("Generates a list of all migration candidates")
-        .arg(
-            arg!(--"root" <PATH>)
-                .required(false)
-                .help("The root directory that Hakana runs in. Defaults to the current directory"),
-        )
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Hakana config path — defaults to ./hakana.json"),
-        )
-        .arg(
-            arg!(--"migration" <PATH>)
-                .required(true)
-                .help("The migration you want to perform"),
-        )
-        .arg(
-            arg!(--"threads" <PATH>)
-                .required(false)
-                .help("How many threads to use"),
-        )
-        .arg(
-            arg!(--"filter" <PATH>)
-                .required(false)
-                .help("Only return migration candidates matching this glob expression"),
-        )
-        .arg(
-            arg!(--"standalone")
-                .required(false)
-                .help("Run analysis directly without connecting to server (default for CI)"),
-        )
-        .arg(
-            arg!(--"with-server")
-                .required(false)
-                .help("Use server mode: connect to existing server or spawn one if needed"),
-        )
-        .arg(
-            arg!(--"debug")
-                .required(false)
-                .help("Add output for debugging"),
-        )
+#[derive(Args)]
+pub struct MigrationCandidatesArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+
+    /// The migration you want to perform
+    #[arg(long, value_name = "PATH")]
+    pub migration: String,
+
+    /// Only return migration candidates matching this glob expression
+    #[arg(long, value_name = "PATH")]
+    pub filter: Option<String>,
+
+    /// Run analysis directly without connecting to server (default for CI)
+    #[arg(long)]
+    pub standalone: bool,
+
+    /// Use server mode: connect to existing server or spawn one if needed
+    #[arg(long)]
+    pub with_server: bool,
 }
 
 pub async fn handle(
-    sub_matches: &clap::ArgMatches,
+    args: &MigrationCandidatesArgs,
     root_dir: &str,
     all_custom_issues: FxHashSet<String>,
     migration_hooks: Vec<Box<dyn CustomHook>>,
@@ -65,18 +43,19 @@ pub async fn handle(
     show_progress: bool,
     header: &str,
 ) {
-    let migration_name = sub_matches.value_of("migration").unwrap().to_string();
+    let migration_name = args.migration.clone();
 
     // Validate the filter glob up front so an invalid pattern fails identically
     // regardless of whether we run against a server or standalone.
-    let filter = sub_matches
-        .value_of("filter")
+    let filter = args
+        .filter
+        .as_deref()
         .map(|f| glob::Pattern::new(f).unwrap_or_else(|_| panic!("Invalid filter pattern {}", f)));
 
     // Prefer a running server unless --standalone was passed. This mirrors the
     // behavior of the `analyze` command.
-    let standalone = sub_matches.is_present("standalone");
-    let with_server = sub_matches.is_present("with-server");
+    let standalone = args.standalone;
+    let with_server = args.with_server;
     let project_root = Path::new(root_dir);
     let socket_path = SocketPath::for_project(project_root);
     let use_server = if standalone {
@@ -99,13 +78,7 @@ pub async fn handle(
         socket_path.server_exists()
     };
 
-    if use_server
-        && handle_via_server(
-            &socket_path,
-            &migration_name,
-            sub_matches.value_of("filter"),
-        )
-        .await
+    if use_server && handle_via_server(&socket_path, &migration_name, args.filter.as_deref()).await
     {
         return;
     }

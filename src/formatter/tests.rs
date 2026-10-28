@@ -294,3 +294,9 @@ fn file_workers_overlap_but_results_are_consumed_in_order() {
     .unwrap();
     assert_eq!(results, (0..12).map(|i| (i, i * 2)).collect::<Vec<_>>());
 }
+
+#[test]
+fn verify_format_cli() {
+    use clap::CommandFactory;
+    FormatCli::command().debug_assert();
+}

@@ -1,4 +1,5 @@
-use clap::{Command, arg};
+use super::CommonArgs;
+use clap::Args;
 use hakana_analyzer::config;
 use hakana_str::Interner;
 use rustc_hash::FxHashSet;
@@ -8,49 +9,26 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("cyclomatic-complexity")
-        .about("Analyzes cyclomatic complexity of functions in the codebase")
-        .arg(
-            arg!(--"root" <PATH>)
-                .required(false)
-                .help("The root directory that Hakana runs in. Defaults to the current directory"),
-        )
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Hakana config path — defaults to ./hakana.json"),
-        )
-        .arg(
-            arg!(--"filter" <PATH>)
-                .required(false)
-                .multiple(true)
-                .help("Filter the files that are analyzed (glob patterns)"),
-        )
-        .arg(
-            arg!(--"threshold" <NUM>)
-                .required(false)
-                .help("Complexity threshold to report (default: 10)"),
-        )
-        .arg(
-            arg!(--"threads" <PATH>)
-                .required(false)
-                .help("How many threads to use"),
-        )
-        .arg(
-            arg!(--"output" <PATH>)
-                .required(false)
-                .help("File to save JSON output to"),
-        )
-        .arg(
-            arg!(--"debug")
-                .required(false)
-                .help("Add output for debugging"),
-        )
+#[derive(Args)]
+pub struct CyclomaticComplexityArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+
+    /// Filter the files that are analyzed (glob patterns)
+    #[arg(long, value_name = "PATH", num_args = 1..)]
+    pub filter: Option<Vec<String>>,
+
+    /// Complexity threshold to report (default: 10)
+    #[arg(long, value_name = "NUM")]
+    pub threshold: Option<u32>,
+
+    /// File to save JSON output to
+    #[arg(long, value_name = "PATH")]
+    pub output: Option<String>,
 }
 
 pub fn handle(
-    sub_matches: &clap::ArgMatches,
+    args: &CyclomaticComplexityArgs,
     all_custom_issues: FxHashSet<String>,
     root_dir: &str,
     config_path: Option<&Path>,
@@ -76,10 +54,12 @@ pub fn handle(
 
     config.analyze_cyclomatic_complexity = true;
 
-    config.cyclomatic_complexity_file_patterns = sub_matches
-        .values_of("filter")
+    config.cyclomatic_complexity_file_patterns = args
+        .filter
+        .as_ref()
         .map(|values| {
             values
+                .iter()
                 .map(|f| {
                     glob::Pattern::new(&format!("{}/{}", cwd, f)).expect("invalid filter pattern")
                 })
@@ -87,13 +67,10 @@ pub fn handle(
         })
         .unwrap_or_default();
 
-    let threshold = sub_matches
-        .value_of("threshold")
-        .map(|t| t.parse::<u32>().unwrap_or(10))
-        .unwrap_or(10);
+    let threshold = args.threshold.unwrap_or(10);
     config.cyclomatic_complexity_threshold = threshold;
 
-    let output_file = sub_matches.value_of("output").map(|f| f.to_string());
+    let output_file = args.output.clone();
 
     let result = hakana_orchestrator::scan_and_analyze(
         Vec::new(),

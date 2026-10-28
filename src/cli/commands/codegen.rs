@@ -1,4 +1,5 @@
-use clap::{Command, arg};
+use super::CommonArgs;
+use clap::Args;
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::{CheckPointEntry, CheckPointEntryLevel};
@@ -10,53 +11,30 @@ use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
 
-pub fn get_subcommand() -> Command<'static> {
-    Command::new("codegen")
-        .about("Generates codegen")
-        .arg(
-            arg!(--"root" <PATH>)
-                .required(false)
-                .help("The root directory that Hakana runs in. Defaults to the current directory"),
-        )
-        .arg(
-            arg!(--"config" <PATH>)
-                .required(false)
-                .help("Hakana config path — defaults to ./hakana.json"),
-        )
-        .arg(
-            arg!(--"name" <PATH>)
-                .required(false)
-                .help("The codegen you want to perform — if omitted, all codegen is generated"),
-        )
-        .arg(
-            arg!(--"check")
-                .required(false)
-                .help("If passed, will just verify that codegen is accurate"),
-        )
-        .arg(
-            arg!(--"overwrite")
-                .required(false)
-                .help("If passed, will overwrite any conflicting files"),
-        )
-        .arg(
-            arg!(--"threads" <PATH>)
-                .required(false)
-                .help("How many threads to use"),
-        )
-        .arg(
-            arg!(--"debug")
-                .required(false)
-                .help("Add output for debugging"),
-        )
-        .arg(
-            arg!(--"output" <PATH>)
-                .required(false)
-                .help("File to save output to"),
-        )
+#[derive(Args)]
+pub struct CodegenArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+
+    /// The codegen you want to perform — if omitted, all codegen is generated
+    #[arg(long, value_name = "PATH")]
+    pub name: Option<String>,
+
+    /// If passed, will just verify that codegen is accurate
+    #[arg(long)]
+    pub check: bool,
+
+    /// If passed, will overwrite any conflicting files
+    #[arg(long)]
+    pub overwrite: bool,
+
+    /// File to save output to
+    #[arg(long, value_name = "PATH")]
+    pub output: Option<String>,
 }
 
 pub fn handle(
-    sub_matches: &clap::ArgMatches,
+    args: &CodegenArgs,
     root_dir: &str,
     all_custom_issues: FxHashSet<String>,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
@@ -67,11 +45,11 @@ pub fn handle(
     show_progress: bool,
     header: &str,
 ) {
-    let codegen_name = sub_matches.value_of("name");
-    let check_codegen = sub_matches.is_present("check");
-    let overwrite_codegen = sub_matches.is_present("overwrite");
+    let codegen_name = args.name.as_deref();
+    let check_codegen = args.check;
+    let overwrite_codegen = args.overwrite;
 
-    let output_file = sub_matches.value_of("output").map(|f| f.to_string());
+    let output_file = args.output.clone();
 
     let mut config = config::Config::new(root_dir.to_string(), all_custom_issues);
     config.hooks = analysis_hooks.into_iter().map(Arc::from).collect();

@@ -17,7 +17,7 @@ relative_path = { path = "../../third-party/hhvm/hphp/hack/src/utils/rust/relati
 bumpalo = "3.20.2"
 regex = "1"
 serde_json = "1"
-clap = "3.2.6"
+clap = { version = "4", features = ["derive"] }
 operator = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/operator" }
 hakana-file-discovery = { path = "../file_discovery" }
 
