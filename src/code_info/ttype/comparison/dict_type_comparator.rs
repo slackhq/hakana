@@ -217,6 +217,8 @@ pub(crate) fn is_contained_by(
                         atomic_comparison_result,
                         nested_comparison_result,
                     );
+                } else {
+                    atomic_comparison_result.extend_constraints(nested_comparison_result);
                 }
 
                 let mut nested_comparison_result = TypeComparisonResult::new();
@@ -237,6 +239,8 @@ pub(crate) fn is_contained_by(
                         atomic_comparison_result,
                         nested_comparison_result,
                     );
+                } else {
+                    atomic_comparison_result.extend_constraints(nested_comparison_result);
                 }
             }
         } else {

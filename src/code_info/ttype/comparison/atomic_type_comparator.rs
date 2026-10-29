@@ -1,6 +1,11 @@
 use crate::code_location::FilePath;
+use crate::data_flow::graph::{DataFlowGraph, GraphKind};
 use crate::t_atomic::{DictKey, TDict, TGenericParam, TNamedObject, TVec};
-use crate::ttype::{get_arrayish_params, get_value_param, wrap_atomic};
+use crate::ttype::{
+    get_arrayish_params, get_value_param,
+    type_expander::{self, TypeExpansionOptions},
+    wrap_atomic,
+};
 use crate::{class_constant_info::ConstantInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic};
 use hakana_str::StrId;
 
@@ -22,6 +27,33 @@ pub fn is_contained_by(
 ) -> bool {
     if input_type_part == container_type_part {
         return true;
+    }
+
+    // A type parameter is identified by its declaration, even if one use
+    // carries a more expanded copy of its (possibly recursive) upper bound.
+    if let (TAtomic::TGenericParam(input), TAtomic::TGenericParam(container)) =
+        (input_type_part, container_type_part)
+        && input.param_name == container.param_name
+        && input.defining_entity == container.defining_entity
+    {
+        return true;
+    }
+
+    // Classname/class-pointer comparisons recurse through atomic wrappers.
+    // Use the same constraint collection as comparisons of nested unions.
+    if matches!(input_type_part, TAtomic::TTypeVariable { .. })
+        || matches!(container_type_part, TAtomic::TTypeVariable { .. })
+    {
+        return union_type_comparator::is_contained_by(
+            codebase,
+            file_path,
+            &wrap_atomic(input_type_part.clone()),
+            &wrap_atomic(container_type_part.clone()),
+            false,
+            false,
+            inside_assertion,
+            atomic_comparison_result,
+        );
     }
 
     // Handle TObjectIntersection as input: A&B is contained by C if any type in the intersection is contained by C
@@ -751,6 +783,16 @@ pub fn is_contained_by(
                 if let (Some(container_enum_param), Some(_)) =
                     (container_type_params.first(), container_type_params.get(1))
                 {
+                    if crate::ttype::type_variable::contains(container_enum_param) {
+                        atomic_comparison_result.deferred_constraints.push((
+                            wrap_atomic(input_type_part.clone()),
+                            wrap_atomic(container_type_part.clone()),
+                        ));
+                        return true;
+                    }
+                    if !container_enum_param.is_single() {
+                        return false;
+                    }
                     let container_enum_param = container_enum_param.get_single();
 
                     if let TAtomic::TNamedObject(TNamedObject {
@@ -758,13 +800,66 @@ pub fn is_contained_by(
                         ..
                     }) = container_enum_param
                     {
-                        if let Some(input_class_name) = input_class_name {
-                            return input_class_name == container_enum_name;
-                        } else if let Some(classlike_info) =
-                            codebase.classlike_infos.get(container_enum_name)
-                        {
-                            return classlike_info.constants.contains_key(input_member_name);
-                        }
+                        let enum_name = input_class_name.as_ref().unwrap_or(container_enum_name);
+                        let Some(constant_type) = codebase
+                            .classlike_infos
+                            .get(enum_name)
+                            .and_then(|info| info.constants.get(input_member_name))
+                            .and_then(|info| info.provided_type.as_ref())
+                        else {
+                            return false;
+                        };
+                        let [
+                            TAtomic::TTypeAlias {
+                                name: StrId::MEMBER_OF,
+                                type_params: Some(params),
+                                ..
+                            },
+                        ] = constant_type.types.as_slice()
+                        else {
+                            return false;
+                        };
+                        let Some(value_type) = params.get(1) else {
+                            return false;
+                        };
+                        // This member type comes from its declaration, not an
+                        // analyzed expression. Localize it before inferring
+                        // constraints from the label's value parameter.
+                        let mut value_type = value_type.clone();
+                        type_expander::expand_union(
+                            codebase,
+                            &None,
+                            file_path,
+                            &mut value_type,
+                            &TypeExpansionOptions {
+                                expand_templates: false,
+                                ..Default::default()
+                            },
+                            &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                            &mut 0,
+                        );
+                        let label_type = TAtomic::TTypeAlias {
+                            name: StrId::ENUM_CLASS_LABEL,
+                            type_params: Some(vec![
+                                wrap_atomic(TAtomic::TNamedObject(TNamedObject {
+                                    name: *enum_name,
+                                    type_params: None,
+                                    is_this: false,
+                                    remapped_params: false,
+                                })),
+                                value_type,
+                            ]),
+                            as_type: None,
+                            newtype: true,
+                        };
+                        return is_contained_by(
+                            codebase,
+                            file_path,
+                            &label_type,
+                            container_type_part,
+                            inside_assertion,
+                            atomic_comparison_result,
+                        );
                     } else {
                         return false;
                     }

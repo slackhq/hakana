@@ -11,4 +11,11 @@ final class A {
             }
         );
     }
+
+    public function filterNullable(): void {
+        array_filter(
+            static::getRows(),
+            (?A $row): bool ==> $row is A,
+        );
+    }
 }

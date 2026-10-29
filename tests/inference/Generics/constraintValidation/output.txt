@@ -1,0 +1,4 @@
+ERROR: LessSpecificNestedAnyArgumentType - input.hack:12:16 - Argument 1 of take_shape expects shape('unknown' => int, 'value' => int), parent type shape('unknown' => any, 'value' => string(bad)) provided
+ERROR: InvalidPropertyAssignmentValue - input.hack:17:5 - Property $value with declared type vec<int>, cannot be assigned type vec<int|string(bad)>
+ERROR: InvalidPropertyAssignmentValue - input.hack:22:5 - Property $value with declared type dict<string, int>, cannot be assigned type dict<string, int|string(bad)>
+ERROR: InvalidArgument - input.hack:29:19 - Argument 1 of take_typename expects typename<int>, different type Binding::class provided

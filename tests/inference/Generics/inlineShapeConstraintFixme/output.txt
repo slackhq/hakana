@@ -1,0 +1,3 @@
+ERROR: IncompatibleTypeParameters - input.hack:10:38 - Type nonnull should be a subtype of vec<int>
+ERROR: IncompatibleTypeParameters - input.hack:14:35 - Type string(bad) should be a subtype of bool
+ERROR: IncompatibleTypeParameters - input.hack:18:21 - Type shape('fixed' => nonnull) should be a subtype of shape('fixed' => vec<int>, 'ok' => bool)

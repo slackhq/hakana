@@ -22,15 +22,21 @@ pub fn replace(
     template_result: &TemplateResult,
     codebase: &CodebaseInfo,
 ) -> TUnion {
-    let mut keys_to_unset = FxHashSet::default();
+    let mut union = union.clone();
+    replace_in_place(&mut union, template_result, codebase);
+    union
+}
 
-    let mut new_types = Vec::new();
+fn replace_in_place(union: &mut TUnion, template_result: &TemplateResult, codebase: &CodebaseInfo) {
+    let mut replaced_template = false;
+    let mut new_types = Vec::with_capacity(union.types.len());
 
     let mut ignore_falsable_issues = false;
 
-    for atomic_type in &union.types {
-        let mut atomic_type = atomic_type.clone();
-        atomic_type = replace_atomic(atomic_type, template_result, codebase);
+    // The public entry point makes one copy. Reuse its owned children while
+    // still normalizing every nested union, including concrete children.
+    for atomic_type in std::mem::take(&mut union.types) {
+        let atomic_type = replace_atomic(atomic_type, template_result, codebase);
 
         match &atomic_type {
             TAtomic::TGenericParam(TGenericParam {
@@ -51,7 +57,7 @@ pub fn replace(
                 );
 
                 if let Some(template_type) = template_type {
-                    keys_to_unset.insert(*key);
+                    replaced_template = true;
 
                     // flags like ignore_falsable_issues (e.g. on json_encode's
                     // return type) need to survive template substitution
@@ -101,7 +107,9 @@ pub fn replace(
                                 });
                             }
                         } else if let TAtomic::TNamedObject(TNamedObject { .. })
-                        | TAtomic::TObjectIntersection { .. } = template_type_part
+                        | TAtomic::TEnum { .. }
+                        | TAtomic::TObjectIntersection { .. }
+                        | TAtomic::TTypeVariable { .. } = template_type_part
                         {
                             if is_class_ptr {
                                 class_template_types.push(TAtomic::TClassPtr {
@@ -138,9 +146,11 @@ pub fn replace(
                     }
 
                     if !class_template_types.is_empty() {
-                        keys_to_unset.insert(*param_name);
+                        replaced_template = true;
                         new_types.extend(class_template_types);
                     }
+                } else {
+                    new_types.push(atomic_type);
                 }
             }
             TAtomic::TGenericTypename {
@@ -161,7 +171,11 @@ pub fn replace(
                     for template_type_part in &template_type.types {
                         if template_type_part.is_mixed() {
                             class_template_types.push(TAtomic::TTypename {
-                                as_type: Box::new(TAtomic::TObject),
+                                as_type: Box::new(template_type_part.clone()),
+                            });
+                        } else if let TAtomic::TTypeVariable { .. } = template_type_part {
+                            class_template_types.push(TAtomic::TTypename {
+                                as_type: Box::new(template_type_part.clone()),
                             });
                         } else if let TAtomic::TTypeAlias {
                             name: type_name,
@@ -195,9 +209,11 @@ pub fn replace(
                     }
 
                     if !class_template_types.is_empty() {
-                        keys_to_unset.insert(*param_name);
+                        replaced_template = true;
                         new_types.extend(class_template_types);
                     }
+                } else {
+                    new_types.push(atomic_type);
                 }
             }
             _ => {
@@ -206,10 +222,9 @@ pub fn replace(
         }
     }
 
-    let mut union = union.clone();
-
     if new_types.is_empty() {
-        return get_nothing();
+        *union = get_nothing();
+        return;
     }
 
     union.types = type_combiner::combine(new_types, codebase, false);
@@ -218,14 +233,12 @@ pub fn replace(
         union.ignore_falsable_issues = true;
     }
 
-    if !keys_to_unset.is_empty() {
+    if replaced_template {
         // mark that this type was solved from a template, so comparisons can
         // treat it as flexible — Hack's typechecker would have solved the
         // template against the expected type instead
         union.had_template = true;
     }
-
-    union
 }
 
 fn replace_template_param(
@@ -253,7 +266,7 @@ fn replace_template_param(
                 as_type.clone()
             }
         } else {
-            traversed_type.clone()
+            traversed_type
         };
 
         template_type = Some(template_type_inner);
@@ -307,11 +320,11 @@ fn replace_atomic(
             ref mut known_items,
             ..
         }) => {
-            **type_param = replace(type_param, template_result, codebase);
+            replace_in_place(type_param, template_result, codebase);
 
             if let Some(known_items) = known_items {
                 for (_, t) in known_items.values_mut() {
-                    *t = replace(t, template_result, codebase);
+                    replace_in_place(t, template_result, codebase);
                 }
             }
         }
@@ -321,41 +334,41 @@ fn replace_atomic(
             ..
         }) => {
             if let Some(params) = params {
-                *params.0 = replace(&params.0, template_result, codebase);
-                *params.1 = replace(&params.1, template_result, codebase);
+                replace_in_place(&mut params.0, template_result, codebase);
+                replace_in_place(&mut params.1, template_result, codebase);
             }
 
             if let Some(known_items) = known_items {
                 for (_, t) in Arc::make_mut(known_items).values_mut() {
-                    *t = Arc::new(replace(t, template_result, codebase));
+                    replace_in_place(Arc::make_mut(t), template_result, codebase);
                 }
             }
         }
         TAtomic::TKeyset {
             ref mut type_param, ..
         } => {
-            **type_param = replace(type_param, template_result, codebase);
+            replace_in_place(type_param, template_result, codebase);
         }
         TAtomic::TNamedObject(TNamedObject {
             type_params: Some(ref mut type_params),
             ..
         }) => {
             for type_param in type_params {
-                *type_param = replace(type_param, template_result, codebase);
+                replace_in_place(type_param, template_result, codebase);
             }
         }
         TAtomic::TAwaitable { ref mut value, .. } => {
-            **value = replace(value, template_result, codebase);
+            replace_in_place(value, template_result, codebase);
         }
         TAtomic::TClosure(ref mut closure) => {
             for param in closure.params.iter_mut() {
                 if let Some(ref mut t) = param.signature_type {
-                    **t = replace(t, template_result, codebase);
+                    replace_in_place(t, template_result, codebase);
                 }
             }
 
             if let Some(ref mut return_type) = closure.return_type {
-                *return_type = replace(return_type, template_result, codebase);
+                replace_in_place(return_type, template_result, codebase);
             }
         }
         TAtomic::TTypeAlias {
@@ -363,11 +376,92 @@ fn replace_atomic(
             ..
         } => {
             for type_param in type_params {
-                *type_param = replace(type_param, template_result, codebase);
+                replace_in_place(type_param, template_result, codebase);
             }
         }
         _ => (),
     }
 
     atomic
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        data_flow::node::DataFlowNode,
+        t_atomic::DictKey,
+        ttype::{get_mixed_any, get_string},
+    };
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn substitution_preserves_metadata_and_leaves_shared_input_unchanged() {
+        let entity = GenericParent::ClassLike(StrId::CONTAINER);
+        let mut generic = wrap_atomic(TAtomic::TGenericParam(TGenericParam {
+            param_name: StrId::EMPTY,
+            defining_entity: entity,
+            as_type: Box::new(get_mixed_any()),
+        }));
+        let node = DataFlowNode::get_for_property((StrId::EMPTY, StrId::EMPTY));
+        generic.parent_nodes.push(node.clone());
+        generic.reference_free = true;
+        let generic = Arc::new(generic);
+        let input = wrap_atomic(TAtomic::TDict(TDict {
+            known_items: Some(Arc::new(BTreeMap::from([
+                (DictKey::Int(0), (false, generic.clone())),
+                (DictKey::Int(1), (true, generic.clone())),
+            ]))),
+            ..Default::default()
+        }));
+        let mut inferred = get_string();
+        inferred.types.push(TAtomic::TFalse);
+        inferred.ignore_falsable_issues = true;
+        let templates = TemplateResult::new(
+            IndexMap::new(),
+            IndexMap::from([(StrId::EMPTY, FxHashMap::from_iter([(entity, inferred)]))]),
+        );
+        let result = replace(&input, &templates, &CodebaseInfo::new());
+        let TAtomic::TDict(dict) = result.get_single() else {
+            panic!("expected a dictionary");
+        };
+        for (_, ty) in dict.known_items.as_ref().unwrap().values() {
+            assert!(ty.has_string());
+            assert!(ty.types.contains(&TAtomic::TFalse));
+            assert!(ty.ignore_falsable_issues);
+            assert!(ty.had_template);
+            assert!(ty.reference_free);
+            assert_eq!(ty.parent_nodes, vec![node.clone()]);
+        }
+        assert!(generic.has_template());
+        assert!(!generic.ignore_falsable_issues);
+        let TAtomic::TDict(original) = input.get_single() else {
+            panic!("expected a dictionary");
+        };
+        assert!(original.known_items.as_ref().unwrap()[&DictKey::Int(1)].0);
+        assert!(Arc::ptr_eq(
+            &original.known_items.as_ref().unwrap()[&DictKey::Int(0)].1,
+            &generic,
+        ));
+    }
+
+    #[test]
+    fn substitution_still_normalizes_nested_concrete_unions() {
+        let input = wrap_atomic(TAtomic::TAwaitable {
+            value: Box::new(TUnion::new(vec![
+                TAtomic::TInt,
+                TAtomic::TLiteralInt { value: 1 },
+            ])),
+        });
+        let result = replace(
+            &input,
+            &TemplateResult::new(IndexMap::new(), IndexMap::new()),
+            &CodebaseInfo::new(),
+        );
+        let TAtomic::TAwaitable { value } = result.get_single() else {
+            panic!("expected an awaitable");
+        };
+        assert_eq!(value.types, vec![TAtomic::TInt]);
+        assert!(!result.had_template);
+    }
 }

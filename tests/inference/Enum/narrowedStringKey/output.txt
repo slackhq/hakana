@@ -1,0 +1,1 @@
+ERROR: LessSpecificReturnStatement - input.hack:29:12 - The type OpaqueKey is more general than the declared return type string for opaque

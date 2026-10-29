@@ -7,7 +7,7 @@ use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::EFFECT_IMPURE;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
-use hakana_code_info::ttype::{extend_dataflow_uniquely, get_mixed_any};
+use hakana_code_info::ttype::{extend_dataflow_uniquely, get_mixed_any, wrap_atomic};
 use oxidized::aast;
 use std::rc::Rc;
 
@@ -35,6 +35,24 @@ pub(crate) fn analyze(
     context.inside_general_use = true;
     let was_inside_await = context.inside_await;
     context.inside_await = true;
+    if let Some(expected) = analysis_data
+        .expected_arg_types
+        .get(&(
+            expr.pos().start_offset() as u32,
+            expr.pos().end_offset() as u32,
+        ))
+        .cloned()
+    {
+        analysis_data.expected_arg_types.insert(
+            (
+                boxed.pos().start_offset() as u32,
+                boxed.pos().end_offset() as u32,
+            ),
+            Rc::new(wrap_atomic(TAtomic::TAwaitable {
+                value: Box::new((*expected).clone()),
+            })),
+        );
+    }
     expression_analyzer::analyze(statements_analyzer, boxed, analysis_data, context, true)?;
     context.inside_general_use = was_inside_use;
     context.inside_await = was_inside_await;

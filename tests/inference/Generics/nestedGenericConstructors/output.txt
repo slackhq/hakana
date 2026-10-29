@@ -1,0 +1,2 @@
+ERROR: LessSpecificNestedAnyArgumentType - input.hack:37:20 - Argument 1 of equal expects Node<Comparable<Comparable<Comparable<Comparable<Comparable<Comparable<T:fn-equal>>>>>>>, parent type Node<T:fn-equal> provided
+ERROR: LessSpecificNestedAnyArgumentType - input.hack:37:28 - Argument 2 of equal expects Node<Comparable<Comparable<Comparable<Comparable<Comparable<Comparable<T:fn-equal>>>>>>>, parent type Node<T:fn-equal> provided

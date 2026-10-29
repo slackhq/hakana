@@ -12,6 +12,7 @@ pub(crate) mod method_call_info;
 pub(crate) mod method_call_return_type_fetcher;
 pub(crate) mod new_analyzer;
 pub(crate) mod static_call_analyzer;
+pub(crate) mod template_inference;
 mod type_assertion_analyzer;
 
 pub(crate) mod response_effects;

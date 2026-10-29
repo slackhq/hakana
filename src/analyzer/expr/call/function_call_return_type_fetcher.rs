@@ -189,14 +189,19 @@ fn handle_special_functions(
         &StrId::TYPE_STRUCTURE_FN => {
             if let (Some(first_arg), Some(second_arg)) = (args.first(), args.get(1)) {
                 if let (Some(first_expr_type), Some(second_expr_type)) = (
-                    analysis_data.get_expr_type(first_arg.to_expr_ref().pos()),
-                    analysis_data.get_expr_type(second_arg.to_expr_ref().pos()),
+                    analysis_data
+                        .get_rc_expr_type(first_arg.to_expr_ref().pos())
+                        .cloned(),
+                    analysis_data
+                        .get_rc_expr_type(second_arg.to_expr_ref().pos())
+                        .cloned(),
                 ) {
                     get_type_structure_type(
                         statements_analyzer,
-                        first_expr_type,
-                        second_expr_type,
+                        &first_expr_type,
+                        &second_expr_type,
                         context.function_context.calling_class,
+                        &mut analysis_data.data_flow_graph,
                     )
                 } else {
                     None
@@ -830,6 +835,7 @@ fn get_type_structure_type(
     first_expr_type: &TUnion,
     second_expr_type: &TUnion,
     this_class: Option<StrId>,
+    data_flow_graph: &mut DataFlowGraph,
 ) -> Option<TUnion> {
     if let Some(second_arg_string) = second_expr_type.get_single_literal_string_value() {
         let const_name = statements_analyzer.interner.get(&second_arg_string)?;
@@ -875,13 +881,28 @@ fn get_type_structure_type(
                 statements_analyzer.codebase.classlike_infos.get(&classname)
                 && let Some(type_constant_info) = classlike_info.type_constants.get(&const_name)
             {
+                let mut value_type = match type_constant_info {
+                    ClassConstantType::Concrete(actual_type) => actual_type.clone(),
+                    ClassConstantType::Abstract(Some(as_type)) => as_type.clone(),
+                    _ => get_mixed_any(),
+                };
+                type_expander::expand_union(
+                    statements_analyzer.codebase,
+                    &Some(statements_analyzer.interner),
+                    statements_analyzer.get_file_path(),
+                    &mut value_type,
+                    &TypeExpansionOptions {
+                        self_class: Some(classname),
+                        static_class_type: type_expander::StaticClassType::Name(classname),
+                        expand_templates: false,
+                        ..Default::default()
+                    },
+                    data_flow_graph,
+                    &mut 0,
+                );
                 return Some(wrap_atomic(TAtomic::TTypeAlias {
                     name: StrId::TYPE_STRUCTURE,
-                    type_params: Some(vec![match type_constant_info {
-                        ClassConstantType::Concrete(actual_type) => actual_type.clone(),
-                        ClassConstantType::Abstract(Some(as_type)) => as_type.clone(),
-                        _ => get_mixed_any(),
-                    }]),
+                    type_params: Some(vec![value_type]),
                     as_type: None,
                     newtype: true,
                 }));

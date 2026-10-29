@@ -1,0 +1,3 @@
+ERROR: InvalidArgument - input.hack:23:33 - Argument type #missing does not match newtype-alias(HH\EnumClass\Label<Columns, int>)
+ERROR: InvalidReturnStatement - input.hack:27:12 - The type int does not match the declared return type string for wrong_value
+ERROR: InvalidArgument - input.hack:31:25 - Argument 1 of expression expects newtype-alias(HH\EnumClass\Label<any, any>), different type #count provided

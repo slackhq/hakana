@@ -1,9 +1,10 @@
+use std::cell::OnceCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use hakana_code_info::assertion::Assertion;
-use hakana_code_info::code_location::{FilePath, StmtStart};
+use hakana_code_info::code_location::{FilePath, HPos, StmtStart};
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::ttype::comparison::{
@@ -35,7 +36,7 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_code_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
 use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TVec};
-use hakana_code_info::t_union::{TUnion, TypeNode, populate_union_type};
+use hakana_code_info::t_union::{TUnion, populate_union_type};
 use hakana_code_info::ttype::template::{
     self, TemplateBound, TemplateResult, inferred_type_replacer, standin_type_replacer,
 };
@@ -52,6 +53,8 @@ use oxidized::pos::Pos;
 
 use super::argument_analyzer::{self, get_removed_taints_in_comments};
 use super::method_call_info::MethodCallInfo;
+use super::template_inference::{self, CallTemplateInference};
+use hakana_code_info::ttype::type_variable;
 
 pub(crate) fn check_arguments_match(
     statements_analyzer: &StatementsAnalyzer,
@@ -60,6 +63,7 @@ pub(crate) fn check_arguments_match(
     unpacked_arg: &Option<aast::Expr<(), ()>>,
     functionlike_id: &FunctionLikeIdentifier,
     functionlike_info: &FunctionLikeInfo,
+    contextual_return_type: Option<&TUnion>,
     calling_classlike: Option<(StrId, Option<&TAtomic>, bool)>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -127,7 +131,6 @@ pub(crate) fn check_arguments_match(
                     } else {
                         false
                     },
-                    expand_type_aliases: false,
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
@@ -179,8 +182,6 @@ pub(crate) fn check_arguments_match(
             }
         }
     }
-
-    let last_param = functionlike_params.last();
 
     let codebase = statements_analyzer.codebase;
 
@@ -252,85 +253,116 @@ pub(crate) fn check_arguments_match(
         &class_generic_params,
     );
 
+    if let (Some(declaring), Some(calling)) = (class_storage, calling_classlike_storage)
+        && declaring.name != calling.name
+        && let Some(inherited_params) = calling.template_extended_params.get(&declaring.name)
+    {
+        for (name, ty) in inherited_params {
+            if !ty.has_template() {
+                // A concrete parent specialization (Child extends Parent<int>)
+                // is already fixed before any argument is analyzed.
+                template_result
+                    .lower_bounds
+                    .entry(*name)
+                    .or_default()
+                    .entry(GenericParent::ClassLike(declaring.name))
+                    .or_insert_with(|| vec![TemplateBound::new((**ty).clone(), 0, None, None)]);
+            }
+        }
+    }
+
     let calling_static_type = calling_classlike.and_then(|calling_classlike| calling_classlike.1);
 
-    let call_expected_type =
-        if template_result.template_types.is_empty() || functionlike_info.return_type.is_none() {
-            None
-        } else {
-            analysis_data
-                .expected_arg_types
-                .get(&(
-                    function_call_pos.start_offset() as u32,
-                    function_call_pos.end_offset() as u32,
-                ))
-                .cloned()
-        };
-
-    // Most calls have no expected type, so only expand their param types when one does
-    let enum_label_template_result = if let Some(call_expected_type) = call_expected_type {
-        let expanded_param_types = functionlike_params
-            .iter()
-            .map(|param| {
-                get_param_type(
-                    Some(param),
-                    codebase,
-                    class_storage,
-                    calling_classlike_storage,
-                    calling_static_type,
-                    statements_analyzer,
-                    analysis_data,
-                )
-            })
-            .collect::<Vec<_>>();
-
-        solve_enum_label_templates_from_expected_type(
-            statements_analyzer,
-            functionlike_info,
-            &expanded_param_types,
-            template_result,
-            &call_expected_type,
-            context,
-        )
-    } else {
-        None
-    };
-
-    for (argument_offset, arg) in args.iter().enumerate() {
-        let arg_expr = arg.to_expr_ref();
-
-        if !can_use_expected_type(arg_expr) {
-            continue;
-        }
-
-        // Tell the argument what type its parameter expects, so a generic call
-        // in the argument can solve templates its own arguments can't
-        if let Some(param_offset) = get_param_offset_for_arg(
-            statements_analyzer,
-            functionlike_params,
-            arg,
-            argument_offset,
-        ) {
-            let param_type = get_param_type(
-                functionlike_params.get(param_offset),
+    let expanded_param_types = functionlike_params
+        .iter()
+        .map(|param| {
+            get_param_type(
+                Some(param),
                 codebase,
                 class_storage,
                 calling_classlike_storage,
                 calling_static_type,
                 statements_analyzer,
                 analysis_data,
-            );
+            )
+        })
+        .collect::<Vec<_>>();
+    let inference = CallTemplateInference::new(template_result, analysis_data, statements_analyzer);
+    let instantiated_param_types = vec![OnceCell::<Rc<TUnion>>::new(); functionlike_params.len()];
+    let instantiate_param = |offset: usize| {
+        Rc::clone(instantiated_param_types[offset].get_or_init(|| {
+            Rc::new(inference.instantiate(&expanded_param_types[offset], codebase))
+        }))
+    };
+    // The actual result is checked by the caller after return-type
+    // specialization. Only use the declaration early when it can solve the
+    // callee's generics; otherwise it can pollute the caller's constraints.
+    if !inference.is_empty()
+        && let (Some(return_type), Some(expected_type)) = (
+            contextual_return_type,
+            analysis_data
+                .expected_arg_types
+                .get(&(
+                    function_call_pos.start_offset() as u32,
+                    function_call_pos.end_offset() as u32,
+                ))
+                .cloned(),
+        )
+    {
+        let mut return_type = return_type.clone();
+        type_expander::expand_union(
+            codebase,
+            &Some(statements_analyzer.interner),
+            statements_analyzer.get_file_path(),
+            &mut return_type,
+            &TypeExpansionOptions {
+                self_class: class_storage.map(|storage| storage.name),
+                static_class_type: match (calling_classlike_storage, calling_static_type) {
+                    (_, Some(ty)) => StaticClassType::Object(ty),
+                    (Some(storage), None) => StaticClassType::Name(storage.name),
+                    _ => StaticClassType::None,
+                },
+                function_is_final: calling_classlike_storage
+                    .is_some_and(|storage| storage.is_final),
+                expand_templates: false,
+                ..Default::default()
+            },
+            &mut analysis_data.data_flow_graph,
+            &mut 0,
+        );
+        template_inference::constrain(
+            statements_analyzer,
+            analysis_data,
+            &inference.instantiate(&return_type, codebase),
+            &expected_type,
+            statements_analyzer.get_hpos(function_call_pos),
+            None,
+        );
+        template_inference::propagate(statements_analyzer, analysis_data);
+    }
 
-            let expected_type =
-                inferred_type_replacer::replace(&param_type, template_result, codebase);
-
+    for (argument_offset, arg) in args.iter().enumerate() {
+        let arg_expr = arg.to_expr_ref();
+        if !can_use_expected_type(arg_expr) {
+            continue;
+        }
+        if let Some(param_offset) = get_param_offset_for_arg(
+            statements_analyzer,
+            functionlike_params,
+            arg,
+            argument_offset,
+        ) && !functionlike_params[param_offset].is_splat
+        {
+            // A splat parameter describes the whole argument tuple, not the
+            // expected type of the first value passed into that tuple.
+            let expected_type = instantiate_param(param_offset);
             if !expected_type.is_mixed() {
                 analysis_data.expected_arg_types.insert(
                     (
                         arg_expr.pos().start_offset() as u32,
                         arg_expr.pos().end_offset() as u32,
                     ),
-                    Rc::new(expected_type),
+                    expected_type,
                 );
             }
         }
@@ -371,6 +403,43 @@ pub(crate) fn check_arguments_match(
         }
     }
 
+    for (argument_offset, arg) in args.iter().enumerate() {
+        if !inference.is_empty()
+            && let Some(param_offset) = get_param_offset_for_arg(
+                statements_analyzer,
+                functionlike_params,
+                arg,
+                argument_offset,
+            )
+            && !matches!(
+                arg.to_expr_ref().2,
+                aast::Expr_::FunctionPointer(..) | aast::Expr_::Lfun(..) | aast::Expr_::Efun(..)
+            )
+            && let Some(arg_type) = if functionlike_params[param_offset].is_splat {
+                Some(get_splat_argument_type(
+                    args,
+                    argument_offset,
+                    analysis_data,
+                ))
+            } else {
+                analysis_data
+                    .get_expr_type(arg.to_expr_ref().pos())
+                    .cloned()
+            }
+        {
+            template_inference::constrain(
+                statements_analyzer,
+                analysis_data,
+                &arg_type,
+                &instantiate_param(param_offset),
+                statements_analyzer.get_hpos(arg.to_expr_ref().pos()),
+                Some(argument_offset),
+            );
+        }
+    }
+    template_inference::propagate(statements_analyzer, analysis_data);
+    let known_types = inference.known_types(analysis_data, codebase);
+
     let mut reordered_args = args.iter().enumerate().collect::<Vec<_>>();
 
     reordered_args.sort_by(|a, b| {
@@ -379,49 +448,22 @@ pub(crate) fn check_arguments_match(
     });
 
     let mut param_types = BTreeMap::new();
+    let mut callback_annotations_constrained = false;
 
     for (argument_offset, arg) in &reordered_args {
         let arg_expr = arg.to_expr_ref();
 
-        // For named arguments, find the parameter by name instead of position
-        let mut param = if let aast::Argument::Anamed(sid, _) = arg {
-            let arg_name = &sid.1;
-            functionlike_params.iter().find(|p| {
-                let param_name = statements_analyzer.interner.lookup(&p.name.0);
-                let clean_name = param_name.strip_prefix('$').unwrap_or(param_name);
-                clean_name == arg_name
-            })
-        } else {
-            functionlike_params.get(*argument_offset)
-        };
-
-        if param.is_none()
-            && let Some(last_param) = last_param
-            && last_param.is_variadic
-        {
-            param = Some(last_param);
-        }
-
-        let mut param_type = get_param_type(
-            param,
-            codebase,
-            class_storage,
-            calling_classlike_storage,
-            if let Some(calling_classlike) = calling_classlike {
-                calling_classlike.1
-            } else {
-                None
-            },
+        let param_offset = get_param_offset_for_arg(
             statements_analyzer,
-            analysis_data,
+            functionlike_params,
+            arg,
+            *argument_offset,
         );
-
-        // Put the enum class of each `HH\EnumClass\Label<TEnum, ...>` solved from
-        // the expected type into the param, as class templates are, so a bare
-        // label (`#foo`) resolves against that enum class
-        if let Some(enum_label_template_result) = &enum_label_template_result {
-            param_type =
-                inferred_type_replacer::replace(&param_type, enum_label_template_result, codebase);
+        let mut param_type = param_offset
+            .map(|offset| expanded_param_types[offset].clone())
+            .unwrap_or_else(get_mixed_any);
+        if !known_types.lower_bounds.is_empty() {
+            param_type = inferred_type_replacer::replace(&param_type, &known_types, codebase);
         }
 
         let was_inside_call = context.inside_general_use;
@@ -482,18 +524,34 @@ pub(crate) fn check_arguments_match(
             analysis_data.set_expr_type(arg_expr.pos(), arg_value_type.clone());
         }
 
+        // The constraint pass retains variable relationships. The legacy
+        // template matcher needs their current values; otherwise it replaces a
+        // known collection variable with any and feeds that back into inference.
+        if type_variable::contains(&arg_value_type) {
+            arg_value_type = type_variable::resolve(
+                &arg_value_type,
+                &analysis_data.type_variable_bounds,
+                codebase,
+            );
+        }
+
         adjust_param_type(
             &class_generic_params,
             &mut param_type,
             codebase,
             statements_analyzer.get_file_path(),
-            arg_value_type.clone(),
+            if param_offset.is_some_and(|offset| functionlike_params[offset].is_splat) {
+                get_splat_argument_type(args, *argument_offset, analysis_data)
+            } else {
+                arg_value_type.clone()
+            },
             *argument_offset,
             arg_expr.pos(),
             context,
             template_result,
             statements_analyzer,
             functionlike_id,
+            &analysis_data.closure_return_types,
         );
 
         if let Some(closure_param_type) = &closure_param_type
@@ -518,6 +576,49 @@ pub(crate) fn check_arguments_match(
                 context,
                 false,
             )?;
+        }
+
+        if !inference.is_empty()
+            && let Some(param_offset) = param_offset
+            && matches!(arg_expr.2, aast::Expr_::Lfun(..) | aast::Expr_::Efun(..))
+            && let Some(arg_type) = analysis_data.get_expr_type(arg_expr.pos()).cloned()
+            && let Some(closure_storage) = functionlike_analyzer::get_closure_storage(
+                statements_analyzer.file_analyzer,
+                arg_expr.pos().start_offset(),
+            )
+            && closure_storage
+                .params
+                .iter()
+                .any(|param| param.signature_type.is_some())
+        {
+            let mut expected = (*instantiate_param(param_offset)).clone();
+            for atomic in &mut expected.types {
+                if let TAtomic::TClosure(closure) = atomic {
+                    // Inferred parameters repeat the context supplied by this
+                    // call; only annotations contribute new upper bounds.
+                    for (offset, param) in closure.params.iter_mut().enumerate() {
+                        if closure_storage
+                            .params
+                            .get(offset)
+                            .is_none_or(|param| param.signature_type.is_none())
+                        {
+                            param.signature_type = None;
+                        }
+                    }
+                    // Return constraints are collected individually above,
+                    // preserving their positions for diagnostics and FIXMEs.
+                    closure.return_type = None;
+                }
+            }
+            template_inference::constrain(
+                statements_analyzer,
+                analysis_data,
+                &arg_type,
+                &expected,
+                statements_analyzer.get_hpos(arg_expr.pos()),
+                Some(*argument_offset),
+            );
+            callback_annotations_constrained = true;
         }
 
         param_types.insert(argument_offset, param_type);
@@ -588,10 +689,13 @@ pub(crate) fn check_arguments_match(
             template_result,
             statements_analyzer,
             functionlike_id,
+            &analysis_data.closure_return_types,
         );
 
         last_param_type = Some(param_type.clone());
     }
+
+    inference.finish(template_result, statements_analyzer, analysis_data);
 
     let function_params = &functionlike_info.params;
 
@@ -673,31 +777,16 @@ pub(crate) fn check_arguments_match(
         function_call_pos,
     );
 
+    let mut templates_contain_variables = None;
     for (argument_offset, arg) in &reordered_args {
         let arg_expr = arg.to_expr_ref();
 
-        // For named arguments, find the parameter by name instead of position
-        let function_param = if let aast::Argument::Anamed(sid, _) = arg {
-            let arg_name = &sid.1;
-            if let Some(param) = function_params.iter().find(|p| {
-                let param_name = statements_analyzer.interner.lookup(&p.name.0);
-                let clean_name = param_name.strip_prefix('$').unwrap_or(param_name);
-                clean_name == arg_name
-            }) {
-                param
-            } else {
-                // Named argument doesn't match any parameter - skip (already reported in check_named_arguments)
-                continue;
-            }
-        } else if let Some(function_param) = function_params.get(*argument_offset) {
-            function_param
-        } else if let Some(last_param) = function_params.last()
-            && last_param.is_variadic
-        {
-            last_param
-        } else {
-            break;
+        let Some(param_offset) =
+            get_param_offset_for_arg(statements_analyzer, function_params, arg, *argument_offset)
+        else {
+            continue;
         };
+        let function_param = &function_params[param_offset];
 
         if function_param.is_inout {
             // First inout param for HH\Shapes::removeKey is already handled
@@ -756,6 +845,7 @@ pub(crate) fn check_arguments_match(
                     template_result,
                     function_call_pos,
                 )?;
+                templates_contain_variables = None;
             }
         }
 
@@ -764,26 +854,56 @@ pub(crate) fn check_arguments_match(
             continue;
         };
 
+        // Constructor variables stay live for later writes. Only call-result
+        // variables need expansion here to check a nested call's result.
+        if !inference.is_empty()
+            && type_variable::contains(&arg_value_type)
+            && !matches!(arg_expr.2, aast::Expr_::Lfun(..) | aast::Expr_::Efun(..))
+        {
+            arg_value_type = type_variable::resolve(
+                &arg_value_type,
+                &analysis_data.type_variable_bounds,
+                codebase,
+            );
+        }
+        // Callback annotations may have added equality constraints after the
+        // first argument pass. Check against their current solution.
+        let resolved_param_type = if callback_annotations_constrained
+            || *templates_contain_variables.get_or_insert_with(|| {
+                template_result.lower_bounds.values().any(|entities| {
+                    entities.values().any(|bounds| {
+                        bounds
+                            .iter()
+                            .any(|bound| type_variable::contains(&bound.bound_type))
+                    })
+                })
+            })
+            || type_variable::contains(&expanded_param_types[param_offset])
+        {
+            let substituted = inferred_type_replacer::replace(
+                &expanded_param_types[param_offset],
+                template_result,
+                codebase,
+            );
+            Some(type_variable::resolve(
+                &substituted,
+                &analysis_data.type_variable_bounds,
+                codebase,
+            ))
+        } else {
+            None
+        };
+        let inferred_param_type = resolved_param_type
+            .as_ref()
+            .filter(|ty| callback_annotations_constrained || type_variable::contains(ty))
+            .unwrap_or_else(|| param_types.get(&argument_offset).unwrap());
+
         // A splat parameter is typed as a generic tuple, so zip up all arguments starting from the index of the splat parameter
         // and compare the type of the resulting tuple with the parameter type tuple.
         // The typechecker makes sure every function has at most one splat parameter which also has to be the last parameter,
         // so no further special casing is needed here.
         if function_param.is_splat {
-            let mut arg_types = BTreeMap::new();
-            for (i, arg) in args.iter().skip(*argument_offset).enumerate() {
-                let arg_value_type = analysis_data
-                    .get_expr_type(arg.to_expr_ref().pos())
-                    .cloned()
-                    .unwrap_or_else(&get_mixed_any);
-                arg_types.insert(i, (false, arg_value_type));
-            }
-            arg_value_type = TUnion::new(vec![TAtomic::TVec(TVec {
-                type_param: Box::new(get_nothing()),
-                known_count: Some(arg_types.len()),
-                non_empty: !arg_types.is_empty(),
-                known_items: Some(arg_types),
-                variadic_type: None,
-            })]);
+            arg_value_type = get_splat_argument_type(args, *argument_offset, analysis_data);
         }
 
         let was_inside_call = context.inside_general_use;
@@ -797,7 +917,7 @@ pub(crate) fn check_arguments_match(
             functionlike_id,
             &method_call_info,
             function_param,
-            param_types.get(&argument_offset).unwrap(),
+            inferred_param_type,
             *argument_offset,
             arg,
             false,
@@ -906,13 +1026,39 @@ pub(crate) fn check_arguments_match(
 }
 
 /// Whether an expression can use the type its parent expects of it: a call, which
-/// can solve its templates from it, or a `vec[...]`, which passes it to its items.
+/// can solve its templates from it, or a wrapper that passes it to its contents.
 pub(crate) fn can_use_expected_type(expr: &aast::Expr<(), ()>) -> bool {
     match &expr.2 {
-        aast::Expr_::Call(_) => true,
+        aast::Expr_::Call(_) | aast::Expr_::Await(_) => true,
         aast::Expr_::ValCollection(boxed) => matches!(boxed.0.1, oxidized::ast::VcKind::Vec),
         _ => false,
     }
+}
+
+fn get_splat_argument_type(
+    args: &[aast::Argument<(), ()>],
+    argument_offset: usize,
+    analysis_data: &FunctionAnalysisData,
+) -> TUnion {
+    let arg_types = args
+        .iter()
+        .skip(argument_offset)
+        .enumerate()
+        .map(|(i, arg)| {
+            let arg_type = analysis_data
+                .get_expr_type(arg.to_expr_ref().pos())
+                .cloned()
+                .unwrap_or_else(get_mixed_any);
+            (i, (false, arg_type))
+        })
+        .collect::<BTreeMap<_, _>>();
+    TUnion::new(vec![TAtomic::TVec(TVec {
+        type_param: Box::new(get_nothing()),
+        known_count: Some(arg_types.len()),
+        non_empty: !arg_types.is_empty(),
+        known_items: Some(arg_types),
+        variadic_type: None,
+    })])
 }
 
 fn get_param_offset_for_arg(
@@ -936,142 +1082,6 @@ fn get_param_offset_for_arg(
         Some(functionlike_params.len() - 1)
     } else {
         None
-    }
-}
-
-/// The templates `TEnum` that appear as `HH\EnumClass\Label<TEnum, ...>` in a param type.
-fn get_enum_label_templates(param_type: &TUnion) -> Vec<(StrId, GenericParent)> {
-    param_type
-        .get_all_child_nodes()
-        .into_iter()
-        .filter_map(|node| {
-            if let TypeNode::Atomic(TAtomic::TTypeAlias {
-                name: StrId::ENUM_CLASS_LABEL,
-                type_params: Some(type_params),
-                ..
-            }) = node
-                && let Some(enum_param) = type_params.first()
-                && enum_param.is_single()
-                && let TAtomic::TGenericParam(TGenericParam {
-                    param_name,
-                    defining_entity,
-                    ..
-                }) = enum_param.get_single()
-            {
-                Some((*param_name, *defining_entity))
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
-/// Solves the enum class templates of a generic call's label params from the type
-/// its caller expects the call to return, as hh_client does.
-///
-/// A bare enum class label (`#foo`) can only resolve once its param's
-/// `HH\EnumClass\Label<TEnum, ...>` names an enum class. When `TEnum` is a
-/// template of the callee that no other argument binds, e.g.
-///
-///   SetExpression::set(#latest_counted_timestamp, $value)
-///
-/// with `set<TK, T>(Label<TK, Column<T>> $column, ...): SetExpression<TK>`, only
-/// the expected return type (here `SetExpression<SomeEnum>`, from the param the
-/// call is passed to) says what `TEnum` is.
-///
-/// Adds each solved template to $template_result as a lower bound, and returns
-/// them on their own so the caller can put them into the param types. Only
-/// solves label templates, and only as concrete classes, so the expected type
-/// never widens what the call's arguments infer.
-fn solve_enum_label_templates_from_expected_type(
-    statements_analyzer: &StatementsAnalyzer,
-    functionlike_info: &FunctionLikeInfo,
-    expanded_param_types: &[TUnion],
-    template_result: &mut TemplateResult,
-    expected_type: &TUnion,
-    context: &BlockContext,
-) -> Option<TemplateResult> {
-    let return_type = functionlike_info.return_type.as_ref()?;
-
-    let mut label_templates = expanded_param_types
-        .iter()
-        .flat_map(get_enum_label_templates)
-        .filter(|(param_name, defining_entity)| {
-            template_result
-                .template_types
-                .get(param_name)
-                .is_some_and(|entities| entities.iter().any(|(e, _)| e == defining_entity))
-                && !template_result
-                    .lower_bounds
-                    .get(param_name)
-                    .is_some_and(|bounds| bounds.contains_key(defining_entity))
-        })
-        .collect::<Vec<_>>();
-
-    label_templates.dedup();
-
-    if label_templates.is_empty() {
-        return None;
-    }
-
-    let codebase = statements_analyzer.codebase;
-
-    let mut expected_template_result =
-        TemplateResult::new(template_result.template_types.clone(), IndexMap::new());
-
-    standin_type_replacer::replace(
-        return_type,
-        &mut expected_template_result,
-        codebase,
-        statements_analyzer.interner,
-        statements_analyzer.get_file_path(),
-        &Some(expected_type),
-        None,
-        None,
-        StandinOpts {
-            calling_class: None,
-            calling_function: context.function_context.calling_functionlike_id,
-            ..Default::default()
-        },
-    );
-
-    let mut solved = TemplateResult::new(IndexMap::new(), IndexMap::new());
-
-    for (param_name, defining_entity) in label_templates {
-        let Some(bounds) = expected_template_result
-            .lower_bounds
-            .get(&param_name)
-            .and_then(|bounds| bounds.get(&defining_entity))
-        else {
-            continue;
-        };
-
-        let bound_type =
-            standin_type_replacer::get_most_specific_type_from_bounds(bounds, codebase);
-
-        if !bound_type.is_single()
-            || !matches!(bound_type.get_single(), TAtomic::TNamedObject(_))
-            || bound_type.has_template_types()
-        {
-            continue;
-        }
-
-        for result in [&mut *template_result, &mut solved] {
-            result
-                .lower_bounds
-                .entry(param_name)
-                .or_insert_with(FxHashMap::default)
-                .insert(
-                    defining_entity,
-                    vec![TemplateBound::new(bound_type.clone(), 0, None, None)],
-                );
-        }
-    }
-
-    if solved.lower_bounds.is_empty() {
-        None
-    } else {
-        Some(solved)
     }
 }
 
@@ -1166,6 +1176,7 @@ fn adjust_param_type(
     template_result: &mut TemplateResult,
     statements_analyzer: &StatementsAnalyzer,
     functionlike_id: &FunctionLikeIdentifier,
+    closure_return_types: &FxHashMap<(FilePath, u32), Vec<(TUnion, HPos)>>,
 ) {
     let bindable_template_params = param_type
         .get_template_types()
@@ -1200,6 +1211,7 @@ fn adjust_param_type(
                 Some(argument_offset),
                 Some(statements_analyzer.get_hpos(arg_pos)),
                 StandinOpts {
+                    closure_return_types: Some(closure_return_types),
                     calling_class: if let Some(calling_class) =
                         &context.function_context.calling_class
                     {

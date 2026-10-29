@@ -511,7 +511,15 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if let Some(parent_analysis_data) = &parent_analysis_data {
             analysis_data
                 .type_variable_bounds
-                .clone_from(&parent_analysis_data.type_variable_bounds);
+                .inherit_from(&parent_analysis_data.type_variable_bounds);
+            analysis_data
+                .type_variable_bound_progress
+                .clone_from(&parent_analysis_data.type_variable_bound_progress);
+            analysis_data
+                .type_variable_constraints
+                .clone_from(&parent_analysis_data.type_variable_constraints);
+            analysis_data.type_variable_constraints_processed =
+                parent_analysis_data.type_variable_constraints_processed;
 
             if statements_analyzer.get_config().in_migration {
                 analysis_data.data_flow_graph = parent_analysis_data.data_flow_graph.clone();
@@ -917,21 +925,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     });
                 }
 
-                if let Some(inferred_yield_type) = &analysis_data.inferred_yield_type {
-                    inferred_return_type = Some(wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                        name: if functionlike_storage.is_async {
-                            StrId::ASYNC_GENERATOR
-                        } else {
-                            StrId::GENERATOR
-                        },
-                        type_params: Some(vec![
-                            wrap_atomic(TAtomic::TArraykey { from_any: true }),
-                            inferred_yield_type.clone(),
-                            get_nothing(),
-                        ]),
-                        is_this: false,
-                        remapped_params: false,
-                    })))
+                if analysis_data.inferred_yield_type.is_some() {
+                    // A generator's annotation defines the interface exposed
+                    // to callers, including its declared element type.
+                    inferred_return_type = Some(expected_return_type);
                 }
             }
         } else {
@@ -1048,6 +1045,14 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .extend(analysis_data.closure_spans);
 
             parent_analysis_data
+                .closure_return_types
+                .extend(analysis_data.closure_return_types);
+
+            parent_analysis_data
+                .shape_field_positions
+                .extend(analysis_data.shape_field_positions);
+
+            parent_analysis_data
                 .matched_ignore_positions
                 .extend(analysis_data.matched_ignore_positions);
 
@@ -1081,19 +1086,38 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     .extend(analysis_data.expr_fixme_positions);
             }
 
+            for constraint in analysis_data.type_variable_constraints {
+                if !parent_analysis_data
+                    .type_variable_constraints
+                    .contains(&constraint)
+                {
+                    parent_analysis_data
+                        .type_variable_constraints
+                        .push(constraint);
+                }
+            }
             for (name, bounds) in analysis_data.type_variable_bounds {
+                if parent_analysis_data
+                    .type_variable_bounds
+                    .get(&name)
+                    .is_some_and(|parent_bounds| Rc::ptr_eq(parent_bounds, &bounds))
+                {
+                    continue;
+                }
                 if let Some(existing_bounds) =
                     parent_analysis_data.type_variable_bounds.get_mut(&name)
                 {
-                    let existing_bounds_copy = existing_bounds.clone();
+                    let bounds = Rc::unwrap_or_clone(bounds);
                     let filtered_lower_bounds = bounds
                         .lower_bounds
                         .into_iter()
-                        .filter(|bound| !existing_bounds_copy.lower_bounds.contains(bound));
+                        .filter(|bound| !existing_bounds.lower_bounds.contains(bound))
+                        .collect::<Vec<_>>();
                     let filtered_upper_bounds = bounds
                         .upper_bounds
                         .into_iter()
-                        .filter(|bound| !existing_bounds_copy.upper_bounds.contains(bound));
+                        .filter(|bound| !existing_bounds.upper_bounds.contains(bound))
+                        .collect::<Vec<_>>();
 
                     existing_bounds.lower_bounds.extend(filtered_lower_bounds);
                     existing_bounds.upper_bounds.extend(filtered_upper_bounds);
@@ -1101,15 +1125,42 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     parent_analysis_data
                         .type_variable_bounds
-                        .insert(name, bounds);
+                        .insert_shared(name, bounds);
                 }
             }
         } else {
+            crate::expr::call::template_inference::propagate(
+                &statements_analyzer,
+                &mut analysis_data,
+            );
+            crate::expr::call::template_inference::check_deferred_constraints(
+                &statements_analyzer,
+                &mut analysis_data,
+            );
             if !analysis_data.type_variable_bounds.is_empty() {
-                for (_, bounds) in analysis_data.type_variable_bounds.clone() {
+                for (_, bounds) in analysis_data.type_variable_bounds.snapshot() {
+                    let resolve_bounds =
+                        |bounds: &[hakana_code_info::ttype::template::TemplateBound]| {
+                            bounds
+                                .iter()
+                                .map(|bound| hakana_code_info::ttype::template::TemplateBound {
+                                    bound_type: hakana_code_info::ttype::type_variable::resolve(
+                                        &bound.bound_type,
+                                        &analysis_data.type_variable_bounds,
+                                        statements_analyzer.codebase,
+                                    ),
+                                    appearance_depth: bound.appearance_depth,
+                                    arg_offset: bound.arg_offset,
+                                    equality_bound_classlike: bound.equality_bound_classlike,
+                                    pos: bound.pos,
+                                })
+                                .collect::<Vec<_>>()
+                        };
+                    let lower_bounds = resolve_bounds(&bounds.lower_bounds);
+                    let upper_bounds = resolve_bounds(&bounds.upper_bounds);
                     reconcile_lower_bounds_with_upper_bounds(
-                        &bounds.lower_bounds,
-                        &bounds.upper_bounds,
+                        &lower_bounds,
+                        &upper_bounds,
                         statements_analyzer,
                         &mut analysis_data,
                         functionlike_storage

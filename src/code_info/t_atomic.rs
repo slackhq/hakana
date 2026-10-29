@@ -183,7 +183,14 @@ impl TVec {
             str += "tuple(";
             str += known_items
                 .iter()
-                .map(|(_, (_, tunion))| tunion.get_id_with_refs(interner, refs, indent))
+                .map(|(_, (optional, tunion))| {
+                    let id = tunion.get_id_with_refs(interner, refs, indent);
+                    if *optional {
+                        format!("optional {id}")
+                    } else {
+                        id
+                    }
+                })
                 .join(", ")
                 .as_str();
 
@@ -224,6 +231,31 @@ impl TVec {
 
     pub fn is_tuple(&self) -> bool {
         self.known_items.is_some()
+    }
+}
+
+#[cfg(test)]
+mod vec_tests {
+    use super::*;
+    use crate::ttype::{get_int, get_nothing, get_string};
+
+    #[test]
+    fn tuple_display_distinguishes_optional_and_nullable_entries() {
+        let tuple = TVec {
+            known_items: Some(BTreeMap::from([
+                (0, (false, get_int())),
+                (1, (true, get_string())),
+                (2, (true, TUnion::new(vec![TAtomic::TNull, TAtomic::TInt]))),
+            ])),
+            type_param: Box::new(get_nothing()),
+            variadic_type: None,
+            known_count: None,
+            non_empty: false,
+        };
+        assert_eq!(
+            tuple.get_id(None),
+            "tuple(int, optional string, optional ?int)",
+        );
     }
 }
 

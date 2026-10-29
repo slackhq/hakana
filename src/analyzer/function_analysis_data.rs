@@ -1,8 +1,7 @@
 use crate::{config::Config, scope::CaseScope};
 use hakana_code_info::FileSource;
 use hakana_code_info::analysis_result::Replacement;
-use hakana_code_info::code_location::StmtStart;
-use hakana_code_info::ttype::template::TemplateBound;
+use hakana_code_info::code_location::{FilePath, HPos, StmtStart};
 use hakana_code_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind, WholeProgramKind},
@@ -14,22 +13,158 @@ use hakana_code_info::{
 use hakana_str::StrId;
 use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::{collections::BTreeMap, rc::Rc};
+use std::{
+    collections::{BTreeMap, hash_map},
+    ops::Deref,
+    rc::Rc,
+};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TypeVariableBounds {
-    pub lower_bounds: Vec<TemplateBound>,
-    pub upper_bounds: Vec<TemplateBound>,
+pub use hakana_code_info::ttype::type_variable::TypeVariableBounds;
+use hakana_code_info::ttype::{
+    comparison::type_comparison_result::TypeComparisonResult, type_variable::SubtypeConstraint,
+};
+
+/// Track potential changes at the storage boundary, including constraints added
+/// by assignments, reconciliation, and hooks outside call inference.
+/// Closures and read snapshots share bounds until a variable is mutated.
+#[derive(Default)]
+pub struct TypeVariableBoundsMap {
+    bounds: FxHashMap<String, Rc<TypeVariableBounds>>,
+    changed: FxHashSet<String>,
+}
+
+impl TypeVariableBoundsMap {
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut TypeVariableBounds> {
+        let bounds = self.bounds.get_mut(name)?;
+        self.changed.insert(name.to_owned());
+        Some(Rc::make_mut(bounds))
+    }
+
+    pub fn insert(
+        &mut self,
+        name: String,
+        bounds: TypeVariableBounds,
+    ) -> Option<Rc<TypeVariableBounds>> {
+        self.changed.insert(name.clone());
+        self.bounds.insert(name, Rc::new(bounds))
+    }
+
+    pub(crate) fn insert_shared(&mut self, name: String, bounds: Rc<TypeVariableBounds>) {
+        self.changed.insert(name.clone());
+        self.bounds.insert(name, bounds);
+    }
+
+    pub fn snapshot(&self) -> FxHashMap<String, Rc<TypeVariableBounds>> {
+        self.bounds.clone()
+    }
+
+    pub(crate) fn inherit_from(&mut self, source: &Self) {
+        self.bounds.clone_from(&source.bounds);
+        self.changed.clone_from(&source.changed);
+    }
+
+    pub(crate) fn has_changes(&self) -> bool {
+        !self.changed.is_empty()
+    }
+
+    pub(crate) fn take_changed(&mut self) -> FxHashSet<String> {
+        std::mem::take(&mut self.changed)
+    }
+}
+
+impl Deref for TypeVariableBoundsMap {
+    type Target = FxHashMap<String, Rc<TypeVariableBounds>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.bounds
+    }
+}
+
+impl IntoIterator for TypeVariableBoundsMap {
+    type Item = (String, Rc<TypeVariableBounds>);
+    type IntoIter = hash_map::IntoIter<String, Rc<TypeVariableBounds>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.bounds.into_iter()
+    }
+}
+
+#[cfg(test)]
+mod bounds_map_tests {
+    use super::{TypeVariableBounds, TypeVariableBoundsMap};
+    use hakana_code_info::ttype::{get_int, template::TemplateBound};
+    use rustc_hash::FxHashSet;
+
+    fn empty_bounds() -> TypeVariableBounds {
+        TypeVariableBounds {
+            lower_bounds: vec![],
+            upper_bounds: vec![],
+        }
+    }
+
+    #[test]
+    fn mutations_are_queued_without_reading_unchanged_variables() {
+        let mut variables = TypeVariableBoundsMap::default();
+        variables.insert("T".to_owned(), empty_bounds());
+        variables.insert("U".to_owned(), empty_bounds());
+        variables.take_changed();
+
+        variables
+            .get_mut("T")
+            .unwrap()
+            .lower_bounds
+            .push(TemplateBound::new(get_int(), 0, None, None));
+        variables
+            .get_mut("T")
+            .unwrap()
+            .upper_bounds
+            .push(TemplateBound::new(get_int(), 0, None, None));
+        assert!(variables.get("U").unwrap().lower_bounds.is_empty());
+        assert_eq!(variables.snapshot()["T"].lower_bounds.len(), 1);
+        assert_eq!(
+            variables.take_changed(),
+            FxHashSet::from_iter(["T".to_owned()])
+        );
+        assert!(!variables.has_changes());
+    }
+
+    #[test]
+    fn inherited_bounds_are_propagated_independently() {
+        let mut parent = TypeVariableBoundsMap::default();
+        parent.insert("T".to_owned(), empty_bounds());
+        parent.take_changed();
+        let mut child = TypeVariableBoundsMap::default();
+        child.inherit_from(&parent);
+        assert!(!child.has_changes());
+        assert!(std::rc::Rc::ptr_eq(&parent["T"], &child["T"]));
+
+        let snapshot = child.snapshot();
+        child
+            .get_mut("T")
+            .unwrap()
+            .lower_bounds
+            .push(TemplateBound::new(get_int(), 0, None, None));
+        assert!(parent["T"].lower_bounds.is_empty());
+        assert!(!parent.has_changes());
+        assert!(child.has_changes());
+        assert!(snapshot["T"].lower_bounds.is_empty());
+        assert!(!std::rc::Rc::ptr_eq(&snapshot["T"], &child["T"]));
+
+        let mut grandchild = TypeVariableBoundsMap::default();
+        grandchild.inherit_from(&child);
+        assert_eq!(
+            grandchild.take_changed(),
+            FxHashSet::from_iter(["T".to_owned()])
+        );
+    }
 }
 
 pub struct FunctionAnalysisData {
     pub expr_types: FxHashMap<(u32, u32), Rc<TUnion>>,
     /// The type a parent expression expects of a sub-expression, keyed by the
     /// sub-expression's position. A call argument gets its parameter's type
-    /// (with the callee's class templates resolved), and a `vec[...]` item gets
-    /// the value type its vec is expected to have. Generic calls use it to solve
-    /// templates that their arguments can't, e.g. the `TEnum` of a bare enum
-    /// class label passed as `HH\EnumClass\Label<TEnum, ...>`.
+    /// with its generics instantiated as shared inference variables, and a
+    /// `vec[...]` item gets the value type its vec is expected to have.
     pub expected_arg_types: FxHashMap<(u32, u32), Rc<TUnion>>,
     pub discarded_call_results: FxHashSet<(u32, u32)>,
     pub if_true_assertions: FxHashMap<(u32, u32), FxHashMap<String, Vec<Assertion>>>,
@@ -38,6 +173,11 @@ pub struct FunctionAnalysisData {
     pub case_scopes: Vec<CaseScope>,
     pub issues_to_emit: Vec<Issue>,
     pub inferred_return_types: Vec<TUnion>,
+    /// Unannotated closure returns retain their locations for generic bounds.
+    pub closure_return_types: FxHashMap<(FilePath, u32), Vec<(TUnion, HPos)>>,
+    /// Literal field locations allow deferred constraints to blame the value.
+    pub shape_field_positions:
+        FxHashMap<(u32, u32), BTreeMap<hakana_code_info::t_atomic::DictKey, HPos>>,
     pub inferred_yield_type: Option<TUnion>,
     pub fully_matched_switch_offsets: FxHashSet<usize>,
     pub closures: FxHashMap<Pos, FunctionLikeInfo>,
@@ -64,7 +204,11 @@ pub struct FunctionAnalysisData {
     pub hakana_fixme_or_ignores: BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>>,
     pub matched_ignore_positions: FxHashSet<(u32, u32)>,
     pub previously_used_fixme_positions: FxHashMap<(u32, u32), (u32, u32)>,
-    pub type_variable_bounds: FxHashMap<String, TypeVariableBounds>,
+    pub type_variable_bounds: TypeVariableBoundsMap,
+    /// Prefixes of the append-only bound lists already propagated together.
+    pub(crate) type_variable_bound_progress: FxHashMap<String, (usize, usize)>,
+    pub type_variable_constraints: Vec<SubtypeConstraint>,
+    pub(crate) type_variable_constraints_processed: usize,
     pub migrate_function: Option<bool>,
     pub after_expr_hook_called: FxHashSet<(u32, u32)>,
     pub after_arg_hook_called: FxHashSet<(u32, u32)>,
@@ -99,6 +243,8 @@ impl FunctionAnalysisData {
             case_scopes: Vec::new(),
             issues_to_emit: Vec::new(),
             inferred_return_types: Vec::new(),
+            closure_return_types: FxHashMap::default(),
+            shape_field_positions: FxHashMap::default(),
             inferred_yield_type: None,
             fully_matched_switch_offsets: FxHashSet::default(),
             recording_level: 0,
@@ -134,7 +280,10 @@ impl FunctionAnalysisData {
             expr_fixme_positions: FxHashMap::default(),
             matched_ignore_positions: FxHashSet::default(),
             issue_counts: FxHashMap::default(),
-            type_variable_bounds: FxHashMap::default(),
+            type_variable_bounds: TypeVariableBoundsMap::default(),
+            type_variable_bound_progress: FxHashMap::default(),
+            type_variable_constraints: Vec::new(),
+            type_variable_constraints_processed: 0,
             migrate_function: None,
             after_arg_hook_called: FxHashSet::default(),
             after_expr_hook_called: FxHashSet::default(),
@@ -155,6 +304,70 @@ impl FunctionAnalysisData {
         if !self.issues_to_emit.contains(&issue) {
             self.issues_to_emit.push(issue);
         }
+    }
+
+    pub(crate) fn add_type_variable_bounds(
+        &mut self,
+        result: TypeComparisonResult,
+        pos: hakana_code_info::code_location::HPos,
+    ) -> bool {
+        let mut changed = false;
+        for (name, mut bound) in result.type_variable_lower_bounds {
+            bound.pos = Some(pos);
+            if self
+                .type_variable_bounds
+                .get(&name)
+                .is_some_and(|bounds| !bounds.lower_bounds.contains(&bound))
+            {
+                self.type_variable_bounds
+                    .get_mut(&name)
+                    .unwrap()
+                    .lower_bounds
+                    .push(bound);
+                changed = true;
+            }
+        }
+        for (name, mut bound) in result.type_variable_upper_bounds {
+            bound.pos = Some(pos);
+            if self
+                .type_variable_bounds
+                .get(&name)
+                .is_some_and(|bounds| !bounds.upper_bounds.contains(&bound))
+            {
+                self.type_variable_bounds
+                    .get_mut(&name)
+                    .unwrap()
+                    .upper_bounds
+                    .push(bound);
+                changed = true;
+            }
+        }
+        for (lower, upper) in result.deferred_constraints {
+            let constraint = SubtypeConstraint { lower, upper, pos };
+            if !self.type_variable_constraints.contains(&constraint) {
+                self.type_variable_constraints.push(constraint);
+                changed = true;
+            }
+        }
+        changed
+    }
+
+    pub(crate) fn has_type_error_at(&self, pos: hakana_code_info::code_location::HPos) -> bool {
+        self.issues_to_emit.iter().any(|issue| {
+            issue.pos.file_path == pos.file_path
+                && issue.pos.start_offset <= pos.start_offset
+                && issue.pos.end_offset >= pos.end_offset
+                && matches!(
+                    issue.kind,
+                    IssueKind::InvalidArgument
+                        | IssueKind::PossiblyInvalidArgument
+                        | IssueKind::LessSpecificNestedAnyArgumentType
+                        | IssueKind::MixedArgument
+                        | IssueKind::MixedAnyArgument
+                        | IssueKind::InvalidReturnStatement
+                        | IssueKind::LessSpecificReturnStatement
+                )
+        })
     }
 
     pub fn maybe_add_issue(&mut self, mut issue: Issue, config: &Config, file_path: &str) {
@@ -243,6 +456,19 @@ impl FunctionAnalysisData {
             );
         }
 
+        if self.is_issue_suppressed_by_fixme(issue) {
+            return false;
+        }
+
+        if let Some(recorded_issues) = self.recorded_issues.last_mut() {
+            recorded_issues.push(issue.clone());
+            return false;
+        }
+
+        self.can_output_issue(issue)
+    }
+
+    pub(crate) fn is_issue_suppressed_by_fixme(&mut self, issue: &Issue) -> bool {
         if self.covered_by_hh_fixme(
             &issue.kind,
             issue.pos.start_line,
@@ -254,7 +480,7 @@ impl FunctionAnalysisData {
             issue.pos.start_offset,
             issue.pos.end_offset,
         ) {
-            return false;
+            return true;
         }
 
         if let Some(start_end) = self.get_matching_hakana_fixme(issue) {
@@ -264,15 +490,10 @@ impl FunctionAnalysisData {
                 *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;
             }
 
-            return false;
+            return true;
         }
 
-        if let Some(recorded_issues) = self.recorded_issues.last_mut() {
-            recorded_issues.push(issue.clone());
-            return false;
-        }
-
-        self.can_output_issue(issue)
+        false
     }
 
     fn can_output_issue(&mut self, issue: &Issue) -> bool {
@@ -555,6 +776,7 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
             issue_kind,
             IssueKind::FalsableReturnStatement
                 | IssueKind::ImpossibleAssignment
+                | IssueKind::IncompatibleTypeParameters
                 | IssueKind::InvalidArgument
                 | IssueKind::InvalidReturnStatement
                 | IssueKind::LessSpecificArgument
@@ -601,6 +823,7 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
         4163 => matches!(
             issue_kind,
             IssueKind::InvalidArgument
+                | IssueKind::IncompatibleTypeParameters
                 | IssueKind::InvalidReturnStatement
                 | IssueKind::LessSpecificArgument
                 | IssueKind::LessSpecificNestedArgumentType
@@ -637,6 +860,7 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
         4057 | 4138 => matches!(
             issue_kind,
             IssueKind::InvalidArgument
+                | IssueKind::IncompatibleTypeParameters
                 | IssueKind::PossiblyInvalidArgument
                 | IssueKind::LessSpecificArgument
                 | IssueKind::LessSpecificReturnStatement

@@ -142,7 +142,15 @@ pub(crate) fn analyze<'expr>(
                 false,
             ));
         } else if let Some(root_type) = root_type
-            && root_type.has_typealias()
+            && (root_type.has_typealias()
+                || hakana_code_info::ttype::type_variable::contains(&root_type)
+                || root_type.types.iter().all(|atomic| {
+                    hakana_code_info::ttype::get_arrayish_params(
+                        atomic,
+                        statements_analyzer.codebase,
+                    )
+                    .is_some_and(|(_, value)| value.is_nothing())
+                }))
         {
             replacement_left = Some(get_left_expr(
                 context,
@@ -154,6 +162,24 @@ pub(crate) fn analyze<'expr>(
                 true,
             ));
         }
+    }
+
+    if let Some(aast::Expr(_, _, aast::Expr_::Lvar(var))) = &replacement_left
+        && context
+            .locals
+            .get(var.1.1.as_str())
+            .is_some_and(|ty| ty.is_null())
+    {
+        // The evaluated fetch has no possible value, as on the first
+        // iteration of a reducer with an empty accumulator.
+        expression_analyzer::analyze(statements_analyzer, right, analysis_data, context, true)?;
+        let right_type = analysis_data
+            .get_expr_type(right.pos())
+            .cloned()
+            .unwrap_or_else(get_mixed_any);
+        analysis_data.set_expr_type(pos, right_type);
+        analysis_data.combine_effects(left.pos(), right.pos(), pos);
+        return Ok(());
     }
 
     let ternary = aast::Expr(

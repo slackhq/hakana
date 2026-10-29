@@ -36,6 +36,7 @@ pub(crate) fn analyze(
     let mut effects = 0;
 
     let mut known_items = BTreeMap::new();
+    let mut field_positions = BTreeMap::new();
     for field in shape_fields {
         let (name, value_expr) = match field {
             aast::ShapeExprField::SFField(name, expr) => (name, expr),
@@ -183,10 +184,15 @@ pub(crate) fn analyze(
                 parent_nodes.push(new_parent_node);
             }
 
+            field_positions.insert(name.clone(), statements_analyzer.get_hpos(value_expr.pos()));
             known_items.insert(name, (false, Arc::new(value_item_type)));
         }
     }
 
+    analysis_data.shape_field_positions.insert(
+        (pos.start_offset() as u32, pos.end_offset() as u32),
+        field_positions,
+    );
     analysis_data.expr_effects.insert(
         (pos.start_offset() as u32, pos.end_offset() as u32),
         effects,

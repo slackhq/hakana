@@ -1,0 +1,2 @@
+ERROR: IncompatibleTypeParameters - input.hack:24:16 - Type shape(?'count' => int|string(changed), 'id' => string) should be a subtype of shape-from(FileShape)
+ERROR: IncompatibleTypeParameters - input.hack:40:16 - Type shape(?'count' => int|string(changed), 'id' => string) should be a subtype of shape-from(FileShape)

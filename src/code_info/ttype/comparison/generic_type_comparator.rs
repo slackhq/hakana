@@ -1,4 +1,5 @@
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
+use crate::ttype::type_variable;
 use crate::{
     classlike_info::Variance,
     codebase_info::CodebaseInfo,
@@ -223,6 +224,63 @@ pub(crate) fn compare_generic_params(
     } else {
         None
     };
+
+    // Type variables represent constraints, so variance must determine the
+    // direction before comparing. A successful covariant comparison must retain
+    // its bounds just as an invariant comparison does.
+    if type_variable::contains(input_param) || type_variable::contains(container_param) {
+        // An untyped generic argument supplies no equality evidence. In
+        // particular, Node<any> must not overwrite an inferred Node<Value>.
+        if input_param.is_any() || container_param.is_any() {
+            return;
+        }
+        let (lower, upper) =
+            if matches!(container_type_param_variance, Some(Variance::Contravariant)) {
+                (container_param, input_param)
+            } else {
+                (input_param, container_param)
+            };
+        let mut matches = union_type_comparator::is_contained_by(
+            codebase,
+            file_path,
+            lower,
+            upper,
+            false,
+            lower.ignore_falsable_issues,
+            inside_assertion,
+            &mut param_comparison_result,
+        );
+        if !matches!(
+            container_type_param_variance,
+            Some(Variance::Covariant | Variance::Contravariant)
+        ) {
+            matches &= union_type_comparator::is_contained_by(
+                codebase,
+                file_path,
+                upper,
+                lower,
+                false,
+                upper.ignore_falsable_issues,
+                inside_assertion,
+                &mut param_comparison_result,
+            );
+            for (_, bound) in param_comparison_result
+                .type_variable_lower_bounds
+                .iter_mut()
+                .chain(&mut param_comparison_result.type_variable_upper_bounds)
+            {
+                bound.equality_bound_classlike = Some(*container_name);
+                bound.appearance_depth += 1;
+            }
+        }
+        if matches {
+            atomic_comparison_result.extend_constraints(param_comparison_result);
+        } else {
+            *all_types_contain = false;
+            update_failed_result_from_nested(atomic_comparison_result, param_comparison_result);
+        }
+        return;
+    }
 
     if !union_type_comparator::is_contained_by(
         codebase,

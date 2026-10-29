@@ -63,7 +63,7 @@ pub(crate) fn analyze(
         context,
     )?;
 
-    if assigned_properties.is_empty() || assign_value_type.is_mixed() {
+    if assigned_properties.is_empty() {
         return Ok(());
     }
 
@@ -71,7 +71,10 @@ pub(crate) fn analyze(
         let class_property_type = &assigned_property.0;
         let assignment_type = &assigned_property.2;
 
-        if class_property_type.is_mixed() {
+        if class_property_type.is_mixed()
+            || (assign_value_type.is_mixed()
+                && !hakana_code_info::ttype::type_variable::contains(class_property_type))
+        {
             continue;
         }
 

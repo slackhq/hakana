@@ -302,6 +302,17 @@ pub(crate) fn get_array_access_type_given_offset(
     context: &mut BlockContext,
 ) -> TUnion {
     let codebase = statements_analyzer.codebase;
+    let resolved_array_type;
+    let array_type = if hakana_code_info::ttype::type_variable::contains(array_type) {
+        resolved_array_type = hakana_code_info::ttype::type_variable::resolve(
+            array_type,
+            &analysis_data.type_variable_bounds,
+            codebase,
+        );
+        &resolved_array_type
+    } else {
+        array_type
+    };
 
     let mut has_valid_expected_offset = false;
 

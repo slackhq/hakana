@@ -40,13 +40,37 @@ pub fn is_contained_by(
         return true;
     }
 
+    if container_type.is_single()
+        && let TAtomic::TTypeVariable { name } = container_type.get_single()
+    {
+        if input_type.is_single() && input_type.get_single() == container_type.get_single() {
+            return true;
+        }
+        // A union is one lower bound. In particular, an equality with ?Dog
+        // must not become two independent equalities with Dog and null.
+        union_comparison_result.type_variable_lower_bounds.push((
+            name.clone(),
+            TemplateBound::new(input_type.clone().generalize_literals(), 0, None, None),
+        ));
+        for atomic in &input_type.types {
+            if let TAtomic::TTypeVariable { name } = atomic {
+                union_comparison_result.type_variable_upper_bounds.push((
+                    name.clone(),
+                    TemplateBound::new(container_type.clone(), 0, None, None),
+                ));
+            }
+        }
+        return true;
+    }
+
     let comparison_config = ComparisonConfig {
         ignore_false,
         ignore_null,
         inside_assertion,
     };
 
-    let container_has_template = container_type.has_template_or_static();
+    let container_has_template = container_type.has_template_or_static()
+        || super::super::type_variable::contains(container_type);
 
     let mut input_atomic_types = input_type.types.iter().collect::<Vec<_>>();
 
@@ -69,19 +93,10 @@ pub fn is_contained_by(
                 }
             }
             TAtomic::TTypeVariable { name } => {
-                if container_type.is_single()
-                    && let TAtomic::TTypeVariable {
-                        name: container_name,
-                    } = container_type.get_single()
-                    && container_name == name
-                {
-                    continue;
-                }
                 union_comparison_result.type_variable_upper_bounds.push((
                     name.clone(),
                     TemplateBound::new(container_type.clone(), 0, None, None),
                 ));
-
                 continue;
             }
             TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
@@ -158,7 +173,12 @@ fn check_atomic_contained_by_union(
         }
     }
 
-    for container_type_part in container_atomic_types {
+    // A fixed union arm absorbs its matching input: null in ?T, or Label in
+    // T | Label<...>, must not also become a lower bound of T.
+    for container_type_part in container_atomic_types
+        .iter()
+        .filter(|ty| !matches!(ty, TAtomic::TTypeVariable { .. }))
+    {
         if let Some(true) = check_atomic_contained_by_atomic(
             codebase,
             file_path,
@@ -175,6 +195,24 @@ fn check_atomic_contained_by_union(
             coercion_tracker.all_type_coerced_from_nested_any = Some(false);
             coercion_tracker.all_type_coerced_from_as_mixed = Some(false);
             coercion_tracker.all_type_coerced = Some(false);
+        }
+    }
+    if !coercion_tracker.type_match_found {
+        for container_type_part in container_atomic_types
+            .iter()
+            .filter(|ty| matches!(ty, TAtomic::TTypeVariable { .. }))
+        {
+            check_atomic_contained_by_atomic(
+                codebase,
+                file_path,
+                input_type,
+                input_type_part,
+                container_type,
+                comparison_config,
+                union_comparison_result,
+                &mut coercion_tracker,
+                container_type_part,
+            );
         }
     }
     if coercion_tracker.all_type_coerced.unwrap_or(false) {
@@ -229,9 +267,21 @@ fn check_atomic_contained_by_atomic(
     }
 
     if let TAtomic::TTypeVariable { name } = &container_type_part {
+        let mut bound_type = input_type.clone();
+        bound_type.types = vec![input_type_part.clone()];
+        // The null arm of ?T absorbs null even when the input spells it as
+        // mixed. Preserve the non-null remainder as T's lower bound.
+        if container_type.is_nullable() && input_type_part.is_mixed() {
+            bound_type.types = vec![TAtomic::TMixedWithFlags(input_type.is_any(), true)];
+        }
+        if container_type.is_nullable()
+            && let TAtomic::TGenericParam(param) = &mut bound_type.types[0]
+        {
+            param.as_type.remove_type(&TAtomic::TNull);
+        }
         union_comparison_result.type_variable_lower_bounds.push((
             name.clone(),
-            TemplateBound::new(input_type.clone(), 0, None, None),
+            TemplateBound::new(bound_type.generalize_literals(), 0, None, None),
         ));
 
         coercion_tracker.type_match_found = true;
@@ -290,6 +340,9 @@ fn check_atomic_contained_by_atomic(
         union_comparison_result
             .type_variable_upper_bounds
             .extend(atomic_comparison_result.type_variable_upper_bounds);
+        union_comparison_result
+            .deferred_constraints
+            .extend(atomic_comparison_result.deferred_constraints);
     } else {
         if union_comparison_result.type_mismatch_parents.is_none() {
             union_comparison_result.type_mismatch_parents =

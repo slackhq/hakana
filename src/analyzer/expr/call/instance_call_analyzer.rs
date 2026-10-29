@@ -15,7 +15,7 @@ use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
-use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
+use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null, type_variable};
 use oxidized::aast;
 use oxidized::pos::Pos;
 
@@ -84,7 +84,11 @@ pub(crate) fn analyze(
         }
 
         let mut class_types = class_type.types.iter().collect::<Vec<_>>();
-        let type_variable_bounds = analysis_data.type_variable_bounds.clone();
+        let type_variable_bounds = if type_variable::contains(&class_type) {
+            analysis_data.type_variable_bounds.snapshot()
+        } else {
+            Default::default()
+        };
 
         while let Some(lhs_atomic_type) = class_types.pop() {
             match lhs_atomic_type {

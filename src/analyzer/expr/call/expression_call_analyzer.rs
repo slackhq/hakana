@@ -106,6 +106,7 @@ pub(crate) fn analyze(
                 &expr.unpacked_arg,
                 &functionlike_id,
                 &lambda_storage,
+                lambda_storage.return_type.as_ref(),
                 None,
                 analysis_data,
                 context,

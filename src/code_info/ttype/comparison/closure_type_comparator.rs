@@ -56,13 +56,9 @@ pub(crate) fn is_contained_by(
                         return false;
                     }
 
-                    atomic_comparison_result
-                        .type_variable_lower_bounds
-                        .extend(param_comparison_result.type_variable_upper_bounds);
-
-                    atomic_comparison_result
-                        .type_variable_upper_bounds
-                        .extend(param_comparison_result.type_variable_lower_bounds);
+                    // The comparison above already reverses the parameter
+                    // types. Reversing the bounds too would undo contravariance.
+                    atomic_comparison_result.extend_constraints(param_comparison_result);
                 }
             } else {
                 if input_param.is_optional {

@@ -1,1 +1,2 @@
+ERROR: InvalidArgument - input.hack:21:18 - Argument 2 of SomeTableWB::eq expects int, different type string(hello) provided
 ERROR: InvalidArgument - input.hack:22:13 - Argument 1 of SomeTableWB::eq expects newtype-alias(HH\EnumClass\Label<SomeTableColumnType, Column<any>>), different type #nome provided

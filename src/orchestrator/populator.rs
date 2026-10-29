@@ -435,7 +435,7 @@ fn populate_classlike_storage(
     }
 
     for direct_enum_extends in &storage.enum_class_extends.clone() {
-        populate_data_from_parent_classlike(
+        populate_data_from_included_enum(
             &mut storage,
             codebase,
             direct_enum_extends,
@@ -669,6 +669,41 @@ fn populate_data_from_parent_classlike(
     }
 
     // todo update parent storage dependent classlikes maybe?
+}
+
+fn populate_data_from_included_enum(
+    storage: &mut ClassLikeInfo,
+    codebase: &mut CodebaseInfo,
+    included_enum: &StrId,
+    symbol_references: &mut SymbolReferences,
+    safe_symbols: &FxHashSet<StrId>,
+) {
+    populate_classlike_storage(included_enum, codebase, symbol_references, safe_symbols);
+    symbol_references.add_symbol_reference_to_symbol(storage.name, *included_enum, true);
+
+    let Some(included_storage) = codebase.classlike_infos.get(included_enum) else {
+        storage.invalid_dependencies.push(*included_enum);
+        return;
+    };
+
+    // Enum inclusion imports constants, not the included enum's inheritance.
+    // In particular, keep BuiltinEnum<ThisEnum> for getValues/assert/coerce.
+    for (name, constant) in &included_storage.constants {
+        storage
+            .constants
+            .entry(*name)
+            .or_insert_with(|| constant.clone());
+    }
+    for (name, type_constant) in &included_storage.type_constants {
+        storage
+            .type_constants
+            .entry(*name)
+            .or_insert_with(|| type_constant.clone());
+    }
+    storage
+        .invalid_dependencies
+        .extend(included_storage.invalid_dependencies.clone());
+    storage.has_visitor_issues |= included_storage.has_visitor_issues;
 }
 
 fn populate_data_from_trait(

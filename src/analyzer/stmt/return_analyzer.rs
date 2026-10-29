@@ -42,7 +42,64 @@ pub(crate) fn analyze(
 
     let interner = statements_analyzer.interner;
 
+    let codebase = statements_analyzer.codebase;
+    let expected_return_type = if let Some(functionlike_storage) =
+        statements_analyzer.get_functionlike_info()
+        && let Some(expected_return_type) = &functionlike_storage.return_type
+    {
+        let mut expected_type = expected_return_type.clone();
+
+        type_expander::expand_union(
+            codebase,
+            &Some(statements_analyzer.interner),
+            &statements_analyzer.file_analyzer.file_source.file_path,
+            &mut expected_type,
+            &TypeExpansionOptions {
+                self_class: context.function_context.calling_class,
+                static_class_type: if let Some(calling_class) =
+                    &context.function_context.calling_class
+                {
+                    StaticClassType::Name(*calling_class)
+                } else {
+                    StaticClassType::None
+                },
+                function_is_final: if let Some(method_info) = &functionlike_storage.method_info {
+                    method_info.is_final
+                } else {
+                    false
+                },
+                ..Default::default()
+            },
+            &mut analysis_data.data_flow_graph,
+            &mut 0,
+        );
+
+        expected_type
+    } else {
+        get_mixed_any()
+    };
+
     let mut inferred_return_type = if let Some(return_expr) = return_expr {
+        if crate::expr::call::arguments_analyzer::can_use_expected_type(return_expr)
+            && !expected_return_type.is_mixed()
+        {
+            let mut expected = expected_return_type.clone();
+            if statements_analyzer
+                .get_functionlike_info()
+                .is_some_and(|info| info.is_async)
+                && expected.is_single()
+                && let TAtomic::TAwaitable { value } = expected.get_single()
+            {
+                expected = (**value).clone();
+            }
+            analysis_data.expected_arg_types.insert(
+                (
+                    return_expr.pos().start_offset() as u32,
+                    return_expr.pos().end_offset() as u32,
+                ),
+                Rc::new(expected),
+            );
+        }
         context.inside_return = true;
         expression_analyzer::analyze(
             statements_analyzer,
@@ -79,8 +136,6 @@ pub(crate) fn analyze(
     } else {
         get_void()
     };
-
-    let codebase = statements_analyzer.codebase;
 
     if let Some(finally_scope) = context.finally_scope.clone() {
         let mut finally_scope = (*finally_scope).borrow_mut();
@@ -168,39 +223,19 @@ pub(crate) fn analyze(
             .push(inferred_return_type.clone());
     }
 
-    let expected_return_type = if let Some(expected_return_type) = &functionlike_storage.return_type
+    if functionlike_storage.return_type.is_none()
+        && let Some(return_expr) = return_expr
+        && let Some(offset) = context.calling_closure_id
     {
-        let mut expected_type = expected_return_type.clone();
-
-        type_expander::expand_union(
-            codebase,
-            &Some(statements_analyzer.interner),
-            &statements_analyzer.file_analyzer.file_source.file_path,
-            &mut expected_type,
-            &TypeExpansionOptions {
-                self_class: context.function_context.calling_class,
-                static_class_type: if let Some(calling_class) =
-                    &context.function_context.calling_class
-                {
-                    StaticClassType::Name(*calling_class)
-                } else {
-                    StaticClassType::None
-                },
-                function_is_final: if let Some(method_info) = &functionlike_storage.method_info {
-                    method_info.is_final
-                } else {
-                    false
-                },
-                ..Default::default()
-            },
-            &mut analysis_data.data_flow_graph,
-            &mut 0,
-        );
-
-        expected_type
-    } else {
-        get_mixed_any()
-    };
+        analysis_data
+            .closure_return_types
+            .entry((*statements_analyzer.get_file_path(), offset))
+            .or_default()
+            .push((
+                inferred_return_type.clone(),
+                statements_analyzer.get_hpos(return_expr.pos()),
+            ));
+    }
 
     // method-level where constraints (e.g. `where T = ?Tv`) let us rewrite a
     // constrained param in the returned type with its bound — so for a value

@@ -145,7 +145,12 @@ pub(crate) fn analyze(
         }
     }
 
-    root_type = if !key_values.is_empty() {
+    root_type = if !key_values.is_empty()
+        && !root_type
+            .types
+            .iter()
+            .any(|ty| matches!(ty, TAtomic::TTypeVariable { .. }))
+    {
         update_type_with_key_values(
             statements_analyzer,
             root_type,
@@ -575,22 +580,60 @@ fn update_array_assignment_child_type(
                     non_empty: true,
                 }),
                 TAtomic::TTypeVariable { name } => {
-                    if let Some(TypeVariableBounds { upper_bounds, .. }) =
+                    if let Some(TypeVariableBounds { lower_bounds, .. }) =
                         analysis_data.type_variable_bounds.get_mut(name)
                     {
-                        let mut bound = TemplateBound::new(
-                            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                                name: StrId::KEYED_CONTAINER,
-                                type_params: Some(vec![(*key_type).clone(), value_type.clone()]),
-                                is_this: false,
-                                remapped_params: false,
-                            })),
-                            0,
-                            None,
-                            None,
-                        );
+                        // A write contributes a possible collection value;
+                        // it does not narrow all existing keys and values.
+                        let container = lower_bounds
+                            .iter()
+                            .flat_map(|bound| &bound.bound_type.types)
+                            .find_map(|ty| match ty {
+                                TAtomic::TDict(dict) if dict.is_shape => {
+                                    Some(update_atomic_given_key(
+                                        ty.clone(),
+                                        &get_array_assignment_offset_types(&key_type),
+                                        Some(key_type.clone()),
+                                        &mut false,
+                                        &value_type,
+                                        codebase,
+                                    ))
+                                }
+                                TAtomic::TVec(_) => Some(TAtomic::TVec(TVec {
+                                    type_param: Box::new(value_type.clone()),
+                                    known_items: None,
+                                    known_count: None,
+                                    non_empty: false,
+                                    variadic_type: None,
+                                })),
+                                TAtomic::TNamedObject(object)
+                                    if matches!(object.name, StrId::VECTOR | StrId::MAP) =>
+                                {
+                                    let mut object = object.clone();
+                                    object.type_params = Some(if object.name == StrId::MAP {
+                                        vec![(*key_type).clone(), value_type.clone()]
+                                    } else {
+                                        vec![value_type.clone()]
+                                    });
+                                    Some(TAtomic::TNamedObject(object))
+                                }
+                                _ => None,
+                            })
+                            .unwrap_or_else(|| {
+                                TAtomic::TDict(TDict {
+                                    params: Some((
+                                        Box::new((*key_type).clone()),
+                                        Box::new(value_type.clone()),
+                                    )),
+                                    known_items: None,
+                                    non_empty: false,
+                                    shape_name: None,
+                                    is_shape: false,
+                                })
+                            });
+                        let mut bound = TemplateBound::new(wrap_atomic(container), 0, None, None);
                         bound.pos = Some(statements_analyzer.get_hpos(pos));
-                        upper_bounds.push(bound);
+                        lower_bounds.push(bound);
                     }
 
                     collection_types.push(original_type.clone());
@@ -663,22 +706,41 @@ fn update_array_assignment_child_type(
                     collection_types.push(TAtomic::TMixedWithFlags(true, false))
                 }
                 TAtomic::TTypeVariable { name } => {
-                    if let Some(TypeVariableBounds { upper_bounds, .. }) =
+                    if let Some(TypeVariableBounds { lower_bounds, .. }) =
                         analysis_data.type_variable_bounds.get_mut(name)
                     {
-                        let mut bound = TemplateBound::new(
-                            wrap_atomic(TAtomic::TNamedObject(TNamedObject {
-                                name: StrId::CONTAINER,
-                                type_params: Some(vec![value_type.clone()]),
-                                is_this: false,
-                                remapped_params: false,
-                            })),
-                            0,
-                            None,
-                            None,
-                        );
+                        // Appending adds a possible value to the mutable
+                        // collection. It does not require every existing
+                        // element to be a subtype of this particular value.
+                        let container = lower_bounds
+                            .iter()
+                            .flat_map(|bound| &bound.bound_type.types)
+                            .find_map(|ty| match ty {
+                                TAtomic::TKeyset { .. } => Some(TAtomic::TKeyset {
+                                    type_param: Box::new(value_type.clone()),
+                                    non_empty: false,
+                                }),
+                                TAtomic::TNamedObject(object)
+                                    if matches!(object.name, StrId::VECTOR | StrId::SET) =>
+                                {
+                                    let mut object = object.clone();
+                                    object.type_params = Some(vec![value_type.clone()]);
+                                    Some(TAtomic::TNamedObject(object))
+                                }
+                                _ => None,
+                            })
+                            .unwrap_or_else(|| {
+                                TAtomic::TVec(TVec {
+                                    type_param: Box::new(value_type.clone()),
+                                    known_items: None,
+                                    known_count: None,
+                                    non_empty: false,
+                                    variadic_type: None,
+                                })
+                            });
+                        let mut bound = TemplateBound::new(wrap_atomic(container), 0, None, None);
                         bound.pos = Some(statements_analyzer.get_hpos(pos));
-                        upper_bounds.push(bound);
+                        lower_bounds.push(bound);
                     }
 
                     collection_types.push(original_type.clone());

@@ -169,6 +169,13 @@ pub(crate) fn analyze(
         expr.3,
         &functionlike_id,
         function_storage,
+        // idx's HHI return omits the null/default arm added by its
+        // argument-dependent specialization.
+        if name == StrId::IDX_FN {
+            None
+        } else {
+            function_storage.return_type.as_ref()
+        },
         None,
         analysis_data,
         context,

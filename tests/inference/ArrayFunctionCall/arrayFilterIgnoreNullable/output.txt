@@ -1,0 +1,2 @@
+ERROR: IncompatibleTypeParameters - input.hack:8:13 - Type ?A should be a subtype of A
+ERROR: InvalidArgument - input.hack:9:13 - Argument 2 of array_filter expects ?(function(?A): bool), different type (function(A): bool) provided

@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 use hakana_code_info::t_atomic::{TNamedObject, TVec};
 use hakana_code_info::ttype::{
     get_arraykey, get_keyset, get_literal_int, get_mixed_any, get_nothing, type_combiner,
+    type_expander::{self, TypeExpansionOptions},
     wrap_atomic,
 };
 use hakana_code_info::{
@@ -12,8 +13,9 @@ use hakana_code_info::{
         path::{ArrayDataKind, PathKind},
     },
     t_atomic::{DictKey, TAtomic, TDict},
-    t_union::TUnion,
+    t_union::{TUnion, populate_union_type},
 };
+use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_str::StrId;
 use oxidized::{
     ast::Expr,
@@ -65,9 +67,50 @@ fn get_kvc_object_name(kvc_kind: &KvcKind) -> StrId {
     }
 }
 
+fn resolve_element_type(
+    type_arg: &oxidized::aast::Targ<()>,
+    statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &mut FunctionAnalysisData,
+    context: &BlockContext,
+) -> TUnion {
+    let mut ty = get_type_from_hint(
+        &type_arg.1.1,
+        context.function_context.calling_class,
+        statements_analyzer.get_type_resolution_context(),
+        statements_analyzer.file_analyzer.resolved_names,
+        *statements_analyzer.get_file_path(),
+        type_arg.1.0.start_offset() as u32,
+    )
+    .unwrap();
+    populate_union_type(
+        &mut ty,
+        &statements_analyzer.codebase.symbols,
+        &context
+            .function_context
+            .get_reference_source(&statements_analyzer.get_file_path().0),
+        &mut analysis_data.symbol_references,
+        false,
+    );
+    type_expander::expand_union(
+        statements_analyzer.codebase,
+        &Some(statements_analyzer.interner),
+        statements_analyzer.get_file_path(),
+        &mut ty,
+        &TypeExpansionOptions::default(),
+        &mut analysis_data.data_flow_graph,
+        &mut 0,
+    );
+    if ty.is_placeholder() {
+        get_nothing()
+    } else {
+        ty
+    }
+}
+
 pub(crate) fn analyze_vals(
     statements_analyzer: &StatementsAnalyzer,
     vc_kind: &oxidized::ast::VcKind,
+    type_arg: Option<&oxidized::aast::Targ<()>>,
     items: &[oxidized::ast::Expr],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -75,13 +118,21 @@ pub(crate) fn analyze_vals(
 ) -> Result<(), AnalysisError> {
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
+        // An explicit element type is still evidence when there are no values
+        // to infer from. In particular, Ref(vec<T>[]) must retain T when the
+        // collection is subsequently populated by a captured closure.
+        let element_type = if let Some(type_arg) = type_arg {
+            resolve_element_type(type_arg, statements_analyzer, analysis_data, context)
+        } else {
+            get_nothing()
+        };
         match vc_kind {
             VcKind::Vec => {
                 analysis_data.set_expr_type(
                     pos,
                     wrap_atomic(TAtomic::TVec(TVec {
                         known_items: None,
-                        type_param: Box::new(get_nothing()),
+                        type_param: Box::new(element_type),
                         known_count: Some(0),
                         non_empty: false,
                         variadic_type: None,
@@ -89,7 +140,7 @@ pub(crate) fn analyze_vals(
                 );
             }
             VcKind::Keyset => {
-                analysis_data.set_expr_type(pos, get_keyset(get_nothing()));
+                analysis_data.set_expr_type(pos, get_keyset(element_type));
             }
             VcKind::Vector | VcKind::ImmVector | VcKind::Set | VcKind::ImmSet => {
                 analysis_data.set_expr_type(
@@ -98,13 +149,13 @@ pub(crate) fn analyze_vals(
                         name: get_vc_object_name(vc_kind),
                         // empty mutable collections can later be populated with
                         // any type, so we can't assume nothing
-                        type_params: Some(vec![
-                            if matches!(vc_kind, VcKind::Vector | VcKind::Set) {
-                                get_mixed_any()
-                            } else {
-                                get_nothing()
-                            },
-                        ]),
+                        type_params: Some(vec![if type_arg.is_some() {
+                            element_type
+                        } else if matches!(vc_kind, VcKind::Vector | VcKind::Set) {
+                            get_mixed_any()
+                        } else {
+                            get_nothing()
+                        }]),
                         is_this: false,
                         remapped_params: false,
                     })),
@@ -279,6 +330,7 @@ pub(crate) fn analyze_vals(
 pub(crate) fn analyze_keyvals(
     statements_analyzer: &StatementsAnalyzer,
     kvc_kind: &oxidized::ast::KvcKind,
+    type_args: Option<&(oxidized::aast::Targ<()>, oxidized::aast::Targ<()>)>,
     items: &Vec<oxidized::ast::Field>,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -286,13 +338,19 @@ pub(crate) fn analyze_keyvals(
 ) -> Result<(), AnalysisError> {
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
+        let type_params = type_args.map(|(key, value)| {
+            (
+                resolve_element_type(key, statements_analyzer, analysis_data, context),
+                resolve_element_type(value, statements_analyzer, analysis_data, context),
+            )
+        });
         match kvc_kind {
             KvcKind::Dict => {
                 analysis_data.set_expr_type(
                     pos,
                     wrap_atomic(TAtomic::TDict(TDict {
                         known_items: None,
-                        params: None,
+                        params: type_params.map(|(key, value)| (Box::new(key), Box::new(value))),
                         non_empty: false,
                         shape_name: None,
                         is_shape: false,
@@ -312,7 +370,11 @@ pub(crate) fn analyze_keyvals(
                     pos,
                     wrap_atomic(TAtomic::TNamedObject(TNamedObject {
                         name: get_kvc_object_name(kvc_kind),
-                        type_params: Some(vec![type_param.clone(), type_param]),
+                        type_params: Some(if let Some((key, value)) = type_params {
+                            vec![key, value]
+                        } else {
+                            vec![type_param.clone(), type_param]
+                        }),
                         is_this: false,
                         remapped_params: false,
                     })),

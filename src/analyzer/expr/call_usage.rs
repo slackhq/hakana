@@ -77,11 +77,7 @@ pub(crate) fn record(
     if !sa.get_config().find_unused_definitions {
         return;
     }
-    let non_production = sa
-        .get_config()
-        .test_files
-        .iter()
-        .any(|p| p.matches(sa.get_file_path_actual()))
+    let non_production = !sa.file_analyzer.file_source.is_production_code
         || context
             .function_context
             .get_functionlike_info(sa.codebase)

@@ -297,18 +297,15 @@ fn can_be_coerced_to_string(
         TAtomic::TFloat => from_format,
 
         TAtomic::TTypeVariable { name } => {
-            analysis_data
-                .type_variable_bounds
-                .entry(name.clone())
-                .and_modify(|v| {
-                    v.upper_bounds.push(TemplateBound {
-                        bound_type: get_arraykey(false),
-                        appearance_depth: 0,
-                        arg_offset: None,
-                        equality_bound_classlike: None,
-                        pos: Some(statements_analyzer.get_hpos(expr.pos())),
-                    })
+            if let Some(bounds) = analysis_data.type_variable_bounds.get_mut(name) {
+                bounds.upper_bounds.push(TemplateBound {
+                    bound_type: get_arraykey(false),
+                    appearance_depth: 0,
+                    arg_offset: None,
+                    equality_bound_classlike: None,
+                    pos: Some(statements_analyzer.get_hpos(expr.pos())),
                 });
+            }
             true
         }
 

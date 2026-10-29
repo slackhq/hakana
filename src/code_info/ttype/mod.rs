@@ -22,6 +22,7 @@ pub mod template;
 mod type_combination;
 pub mod type_combiner;
 pub mod type_expander;
+pub mod type_variable;
 
 #[inline]
 pub fn wrap_atomic(tinner: TAtomic) -> TUnion {
@@ -242,12 +243,12 @@ pub fn deep_generalize_template_bound(union: &TUnion, codebase: &CodebaseInfo) -
         new_atomics.push(deep_generalize_atomic(atomic, codebase));
     }
 
-    let mut new_union = TUnion::new(if new_atomics.len() > 1 {
+    let mut new_union = union.clone();
+    new_union.types = if new_atomics.len() > 1 {
         type_combiner::combine(new_atomics, codebase, false)
     } else {
         new_atomics
-    });
-    new_union.had_template = union.had_template;
+    };
     new_union
 }
 

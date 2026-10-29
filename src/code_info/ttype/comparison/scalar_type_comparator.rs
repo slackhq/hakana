@@ -49,6 +49,63 @@ pub fn is_contained_by(
     inside_assertion: bool,
     atomic_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
+    // Preserve the type represented by a generic name while collecting
+    // constraints. Its `as` bound alone would forget the generic's identity.
+    if let TAtomic::TClassname { as_type: container }
+    | TAtomic::TClassPtr { as_type: container }
+    | TAtomic::TTypename { as_type: container } = container_type_part
+        && matches!(**container, TAtomic::TTypeVariable { .. })
+    {
+        let input = match input_type_part {
+            TAtomic::TGenericClassname {
+                param_name,
+                defining_entity,
+                as_type,
+            }
+            | TAtomic::TGenericClassPtr {
+                param_name,
+                defining_entity,
+                as_type,
+            }
+            | TAtomic::TGenericTypename {
+                param_name,
+                defining_entity,
+                as_type,
+            } => Some(crate::ttype::wrap_atomic(TAtomic::TGenericParam(
+                crate::t_atomic::TGenericParam {
+                    param_name: *param_name,
+                    defining_entity: *defining_entity,
+                    as_type: Box::new(crate::ttype::wrap_atomic((**as_type).clone())),
+                },
+            ))),
+            TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name }
+                if codebase.typedef_exists(name) =>
+            {
+                Some(crate::t_union::TUnion::new(
+                    crate::ttype::template::standin_type_replacer::get_actual_type_from_literal(
+                        name, codebase, file_path,
+                    ),
+                ))
+            }
+            _ => None,
+        };
+        if let Some(input) = input {
+            if container_type_part.is_class_ptr() && !input_type_part.is_class_ptr() {
+                return false;
+            }
+            return super::union_type_comparator::is_contained_by(
+                codebase,
+                file_path,
+                &input,
+                &crate::ttype::wrap_atomic((**container).clone()),
+                false,
+                false,
+                inside_assertion,
+                atomic_comparison_result,
+            );
+        }
+    }
+
     // compare identical types
 
     if matches!(container_type_part, TAtomic::TInt) && matches!(input_type_part, TAtomic::TInt) {
@@ -202,10 +259,15 @@ pub fn is_contained_by(
         {
             return true;
         }
-        let input_as_type = match input_as_type {
-            Some(input_as_type) => input_as_type,
-            _ => &TAtomic::TArraykey { from_any: false },
-        };
+        let input_as_type = input_as_type
+            .as_deref()
+            .or_else(|| {
+                codebase
+                    .classlike_infos
+                    .get(container_name)
+                    .and_then(|info| info.enum_as_type.as_ref())
+            })
+            .unwrap_or(&TAtomic::TArraykey { from_any: false });
         if let TAtomic::TStringWithFlags(..) = container_type_part {
             return is_contained_by(
                 codebase,
@@ -246,7 +308,10 @@ pub fn is_contained_by(
     }
 
     // handles newtypes (hopefully)
-    if let TAtomic::TEnumLiteralCase { as_type, .. } = input_type_part {
+    if let TAtomic::TEnumLiteralCase {
+        enum_name, as_type, ..
+    } = input_type_part
+    {
         if let TAtomic::TEnumLiteralCase { .. } = container_type_part {
             return false;
         }
@@ -254,11 +319,15 @@ pub fn is_contained_by(
         return atomic_type_comparator::is_contained_by(
             codebase,
             file_path,
-            if let Some(enum_as_type) = &as_type {
-                enum_as_type
-            } else {
-                &TAtomic::TArraykey { from_any: false }
-            },
+            as_type
+                .as_deref()
+                .or_else(|| {
+                    codebase
+                        .classlike_infos
+                        .get(enum_name)
+                        .and_then(|info| info.enum_as_type.as_ref())
+                })
+                .unwrap_or(&TAtomic::TArraykey { from_any: false }),
             container_type_part,
             false,
             atomic_comparison_result,

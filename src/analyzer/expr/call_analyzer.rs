@@ -11,7 +11,7 @@ use hakana_code_info::{
 use hakana_str::StrId;
 use itertools::Itertools;
 use oxidized::ast::CallExpr;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
@@ -170,57 +170,109 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
     let codebase = statements_analyzer.codebase;
     let interner = statements_analyzer.interner;
 
-    let relevant_lower_bounds = get_relevant_bounds(lower_bounds);
-
-    // println!("{:#?}", lower_bounds);
-    // println!("{:#?}", upper_bounds);
-
-    let mut union_comparison_result = TypeComparisonResult::new();
+    // Argument/return checking can already have diagnosed this constraint at
+    // an enclosing expression. Avoid a second error from its inferred bounds.
+    let lower_bounds = lower_bounds
+        .iter()
+        .filter(|bound| {
+            !bound
+                .pos
+                .is_some_and(|pos| analysis_data.has_type_error_at(pos))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let relevant_lower_bounds = get_relevant_bounds(&lower_bounds);
 
     let mut has_issue = false;
 
     for relevant_lower_bound in &relevant_lower_bounds {
+        if relevant_lower_bound.bound_type.is_any() {
+            continue;
+        }
         for upper_bound in upper_bounds {
+            let mut comparison = TypeComparisonResult::new();
             if !union_type_comparator::is_contained_by(
                 codebase,
                 statements_analyzer.get_file_path(),
                 &relevant_lower_bound.bound_type,
                 &upper_bound.bound_type,
                 false,
+                relevant_lower_bound.bound_type.ignore_falsable_issues,
                 false,
-                false,
-                &mut union_comparison_result,
+                &mut comparison,
             ) {
                 has_issue = true;
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::IncompatibleTypeParameters,
-                        format!(
-                            "Type {} should be a subtype of {}",
-                            relevant_lower_bound.bound_type.get_id(Some(interner)),
-                            upper_bound.bound_type.get_id(Some(interner))
-                        ),
-                        relevant_lower_bound
-                            .pos
-                            .unwrap_or(upper_bound.pos.unwrap_or(pos)),
-                        &None,
+                let kind = if relevant_lower_bound.bound_type.is_mixed() {
+                    IssueKind::MixedArgument
+                } else if comparison.type_coerced.unwrap_or(false)
+                    && comparison.type_coerced_from_nested_any.unwrap_or(false)
+                {
+                    IssueKind::LessSpecificNestedAnyArgumentType
+                } else {
+                    IssueKind::IncompatibleTypeParameters
+                };
+                let issue_pos = relevant_lower_bound
+                    .pos
+                    .unwrap_or(upper_bound.pos.unwrap_or(pos));
+                let issue = Issue::new(
+                    kind.clone(),
+                    format!(
+                        "Type {} should be a subtype of {}",
+                        relevant_lower_bound.bound_type.get_id(Some(interner)),
+                        upper_bound.bound_type.get_id(Some(interner))
                     ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
+                    issue_pos,
+                    &None,
                 );
+                let Some(mismatches) = get_shape_constraint_mismatches(
+                    &relevant_lower_bound.bound_type,
+                    &upper_bound.bound_type,
+                    issue_pos,
+                    statements_analyzer,
+                    analysis_data,
+                ) else {
+                    analysis_data.maybe_add_issue(
+                        issue,
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                    continue;
+                };
+                // A FIXME on the whole shape still covers its fields even
+                // when a more precise diagnostic would be on a later line.
+                if analysis_data.is_issue_suppressed_by_fixme(&issue) {
+                    continue;
+                }
+                for (actual, expected, issue_pos) in mismatches {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            kind.clone(),
+                            format!(
+                                "Type {} should be a subtype of {}",
+                                actual.get_id(Some(interner)),
+                                expected.get_id(Some(interner))
+                            ),
+                            issue_pos,
+                            &None,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
             }
         }
     }
 
-    if !has_issue && relevant_lower_bounds.len() > 1 {
+    if !has_issue
+        && relevant_lower_bounds.len() > 1
+        && lower_bounds
+            .iter()
+            .any(|bound| bound.equality_bound_classlike.is_some())
+    {
         let bounds_with_equality = lower_bounds
             .iter()
             .filter(|bound| bound.equality_bound_classlike.is_some())
             .collect::<Vec<_>>();
-
-        if bounds_with_equality.is_empty() {
-            return;
-        }
 
         let equality_strings = bounds_with_equality
             .iter()
@@ -228,7 +280,28 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
             .unique()
             .collect::<Vec<_>>();
 
-        if equality_strings.len() > 1 {
+        // Display names retain shape aliases, so equal types can have different
+        // IDs. Invariant bounds must agree semantically in both directions.
+        let first_equality_type = &bounds_with_equality[0].bound_type;
+        let has_conflicting_equalities = bounds_with_equality.iter().skip(1).any(|bound| {
+            [&bound.bound_type, first_equality_type]
+                .into_iter()
+                .zip([first_equality_type, &bound.bound_type])
+                .any(|(input, container)| {
+                    !union_type_comparator::is_contained_by(
+                        codebase,
+                        statements_analyzer.get_file_path(),
+                        input,
+                        container,
+                        false,
+                        false,
+                        false,
+                        &mut TypeComparisonResult::new(),
+                    )
+                })
+        });
+
+        if has_conflicting_equalities {
             has_issue = true;
             analysis_data.maybe_add_issue(
                 Issue::new(
@@ -245,7 +318,7 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
                 statements_analyzer.get_file_path_actual(),
             );
         } else {
-            'outer: for lower_bound in lower_bounds {
+            'outer: for lower_bound in &lower_bounds {
                 if lower_bound.equality_bound_classlike.is_none() {
                     for bound_with_equality in &bounds_with_equality {
                         if union_type_comparator::is_contained_by(
@@ -286,8 +359,8 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
     if !has_issue && upper_bounds.len() > 1 {
         let upper_bounds_with_equality = upper_bounds
             .iter()
-            .filter(|bound| bound.equality_bound_classlike.is_some())
             .enumerate()
+            .filter(|(_, bound)| bound.equality_bound_classlike.is_some())
             .collect::<Vec<_>>();
 
         if upper_bounds_with_equality.is_empty() {
@@ -327,12 +400,98 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
     }
 }
 
+/// Decompose a failed literal-shape constraint only when its fields account
+/// for every mismatch. Missing fields and incompatible shape structure still
+/// need a diagnostic on the whole expression.
+fn get_shape_constraint_mismatches(
+    actual: &TUnion,
+    expected: &TUnion,
+    pos: HPos,
+    statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &FunctionAnalysisData,
+) -> Option<Vec<(TUnion, TUnion, HPos)>> {
+    let positions = analysis_data
+        .shape_field_positions
+        .get(&(pos.start_offset, pos.end_offset))?;
+    let ([TAtomic::TDict(actual_dict)], [TAtomic::TDict(expected_dict)]) =
+        (actual.types.as_slice(), expected.types.as_slice())
+    else {
+        return None;
+    };
+    let actual_fields = actual_dict.known_items.as_ref()?;
+    let expected_fields = expected_dict.known_items.as_ref()?;
+    let is_contained_by = |actual: &TUnion, expected: &TUnion| {
+        union_type_comparator::is_contained_by(
+            statements_analyzer.codebase,
+            statements_analyzer.get_file_path(),
+            actual,
+            expected,
+            false,
+            actual.ignore_falsable_issues,
+            false,
+            &mut TypeComparisonResult::new(),
+        )
+    };
+    let mut checked_dict = actual_dict.clone();
+    let checked_fields = Arc::make_mut(checked_dict.known_items.as_mut()?);
+    let mut mismatches = Vec::new();
+    for (key, (_, expected_field)) in expected_fields.iter() {
+        let Some((_, actual_field)) = actual_fields.get(key) else {
+            continue;
+        };
+        if is_contained_by(actual_field, expected_field) {
+            continue;
+        }
+        let field_pos = *positions.get(key)?;
+        mismatches.extend(
+            get_shape_constraint_mismatches(
+                actual_field,
+                expected_field,
+                field_pos,
+                statements_analyzer,
+                analysis_data,
+            )
+            .unwrap_or_else(|| {
+                vec![(
+                    actual_field.as_ref().clone(),
+                    expected_field.as_ref().clone(),
+                    field_pos,
+                )]
+            }),
+        );
+        checked_fields.get_mut(key)?.1 = expected_field.clone();
+    }
+    if mismatches.is_empty()
+        || !is_contained_by(&TUnion::new(vec![TAtomic::TDict(checked_dict)]), expected)
+    {
+        return None;
+    }
+    Some(mismatches)
+}
+
 pub(crate) fn get_generic_param_for_offset(
     classlike_name: &StrId,
     template_name: &StrId,
     template_extended_params: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
     found_generic_params: &FxHashMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
 ) -> Arc<TUnion> {
+    find_generic_param_for_offset(
+        classlike_name,
+        template_name,
+        template_extended_params,
+        found_generic_params,
+        &mut FxHashSet::default(),
+    )
+    .unwrap_or_else(|| Arc::new(get_mixed_any()))
+}
+
+fn find_generic_param_for_offset(
+    classlike_name: &StrId,
+    template_name: &StrId,
+    template_extended_params: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
+    found_generic_params: &FxHashMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
+    visited: &mut FxHashSet<(StrId, StrId)>,
+) -> Option<Arc<TUnion>> {
     if let Some(found_generic_param) =
         if let Some(result_map) = found_generic_params.get(template_name) {
             result_map
@@ -344,8 +503,11 @@ pub(crate) fn get_generic_param_for_offset(
             None
         }
     {
-        found_generic_param.clone()
+        Some(found_generic_param.clone())
     } else {
+        if !visited.insert((*classlike_name, *template_name)) {
+            return None;
+        }
         for (extended_class_name, type_map) in template_extended_params {
             for (extended_template_name, extended_type) in type_map {
                 for extended_atomic_type in &extended_type.types {
@@ -357,18 +519,118 @@ pub(crate) fn get_generic_param_for_offset(
                         && extended_param_name == template_name
                         && defining_entity == &GenericParent::ClassLike(*classlike_name)
                     {
-                        return get_generic_param_for_offset(
+                        // An interface may share this parameter without having
+                        // an inferred bound. Keep looking through other ancestors
+                        // before falling back to any, regardless of map order.
+                        if let Some(found) = find_generic_param_for_offset(
                             extended_class_name,
                             extended_template_name,
                             template_extended_params,
                             found_generic_params,
-                        );
+                            visited,
+                        ) {
+                            return Some(found);
+                        }
                     }
                 }
             }
         }
 
-        Arc::new(get_mixed_any())
+        None
+    }
+}
+
+#[cfg(test)]
+mod generic_lookup_tests {
+    use super::*;
+    use hakana_code_info::ttype::wrap_atomic;
+
+    #[test]
+    fn inherited_generic_lookup_skips_ancestors_without_inferred_bounds() {
+        let child = StrId(100);
+        let template = StrId(101);
+        let ancestors = [StrId(200), StrId(201)];
+        let inherited_type = Arc::new(wrap_atomic(TAtomic::TGenericParam(TGenericParam {
+            param_name: template,
+            as_type: Box::new(get_mixed_any()),
+            defining_entity: GenericParent::ClassLike(child),
+        })));
+        let extended = ancestors
+            .iter()
+            .map(|ancestor| {
+                (
+                    *ancestor,
+                    IndexMap::from_iter([(template, inherited_type.clone())]),
+                )
+            })
+            .collect::<FxHashMap<_, _>>();
+        let inferred_type = Arc::new(wrap_atomic(TAtomic::TTypeVariable {
+            name: "`request".to_owned(),
+        }));
+
+        // A constructor can infer a bound for just one ancestor. Finding that
+        // bound must work regardless of which ancestor the hash map visits first.
+        for ancestor_with_bound in ancestors {
+            let inferred = FxHashMap::from_iter([(
+                template,
+                vec![(
+                    GenericParent::ClassLike(ancestor_with_bound),
+                    inferred_type.clone(),
+                )],
+            )]);
+            assert_eq!(
+                get_generic_param_for_offset(&child, &template, &extended, &inferred),
+                inferred_type,
+                "the other ancestor has no inferred bound"
+            );
+        }
+    }
+
+    #[test]
+    fn inherited_generic_lookup_preserves_an_explicit_any_bound() {
+        let class = StrId(100);
+        let template = StrId(101);
+        let inferred = FxHashMap::from_iter([(
+            template,
+            vec![(GenericParent::ClassLike(class), Arc::new(get_mixed_any()))],
+        )]);
+        assert!(
+            find_generic_param_for_offset(
+                &class,
+                &template,
+                &FxHashMap::default(),
+                &inferred,
+                &mut FxHashSet::default(),
+            )
+            .is_some_and(|bound| bound.is_any())
+        );
+    }
+
+    #[test]
+    fn inherited_generic_lookup_stops_at_cycles() {
+        let child = StrId(100);
+        let parent = StrId(200);
+        let template = StrId(101);
+        let extended = [(child, parent), (parent, child)]
+            .into_iter()
+            .map(|(class, ancestor)| {
+                (
+                    ancestor,
+                    IndexMap::from_iter([(
+                        template,
+                        Arc::new(wrap_atomic(TAtomic::TGenericParam(TGenericParam {
+                            param_name: template,
+                            as_type: Box::new(get_mixed_any()),
+                            defining_entity: GenericParent::ClassLike(class),
+                        }))),
+                    )]),
+                )
+            })
+            .collect();
+        assert!(
+            get_generic_param_for_offset(&child, &template, &extended, &FxHashMap::default(),)
+                .is_any()
+        );
     }
 }
 
@@ -400,6 +662,14 @@ pub(crate) fn check_method_args(
         call_expr.2,
         &functionlike_id,
         functionlike_storage,
+        // Shapes methods derive their result from the argument's fields.
+        // The HHI signature alone does not describe that result (for example,
+        // idx's default argument must not determine the field's value type).
+        if method_id.0 == StrId::SHAPES {
+            None
+        } else {
+            functionlike_storage.return_type.as_ref()
+        },
         Some((method_id.0, lhs_type_part, is_virtual)),
         analysis_data,
         context,

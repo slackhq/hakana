@@ -440,6 +440,7 @@ fn analyze_named_constructor(
 
         if !storage.template_types.is_empty() {
             let mut v = vec![];
+            let mut constructor_variables = vec![];
 
             for (i, (template_name, base_type_map)) in storage.template_types.iter().enumerate() {
                 let mut param_type = if let Some(type_arg) = expr.1.get(i) {
@@ -473,7 +474,22 @@ fn analyze_named_constructor(
                                 bounds.get(&GenericParent::ClassLike(classlike_name))
                         {
                             for bound in bounds {
-                                placeholder_lower_bounds.push(bound.clone());
+                                let mut bound = bound.clone();
+                                if bound.equality_bound_classlike.is_none() {
+                                    // Widen a scalar initializer for future writes,
+                                    // while retaining tuple/shape structure and
+                                    // false used as an error-return alternative.
+                                    bound.bound_type = bound.bound_type.generalize_literals();
+                                    if bound.bound_type.is_single()
+                                        && matches!(
+                                            bound.bound_type.get_single(),
+                                            TAtomic::TTrue | TAtomic::TFalse
+                                        )
+                                    {
+                                        bound.bound_type.types = vec![TAtomic::TBool];
+                                    }
+                                }
+                                placeholder_lower_bounds.push(bound);
                             }
                         }
 
@@ -490,6 +506,7 @@ fn analyze_named_constructor(
                                 }],
                             },
                         );
+                        constructor_variables.push(placeholder_name.clone());
 
                         template_result.lower_bounds.insert(
                             *template_name,
@@ -600,6 +617,19 @@ fn analyze_named_constructor(
                 generic_param_type.had_template = true;
 
                 v.push(generic_param_type);
+            }
+
+            // Bounds can refer to other parameters declared later in the
+            // class. Instantiate them after every constructor variable exists.
+            for name in constructor_variables {
+                let bounds = analysis_data.type_variable_bounds.get_mut(&name).unwrap();
+                for bound in &mut bounds.upper_bounds {
+                    bound.bound_type = template::inferred_type_replacer::replace(
+                        &bound.bound_type,
+                        &template_result,
+                        codebase,
+                    );
+                }
             }
 
             generic_type_params = Some(v);

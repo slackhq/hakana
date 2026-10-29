@@ -30,12 +30,18 @@ pub struct FileAnalyzer<'a> {
 
 impl<'a> FileAnalyzer<'a> {
     pub fn new(
-        file_source: FileSource<'a>,
+        mut file_source: FileSource<'a>,
         resolved_names: &'a FxHashMap<u32, StrId>,
         codebase: &'a CodebaseInfo,
         interner: &'a Interner,
         analysis_config: &'a Config,
     ) -> Self {
+        // File classification is invariant across calls and functions. Preserve
+        // an explicit non-production source and evaluate configured globs once.
+        file_source.is_production_code &= !analysis_config
+            .test_files
+            .iter()
+            .any(|pattern| pattern.matches(&file_source.file_path_actual));
         Self {
             file_source,
             namespace_name: None,

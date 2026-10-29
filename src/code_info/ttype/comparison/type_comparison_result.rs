@@ -37,6 +37,9 @@ pub struct TypeComparisonResult {
 
     pub type_variable_lower_bounds: Vec<(String, TemplateBound)>,
     pub type_variable_upper_bounds: Vec<(String, TemplateBound)>,
+    /// Comparisons which require a type variable to acquire a concrete shape,
+    /// such as looking up the member named by a bare enum class label.
+    pub deferred_constraints: Vec<(TUnion, TUnion)>,
 
     pub type_mismatch_parents: Option<(Vec<DataFlowNode>, Arc<TUnion>)>,
 
@@ -69,9 +72,18 @@ impl TypeComparisonResult {
             replacement_atomic_type: None,
             type_variable_lower_bounds: vec![],
             type_variable_upper_bounds: vec![],
+            deferred_constraints: vec![],
             upcasted_awaitable: false,
             type_mismatch_parents: None,
             shape_field_mismatches: vec![],
         }
+    }
+
+    pub fn extend_constraints(&mut self, other: Self) {
+        self.type_variable_lower_bounds
+            .extend(other.type_variable_lower_bounds);
+        self.type_variable_upper_bounds
+            .extend(other.type_variable_upper_bounds);
+        self.deferred_constraints.extend(other.deferred_constraints);
     }
 }

@@ -314,6 +314,7 @@ pub(crate) fn analyze(
             }
         }
 
+        let before_finally_locals = finally_context.locals.clone();
         statements_analyzer.analyze(&stmt.2.0, analysis_data, &mut finally_context, loop_scope)?;
 
         finally_has_returned = finally_context.has_returned;
@@ -335,23 +336,21 @@ pub(crate) fn analyze(
             )
         {
             for (var_id, finally_type) in &finally_context.locals {
-                if let Some(context_type) = context.locals.get_mut(var_id) {
-                    if context_type.possibly_undefined_from_try {
-                        let mut context_type_inner = (**context_type).clone();
-                        context_type_inner.possibly_undefined_from_try = false;
-                        *context_type = Rc::new(context_type_inner);
-                    }
-
-                    *context_type = Rc::new(combine_union_types(
-                        context_type,
-                        finally_type,
-                        codebase,
-                        false,
-                    ));
-                } else {
+                // The finally entry also contains paths where the try threw.
+                // Only its writes and refinements affect normal continuation;
+                // unchanged locals keep their successful-try types.
+                if finally_context.possibly_assigned_var_ids.contains(var_id)
+                    || before_finally_locals.get(var_id) != Some(finally_type)
+                {
                     context.locals.insert(var_id.clone(), finally_type.clone());
                 }
             }
+            context
+                .assigned_var_ids
+                .extend(finally_context.assigned_var_ids);
+            context
+                .possibly_assigned_var_ids
+                .extend(finally_context.possibly_assigned_var_ids);
         }
     }
 

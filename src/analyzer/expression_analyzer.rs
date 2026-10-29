@@ -473,6 +473,7 @@ pub(crate) fn analyze(
             collection_analyzer::analyze_vals(
                 statements_analyzer,
                 &boxed.0.1,
+                boxed.1.as_ref(),
                 &boxed.2,
                 expr.pos(),
                 analysis_data,
@@ -483,6 +484,7 @@ pub(crate) fn analyze(
             collection_analyzer::analyze_keyvals(
                 statements_analyzer,
                 &boxed.0.1,
+                boxed.1.as_ref(),
                 &boxed.2,
                 expr.pos(),
                 analysis_data,
@@ -530,6 +532,7 @@ pub(crate) fn analyze(
                     collection_analyzer::analyze_vals(
                         statements_analyzer,
                         &vc_kind,
+                        None,
                         &items,
                         expr.pos(),
                         analysis_data,
@@ -557,6 +560,7 @@ pub(crate) fn analyze(
                     collection_analyzer::analyze_keyvals(
                         statements_analyzer,
                         &kvc_kind,
+                        None,
                         &items,
                         expr.pos(),
                         analysis_data,

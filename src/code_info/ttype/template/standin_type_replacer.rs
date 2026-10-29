@@ -11,7 +11,7 @@ use crate::{
 use crate::{
     t_atomic::TDict,
     ttype::{
-        add_union_type,
+        add_optional_union_type, add_union_type,
         comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
         get_arrayish_params, get_arraykey, get_mixed, get_mixed_any, get_mixed_maybe_from_loop,
         get_value_param, type_combiner,
@@ -27,15 +27,16 @@ use std::sync::Arc;
 use super::{TemplateBound, TemplateResult, inferred_type_replacer};
 
 #[derive(Copy, Clone, Debug)]
-pub struct StandinOpts {
+pub struct StandinOpts<'a> {
     pub calling_class: Option<StrId>,
     pub calling_function: Option<FunctionLikeIdentifier>,
     pub add_lower_bound: bool,  // false
     pub iteration_depth: usize, // 1
     pub appearance_depth: usize,
+    pub closure_return_types: Option<&'a FxHashMap<(FilePath, u32), Vec<(TUnion, HPos)>>>,
 }
 
-impl Default for StandinOpts {
+impl Default for StandinOpts<'_> {
     fn default() -> Self {
         Self {
             calling_class: None,
@@ -43,6 +44,7 @@ impl Default for StandinOpts {
             add_lower_bound: true,
             iteration_depth: 1,
             appearance_depth: 1,
+            closure_return_types: None,
         }
     }
 }
@@ -266,6 +268,7 @@ fn handle_atomic_standin(
                 atomic_type,
                 &normalized_key,
                 codebase,
+                file_path,
                 input_type,
                 &mut new_depth,
             );
@@ -712,6 +715,40 @@ fn replace_atomic(
             }
 
             if let Some(ref mut return_type) = closure.return_type {
+                if let Some(TAtomic::TClosure(input_closure)) = &input_type
+                    && let Some(returns) = opts
+                        .closure_return_types
+                        .and_then(|returns| returns.get(&input_closure.closure_id))
+                    && !returns.is_empty()
+                {
+                    // Each return contributes its own bound and source location.
+                    // Combining them first would move diagnostics (and FIXME
+                    // matching) to the enclosing lambda expression.
+                    let mut replaced_return = None;
+                    for (input_return, return_pos) in returns {
+                        let replacement = self::replace(
+                            return_type,
+                            template_result,
+                            codebase,
+                            interner,
+                            file_path,
+                            &Some(input_return),
+                            input_arg_offset,
+                            Some(*return_pos),
+                            StandinOpts {
+                                iteration_depth: opts.iteration_depth + 1,
+                                ..opts
+                            },
+                        );
+                        replaced_return = Some(add_optional_union_type(
+                            replacement,
+                            replaced_return.as_ref(),
+                            codebase,
+                        ));
+                    }
+                    *return_type = replaced_return.unwrap();
+                    return atomic_type;
+                }
                 *return_type = self::replace(
                     return_type,
                     template_result,
@@ -1019,6 +1056,7 @@ fn handle_template_param_standin(
                 if existing_depth == &opts.appearance_depth
                     && &input_arg_offset == existing_arg_offset
                     && existing_lower_bound.bound_type == input_type
+                    && existing_lower_bound.pos == input_arg_pos
                     && existing_lower_bound.equality_bound_classlike.is_none()
                 {
                     has_matching_lower_bound = true;
@@ -1132,12 +1170,20 @@ fn handle_template_param_class_standin(
                 if let TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } =
                     input_atomic_type
                 {
-                    valid_input_atomic_types.push(TAtomic::TNamedObject(TNamedObject {
-                        name: *name,
-                        type_params: None,
-                        is_this: false,
-                        remapped_params: false,
-                    }));
+                    valid_input_atomic_types.push(if codebase.enum_exists(name) {
+                        TAtomic::TEnum {
+                            name: *name,
+                            as_type: None,
+                            underlying_type: None,
+                        }
+                    } else {
+                        TAtomic::TNamedObject(TNamedObject {
+                            name: *name,
+                            type_params: None,
+                            is_this: false,
+                            remapped_params: false,
+                        })
+                    });
                 } else if let TAtomic::TGenericClassname {
                     param_name,
                     as_type,
@@ -1373,7 +1419,8 @@ fn handle_template_param_type_standin(
                 if let TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } =
                     input_atomic_type
                 {
-                    valid_input_atomic_types.extend(get_actual_type_from_literal(name, codebase));
+                    valid_input_atomic_types
+                        .extend(get_actual_type_from_literal(name, codebase, file_path));
                 } else if let TAtomic::TGenericTypename {
                     param_name,
                     as_type,
@@ -1502,22 +1549,63 @@ fn handle_template_param_type_standin(
     }
 }
 
-pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Vec<TAtomic> {
+pub fn get_actual_type_from_literal(
+    name: &StrId,
+    codebase: &CodebaseInfo,
+    file_path: &FilePath,
+) -> Vec<TAtomic> {
     if let Some(typedefinition_info) = codebase.type_definitions.get(name) {
+        // A runtime name such as Result::class supplies no generic arguments.
+        // Its declaration's parameters are untyped here, not rigid parameters
+        // belonging to the caller.
+        let templates = TemplateResult::new(
+            IndexMap::new(),
+            typedefinition_info
+                .template_types
+                .iter()
+                .map(|(name, parents)| {
+                    (
+                        *name,
+                        parents
+                            .iter()
+                            .map(|(parent, _)| (*parent, get_mixed_any()))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        );
         if typedefinition_info.newtype_file.is_some() {
             vec![TAtomic::TTypeAlias {
                 name: *name,
-                type_params: None,
+                type_params: (!typedefinition_info.template_types.is_empty())
+                    .then(|| vec![get_mixed_any(); typedefinition_info.template_types.len()]),
                 as_type: typedefinition_info
                     .as_type
                     .as_ref()
-                    .map(|t| Box::new(t.clone())),
+                    .map(|t| Box::new(inferred_type_replacer::replace(t, &templates, codebase))),
                 newtype: true,
             }]
         } else {
-            typedefinition_info
-                .actual_type
-                .clone()
+            let mut actual_type = inferred_type_replacer::replace(
+                &typedefinition_info.actual_type,
+                &templates,
+                codebase,
+            );
+            // Typedef declarations may refer to further aliases or case
+            // types. Expand those before they become inferred lower bounds.
+            type_expander::expand_union(
+                codebase,
+                &None,
+                file_path,
+                &mut actual_type,
+                &TypeExpansionOptions {
+                    expand_templates: false,
+                    ..Default::default()
+                },
+                &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                &mut 0,
+            );
+            actual_type
                 .types
                 .into_iter()
                 .map(|mut t| match t {
@@ -1573,6 +1661,7 @@ fn find_matching_atomic_types_for_template(
     base_type: &TAtomic,
     normalized_key: &String,
     codebase: &CodebaseInfo,
+    file_path: &FilePath,
     input_type: &TUnion,
     depth: &mut usize,
 ) -> Vec<TAtomic> {
@@ -1710,6 +1799,7 @@ fn find_matching_atomic_types_for_template(
                     base_type,
                     normalized_key,
                     codebase,
+                    file_path,
                     input_as_type,
                     depth,
                 ));
@@ -1719,6 +1809,7 @@ fn find_matching_atomic_types_for_template(
                     base_type,
                     normalized_key,
                     codebase,
+                    file_path,
                     as_type,
                     depth,
                 ));
@@ -1744,6 +1835,7 @@ fn find_matching_atomic_types_for_template(
                     base_type,
                     normalized_key,
                     codebase,
+                    file_path,
                     as_type,
                     depth,
                 ));
@@ -1783,10 +1875,23 @@ fn find_matching_atomic_types_for_template(
                         ..
                     } = provided_type
                     {
+                        let mut value_type = type_params[1].clone();
+                        type_expander::expand_union(
+                            codebase,
+                            &None,
+                            file_path,
+                            &mut value_type,
+                            &TypeExpansionOptions {
+                                expand_templates: false,
+                                ..Default::default()
+                            },
+                            &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                            &mut 0,
+                        );
                         *depth += 1;
                         matching_atomic_types.push(TAtomic::TTypeAlias {
                             name: StrId::ENUM_CLASS_LABEL,
-                            type_params: Some(vec![wrap_atomic(enum_type), type_params[1].clone()]),
+                            type_params: Some(vec![wrap_atomic(enum_type), value_type]),
                             as_type: None,
                             newtype: true,
                         });

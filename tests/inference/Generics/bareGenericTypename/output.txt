@@ -1,0 +1,2 @@
+ERROR: LessSpecificNestedAnyReturnStatement - input.hack:12:12 - The type Failure|Success<any> is more general than the declared return type Failure|Success<int> for result
+ERROR: LessSpecificNestedAnyArgumentType - input.hack:12:32 - Type Failure|Success<any> should be a subtype of Failure|Success<int>

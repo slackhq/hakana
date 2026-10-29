@@ -1,0 +1,1 @@
+ERROR: PossiblyInvalidArgument - input.hack:12:21 - Argument 1 of Ints::__construct expects keyset<int>, possibly different type keyset<string> provided
