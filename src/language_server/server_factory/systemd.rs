@@ -51,8 +51,9 @@ impl ServerFactory for SystemdServerFactory {
             project_root.display()
         );
 
-        // The server is started with a raised niceness, and a watchman daemon spawned
-        // on demand from within it fails to start. Make sure one is running beforehand.
+        // The server is started with a raised niceness, and watchman refuses to start a
+        // daemon whose niceness exceeds its `min_acceptable_nice_value` config option.
+        // Make sure a daemon is running beforehand so the server doesn't have to spawn one.
         ensure_watchman_running();
 
         let unit = next_systemd_unit_name();
