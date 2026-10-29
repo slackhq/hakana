@@ -2,6 +2,7 @@ use std::cell::OnceCell;
 
 use hakana_code_info::{
     GenericParent,
+    classlike_info::Variance,
     code_location::HPos,
     codebase_info::CodebaseInfo,
     t_atomic::TAtomic,
@@ -16,6 +17,7 @@ use hakana_code_info::{
 };
 use hakana_str::StrId;
 use indexmap::IndexMap;
+use rustc_hash::FxHashSet;
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
@@ -27,6 +29,7 @@ use crate::{
 pub(super) struct CallTemplateInference {
     instantiation: TemplateResult,
     variables: Vec<(StrId, GenericParent, String)>,
+    constraint_start: usize,
 }
 
 impl CallTemplateInference {
@@ -128,6 +131,7 @@ impl CallTemplateInference {
         Self {
             instantiation,
             variables,
+            constraint_start: analysis_data.type_variable_constraints.len(),
         }
     }
 
@@ -175,6 +179,7 @@ impl CallTemplateInference {
     pub fn finish(
         &self,
         templates: &mut TemplateResult,
+        return_type: Option<&TUnion>,
         statements_analyzer: &StatementsAnalyzer,
         analysis_data: &mut FunctionAnalysisData,
     ) {
@@ -195,20 +200,53 @@ impl CallTemplateInference {
             }
         }
         propagate(statements_analyzer, analysis_data);
+        if self.is_empty() {
+            return;
+        }
+        let codebase = statements_analyzer.codebase;
+        let open_variables = OnceCell::new();
         for (param_name, entity, name) in &self.variables {
             let bounds = &analysis_data.type_variable_bounds[name];
             if bounds.lower_bounds.is_empty()
                 && bounds.upper_bounds.iter().all(|bound| bound.pos.is_none())
             {
-                // Keep the existing unbound-template behavior when neither an
-                // argument nor a caller contributed a constraint.
-                continue;
+                // Most calls already have evidence. Inspect return variance
+                // only when an unbound variable would otherwise be discarded.
+                let open_variables = open_variables.get_or_init(|| {
+                    let mut variables = return_type
+                        .map(|ty| {
+                            type_variable::get_variance(&self.instantiate(ty, codebase), codebase)
+                        })
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter_map(|(name, variance)| {
+                            matches!(variance, Variance::Invariant).then_some(name)
+                        })
+                        .collect::<FxHashSet<_>>();
+                    // Deferred comparisons keep both sides connected to the
+                    // result, including covariant values inferred later.
+                    // Fresh variables cannot occur in older constraints.
+                    for constraint in
+                        &analysis_data.type_variable_constraints[self.constraint_start..]
+                    {
+                        for ty in [&constraint.lower, &constraint.upper] {
+                            variables.extend(type_variable::get_variance(ty, codebase).into_keys());
+                        }
+                    }
+                    variables
+                });
+                // Covariant variables with no evidence retain the existing
+                // bottom/default inference; only invariant or deferred uses
+                // require the variable to survive the call.
+                if !open_variables.contains(name) {
+                    continue;
+                }
             }
             let variable = wrap_atomic(TAtomic::TTypeVariable { name: name.clone() });
             let resolved = if bounds.lower_bounds.is_empty() {
-                // An expected type is only an upper bound. Keep the variable
-                // live so a later argument/deferred label can supply its value,
-                // instead of feeding the expectation back as a lower bound.
+                // Keep unbound variables in the result so later uses can add
+                // constraints. A declaration or contextual upper bound alone
+                // is not evidence for choosing a concrete type.
                 variable
             } else {
                 type_variable::resolve(

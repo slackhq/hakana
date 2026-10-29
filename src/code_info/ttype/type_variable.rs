@@ -4,10 +4,11 @@ use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
+    classlike_info::Variance,
     code_location::HPos,
     codebase_info::CodebaseInfo,
     t_atomic::{TAtomic, TGenericParam},
-    t_union::TUnion,
+    t_union::{TUnion, TypeNode},
 };
 
 use super::{intersect_union_types_simple, template::TemplateBound, type_combiner, wrap_atomic};
@@ -23,6 +24,130 @@ pub struct SubtypeConstraint {
     pub lower: TUnion,
     pub upper: TUnion,
     pub pos: HPos,
+}
+
+/// Variables appearing in both directions cannot be solved from lower bounds
+/// alone: a later use of an invariant result may still supply an upper bound.
+pub fn get_variance(union: &TUnion, codebase: &CodebaseInfo) -> FxHashMap<String, Variance> {
+    fn compose(outer: &Variance, inner: &Variance) -> Variance {
+        match (outer, inner) {
+            (Variance::Invariant, _) | (_, Variance::Invariant) => Variance::Invariant,
+            (Variance::Covariant, inner) => inner.clone(),
+            (Variance::Contravariant, Variance::Covariant) => Variance::Contravariant,
+            (Variance::Contravariant, Variance::Contravariant) => Variance::Covariant,
+        }
+    }
+
+    fn visit(
+        node: TypeNode<'_>,
+        variance: &Variance,
+        codebase: &CodebaseInfo,
+        variables: &mut FxHashMap<String, Variance>,
+    ) {
+        if let TypeNode::Atomic(atomic) = &node {
+            match atomic {
+                TAtomic::TTypeVariable { name } => {
+                    variables
+                        .entry(name.clone())
+                        .and_modify(|previous| {
+                            if !matches!(
+                                (&*previous, variance),
+                                (Variance::Covariant, Variance::Covariant)
+                                    | (Variance::Contravariant, Variance::Contravariant)
+                            ) {
+                                *previous = Variance::Invariant;
+                            }
+                        })
+                        .or_insert_with(|| variance.clone());
+                    return;
+                }
+                TAtomic::TNamedObject(crate::t_atomic::TNamedObject {
+                    name,
+                    type_params: Some(params),
+                    ..
+                })
+                | TAtomic::TReference {
+                    name,
+                    type_params: Some(params),
+                }
+                | TAtomic::TTypeAlias {
+                    name,
+                    type_params: Some(params),
+                    ..
+                } => {
+                    let declared = codebase
+                        .classlike_infos
+                        .get(name)
+                        .map(|info| &info.generic_variance)
+                        .or_else(|| {
+                            codebase
+                                .type_definitions
+                                .get(name)
+                                .map(|info| &info.generic_variance)
+                        });
+                    for (offset, param) in params.iter().enumerate() {
+                        let param_variance = declared
+                            .and_then(|declared| declared.get(&offset))
+                            .unwrap_or(&Variance::Invariant);
+                        visit(
+                            TypeNode::Union(param),
+                            &compose(variance, param_variance),
+                            codebase,
+                            variables,
+                        );
+                    }
+                    return;
+                }
+                TAtomic::TClosure(closure) => {
+                    if let Some(return_type) = &closure.return_type {
+                        visit(TypeNode::Union(return_type), variance, codebase, variables);
+                    }
+                    for param in &closure.params {
+                        if let Some(ty) = &param.signature_type {
+                            let param_variance = if param.is_inout {
+                                Variance::Invariant
+                            } else {
+                                compose(variance, &Variance::Contravariant)
+                            };
+                            visit(TypeNode::Union(ty), &param_variance, codebase, variables);
+                        }
+                    }
+                    return;
+                }
+                TAtomic::TGenericClassname { as_type, .. }
+                | TAtomic::TGenericClassPtr { as_type, .. }
+                | TAtomic::TGenericTypename { as_type, .. } => {
+                    visit(TypeNode::Atomic(as_type), variance, codebase, variables);
+                }
+                TAtomic::TClassTypeConstant { as_type, .. } => {
+                    visit(TypeNode::Union(as_type), variance, codebase, variables);
+                }
+                TAtomic::TVec(vec) => {
+                    if let Some(variadic_type) = &vec.variadic_type {
+                        visit(
+                            TypeNode::Union(variadic_type),
+                            variance,
+                            codebase,
+                            variables,
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+        for child in node.get_child_nodes() {
+            visit(child, variance, codebase, variables);
+        }
+    }
+
+    let mut variables = FxHashMap::default();
+    visit(
+        TypeNode::Union(union),
+        &Variance::Covariant,
+        codebase,
+        &mut variables,
+    );
+    variables
 }
 
 pub fn contains(union: &TUnion) -> bool {
@@ -381,6 +506,58 @@ mod tests {
             lower_bounds: lower.into_iter().map(bound).collect(),
             upper_bounds: upper.into_iter().map(bound).collect(),
         }
+    }
+
+    #[test]
+    fn return_variance_composes_callback_parameters() {
+        use crate::{functionlike_parameter::FnParameter, t_atomic::TClosure};
+
+        let callback = |input, output| {
+            wrap_atomic(TAtomic::TClosure(Box::new(TClosure {
+                params: vec![FnParameter {
+                    signature_type: Some(Box::new(input)),
+                    is_inout: false,
+                    is_variadic: false,
+                    is_optional: false,
+                }],
+                return_type: Some(output),
+                effects: None,
+                closure_id: (FilePath(StrId::EMPTY), 0),
+            })))
+        };
+        let codebase = CodebaseInfo::new();
+        let consumer = callback(variable("T"), get_int());
+        assert!(matches!(
+            get_variance(&consumer, &codebase)["T"],
+            Variance::Contravariant
+        ));
+        assert!(matches!(
+            get_variance(&callback(consumer, get_int()), &codebase)["T"],
+            Variance::Covariant
+        ));
+        assert!(matches!(
+            get_variance(&callback(variable("T"), variable("T")), &codebase)["T"],
+            Variance::Invariant
+        ));
+    }
+
+    #[test]
+    fn invariant_objects_stay_invariant_inside_covariant_collections() {
+        let object = wrap_atomic(TAtomic::TNamedObject(crate::t_atomic::TNamedObject {
+            name: StrId::VECTOR,
+            type_params: Some(vec![variable("T")]),
+            is_this: false,
+            remapped_params: false,
+        }));
+        let codebase = CodebaseInfo::new();
+        assert!(matches!(
+            get_variance(&super::super::get_vec(object), &codebase)["T"],
+            Variance::Invariant
+        ));
+        assert!(matches!(
+            get_variance(&super::super::get_vec(variable("T")), &codebase)["T"],
+            Variance::Covariant
+        ));
     }
 
     #[test]

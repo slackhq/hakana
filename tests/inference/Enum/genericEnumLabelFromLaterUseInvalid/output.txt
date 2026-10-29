@@ -1,0 +1,2 @@
+ERROR: InvalidArgument - input.hack:17:25 - Argument type #missing does not match newtype-alias(HH\EnumClass\Label<Columns, int>)
+ERROR: IncompatibleTypeParameters - input.hack:22:25 - Type string should be a subtype of int

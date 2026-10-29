@@ -695,7 +695,12 @@ pub(crate) fn check_arguments_match(
         last_param_type = Some(param_type.clone());
     }
 
-    inference.finish(template_result, statements_analyzer, analysis_data);
+    inference.finish(
+        template_result,
+        contextual_return_type,
+        statements_analyzer,
+        analysis_data,
+    );
 
     let function_params = &functionlike_info.params;
 

@@ -1,0 +1,2 @@
+ERROR: IncompatibleTypeParameters - input.hack:17:16 - Type int should be a subtype of string
+ERROR: IncompatibleTypeParameters - input.hack:18:19 - Type string should be a subtype of int
