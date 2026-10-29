@@ -51,6 +51,10 @@ impl ServerFactory for SystemdServerFactory {
             project_root.display()
         );
 
+        // The server is started with a raised niceness, and a watchman daemon spawned
+        // on demand from within it fails to start. Make sure one is running beforehand.
+        ensure_watchman_running();
+
         let unit = next_systemd_unit_name();
         let child = self
             .command(project_root, hakana_binary, &unit)
@@ -79,6 +83,24 @@ impl ServerFactory for SystemdServerFactory {
         timeout: Duration,
     ) -> Pin<Box<dyn Future<Output = io::Result<()>> + Send + 'a>> {
         Box::pin(wait_for_server(socket_path, server_process, timeout))
+    }
+}
+
+fn ensure_watchman_running() {
+    // `get-sockname` spawns the watchman daemon if it is not already running.
+    match Command::new("watchman")
+        .arg("get-sockname")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+    {
+        Ok(status) if status.success() => {}
+        Ok(status) => log::warn!(
+            "Failed to ensure watchman is running: exited with {}",
+            status
+        ),
+        Err(e) => log::warn!("Failed to ensure watchman is running: {}", e),
     }
 }
 
