@@ -766,7 +766,11 @@ pub fn is_contained_by(
                             return classlike_info.constants.contains_key(input_member_name);
                         }
                     } else {
-                        return false;
+                        // An enum template that nothing in the call binds stays `any`,
+                        // e.g. when only a later use of the call's result says what it
+                        // is. hh_client infers it from there and checks the label then
+                        return input_class_name.is_none()
+                            && matches!(container_enum_param, TAtomic::TMixedWithFlags(true, _));
                     }
                 } else {
                     return false;
