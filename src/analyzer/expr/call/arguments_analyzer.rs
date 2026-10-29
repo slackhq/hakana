@@ -373,9 +373,12 @@ pub(crate) fn check_arguments_match(
 
     let mut reordered_args = args.iter().enumerate().collect::<Vec<_>>();
 
-    reordered_args.sort_by(|a, b| {
-        matches!(a.1.to_expr_ref().2, aast::Expr_::Lfun(..))
-            .cmp(&matches!(b.1.to_expr_ref().2, aast::Expr_::Lfun(..)))
+    // Closures go last. Bare enum class labels go just before them, so the other
+    // arguments can bind a label's enum class first
+    reordered_args.sort_by_key(|(_, arg)| match &arg.to_expr_ref().2 {
+        aast::Expr_::Lfun(..) => 2,
+        aast::Expr_::EnumClassLabel(boxed) if boxed.0.is_none() => 1,
+        _ => 0,
     });
 
     let mut param_types = BTreeMap::new();
@@ -422,6 +425,20 @@ pub(crate) fn check_arguments_match(
         if let Some(enum_label_template_result) = &enum_label_template_result {
             param_type =
                 inferred_type_replacer::replace(&param_type, enum_label_template_result, codebase);
+        }
+
+        // Do the same with the enum classes the other arguments bound, e.g. from
+        // the `Sql<SomeEnum, int>` in `SetExpression::set(#foo, $sql)`
+        if let aast::Expr_::EnumClassLabel(boxed) = &arg_expr.2
+            && boxed.0.is_none()
+            && let Some(bound_label_template_result) =
+                get_bound_enum_label_templates(&param_type, template_result, codebase)
+        {
+            param_type = inferred_type_replacer::replace(
+                &param_type,
+                &bound_label_template_result,
+                codebase,
+            );
         }
 
         let was_inside_call = context.inside_general_use;
@@ -1049,10 +1066,7 @@ fn solve_enum_label_templates_from_expected_type(
         let bound_type =
             standin_type_replacer::get_most_specific_type_from_bounds(bounds, codebase);
 
-        if !bound_type.is_single()
-            || !matches!(bound_type.get_single(), TAtomic::TNamedObject(_))
-            || bound_type.has_template_types()
-        {
+        if !is_concrete_class(&bound_type) {
             continue;
         }
 
@@ -1073,6 +1087,55 @@ fn solve_enum_label_templates_from_expected_type(
     } else {
         Some(solved)
     }
+}
+
+/// The enum class templates of $param_type's `HH\EnumClass\Label<TEnum, ...>` that
+/// the call's other arguments have bound to a concrete class, so a bare label
+/// (`#foo`) can resolve against it.
+fn get_bound_enum_label_templates(
+    param_type: &TUnion,
+    template_result: &TemplateResult,
+    codebase: &CodebaseInfo,
+) -> Option<TemplateResult> {
+    let mut bound = TemplateResult::new(IndexMap::new(), IndexMap::new());
+
+    for (param_name, defining_entity) in get_enum_label_templates(param_type) {
+        let Some(bounds) = template_result
+            .lower_bounds
+            .get(&param_name)
+            .and_then(|bounds| bounds.get(&defining_entity))
+        else {
+            continue;
+        };
+
+        let bound_type =
+            standin_type_replacer::get_most_specific_type_from_bounds(bounds, codebase);
+
+        if !is_concrete_class(&bound_type) {
+            continue;
+        }
+
+        bound
+            .lower_bounds
+            .entry(param_name)
+            .or_insert_with(FxHashMap::default)
+            .insert(
+                defining_entity,
+                vec![TemplateBound::new(bound_type, 0, None, None)],
+            );
+    }
+
+    if bound.lower_bounds.is_empty() {
+        None
+    } else {
+        Some(bound)
+    }
+}
+
+fn is_concrete_class(type_: &TUnion) -> bool {
+    type_.is_single()
+        && matches!(type_.get_single(), TAtomic::TNamedObject(_))
+        && !type_.has_template_types()
 }
 
 fn infer_function_pointer_type(

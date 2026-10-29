@@ -1,0 +1,2 @@
+ERROR: InvalidArgument - input.hack:46:22 - Argument 1 of SetExpression::set expects newtype-alias(HH\EnumClass\Label<SomeTableColumns, Column<?arraykey>>), different type #nome provided
+ERROR: InvalidArgument - input.hack:47:45 - Argument 3 of Sql::if expects Sql<SomeTableColumns, ?arraykey>|arraykey|newtype-alias(HH\EnumClass\Label<SomeTableColumns, Column<?arraykey>>)|null, different type #nome provided
