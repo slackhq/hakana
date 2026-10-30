@@ -1,3 +1,5 @@
+use crate::lsp::types::{Diagnostic, FileChangeType, FileEvent, Url};
+use crate::lsp::{Client, LspService, Server};
 use crate::{file_event_to_status, serve};
 use hakana_orchestrator::file::FileStatus;
 use serde_json::{Value, json};
@@ -6,7 +8,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, DuplexStream};
 use tokio::time::{Duration, timeout};
-use tower_lsp::lsp_types::{FileChangeType, FileEvent, Url};
 
 /// Helper struct to manage the language server process
 struct LanguageServer {
@@ -168,39 +169,23 @@ fn deleted_directory_with_extension_is_invalidated() {
     assert!(matches!(status, FileStatus::DeletedDir));
 }
 
-#[tokio::test]
-async fn publishing_diagnostics_twice_does_not_clear_the_first_publication() {
-    let (service, socket) = tower_lsp::LspService::new(|client| {
-        crate::Backend::new(
-            client,
-            hakana_analyzer::config::Config::new(String::new(), Default::default()),
-            hakana_str::Interner::default(),
-        )
-    });
-    drop(socket);
+#[test]
+fn publishing_diagnostics_twice_does_not_clear_the_first_publication() {
+    let (client, _socket) = Client::new();
+    let mut backend = crate::Backend::new(
+        client,
+        hakana_analyzer::config::Config::new(String::new(), Default::default()),
+        hakana_str::Interner::default(),
+    );
     let uri = Url::parse("file:///tmp/input.hack").unwrap();
-    *service.inner().all_diagnostics.write().await = Some(rustc_hash::FxHashMap::from_iter([(
+    backend.all_diagnostics = Some(rustc_hash::FxHashMap::from_iter([(
         uri.clone(),
-        vec![tower_lsp::lsp_types::Diagnostic::default()],
+        vec![Diagnostic::default()],
     )]));
-    service.inner().emit_issues().await;
-    assert!(
-        service
-            .inner()
-            .files_with_errors
-            .read()
-            .await
-            .contains(&uri)
-    );
-    service.inner().emit_issues().await;
-    assert!(
-        service
-            .inner()
-            .files_with_errors
-            .read()
-            .await
-            .contains(&uri)
-    );
+    backend.emit_issues();
+    assert!(backend.files_with_errors.contains(&uri));
+    backend.emit_issues();
+    assert!(backend.files_with_errors.contains(&uri));
 }
 
 #[tokio::test]
@@ -214,12 +199,10 @@ async fn watchers_are_registered_before_initial_analysis() {
     let mut lsp = LanguageServer::new(client);
     let task = tokio::spawn(async move {
         let (reader, writer) = tokio::io::split(server);
-        let (service, socket) = tower_lsp::LspService::new(|client| {
+        let (service, socket) = LspService::new(|client| {
             crate::Backend::new(client, config, hakana_str::Interner::default())
         });
-        tower_lsp::Server::new(reader, writer, socket)
-            .serve(service)
-            .await;
+        Server::new(reader, writer, socket).serve(service).await;
     });
     let id = lsp
         .send_request("initialize", json!({"capabilities": {}}))
@@ -248,24 +231,15 @@ async fn test_language_server_goto_definition() {
     let (client, server) = tokio::io::duplex(64);
     let mut lsp = LanguageServer::new(client);
 
-    // tower-lsp does not actually exit when receiving an "exit" notification
-    // https://github.com/ebkalderon/tower-lsp/issues/399
-    // Use a channel to end the server task instead once we're done with the test.
-    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-
     let server_handle = tokio::spawn(async move {
         let (mut server_reader, mut server_writer) = tokio::io::split(server);
 
-        let lsp_server = serve(
+        serve(
             &mut server_reader,
             &mut server_writer,
             Ok(get_test_directory()),
-        );
-
-        tokio::select! {
-            _ = lsp_server => {},
-            _ = shutdown_rx => {}
-        }
+        )
+        .await;
     });
 
     // 1. Send initialize request
@@ -397,6 +371,8 @@ async fn test_language_server_goto_definition() {
         .await
         .expect("Failed to send exit notification");
 
-    shutdown_tx.send(true).ok();
-    server_handle.await.ok();
+    timeout(Duration::from_secs(5), server_handle)
+        .await
+        .expect("Language server did not exit after receiving exit notification")
+        .unwrap();
 }
