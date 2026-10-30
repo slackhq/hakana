@@ -220,10 +220,34 @@ pub fn resolve(
     bounds: &FxHashMap<String, impl Borrow<TypeVariableBounds>>,
     codebase: &CodebaseInfo,
 ) -> TUnion {
-    if !contains(union) {
-        return union.clone();
+    Resolver::new(bounds, codebase).resolve(union)
+}
+
+/// Reuse solutions while checking an immutable set of bounds. The borrow keeps
+/// the cache from surviving a mutation, and cycle-dependent entries still
+/// require the same blocked ancestors before they can be reused.
+pub struct Resolver<'a, B> {
+    bounds: &'a FxHashMap<String, B>,
+    codebase: &'a CodebaseInfo,
+    state: ResolutionState,
+}
+
+impl<'a, B: Borrow<TypeVariableBounds>> Resolver<'a, B> {
+    pub fn new(bounds: &'a FxHashMap<String, B>, codebase: &'a CodebaseInfo) -> Self {
+        Self {
+            bounds,
+            codebase,
+            state: ResolutionState::default(),
+        }
     }
-    resolve_inner(union, bounds, codebase, &mut ResolutionState::default())
+
+    pub fn resolve(&mut self, union: &TUnion) -> TUnion {
+        let mut result = union.clone();
+        if contains(union) {
+            resolve_in_place(&mut result, self.bounds, self.codebase, &mut self.state);
+        }
+        result
+    }
 }
 
 /// Resolve the receiver of a deferred member lookup, retaining variables in
@@ -233,7 +257,21 @@ pub fn resolve_deferred(
     bounds: &FxHashMap<String, impl Borrow<TypeVariableBounds>>,
     codebase: &CodebaseInfo,
 ) -> (TUnion, TUnion) {
-    let lower = resolve(&constraint.lower, bounds, codebase);
+    let (lower, upper, _) = resolve_deferred_with_dependencies(constraint, bounds, codebase);
+    (lower, upper)
+}
+
+/// Include every bound read during resolution, even missing variables and
+/// dependencies reached indirectly or through cached solutions. A change to
+/// one of these bounds may make a deferred comparison contribute new evidence.
+pub fn resolve_deferred_with_dependencies(
+    constraint: &SubtypeConstraint,
+    bounds: &FxHashMap<String, impl Borrow<TypeVariableBounds>>,
+    codebase: &CodebaseInfo,
+) -> (TUnion, TUnion, FxHashSet<String>) {
+    let mut resolver = Resolver::new(bounds, codebase);
+    resolver.state.dependencies.push(FxHashSet::default());
+    let lower = resolver.resolve(&constraint.lower);
     let mut upper = constraint.upper.clone();
     for atomic in &mut upper.types {
         if let TAtomic::TTypeAlias {
@@ -243,10 +281,10 @@ pub fn resolve_deferred(
         } = atomic
             && let Some(enum_type) = params.first_mut()
         {
-            *enum_type = resolve(enum_type, bounds, codebase);
+            *enum_type = resolver.resolve(enum_type);
         }
     }
-    (lower, upper)
+    (lower, upper, resolver.state.dependencies.pop().unwrap())
 }
 
 #[derive(Default)]
@@ -262,33 +300,32 @@ struct ResolvedVariable {
     blocked: FxHashSet<String>,
 }
 
-fn resolve_inner(
-    union: &TUnion,
+fn resolve_in_place(
+    union: &mut TUnion,
     bounds: &FxHashMap<String, impl Borrow<TypeVariableBounds>>,
     codebase: &CodebaseInfo,
     state: &mut ResolutionState,
-) -> TUnion {
-    let mut result = union.clone();
-    let mut types = Vec::new();
-    for atomic in &union.types {
-        if let TAtomic::TTypeVariable { name } = atomic
+) {
+    // The caller owns a copy already. Moving its children avoids copying every
+    // descendant again at each level of a deeply nested type.
+    let mut types = Vec::with_capacity(union.types.len());
+    for mut atomic in std::mem::take(&mut union.types) {
+        if let TAtomic::TTypeVariable { name } = &atomic
             && let Some(solution) = resolve_variable(name, bounds, codebase, state)
         {
-            result.ignore_falsable_issues |= solution.ignore_falsable_issues;
-            super::extend_dataflow_uniquely(&mut result.parent_nodes, solution.parent_nodes);
+            union.ignore_falsable_issues |= solution.ignore_falsable_issues;
+            super::extend_dataflow_uniquely(&mut union.parent_nodes, solution.parent_nodes);
             types.extend(solution.types);
-            result.had_template = true;
+            union.had_template = true;
             continue;
         }
 
-        let mut atomic = atomic.clone();
         map_children(&mut atomic, &mut |child| {
-            *child = resolve_inner(child, bounds, codebase, state);
+            resolve_in_place(child, bounds, codebase, state);
         });
         types.push(atomic);
     }
-    result.types = type_combiner::combine(types, codebase, false);
-    result
+    union.types = type_combiner::combine(types, codebase, false);
 }
 
 fn resolve_variable(
@@ -325,7 +362,7 @@ fn resolve_variable(
         .iter()
         .filter_map(|bound| {
             let mut bound = bound.clone();
-            bound.bound_type = resolve_inner(&bound.bound_type, bounds, codebase, state);
+            resolve_in_place(&mut bound.bound_type, bounds, codebase, state);
             // Unsolved aliases, including cycles, supply no concrete
             // evidence. Their edges remain in the constraint graph.
             bound
@@ -335,28 +372,23 @@ fn resolve_variable(
             (!bound.bound_type.types.is_empty()).then_some(bound)
         })
         .collect::<Vec<_>>();
-    let equal_bounds = lower_bounds
-        .iter()
-        .filter(|bound| bound.equality_bound_classlike.is_some())
-        .cloned()
-        .collect::<Vec<_>>();
     let solution = if !lower_bounds.is_empty() {
-        let bounds = if equal_bounds.is_empty() {
-            &lower_bounds
-        } else {
-            &equal_bounds
-        };
+        let has_equal_bounds = lower_bounds
+            .iter()
+            .any(|bound| bound.equality_bound_classlike.is_some());
         // These are subtype constraints, not competing template guesses.
         // Every lower bound contributes, including bounds reached through a
         // nested call at a different appearance depth.
-        bounds
-            .iter()
-            .map(|bound| bound.bound_type.clone())
+        lower_bounds
+            .into_iter()
+            .filter(|bound| !has_equal_bounds || bound.equality_bound_classlike.is_some())
+            .map(|bound| bound.bound_type)
             .reduce(|left, right| super::add_union_type(left, &right, codebase, false))
     } else {
         let mut upper_type = None;
         for upper in &variable_bounds.upper_bounds {
-            let upper = resolve_inner(&upper.bound_type, bounds, codebase, state);
+            let mut upper = upper.bound_type.clone();
+            resolve_in_place(&mut upper, bounds, codebase, state);
             if upper.is_mixed() || contains(&upper) {
                 continue;
             }
@@ -383,7 +415,7 @@ fn resolve_variable(
     // A cycle prunes evidence from active ancestors. Reuse the result only
     // when the same dependencies are blocked by the caller's recursion stack.
     // Record cached dependencies too, so indirect cycles obey the same rule.
-    // The cache lasts only for this resolve call, so later bounds stay visible.
+    // The cache only lives as long as the immutable borrow of the bounds.
     state
         .resolved
         .entry(name.to_owned())
@@ -506,6 +538,76 @@ mod tests {
             lower_bounds: lower.into_iter().map(bound).collect(),
             upper_bounds: upper.into_iter().map(bound).collect(),
         }
+    }
+
+    fn deferred_constraint(lower: TUnion, enum_type: TUnion) -> SubtypeConstraint {
+        SubtypeConstraint {
+            lower,
+            upper: wrap_atomic(TAtomic::TTypeAlias {
+                name: StrId::ENUM_CLASS_LABEL,
+                newtype: true,
+                type_params: Some(vec![enum_type, variable("Value")]),
+                as_type: None,
+            }),
+            pos: HPos {
+                file_path: FilePath(StrId::EMPTY),
+                start_offset: 0,
+                end_offset: 1,
+                start_line: 1,
+                end_line: 1,
+                start_column: 0,
+                end_column: 1,
+            },
+        }
+    }
+
+    #[test]
+    fn deferred_dependencies_include_indirect_cycles_and_missing_bounds() {
+        let codebase = CodebaseInfo::new();
+        let mut bounds = FxHashMap::from_iter([
+            ("A".to_owned(), bounds(vec![variable("B")], vec![])),
+            (
+                "B".to_owned(),
+                bounds(vec![variable("A"), variable("Missing"), get_int()], vec![]),
+            ),
+        ]);
+        // Resolving the enum parameter reuses A's cached solution.
+        let constraint = deferred_constraint(variable("A"), variable("A"));
+        let (lower, _, dependencies) =
+            resolve_deferred_with_dependencies(&constraint, &bounds, &codebase);
+        assert!(lower.is_int());
+        assert_eq!(
+            dependencies,
+            FxHashSet::from_iter(["A", "B", "Missing"].map(str::to_owned))
+        );
+        bounds.insert(
+            "Missing".to_owned(),
+            TypeVariableBounds {
+                lower_bounds: vec![bound(get_string())],
+                upper_bounds: vec![],
+            },
+        );
+        let (lower, _, _) = resolve_deferred_with_dependencies(&constraint, &bounds, &codebase);
+        assert!(lower.types.contains(&TAtomic::TInt));
+        assert!(lower.types.contains(&TAtomic::TString));
+    }
+
+    #[test]
+    fn deferred_enum_resolution_tracks_upper_bounds_and_retains_member_variables() {
+        let codebase = CodebaseInfo::new();
+        let bounds = FxHashMap::from_iter([
+            ("Enum".to_owned(), bounds(vec![], vec![variable("Context")])),
+            ("Value".to_owned(), bounds(vec![get_int()], vec![])),
+        ]);
+        let constraint = deferred_constraint(get_string(), variable("Enum"));
+        let (lower, upper, dependencies) =
+            resolve_deferred_with_dependencies(&constraint, &bounds, &codebase);
+        assert_eq!(lower, constraint.lower);
+        assert_eq!(upper, constraint.upper);
+        assert_eq!(
+            dependencies,
+            FxHashSet::from_iter(["Enum", "Context"].map(str::to_owned))
+        );
     }
 
     #[test]
@@ -644,6 +746,31 @@ mod tests {
     }
 
     #[test]
+    fn checking_multiple_bounds_reuses_shared_solutions() {
+        let codebase = CodebaseInfo::new();
+        let mut constraints =
+            FxHashMap::from_iter([("T0".to_owned(), bounds(vec![get_int()], vec![]))]);
+        for i in 1..40 {
+            constraints.insert(
+                format!("T{i}"),
+                bounds(vec![variable(&format!("T{}", i - 1))], vec![]),
+            );
+        }
+        let mut resolver = Resolver::new(&constraints, &codebase);
+        for i in (0..40).rev() {
+            assert!(resolver.resolve(&variable(&format!("T{i}"))).is_int());
+        }
+        assert_eq!(resolver.state.resolved.len(), 40);
+        assert!(
+            resolver
+                .state
+                .resolved
+                .values()
+                .all(|solutions| solutions.len() == 1)
+        );
+    }
+
+    #[test]
     fn shared_constraint_branches_with_cycles_do_not_expand_exponentially() {
         let codebase = CodebaseInfo::new();
         let mut constraints = FxHashMap::from_iter([
@@ -699,6 +826,28 @@ mod tests {
         let expected = TUnion::new(vec![TAtomic::TInt, TAtomic::TString]);
         assert_eq!(params[0], expected);
         assert_eq!(params[1], expected);
+    }
+
+    #[test]
+    fn batched_resolution_preserves_cycle_context_between_roots() {
+        let codebase = CodebaseInfo::new();
+        let constraints = FxHashMap::from_iter([
+            (
+                "T".to_owned(),
+                bounds(vec![variable("U"), get_int()], vec![]),
+            ),
+            (
+                "U".to_owned(),
+                bounds(vec![variable("T"), get_string()], vec![]),
+            ),
+        ]);
+        let mut resolver = Resolver::new(&constraints, &codebase);
+        for name in ["T", "U", "T"] {
+            assert_eq!(
+                resolver.resolve(&variable(name)),
+                resolve(&variable(name), &constraints, &codebase)
+            );
+        }
     }
 
     #[test]

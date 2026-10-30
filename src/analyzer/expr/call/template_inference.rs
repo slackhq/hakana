@@ -302,13 +302,14 @@ pub(crate) fn propagate(
     analysis_data: &mut FunctionAnalysisData,
 ) {
     while analysis_data.type_variable_bounds.has_changes()
-        || analysis_data.type_variable_constraints_processed
-            != analysis_data.type_variable_constraints.len()
+        || analysis_data.type_variable_constraints.has_pending()
     {
-        let mut retry_deferred = analysis_data.type_variable_constraints_processed
-            != analysis_data.type_variable_constraints.len();
+        let changed = analysis_data.type_variable_bounds.take_changed();
+        analysis_data
+            .type_variable_constraints
+            .notify_changed(&changed);
         let mut pending = Vec::new();
-        for name in analysis_data.type_variable_bounds.take_changed() {
+        for name in changed {
             let Some(bounds) = analysis_data.type_variable_bounds.get(&name) else {
                 continue;
             };
@@ -321,7 +322,6 @@ pub(crate) fn propagate(
             if progress == current {
                 continue;
             }
-            retry_deferred = true;
             // Closure merges may deduplicate bounds; replay after a shrink.
             if progress.0 > current.0 || progress.1 > current.1 {
                 progress = (0, 0);
@@ -367,17 +367,17 @@ pub(crate) fn propagate(
             }
         }
 
-        if !retry_deferred {
-            continue;
-        }
-        analysis_data.type_variable_constraints_processed =
-            analysis_data.type_variable_constraints.len();
-        for constraint in analysis_data.type_variable_constraints.clone() {
-            let (lower, upper) = type_variable::resolve_deferred(
-                &constraint,
+        for index in analysis_data.type_variable_constraints.take_pending() {
+            let constraint = &analysis_data.type_variable_constraints[index];
+            let pos = constraint.pos;
+            let (lower, upper, dependencies) = type_variable::resolve_deferred_with_dependencies(
+                constraint,
                 &analysis_data.type_variable_bounds,
                 statements_analyzer.codebase,
             );
+            analysis_data
+                .type_variable_constraints
+                .set_dependencies(index, dependencies);
             let mut result = TypeComparisonResult::new();
             if union_type_comparator::is_contained_by(
                 statements_analyzer.codebase,
@@ -389,7 +389,7 @@ pub(crate) fn propagate(
                 false,
                 &mut result,
             ) {
-                analysis_data.add_type_variable_bounds(result, constraint.pos);
+                analysis_data.add_type_variable_bounds(result, pos);
             }
         }
     }
@@ -400,7 +400,9 @@ pub(crate) fn check_deferred_constraints(
     analysis_data: &mut FunctionAnalysisData,
 ) {
     use hakana_code_info::issue::{Issue, IssueKind};
-    for constraint in analysis_data.type_variable_constraints.clone() {
+    for index in 0..analysis_data.type_variable_constraints.len() {
+        let constraint = &analysis_data.type_variable_constraints[index];
+        let pos = constraint.pos;
         let lower = type_variable::resolve(
             &constraint.lower,
             &analysis_data.type_variable_bounds,
@@ -423,7 +425,7 @@ pub(crate) fn check_deferred_constraints(
             &mut comparison,
         );
         if (!matches || !comparison.deferred_constraints.is_empty())
-            && !analysis_data.has_type_error_at(constraint.pos)
+            && !analysis_data.has_type_error_at(pos)
         {
             analysis_data.maybe_add_issue(
                 Issue::new(
@@ -440,7 +442,7 @@ pub(crate) fn check_deferred_constraints(
                             upper.get_id(Some(statements_analyzer.interner))
                         )
                     },
-                    constraint.pos,
+                    pos,
                     &None,
                 ),
                 statements_analyzer.get_config(),

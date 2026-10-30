@@ -518,8 +518,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             analysis_data
                 .type_variable_constraints
                 .clone_from(&parent_analysis_data.type_variable_constraints);
-            analysis_data.type_variable_constraints_processed =
-                parent_analysis_data.type_variable_constraints_processed;
 
             if statements_analyzer.get_config().in_migration {
                 analysis_data.data_flow_graph = parent_analysis_data.data_flow_graph.clone();
@@ -1087,14 +1085,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             for constraint in analysis_data.type_variable_constraints {
-                if !parent_analysis_data
+                parent_analysis_data
                     .type_variable_constraints
-                    .contains(&constraint)
-                {
-                    parent_analysis_data
-                        .type_variable_constraints
-                        .push(constraint);
-                }
+                    .push(constraint);
             }
             for (name, bounds) in analysis_data.type_variable_bounds {
                 if parent_analysis_data
@@ -1138,17 +1131,18 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 &mut analysis_data,
             );
             if !analysis_data.type_variable_bounds.is_empty() {
-                for (_, bounds) in analysis_data.type_variable_bounds.snapshot() {
-                    let resolve_bounds =
+                let bounds_snapshot = analysis_data.type_variable_bounds.snapshot();
+                let mut resolver = hakana_code_info::ttype::type_variable::Resolver::new(
+                    &bounds_snapshot,
+                    statements_analyzer.codebase,
+                );
+                for bounds in bounds_snapshot.values() {
+                    let mut resolve_bounds =
                         |bounds: &[hakana_code_info::ttype::template::TemplateBound]| {
                             bounds
                                 .iter()
                                 .map(|bound| hakana_code_info::ttype::template::TemplateBound {
-                                    bound_type: hakana_code_info::ttype::type_variable::resolve(
-                                        &bound.bound_type,
-                                        &analysis_data.type_variable_bounds,
-                                        statements_analyzer.codebase,
-                                    ),
+                                    bound_type: resolver.resolve(&bound.bound_type),
                                     appearance_depth: bound.appearance_depth,
                                     arg_offset: bound.arg_offset,
                                     equality_bound_classlike: bound.equality_bound_classlike,

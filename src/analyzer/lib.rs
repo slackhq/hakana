@@ -15,6 +15,7 @@ pub mod scope_analyzer;
 pub mod statements_analyzer;
 mod stmt;
 mod stmt_analyzer;
+mod type_variable_constraints;
 
 pub mod dataflow;
 pub mod function_analysis_data;

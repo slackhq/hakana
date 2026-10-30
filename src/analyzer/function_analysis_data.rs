@@ -19,6 +19,7 @@ use std::{
     rc::Rc,
 };
 
+pub use crate::type_variable_constraints::TypeVariableConstraints;
 pub use hakana_code_info::ttype::type_variable::TypeVariableBounds;
 use hakana_code_info::ttype::{
     comparison::type_comparison_result::TypeComparisonResult, type_variable::SubtypeConstraint,
@@ -207,8 +208,7 @@ pub struct FunctionAnalysisData {
     pub type_variable_bounds: TypeVariableBoundsMap,
     /// Prefixes of the append-only bound lists already propagated together.
     pub(crate) type_variable_bound_progress: FxHashMap<String, (usize, usize)>,
-    pub type_variable_constraints: Vec<SubtypeConstraint>,
-    pub(crate) type_variable_constraints_processed: usize,
+    pub type_variable_constraints: TypeVariableConstraints,
     pub migrate_function: Option<bool>,
     pub after_expr_hook_called: FxHashSet<(u32, u32)>,
     pub after_arg_hook_called: FxHashSet<(u32, u32)>,
@@ -282,8 +282,7 @@ impl FunctionAnalysisData {
             issue_counts: FxHashMap::default(),
             type_variable_bounds: TypeVariableBoundsMap::default(),
             type_variable_bound_progress: FxHashMap::default(),
-            type_variable_constraints: Vec::new(),
-            type_variable_constraints_processed: 0,
+            type_variable_constraints: TypeVariableConstraints::default(),
             migrate_function: None,
             after_arg_hook_called: FxHashSet::default(),
             after_expr_hook_called: FxHashSet::default(),
@@ -344,10 +343,7 @@ impl FunctionAnalysisData {
         }
         for (lower, upper) in result.deferred_constraints {
             let constraint = SubtypeConstraint { lower, upper, pos };
-            if !self.type_variable_constraints.contains(&constraint) {
-                self.type_variable_constraints.push(constraint);
-                changed = true;
-            }
+            changed |= self.type_variable_constraints.push(constraint);
         }
         changed
     }

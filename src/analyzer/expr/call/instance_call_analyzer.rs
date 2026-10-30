@@ -15,7 +15,7 @@ use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
-use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null, type_variable};
+use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
 use oxidized::aast;
 use oxidized::pos::Pos;
 
@@ -84,7 +84,9 @@ pub(crate) fn analyze(
         }
 
         let mut class_types = class_type.types.iter().collect::<Vec<_>>();
-        let type_variable_bounds = if type_variable::contains(&class_type) {
+        // Variables inside type parameters do not need expansion here. Keep
+        // the snapshot before any method analysis can contribute new bounds.
+        let type_variable_bounds = if class_types.iter().any(|ty| receiver_has_variable(ty)) {
             analysis_data.type_variable_bounds.snapshot()
         } else {
             Default::default()
@@ -217,4 +219,17 @@ pub(crate) fn analyze(
     }
 
     Ok(())
+}
+
+fn receiver_has_variable(ty: &TAtomic) -> bool {
+    match ty {
+        TAtomic::TTypeVariable { .. } => true,
+        TAtomic::TGenericParam(TGenericParam { as_type, .. })
+        | TAtomic::TClassTypeConstant { as_type, .. }
+        | TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        } => as_type.types.iter().any(receiver_has_variable),
+        _ => false,
+    }
 }
