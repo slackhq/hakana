@@ -457,7 +457,7 @@ fn expand_atomic(
     } = return_type_part
     {
         if let Some(enum_storage) = codebase.classlike_infos.get(enum_name) {
-            if let Some(storage_as_type) = &enum_storage.enum_as_type {
+            if let Some(storage_as_type) = enum_storage.enum_as_type.as_deref() {
                 let mut as_type_union = wrap_atomic(storage_as_type.clone());
                 expand_union(
                     codebase,
@@ -471,7 +471,7 @@ fn expand_atomic(
                 *as_type = Some(Arc::new(as_type_union.get_single_owned()));
             }
 
-            if let Some(storage_underlying_type) = &enum_storage.enum_underlying_type {
+            if let Some(storage_underlying_type) = enum_storage.enum_underlying_type.as_deref() {
                 let mut underlying_type_union = wrap_atomic(storage_underlying_type.clone());
                 expand_union(
                     codebase,

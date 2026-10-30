@@ -15,6 +15,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum Variance {
     Invariant,
     Covariant,
@@ -22,13 +23,16 @@ pub enum Variance {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum ClassConstantType {
     Abstract(Option<TUnion>),
     Concrete(TUnion),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct ClassLikeInfo {
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::index_map))]
     pub constants: IndexMap<StrId, ConstantInfo>,
 
     pub is_populated: bool,
@@ -83,8 +87,10 @@ pub struct ClassLikeInfo {
 
     pub kind: SymbolKind,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_set))]
     pub used_traits: FxHashSet<StrId>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_set))]
     pub inherited_traits: FxHashSet<StrId>,
 
     pub immutable: bool,
@@ -93,8 +99,10 @@ pub struct ClassLikeInfo {
 
     pub methods: Vec<StrId>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub declaring_method_ids: FxHashMap<StrId, StrId>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub appearing_method_ids: FxHashMap<StrId, StrId>,
 
     /**
@@ -102,18 +110,25 @@ pub struct ClassLikeInfo {
      * great-grandparent, etc **including traits and interfaces**. Ancestors that don't have their own declaration are
      * skipped.
      */
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map_of_sets))]
     pub overridden_method_ids: FxHashMap<StrId, FxHashSet<StrId>>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub inheritable_method_ids: FxHashMap<StrId, StrId>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub properties: FxHashMap<StrId, PropertyInfo>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub appearing_property_ids: FxHashMap<StrId, StrId>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub declaring_property_ids: FxHashMap<StrId, StrId>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub inheritable_property_ids: FxHashMap<StrId, StrId>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub overridden_property_ids: FxHashMap<StrId, Vec<StrId>>,
 
     /**
@@ -132,8 +147,10 @@ pub struct ClassLikeInfo {
      *
      * This list is used to limit the creation of type variables to only the classes that warrant them.
      */
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_set))]
     pub template_readonly: FxHashSet<StrId>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub generic_variance: FxHashMap<usize, Variance>,
 
     /**
@@ -143,6 +160,7 @@ pub struct ClassLikeInfo {
      *
      * @internal
      */
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub template_extended_offsets: FxHashMap<StrId, Vec<Arc<TUnion>>>,
 
     /**
@@ -157,12 +175,15 @@ pub struct ClassLikeInfo {
      *     ]
      * ]
      */
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map_of_index_maps))]
     pub template_extended_params: FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
 
     pub template_extended_count: u32,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub template_type_implements_count: FxHashMap<String, u32>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub template_type_uses_count: FxHashMap<String, u32>,
 
     pub initialized_properties: Vec<StrId>,
@@ -182,15 +203,18 @@ pub struct ClassLikeInfo {
 
     pub attributes: Vec<AttributeInfo>,
 
-    pub enum_underlying_type: Option<TAtomic>,
-    pub enum_as_type: Option<TAtomic>,
+    // Only enums use these fields; other classes need only the nullable pointer.
+    pub enum_underlying_type: Option<Box<TAtomic>>,
+    pub enum_as_type: Option<Box<TAtomic>>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub type_constants: FxHashMap<StrId, ClassConstantType>,
 
     pub user_defined: bool,
 
     pub generated: bool,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::option_hash_set))]
     pub child_classlikes: Option<FxHashSet<StrId>>,
 
     pub uses_position: Option<(usize, usize)>,

@@ -265,7 +265,7 @@ pub fn is_contained_by(
                 codebase
                     .classlike_infos
                     .get(container_name)
-                    .and_then(|info| info.enum_as_type.as_ref())
+                    .and_then(|info| info.enum_as_type.as_deref())
             })
             .unwrap_or(&TAtomic::TArraykey { from_any: false });
         if let TAtomic::TStringWithFlags(..) = container_type_part {
@@ -325,7 +325,7 @@ pub fn is_contained_by(
                     codebase
                         .classlike_infos
                         .get(enum_name)
-                        .and_then(|info| info.enum_as_type.as_ref())
+                        .and_then(|info| info.enum_as_type.as_deref())
                 })
                 .unwrap_or(&TAtomic::TArraykey { from_any: false }),
             container_type_part,

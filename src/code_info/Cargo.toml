@@ -6,7 +6,11 @@ edition = "2024"
 [lib]
 path = "lib.rs"
 
+[features]
+memory-profile = ["dep:allocative", "hakana-str/memory-profile"]
+
 [dependencies]
+allocative = { version = "0.3.6", optional = true }
 oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
 hakana-str = { path = "../str" }
 itertools = "0.10.1"

@@ -42,6 +42,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocative"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8cf9afc79c83d514444b55df3935d317da54b1ce3b17a133c646889cc260de8"
+dependencies = [
+ "allocative_derive",
+ "ctor",
+]
+
+[[package]]
+name = "allocative_derive"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "614043c56c1173b800acb007b81fd0cbc0a0d7d717b71ba705fc2230d0760a23"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -501,6 +522,16 @@ checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
 dependencies = [
  "generic-array",
  "typenum",
+]
+
+[[package]]
+name = "ctor"
+version = "1.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "914a755b7c2d4af2bdcff7ce1739e2db9a1b81a9b07123d8015786ae03c0980d"
+dependencies = [
+ "link-section",
+ "linktime-proc-macro",
 ]
 
 [[package]]
@@ -1141,6 +1172,7 @@ dependencies = [
 name = "hakana-code-info"
 version = "0.1.0"
 dependencies = [
+ "allocative",
  "compact_str",
  "derivative",
  "hakana-str",
@@ -1267,6 +1299,7 @@ name = "hakana-orchestrator"
 version = "0.1.0"
 dependencies = [
  "aast_parser",
+ "allocative",
  "bincode 1.3.3",
  "chrono",
  "glob",
@@ -1287,6 +1320,7 @@ dependencies = [
  "rust-embed",
  "rustc-hash 1.1.0",
  "serde",
+ "serde_json",
  "walkdir",
  "xxhash-rust",
 ]
@@ -1338,6 +1372,7 @@ dependencies = [
 name = "hakana-str"
 version = "0.1.0"
 dependencies = [
+ "allocative",
  "indexmap 1.9.3",
  "rustc-hash 1.1.0",
  "serde",
@@ -1850,6 +1885,18 @@ dependencies = [
 [[package]]
 name = "line_break_map"
 version = "0.0.0"
+
+[[package]]
+name = "link-section"
+version = "0.19.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39c29a617ce3df32c08497bdc1ab6e2376e0b17948ac166a2fbe5977c5954cd9"
+
+[[package]]
+name = "linktime-proc-macro"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e57c38c1e860fd37c604281cdfb1dd2216977fd76a50f85ba2f388ef3219616"
 
 [[package]]
 name = "lint_rust"

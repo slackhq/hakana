@@ -74,10 +74,11 @@ pub enum ExprId {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
-
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct VarId(pub StrId);
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize, PartialOrd, Ord, Debug)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum GenericParent {
     ClassLike(StrId),
     FunctionLike(StrId),

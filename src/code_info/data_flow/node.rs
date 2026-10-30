@@ -12,6 +12,7 @@ use hakana_str::{Interner, StrId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum VariableSourceKind {
     Default,
     PrivateParam,
@@ -22,6 +23,7 @@ pub enum VariableSourceKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum DataFlowNodeId {
     String(String),
     LocalString(String, FilePath, u32, u32),
@@ -365,6 +367,7 @@ impl DataFlowNodeId {
 }
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct DataFlowNode {
     pub id: DataFlowNodeId,
     pub kind: DataFlowNodeKind,
@@ -377,6 +380,7 @@ impl PartialEq for DataFlowNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum DataFlowNodeKind {
     Vertex {
         pos: Option<HPos>,

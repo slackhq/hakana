@@ -5,6 +5,7 @@ use hakana_str::{Interner, StrId};
 
 // offset, start line, start column
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct StmtStart {
     pub offset: u32,
     pub line: u32,
@@ -13,6 +14,7 @@ pub struct StmtStart {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct FilePath(pub StrId);
 
 impl FilePath {
@@ -27,6 +29,7 @@ impl FilePath {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct HPos {
     pub file_path: FilePath,
 

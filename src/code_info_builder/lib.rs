@@ -936,7 +936,7 @@ impl<'a> Scanner<'a> {
             functionlike_storage.has_throw = true;
         }
 
-        functionlike_storage.type_resolution_context = Some(type_resolution_context);
+        functionlike_storage.type_resolution_context = Some(type_resolution_context.into_shared());
 
         if !self.user_defined
             && let Some(name) = name

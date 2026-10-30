@@ -6,15 +6,18 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct UnresolvedConstantComponent {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum DefaultType {
     NormalData(TAtomic),
     Unresolved(UnresolvedConstantComponent),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct FunctionLikeParameter {
     pub name: VarId,
 
@@ -26,7 +29,8 @@ pub struct FunctionLikeParameter {
 
     pub is_nullable: bool,
 
-    pub default_type: Option<DefaultType>,
+    // Most parameters have no default; keep the large atomic type out of line.
+    pub default_type: Option<Box<DefaultType>>,
     pub default_value_location: Option<HPos>,
 
     pub location: HPos,
@@ -102,6 +106,7 @@ impl FunctionLikeParameter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct FnParameter {
     pub signature_type: Option<Box<TUnion>>,
     pub is_inout: bool,

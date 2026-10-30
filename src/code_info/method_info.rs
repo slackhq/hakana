@@ -7,6 +7,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct MethodInfo {
     pub is_static: bool,
 

@@ -7,6 +7,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct ConstantInfo {
     pub pos: HPos,
 

@@ -337,7 +337,10 @@ fn populate_functionlike_storage(
         }
     }
 
-    if let Some(ref mut type_resolution_context) = storage.type_resolution_context {
+    if let Some(ref mut type_resolution_context) = storage.type_resolution_context
+        && !type_resolution_context.template_type_map.is_empty()
+    {
+        let type_resolution_context = Arc::make_mut(type_resolution_context);
         for (_, type_param_map) in type_resolution_context.template_type_map.iter_mut() {
             for (_, v) in type_param_map {
                 if force_type_population || v.needs_population() {
@@ -370,7 +373,7 @@ fn populate_classlike_storage(
     symbol_references: &mut SymbolReferences,
     safe_symbols: &FxHashSet<StrId>,
 ) {
-    let mut storage = match codebase.classlike_infos.remove(classlike_name) {
+    let mut storage = match codebase.classlike_infos.swap_remove(classlike_name) {
         Some(storage) => storage,
         _ => return,
     };

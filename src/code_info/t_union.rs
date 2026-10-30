@@ -12,6 +12,7 @@ use std::hash::{Hash, Hasher};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, Derivative)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct TUnion {
     pub types: Vec<TAtomic>,
     pub parent_nodes: Vec<DataFlowNode>,

@@ -714,7 +714,7 @@ fn add_service_calls_attributes(
                     .iter()
                     .filter(|k| {
                         !all_service_callers.contains(k)
-                            && match codebase.functionlike_infos.get(k) {
+                            && match codebase.functionlike_infos.get(*k) {
                                 Some(functionlike_info) => {
                                     functionlike_info.is_production_code
                                         && !functionlike_info.generated

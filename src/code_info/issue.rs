@@ -14,6 +14,7 @@ use crate::{
 
 #[deny(dead_code)]
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum IssueKind {
     AbstractInstantiation,
     AwaitInSyncContext,

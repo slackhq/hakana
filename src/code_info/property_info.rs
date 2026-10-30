@@ -6,12 +6,14 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum PropertyKind {
     Property,
     XhpAttribute { is_required: bool },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct PropertyInfo {
     pub is_static: bool,
 
@@ -37,5 +39,6 @@ pub struct PropertyInfo {
 
     pub is_internal: bool,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::option_hash_map))]
     pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
 }

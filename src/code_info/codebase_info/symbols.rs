@@ -3,6 +3,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum SymbolKind {
     Class,
     Enum,
@@ -14,7 +15,9 @@ pub enum SymbolKind {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct Symbols {
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub all: FxHashMap<StrId, SymbolKind>,
 }
 

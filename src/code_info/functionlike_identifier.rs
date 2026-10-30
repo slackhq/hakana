@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{code_location::FilePath, method_identifier::MethodIdentifier};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum FunctionLikeIdentifier {
     Function(StrId),
     Method(StrId, StrId),

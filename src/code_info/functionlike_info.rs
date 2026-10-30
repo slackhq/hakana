@@ -19,6 +19,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum FnEffect {
     Unknown,
     Pure,
@@ -50,6 +51,7 @@ impl FnEffect {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct MetaStart {
     pub start_offset: u32,
     pub start_line: u32,
@@ -57,6 +59,7 @@ pub struct MetaStart {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct FunctionLikeInfo {
     /// HPos for the whole definition
     pub def_location: HPos,
@@ -177,7 +180,9 @@ pub struct FunctionLikeInfo {
     /// generated functions also get a pass
     pub generated: bool,
 
-    pub type_resolution_context: Option<TypeResolutionContext>,
+    // Empty contexts share one allocation, including when restored from cache.
+    #[serde(deserialize_with = "TypeResolutionContext::deserialize_shared_option")]
+    pub type_resolution_context: Option<Arc<TypeResolutionContext>>,
 
     pub where_constraints: Vec<(StrId, TUnion)>,
 

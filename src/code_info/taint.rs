@@ -3,6 +3,7 @@ use std::{hash::Hash, str::FromStr};
 use strum_macros::{Display, EnumString};
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum SourceType {
     UriRequestHeader,
     NonUriRequestHeader,
@@ -32,6 +33,7 @@ impl SourceType {
 #[derive(
     Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString, Default,
 )]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum SinkType {
     #[default]
     HtmlTag,

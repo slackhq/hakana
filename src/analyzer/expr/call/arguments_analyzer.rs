@@ -752,7 +752,7 @@ pub(crate) fn check_arguments_match(
 
         while i < i_max {
             let function_param = &function_params[i];
-            if let Some(default_type) = &function_param.default_type
+            if let Some(default_type) = function_param.default_type.as_deref()
                 && let Some(param_type) = &function_param.signature_type
                 && param_type.has_template()
             {

@@ -68,6 +68,7 @@ pub enum ArrayDataKind {
 /// Representation established by an encoder. This is independent of both the
 /// Hack type and which security sinks a source can reach.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum ValueEncoding {
     HtmlSafeJson,
 }

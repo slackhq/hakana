@@ -36,9 +36,11 @@ impl InvalidSymbols {
 /// Usage observed at production call sites. Kept per caller so incremental
 /// analysis can replace a caller's contribution when its body changes.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct CallUsage {
     pub return_value_used: bool,
     pub max_positional_args: usize,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_set))]
     pub named_args: FxHashSet<usize>,
     pub unknown_args: bool,
 }
@@ -57,18 +59,24 @@ impl CallUsage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct SymbolReferences {
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map_of_maps))]
     pub production_call_usage: FxHashMap<(StrId, StrId), FxHashMap<(StrId, StrId), CallUsage>>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map_of_maps))]
     pub non_production_call_usage: FxHashMap<(StrId, StrId), FxHashMap<(StrId, StrId), CallUsage>>,
     // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map_of_sets))]
     pub symbol_references_to_symbols: FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map_of_sets))]
     pub symbol_references_to_symbols_in_signature:
         FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
     // (class method, enum case, class property etc)
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map_of_sets))]
     pub symbol_references_to_overridden_members:
         FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 }

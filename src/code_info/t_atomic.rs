@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum DictKey {
     Int(u64),
     String(String),
@@ -39,7 +40,9 @@ impl DictKey {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
 /// Corresponds to the `dict` type and also the `shape` type.
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct TDict {
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::option_arc_btree_map))]
     pub known_items: Option<Arc<BTreeMap<DictKey, (bool, Arc<TUnion>)>>>,
     pub params: Option<(Box<TUnion>, Box<TUnion>)>,
     pub non_empty: bool,
@@ -149,6 +152,7 @@ impl TDict {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct TClosure {
     pub params: Vec<FnParameter>,
     pub return_type: Option<TUnion>,
@@ -158,7 +162,9 @@ pub struct TClosure {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct TVec {
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::option_btree_map))]
     pub known_items: Option<BTreeMap<usize, (bool, TUnion)>>,
     pub variadic_type: Option<TUnion>,
     pub type_param: Box<TUnion>,
@@ -261,6 +267,7 @@ mod vec_tests {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct TGenericParam {
     pub param_name: StrId,
     pub as_type: Box<TUnion>,
@@ -269,6 +276,7 @@ pub struct TGenericParam {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct TNamedObject {
     pub name: StrId,
     pub type_params: Option<Vec<TUnion>>,
@@ -278,6 +286,7 @@ pub struct TNamedObject {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub enum TAtomic {
     /// Corresponds to the arraykey type in Hack
     TArraykey {

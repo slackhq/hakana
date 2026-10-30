@@ -25,6 +25,9 @@ use populator::populate_codebase;
 use rust_embed::RustEmbed;
 use rustc_hash::{FxHashMap, FxHashSet};
 use scanner::{ScanFilesResult, scan_files};
+
+#[cfg(feature = "memory-profile")]
+mod memory_profile;
 use std::fs;
 use std::io::{self, Write};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -134,6 +137,9 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
     chaos_monkey: F,
     analysis_progress: Option<AnalysisProgress>,
 ) -> io::Result<(AnalysisResult, SuccessfulScanData)> {
+    #[cfg(feature = "memory-profile")]
+    let memory_profile = memory_profile::MemoryProfile::from_env()?;
+
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
 
@@ -215,6 +221,20 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
 
     info!("Calculating symbol inheritance");
 
+    #[cfg(feature = "memory-profile")]
+    if let Some(profile) = &memory_profile {
+        profile.write(
+            "before-populate",
+            memory_profile::Roots {
+                codebase: &codebase,
+                interner: &interner,
+                resolved_names: &resolved_names,
+                file_system: &file_system,
+                symbol_references: &cached_analysis.symbol_references,
+            },
+        )?;
+    }
+
     let populating_now = Instant::now();
 
     populate_codebase(
@@ -233,6 +253,20 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
     let populating_elapsed = populating_now.elapsed();
 
     debug!("Populating codebase took {:.2?}", populating_elapsed);
+
+    #[cfg(feature = "memory-profile")]
+    if let Some(profile) = &memory_profile {
+        profile.write(
+            "after-populate",
+            memory_profile::Roots {
+                codebase: &codebase,
+                interner: &interner,
+                resolved_names: &resolved_names,
+                file_system: &file_system,
+                symbol_references: &cached_analysis.symbol_references,
+            },
+        )?;
+    }
 
     // Check for duplicate definitions and skip analysis if found
     if codebase.has_duplicates() {

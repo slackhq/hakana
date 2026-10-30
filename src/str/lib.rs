@@ -8,13 +8,19 @@ use indexmap::{IndexMap, IndexSet};
 use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "memory-profile")]
+pub mod memory_profile;
+
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct StrId(pub u32);
 
 include!(concat!(env!("OUT_DIR"), "/interned_strings.rs"));
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct Interner {
+    #[cfg_attr(feature = "memory-profile", allocative(visit = memory_profile::index_set))]
     map: IndexSet<String, BuildHasherDefault<FxHasher>>,
 }
 

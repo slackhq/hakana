@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use hakana_str::StrId;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct DefSignatureNode {
     pub name: StrId,
 

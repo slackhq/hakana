@@ -305,14 +305,15 @@ pub(crate) fn scan(
                         enum_node.base.0.start_offset() as u32,
                     )
                     .unwrap()
-                    .get_single_owned(),
+                    .get_single_owned()
+                    .into(),
                 );
             }
 
             storage.direct_parent_class = Some(StrId::BUILTIN_ENUM_CLASS);
             storage.all_parent_classes.push(StrId::BUILTIN_ENUM_CLASS);
 
-            if let Some(underlying_enum_type) = &storage.enum_underlying_type {
+            if let Some(underlying_enum_type) = storage.enum_underlying_type.as_deref() {
                 storage.template_extended_offsets.insert(
                     StrId::BUILTIN_ENUM_CLASS,
                     vec![Arc::new(wrap_atomic(TAtomic::TTypeAlias {
@@ -465,7 +466,8 @@ pub(crate) fn scan(
                         enum_node.base.0.start_offset() as u32,
                     )
                     .unwrap()
-                    .get_single_owned(),
+                    .get_single_owned()
+                    .into(),
                 );
 
                 if let Some(constraint) = &enum_node.constraint {
@@ -481,7 +483,8 @@ pub(crate) fn scan(
                             constraint.0.start_offset() as u32,
                         )
                         .unwrap()
-                        .get_single_owned(),
+                        .get_single_owned()
+                        .into(),
                     );
                 }
             }

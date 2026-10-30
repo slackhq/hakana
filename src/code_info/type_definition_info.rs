@@ -16,6 +16,7 @@ use crate::{
 };
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct TypeDefinitionInfo {
     pub newtype_file: Option<FilePath>,
     pub as_type: Option<TUnion>,
@@ -32,8 +33,10 @@ pub struct TypeDefinitionInfo {
      */
     pub template_types: Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub generic_variance: FxHashMap<usize, Variance>,
 
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::option_hash_map))]
     pub shape_field_taints: Option<FxHashMap<DictKey, (HPos, Vec<SourceType>)>>,
 
     pub is_literal_string: bool,

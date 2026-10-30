@@ -3,7 +3,12 @@ name = "hakana-orchestrator"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+memory-profile = ["dep:allocative", "dep:serde_json", "hakana-code-info/memory-profile", "hakana-str/memory-profile"]
+
 [dependencies]
+allocative = { version = "0.3.6", optional = true }
+serde_json = { version = "1.0", optional = true }
 hakana-reflector = { path = "../code_info_builder" }
 hakana-code-info = { path = "../code_info" }
 hakana-str = { path = "../str" }

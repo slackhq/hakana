@@ -3,6 +3,9 @@ name = "hakana-cli"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+memory-profile = ["hakana-orchestrator/memory-profile"]
+
 [dependencies]
 hakana-format = { path = "../formatter" }
 hakana-file-discovery = { path = "../file_discovery" }

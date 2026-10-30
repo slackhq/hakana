@@ -124,7 +124,7 @@ pub(crate) fn scan_method(
         }
     }
 
-    functionlike_info.type_resolution_context = Some(type_resolution_context);
+    functionlike_info.type_resolution_context = Some(type_resolution_context.into_shared());
     functionlike_info.method_info = Some(Box::new(method_info));
 
     (method_name, functionlike_info)
@@ -888,7 +888,7 @@ fn convert_param_nodes(
                         let default = simple_type_inferer::infer(expr, resolved_names, false);
 
                         if let Some(default) = default {
-                            param.default_type = Some(DefaultType::NormalData(default));
+                            param.default_type = Some(Box::new(DefaultType::NormalData(default)));
                         }
 
                         true

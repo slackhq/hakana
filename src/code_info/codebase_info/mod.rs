@@ -1,6 +1,6 @@
 pub mod symbols;
 
-use std::sync::Arc;
+use std::{hash::BuildHasherDefault, sync::Arc};
 
 use self::symbols::SymbolKind;
 pub use self::symbols::Symbols;
@@ -16,30 +16,50 @@ use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
 use crate::{class_constant_info::ConstantInfo, code_location::FilePath};
 use hakana_str::StrId;
-use rustc_hash::{FxHashMap, FxHashSet};
+use indexmap::IndexMap;
+use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 
+/// Dense records with a compact hash index. Unlike a HashMap of large values,
+/// unused hash buckets do not reserve space for an entire class or function.
+/// Callers must use swap_remove: declaration order is not part of the contract.
+pub type FxIndexMap<K, V> = IndexMap<K, V, BuildHasherDefault<FxHasher>>;
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
 pub struct CodebaseInfo {
-    pub classlike_infos: FxHashMap<StrId, ClassLikeInfo>,
-    pub functionlike_infos: FxHashMap<(StrId, StrId), FunctionLikeInfo>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::index_map))]
+    pub classlike_infos: FxIndexMap<StrId, ClassLikeInfo>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::index_map))]
+    pub functionlike_infos: FxIndexMap<(StrId, StrId), FunctionLikeInfo>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub type_definitions: FxHashMap<StrId, TypeDefinitionInfo>,
     pub symbols: Symbols,
     pub infer_types_from_usage: bool,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub constant_infos: FxHashMap<StrId, ConstantInfo>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map_of_sets))]
     pub all_classlike_descendants: FxHashMap<StrId, FxHashSet<StrId>>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map_of_sets))]
     pub direct_classlike_descendants: FxHashMap<StrId, FxHashSet<StrId>>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub files: FxHashMap<FilePath, FileInfo>,
 
     /* Symbols that have already been checked on a previous Hakana run */
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_set))]
     pub safe_symbols: FxHashSet<StrId>,
     /* Symbol members that have already been checked on a previous Hakana run */
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_set))]
     pub safe_symbol_members: FxHashSet<(StrId, StrId)>,
 
     /* Track duplicate definitions across files for error reporting */
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub classlike_infos_defs: FxHashMap<StrId, Vec<FilePath>>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub functionlike_infos_defs: FxHashMap<(StrId, StrId), Vec<FilePath>>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub type_definitions_defs: FxHashMap<StrId, Vec<FilePath>>,
+    #[cfg_attr(feature = "memory-profile", allocative(visit = hakana_str::memory_profile::hash_map))]
     pub constant_infos_defs: FxHashMap<StrId, Vec<FilePath>>,
 }
 
@@ -52,8 +72,8 @@ impl Default for CodebaseInfo {
 impl CodebaseInfo {
     pub fn new() -> Self {
         Self {
-            classlike_infos: FxHashMap::default(),
-            functionlike_infos: FxHashMap::default(),
+            classlike_infos: FxIndexMap::default(),
+            functionlike_infos: FxIndexMap::default(),
             symbols: Symbols::new(),
             type_definitions: FxHashMap::default(),
             infer_types_from_usage: false,
@@ -233,11 +253,11 @@ impl CodebaseInfo {
                     member_name: *const_name,
                     as_type: classlike_storage
                         .enum_as_type
-                        .as_ref()
+                        .as_deref()
                         .map(|t| Arc::new(t.clone())),
                     underlying_type: classlike_storage
                         .enum_underlying_type
-                        .as_ref()
+                        .as_deref()
                         .map(|t| Arc::new(t.clone())),
                 }]))
             } else if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
