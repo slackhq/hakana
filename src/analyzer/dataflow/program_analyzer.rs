@@ -500,6 +500,25 @@ fn get_child_nodes(
                 continue;
             }
 
+            let unread_resource = generated_source.has_unread_resource_content();
+            if path.kind == PathKind::ReadResource && !unread_resource {
+                continue;
+            }
+            // Transforming a handle's representation does not read its contents.
+            // Identity, collection, and property edges still carry the handle.
+            if unread_resource
+                && matches!(
+                    path.kind,
+                    PathKind::StringTransform
+                        | PathKind::StringComposition
+                        | PathKind::UriSuffix(_)
+                        | PathKind::Serialize
+                        | PathKind::Encode(_)
+                )
+            {
+                continue;
+            }
+
             if should_ignore_superglobal_fetch(&path.kind, &generated_source.path_types) {
                 continue;
             }
@@ -608,6 +627,7 @@ fn get_child_nodes(
             new_destination.path_types = new_path_types;
 
             if match_sinks
+                && !new_destination.has_unread_resource_content()
                 && let Some(sink) = graph.sinks.get(to_id)
                 && let DataFlowNodeKind::TaintSink {
                     types,
@@ -1113,6 +1133,78 @@ mod security_search_tests {
         let mut messages: Vec<_> = issues.into_iter().map(|issue| issue.description).collect();
         messages.sort();
         messages
+    }
+
+    #[test]
+    fn resource_contents_require_a_read_and_preserve_field_selection() {
+        let mut interner = Interner::default();
+        let pos = position(&mut interner);
+        let mut graph = DataFlowGraph::new(GraphKind::WholeProgram(WholeProgramKind::Taint));
+        let source = DataFlowNodeId::String("request-body".into());
+        graph.add_node(DataFlowNode {
+            id: source.clone(),
+            kind: DataFlowNodeKind::TaintSource {
+                pos: Some(pos),
+                types: vec![SourceType::NonUriRequestHeader],
+            },
+        });
+        let handle = vertex(&mut graph, DataFlowNodeId::String("handle".into()), pos);
+        let collection = vertex(&mut graph, DataFlowNodeId::String("collection".into()), pos);
+        let selected = vertex(&mut graph, DataFlowNodeId::String("selected".into()), pos);
+        let other = vertex(&mut graph, DataFlowNodeId::String("other".into()), pos);
+        let sink = DataFlowNodeId::String("html".into());
+        graph.add_node(DataFlowNode {
+            id: sink.clone(),
+            kind: DataFlowNodeKind::TaintSink {
+                pos,
+                types: vec![SinkType::HtmlTag],
+            },
+        });
+        graph.add_path(&source, &handle, PathKind::ResourceContent, vec![], vec![]);
+        graph.add_path(&handle, &sink, PathKind::Default, vec![], vec![]);
+        // A read edge alone cannot turn an ordinary value into resource contents.
+        graph.add_path(&source, &sink, PathKind::ReadResource, vec![], vec![]);
+        for transform in [
+            PathKind::Serialize,
+            PathKind::StringComposition,
+            PathKind::StringTransform,
+        ] {
+            let transformed = vertex(
+                &mut graph,
+                DataFlowNodeId::String(format!("transformed-{transform}")),
+                pos,
+            );
+            graph.add_path(&handle, &transformed, transform, vec![], vec![]);
+            graph.add_path(&transformed, &sink, PathKind::ReadResource, vec![], vec![]);
+        }
+        graph.add_path(
+            &handle,
+            &collection,
+            PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, "input".into()),
+            vec![],
+            vec![],
+        );
+        graph.add_path(
+            &collection,
+            &other,
+            PathKind::ArrayFetch(ArrayDataKind::ArrayValue, "memory".into()),
+            vec![],
+            vec![],
+        );
+        graph.add_path(&other, &sink, PathKind::ReadResource, vec![], vec![]);
+        assert!(findings(&graph, &interner, true).is_empty());
+        graph.add_path(
+            &collection,
+            &selected,
+            PathKind::ArrayFetch(ArrayDataKind::ArrayValue, "input".into()),
+            vec![],
+            vec![],
+        );
+        graph.add_path(&selected, &sink, PathKind::ReadResource, vec![], vec![]);
+        let pruned = findings(&graph, &interner, true);
+        assert_eq!(pruned.len(), 1);
+        assert!(pruned[0].contains("--read-resource-->"));
+        assert_eq!(pruned, findings(&graph, &interner, false));
     }
 
     #[test]

@@ -46,6 +46,15 @@ fields of `_SERVER`, and client metadata fields of `_FILES`. Unknown global
 names are conservatively modeled as request data. `file_get_contents('php://input')`
 is also a request source.
 
+Application hooks can model content behind a handle using `ResourceContent`
+and `ReadResource` dataflow edges. A source connected to a handle by
+`ResourceContent` remains latent through assignments, containers and helper
+calls. Only a `ReadResource` edge exposes that content to sinks. Printing or
+serializing the handle does not expose its contents, and string transformations
+discard the latent content path. A read edge on an ordinary value introduces no
+source. The Slack integration uses this model for PHP input-stream Path objects;
+the core does not depend on the application's Path class.
+
 Numeric values retain privacy, secret, and authorization-key provenance.
 Numeric conversion can remove syntax-injection taints without making an ID
 authorized or making a secret safe to log.

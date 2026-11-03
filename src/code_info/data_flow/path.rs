@@ -98,6 +98,10 @@ pub enum PathKind {
     AcceptHtmlSafeJson,
     StringTransform,
     MethodReturn(std::sync::Arc<MethodReceiver>),
+    /// Data available through a handle, distinct from the handle's own value.
+    ResourceContent,
+    /// Read the data carried by a ResourceContent edge.
+    ReadResource,
 }
 
 impl PathKind {
@@ -162,6 +166,8 @@ impl PathKind {
             PathKind::AcceptHtmlSafeJson => "accept-html-safe-json".to_string(),
             PathKind::StringTransform => "string-transform".to_string(),
             PathKind::MethodReturn(receiver) => format!("method-return({receiver:?})"),
+            PathKind::ResourceContent => "resource-content".to_string(),
+            PathKind::ReadResource => "read-resource".to_string(),
         }
     }
 }
@@ -194,6 +200,8 @@ impl std::fmt::Display for PathKind {
             | PathKind::AcceptHtmlSafeJson
             | PathKind::StringTransform => Ok(()),
             PathKind::MethodReturn(_) => Ok(()),
+            PathKind::ResourceContent => write!(f, "resource-content"),
+            PathKind::ReadResource => write!(f, "read-resource"),
         }
     }
 }

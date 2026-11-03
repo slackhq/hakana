@@ -35,6 +35,18 @@ enum JavaScriptValueState {
 }
 
 impl TaintedNode {
+    pub fn has_unread_resource_content(&self) -> bool {
+        self.path_types
+            .iter()
+            .rev()
+            .find_map(|path| match path {
+                PathKind::ResourceContent => Some(true),
+                PathKind::ReadResource => Some(false),
+                _ => None,
+            })
+            .unwrap_or(false)
+    }
+
     /// Encoding belongs to a particular route through the graph. An encoded
     /// alternative cannot sanitize an unencoded alternative at the same node.
     fn javascript_value_state(&self) -> JavaScriptValueState {
