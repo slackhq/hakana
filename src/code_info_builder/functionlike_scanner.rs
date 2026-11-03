@@ -16,6 +16,7 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FnEffect;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::functionlike_info::MetaStart;
+use hakana_code_info::functionlike_info::ResponseEffect;
 use hakana_code_info::functionlike_parameter::DefaultType;
 use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_code_info::issue::IssueKind;
@@ -343,6 +344,19 @@ pub(crate) fn get_functionlike(
                 .push((HPos::new(&attribute.name.0, file_source.file_path), message));
         }
     }
+    for attribute in params.iter().flat_map(|param| &param.user_attributes) {
+        let name = resolved_names.get(&(attribute.name.0.start_offset() as u32));
+        if matches!(
+            name,
+            Some(&StrId::HAKANA_SECURITY_ANALYSIS_RESPONSE_HEADER)
+                | Some(&StrId::HAKANA_SECURITY_ANALYSIS_RESPONSE_OUTPUT)
+        ) {
+            functionlike_info.invalid_security_annotations.push((
+                HPos::new(&attribute.name.0, file_source.file_path),
+                "Response effects must annotate the function or method, not a parameter".into(),
+            ));
+        }
+    }
 
     type_context.template_supers = template_supers;
     functionlike_info.return_type = get_type_from_optional_hint(
@@ -502,6 +516,49 @@ pub(crate) fn get_functionlike(
     functionlike_info.suppressed_issues = suppressed_issues;
 
     functionlike_info.is_async = fun_kind.is_async();
+
+    let response_attributes: Vec<_> = user_attributes
+        .iter()
+        .filter_map(|attribute| {
+            let name = resolved_names.get(&(attribute.name.0.start_offset() as u32))?;
+            match *name {
+                StrId::HAKANA_SECURITY_ANALYSIS_RESPONSE_HEADER => {
+                    Some((attribute, ResponseEffect::Header))
+                }
+                StrId::HAKANA_SECURITY_ANALYSIS_RESPONSE_OUTPUT => {
+                    Some((attribute, ResponseEffect::Output))
+                }
+                _ => None,
+            }
+        })
+        .collect();
+    for (attribute, effect) in &response_attributes {
+        // Malformed declarations must not turn into partial response summaries.
+        if validate_security_attribute(attribute, params, resolved_names, interner).is_some() {
+            continue;
+        }
+        let reason = if response_attributes.len() > 1 {
+            Some("Only one response-effect attribute may annotate a function")
+        } else if functionlike_info.is_async
+            || !functionlike_info
+                .return_type
+                .as_ref()
+                .is_some_and(TUnion::is_void)
+        {
+            Some("Response effects require a synchronous function returning void")
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            functionlike_info.invalid_security_annotations.push((
+                HPos::new(&attribute.name.0, file_source.file_path),
+                reason.into(),
+            ));
+        } else {
+            functionlike_info.response_effect = Some(*effect);
+            functionlike_info.specialize_call = true;
+        }
+    }
 
     if functionlike_info.effects == FnEffect::Unknown {
         functionlike_info.effects = if let Some(contexts) = contexts {
@@ -1006,6 +1063,29 @@ fn validate_security_attribute(
                 param.name.trim_start_matches('$') == values[0].trim_start_matches('$')
             }) {
                 Some(format!("unknown parameter {}", values[0]))
+            } else {
+                None
+            }
+        }
+        "ResponseHeader" | "ResponseOutput" => {
+            if !attribute.params.is_empty() {
+                Some("takes no attribute arguments".to_string())
+            } else if (kind == "ResponseOutput" && params.len() != 1)
+                || (kind == "ResponseHeader" && !(1..=3).contains(&params.len()))
+            {
+                Some(if kind == "ResponseOutput" {
+                    "requires exactly one value parameter".to_string()
+                } else {
+                    "requires header(), header/replace, or header/replace/status parameters"
+                        .to_string()
+                })
+            } else if params.iter().any(|param| {
+                param.info == ast::FunParamInfo::ParamVariadic
+                    || param.splat.is_some()
+                    || matches!(param.callconv, ast_defs::ParamKind::Pinout(_))
+                    || param.named.is_some()
+            }) {
+                Some("requires ordinary positional parameters".to_string())
             } else {
                 None
             }

@@ -27,6 +27,14 @@ pub enum FnEffect {
     Some(u8),
 }
 
+/// Audited synchronous HTTP response wrapper contracts.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "memory-profile", derive(allocative::Allocative))]
+pub enum ResponseEffect {
+    Header,
+    Output,
+}
+
 impl FnEffect {
     pub fn to_u8(&self) -> Option<u8> {
         match self {
@@ -158,6 +166,8 @@ pub struct FunctionLikeInfo {
     /// accept HTML-safe JSON even when it has been composed into script text.
     pub accepts_html_safe_json: bool,
 
+    pub response_effect: Option<ResponseEffect>,
+
     pub added_taints: Vec<SinkType>,
 
     pub removed_taints: Vec<SinkType>,
@@ -208,6 +218,16 @@ pub struct FunctionLikeInfo {
 }
 
 impl FunctionLikeInfo {
+    /// An overridable method cannot establish an effect for every implementation.
+    pub fn get_response_effect(&self) -> Option<ResponseEffect> {
+        if self.method_info.as_ref().is_some_and(|method| {
+            !method.is_final && method.visibility != MemberVisibility::Private
+        }) {
+            return None;
+        }
+        self.response_effect
+    }
+
     pub fn suppresses_taint_source(&self, arguments: &[Option<&TUnion>]) -> bool {
         self.not_source_when.iter().any(|(offset, values)| {
             arguments.get(*offset).and_then(|ty| *ty).is_some_and(|ty| {
@@ -246,6 +266,7 @@ impl FunctionLikeInfo {
             not_source_when: vec![],
             return_value_encoding: None,
             accepts_html_safe_json: false,
+            response_effect: None,
             added_taints: vec![],
             removed_taints: vec![],
             attributes: Vec::new(),

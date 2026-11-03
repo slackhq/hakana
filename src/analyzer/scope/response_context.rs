@@ -6,7 +6,14 @@ pub enum ResponseContentType {
     #[default]
     Unknown,
     Html,
-    Json,
+    /// A known application/json or text/plain response.
+    NonHtml,
+}
+
+impl ResponseContentType {
+    pub fn excludes_html(self) -> bool {
+        self == Self::NonHtml
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -79,8 +86,8 @@ mod tests {
     #[test]
     fn merges_keep_only_guaranteed_mime_and_header_mutability() {
         let mut json = ResponseContext::default();
-        json.set_content_type(Json);
-        assert_eq!(json.join(json).content_type, Json);
+        json.set_content_type(NonHtml);
+        assert_eq!(json.join(json).content_type, NonHtml);
         assert_eq!(json.join(ResponseContext::default()).content_type, Unknown);
         let mut sent = json;
         sent.emit();
@@ -88,6 +95,6 @@ mod tests {
         merged.set_content_type(Html);
         assert_eq!(merged.content_type, Unknown);
         sent.set_content_type(Html);
-        assert_eq!(sent.content_type, Json);
+        assert_eq!(sent.content_type, NonHtml);
     }
 }

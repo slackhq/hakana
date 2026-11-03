@@ -525,17 +525,22 @@ fn add_dataflow(
 ) {
     let codebase = statements_analyzer.codebase;
 
-    let json_response = matches!(
-        functionlike_id,
-        FunctionLikeIdentifier::Function(
-            hakana_str::StrId::ECHO
-                | hakana_str::StrId::PRINT
-                | hakana_str::StrId::PRINTF
-                | hakana_str::StrId::VAR_DUMP
-        )
-    ) && super::response_effects::is_scalar_output(input_type)
-        && context.response.content_type
-            == crate::scope::response_context::ResponseContentType::Json;
+    let output_wrapper = argument_offset == 0
+        && super::response_effects::wrapper_info(statements_analyzer, functionlike_id)
+            .and_then(|info| info.get_response_effect())
+            == Some(hakana_code_info::functionlike_info::ResponseEffect::Output);
+    let non_html_response = (output_wrapper
+        || matches!(
+            functionlike_id,
+            FunctionLikeIdentifier::Function(
+                hakana_str::StrId::ECHO
+                    | hakana_str::StrId::PRINT
+                    | hakana_str::StrId::PRINTF
+                    | hakana_str::StrId::VAR_DUMP
+            )
+        ))
+        && super::response_effects::is_scalar_output(input_type)
+        && context.response.content_type.excludes_html();
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
@@ -562,6 +567,13 @@ fn add_dataflow(
 
         if let Some(sinks) = &function_param.taint_sinks {
             taints.extend(sinks.clone());
+        }
+        if output_wrapper {
+            for sink in [SinkType::HtmlTag, SinkType::Output] {
+                if !taints.contains(&sink) {
+                    taints.push(sink);
+                }
+            }
         }
 
         taints
@@ -692,7 +704,7 @@ fn add_dataflow(
         removed.extend(input_type.scalar_taint_removals());
         removed.extend(param_type.scalar_taint_removals());
         removed.extend(function_param.removed_taints.clone());
-        if json_response {
+        if non_html_response {
             removed.push(SinkType::HtmlTag);
         }
         removed

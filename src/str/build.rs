@@ -281,6 +281,8 @@ fn main() -> Result<()> {
         "Hakana\\SecurityAnalysis\\HtmlSafeJson",
         "Hakana\\SecurityAnalysis\\AcceptsHtmlSafeJson",
         "Hakana\\SecurityAnalysis\\NotSourceWhen",
+        "Hakana\\SecurityAnalysis\\ResponseHeader",
+        "Hakana\\SecurityAnalysis\\ResponseOutput",
         "Hakana\\SecurityAnalysis\\ShapeSource",
         "Hakana\\SecurityAnalysis\\Sink",
         "Hakana\\SecurityAnalysis\\Source",

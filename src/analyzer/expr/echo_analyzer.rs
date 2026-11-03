@@ -63,12 +63,9 @@ pub(crate) fn analyze(
         );
 
         context.inside_general_use = false;
-        let empty = arg_type.as_ref().is_some_and(|ty| {
-            ty.types.iter().all(|t| {
-                matches!(t, TAtomic::TFalse | TAtomic::TNull)
-                    || matches!(t, TAtomic::TLiteralString { value } if value.is_empty())
-            })
-        });
+        let empty = arg_type
+            .as_ref()
+            .is_some_and(|ty| super::call::response_effects::is_empty_output(ty));
         if !empty {
             context.response.emit();
             analysis_data.response_output_events += 1;

@@ -6,7 +6,12 @@ use crate::{
     statements_analyzer::StatementsAnalyzer,
 };
 use hakana_code_info::{
-    EFFECT_WRITE_GLOBALS, function_context::FunctionLikeIdentifier, t_atomic::TAtomic,
+    EFFECT_WRITE_GLOBALS,
+    function_context::FunctionLikeIdentifier,
+    functionlike_info::{FunctionLikeInfo, ResponseEffect},
+    functionlike_parameter::DefaultType,
+    method_identifier::MethodIdentifier,
+    t_atomic::TAtomic,
     t_union::TUnion,
 };
 use hakana_str::StrId;
@@ -23,12 +28,63 @@ pub(crate) fn apply(
         call,
         analyzer.interner,
         analyzer.file_analyzer.resolved_names,
-    );
+    )
+    .or_else(|| {
+        // Only a single non-null receiver can guarantee a response effect.
+        if let aast::Expr_::ObjGet(access) = &call.func.2
+            && let Some(receiver) = data.get_expr_type(access.0.pos())
+            && receiver.types.len() == 1
+        {
+            crate::expr::expression_identifier::get_method_id_from_call(
+                call,
+                analyzer.interner,
+                &data.expr_types,
+            )
+        } else {
+            None
+        }
+    });
+    let wrapper = id.as_ref().and_then(|id| wrapper_info(analyzer, id));
+    let wrapper_effect = wrapper.and_then(FunctionLikeInfo::get_response_effect);
+    if wrapper_effect.is_some() && call.unpacked_arg.is_some() {
+        context.response.forget();
+        data.response_output_events += 1;
+        return;
+    }
+    if wrapper_effect == Some(ResponseEffect::Output) {
+        let output = call
+            .args
+            .first()
+            .and_then(|arg| data.get_expr_type(arg.to_expr_ref().pos()));
+        if output.is_none_or(|ty| !is_scalar_output(ty)) {
+            context.response.invalidate();
+        }
+        if output.is_none_or(|ty| !is_empty_output(ty)) {
+            context.response.emit();
+            data.response_output_events += 1;
+        }
+        return;
+    }
     let mut name = match &id {
         Some(FunctionLikeIdentifier::Function(name)) => Some(*name),
         _ => None,
     };
-    if id.as_ref().is_some_and(|id| {
+    if wrapper_effect == Some(ResponseEffect::Header) {
+        // Wrappers can have additional Location handling (cookies, redirects).
+        // Only literal non-Location calls make the audited header() guarantee.
+        if !call.args.first()
+            .and_then(|arg| data.get_expr_type(arg.to_expr_ref().pos()))
+            .is_some_and(|ty| !ty.types.is_empty() && ty.types.iter().all(|t| {
+                matches!(t, TAtomic::TLiteralString { value }
+                    if value.split_once(':').is_some_and(|(name, _)| !name.trim().eq_ignore_ascii_case("location"))
+                        || value.starts_with("HTTP/"))
+            }))
+        {
+            context.response.invalidate();
+            return;
+        }
+        name = Some(StrId::HEADER);
+    } else if id.as_ref().is_some_and(|id| {
         analyzer
             .get_config()
             .hooks
@@ -44,12 +100,25 @@ pub(crate) fn apply(
                 .args
                 .first()
                 .and_then(|arg| data.get_expr_type(arg.to_expr_ref().pos()));
-            let replaces = call.args.get(1).is_none_or(|arg| {
-                data.get_expr_type(arg.to_expr_ref().pos())
-                    .is_some_and(|ty| {
-                        !ty.types.is_empty() && ty.types.iter().all(|t| matches!(t, TAtomic::TTrue))
+            let replaces = call.args.get(1).map_or_else(
+                || {
+                    wrapper.is_none_or(|info| {
+                        info.params.get(1).is_none_or(|param| {
+                            matches!(
+                                param.default_type.as_deref(),
+                                Some(DefaultType::NormalData(TAtomic::TTrue))
+                            )
+                        })
                     })
-            });
+                },
+                |arg| {
+                    data.get_expr_type(arg.to_expr_ref().pos())
+                        .is_some_and(|ty| {
+                            !ty.types.is_empty()
+                                && ty.types.iter().all(|t| matches!(t, TAtomic::TTrue))
+                        })
+                },
+            );
             let before = context.response;
             let mut after = None;
             if let Some(values) = values {
@@ -59,14 +128,16 @@ pub(crate) fn apply(
                         if let Some((key, mime)) = value.split_once(':') {
                             if key.trim().eq_ignore_ascii_case("Content-Type") {
                                 let mime = mime.split(';').next().unwrap_or("").trim();
-                                let content_type =
-                                    if replaces && mime.eq_ignore_ascii_case("application/json") {
-                                        ResponseContentType::Json
-                                    } else if replaces && mime.eq_ignore_ascii_case("text/html") {
-                                        ResponseContentType::Html
-                                    } else {
-                                        ResponseContentType::Unknown
-                                    };
+                                let content_type = if replaces
+                                    && (mime.eq_ignore_ascii_case("application/json")
+                                        || mime.eq_ignore_ascii_case("text/plain"))
+                                {
+                                    ResponseContentType::NonHtml
+                                } else if replaces && mime.eq_ignore_ascii_case("text/html") {
+                                    ResponseContentType::Html
+                                } else {
+                                    ResponseContentType::Unknown
+                                };
                                 branch.set_content_type(content_type);
                             }
                         } else if !value.starts_with("HTTP/") {
@@ -165,6 +236,32 @@ pub(crate) fn apply(
         return;
     }
     context.response.invalidate();
+}
+
+pub(crate) fn wrapper_info<'a>(
+    analyzer: &'a StatementsAnalyzer,
+    id: &FunctionLikeIdentifier,
+) -> Option<&'a FunctionLikeInfo> {
+    let info = match id {
+        FunctionLikeIdentifier::Method(class, method)
+            if analyzer.codebase.method_exists(class, method) =>
+        {
+            let declaring = analyzer
+                .codebase
+                .get_declaring_method_id(&MethodIdentifier(*class, *method));
+            analyzer.codebase.get_method(&declaring)
+        }
+        _ => analyzer.codebase.get_functionlike(id),
+    }?;
+    info.get_response_effect().map(|_| info)
+}
+
+pub(crate) fn is_empty_output(ty: &TUnion) -> bool {
+    !ty.types.is_empty()
+        && ty.types.iter().all(|t| {
+            matches!(t, TAtomic::TFalse | TAtomic::TNull)
+                || matches!(t, TAtomic::TLiteralString { value } if value.is_empty())
+        })
 }
 
 /// Stringification of an object can run arbitrary __toString code.

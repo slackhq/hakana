@@ -362,11 +362,46 @@ changes.
 ### HTTP response context
 
 `BlockContext` carries the current response content type (`Unknown`, `Html`, or
-`Json`) and whether observed output has committed the headers. A known literal
+`NonHtml`) and whether observed output has committed the headers. A known literal
 Content-Type updates that context. Ordinary assignments, pure computation, and
-other named HTTP headers preserve it. A JSON response omits the `HtmlTag` sink
-for scalar `echo`/`print` output; the value's taints and secret-output obligations
-remain intact.
+other named HTTP headers preserve it. `application/json` and `text/plain`
+responses omit the `HtmlTag` sink for scalar output; the value's taints and
+secret-output obligations remain intact. MIME matching is case-insensitive and
+ignores parameters such as `charset=utf-8`. Branches choosing between those two
+non-HTML types retain the same HTML exclusion.
+
+Audited wrappers can declare the same response behavior with attributes:
+
+```hack
+<<Hakana\SecurityAnalysis\ResponseHeader>>
+function response_header(string $header, bool $replace = true): void {
+    header($header, $replace);
+}
+
+<<Hakana\SecurityAnalysis\ResponseOutput>>
+function response_output(string $value): void {
+    echo $value;
+}
+```
+
+`ResponseHeader` takes no attribute arguments and uses `header`'s positional
+signature: header string, optional replacement flag, optional status code.
+The declared default of the replacement parameter is honored. The contract
+applies to literal non-Location headers and HTTP status lines on continuing
+paths; Location and dynamic header calls remain conservative because wrappers
+may perform additional redirect handling. Header-injection checks still apply.
+
+`ResponseOutput` takes no attribute arguments and requires a single value
+parameter. It declares raw output without changing headers before that output,
+adds the native HTML/output sinks, and records whether output commits headers.
+Existing sink annotations still apply. MIME exclusions affect the argument's
+output path, not later uses of the caller's value.
+
+Both contracts require synchronous `void` functions. Method summaries also
+require an exact implementation (a final class/method or private method).
+Invalid declarations produce `InvalidSecurityAnnotation` and do not establish a
+response summary. These are audited behavior contracts, not a proof of the
+wrapper body or a general-purpose sanitizer.
 
 `if`/`else`, ternary, and short-circuit joins retain only facts guaranteed on the
 continuing paths. Headers inside one conditional branch cannot sanitize output

@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:10:21 - Data from a server request found its way to an HTML tag using path call to input (input.hack:6:19) ----> $value (input.hack:8:5) ----> response_output#1 (input.hack:10:21)

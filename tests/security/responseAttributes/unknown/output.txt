@@ -1,0 +1,2 @@
+ERROR: TaintedData - input.hack:2:78 - Data from a server request found its way to an HTTP response header using path $_POST --array-fetch--> arrayvalue-fetch (input.hack:6:22) ----> $value (input.hack:6:5) ----> response_header#1 (input.hack:2:33) ----> $value (input.hack:2:33) ----> header#1 (input.hack:2:78)
+ERROR: TaintedData - input.hack:9:21 - Data from a server request found its way to an HTML tag using path $_POST --array-fetch--> arrayvalue-fetch (input.hack:6:22) ----> $value (input.hack:6:5) ----> response_output#1 (input.hack:9:21)

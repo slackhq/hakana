@@ -1,0 +1,7 @@
+ERROR: InvalidSecurityAnnotation - input.hack:1:3 - Hakana\SecurityAnalysis\ResponseHeader: takes no attribute arguments
+ERROR: InvalidSecurityAnnotation - input.hack:3:3 - Hakana\SecurityAnalysis\ResponseOutput: requires exactly one value parameter
+ERROR: InvalidSecurityAnnotation - input.hack:5:3 - Response effects require a synchronous function returning void
+ERROR: InvalidSecurityAnnotation - input.hack:7:3 - Response effects require a synchronous function returning void
+ERROR: InvalidSecurityAnnotation - input.hack:9:3 - Only one response-effect attribute may annotate a function
+ERROR: InvalidSecurityAnnotation - input.hack:9:43 - Only one response-effect attribute may annotate a function
+ERROR: InvalidSecurityAnnotation - input.hack:11:22 - Response effects must annotate the function or method, not a parameter
