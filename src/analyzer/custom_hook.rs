@@ -88,19 +88,6 @@ pub trait InternalHook {
     ) {
     }
 
-    /// Whether this call has header()'s response effects on its continuing path.
-    /// Arguments have already been evaluated. This does not suppress taint sinks.
-    #[allow(unused_variables)]
-    fn is_header_call(
-        &self,
-        function: &FunctionLikeIdentifier,
-        args: &[aast::Argument<(), ()>],
-        data: &FunctionAnalysisData,
-        interner: &Interner,
-    ) -> bool {
-        false
-    }
-
     fn get_xhp_attribute_renderer(&self, _element: &str, _attribute: &str) -> Option<&str> {
         None
     }

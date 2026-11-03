@@ -1,4 +1,3 @@
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::{
     expr::expression_identifier::get_static_functionlike_id_from_call,
     function_analysis_data::FunctionAnalysisData,
@@ -83,14 +82,6 @@ pub(crate) fn apply(
             context.response.invalidate();
             return;
         }
-        name = Some(StrId::HEADER);
-    } else if id.as_ref().is_some_and(|id| {
-        analyzer
-            .get_config()
-            .hooks
-            .iter()
-            .any(|hook| hook.is_header_call(id, &call.args, data, analyzer.interner))
-    }) {
         name = Some(StrId::HEADER);
     }
     match name {
