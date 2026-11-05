@@ -1,16 +1,16 @@
 use std::ffi::OsStr;
 use std::path::Path;
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
+use crate::lsp::jsonrpc::Result;
+use crate::lsp::types::*;
+use crate::lsp::{Client, LanguageServer};
 use crate::{get_diagnostic_severity, server_client};
 use hakana_analyzer::config::Config;
 use hakana_code_info::issue::IssueKind;
 
 use rustc_hash::FxHashMap;
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer};
 
 enum DiagnosticsEvent {
     Analysis(FxHashMap<Url, Vec<Diagnostic>>),
@@ -19,11 +19,11 @@ enum DiagnosticsEvent {
 
 #[derive(Debug)]
 pub struct ServerBasedBackend {
-    client: Arc<Client>,
+    client: Client,
     analysis_config: Arc<Config>,
     server_conn: Arc<server_client::ServerConnection>,
-    shutdown_tx: Arc<Mutex<Option<tokio::sync::oneshot::Sender<bool>>>>,
-    diagnostics_tx: Arc<Mutex<Option<tokio::sync::mpsc::UnboundedSender<DiagnosticsEvent>>>>,
+    shutdown_tx: Option<tokio::sync::oneshot::Sender<bool>>,
+    diagnostics_tx: Option<tokio::sync::mpsc::UnboundedSender<DiagnosticsEvent>>,
 }
 
 /// Issue kinds that duplicate equivalent Hack typechecker issues
@@ -38,11 +38,11 @@ impl ServerBasedBackend {
         server_conn: server_client::ServerConnection,
     ) -> Self {
         Self {
-            client: Arc::new(client),
+            client,
             analysis_config: Arc::new(analysis_config),
             server_conn: Arc::new(server_conn),
-            shutdown_tx: Arc::new(Mutex::new(None)),
-            diagnostics_tx: Arc::new(Mutex::new(None)),
+            shutdown_tx: None,
+            diagnostics_tx: None,
         }
     }
 
@@ -154,14 +154,12 @@ impl ServerBasedBackend {
 
     /// Perform analysis by querying the hakana server.
     async fn do_analysis_via_server(
-        client: &Arc<Client>,
+        client: &Client,
         analysis_config: &Arc<Config>,
         server_conn: &Arc<server_client::ServerConnection>,
         block_until_next_analysis: bool,
     ) -> FxHashMap<Url, Vec<Diagnostic>> {
-        client
-            .log_message(MessageType::INFO, "Fetching issues from server")
-            .await;
+        client.log_message(MessageType::INFO, "Fetching issues from server");
 
         // Get issues from the server
         let result = server_conn
@@ -171,12 +169,10 @@ impl ServerBasedBackend {
         match result {
             Ok(response) => {
                 if !response.analysis_complete {
-                    client
-                        .log_message(
-                            MessageType::INFO,
-                            format!("Server analysis in progress: {}", response.phase),
-                        )
-                        .await;
+                    client.log_message(
+                        MessageType::INFO,
+                        format!("Server analysis in progress: {}", response.phase),
+                    );
                     // Don't update diagnostics while analysis is in progress
                     return FxHashMap::default();
                 }
@@ -194,8 +190,8 @@ impl ServerBasedBackend {
 
                     let file_path = format!("{}/{}", analysis_config.root_dir, issue.file_path);
 
-                    let diagnostic = Diagnostic::new(
-                        Range {
+                    let diagnostic = Diagnostic {
+                        range: Range {
                             start: Position {
                                 line: issue.start_line - 1,
                                 character: issue.start_column as u32 - 1,
@@ -205,13 +201,11 @@ impl ServerBasedBackend {
                                 character: issue.end_column as u32 - 1,
                             },
                         },
-                        Some(get_diagnostic_severity(&issue.kind)),
-                        Some(NumberOrString::String(issue.kind)),
-                        Some("Hakana".to_string()),
-                        issue.description,
-                        None,
-                        None,
-                    );
+                        severity: Some(get_diagnostic_severity(&issue.kind)),
+                        code: Some(issue.kind),
+                        source: Some("Hakana".to_string()),
+                        message: issue.description,
+                    };
 
                     match Url::from_file_path(&file_path) {
                         Ok(url) => {
@@ -221,35 +215,29 @@ impl ServerBasedBackend {
                                 .push(diagnostic);
                         }
                         Err(_) => {
-                            client
-                                .log_message(
-                                    MessageType::ERROR,
-                                    format!("Failure to get url from file {}", file_path),
-                                )
-                                .await;
+                            client.log_message(
+                                MessageType::ERROR,
+                                format!("Failure to get url from file {}", file_path),
+                            );
                         }
                     }
                 }
 
-                client
-                    .log_message(
-                        MessageType::INFO,
-                        format!(
-                            "Received {} file(s) with issues from server",
-                            all_diagnostics.len()
-                        ),
-                    )
-                    .await;
+                client.log_message(
+                    MessageType::INFO,
+                    format!(
+                        "Received {} file(s) with issues from server",
+                        all_diagnostics.len()
+                    ),
+                );
 
                 all_diagnostics
             }
             Err(e) => {
-                client
-                    .log_message(
-                        MessageType::ERROR,
-                        format!("Failed to get issues from server: {}", e),
-                    )
-                    .await;
+                client.log_message(
+                    MessageType::ERROR,
+                    format!("Failed to get issues from server: {}", e),
+                );
 
                 FxHashMap::default()
             }
@@ -257,28 +245,23 @@ impl ServerBasedBackend {
     }
 }
 
-#[tower_lsp::async_trait]
 impl LanguageServer for ServerBasedBackend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&mut self) -> Result<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Options(
-                    TextDocumentSyncOptions {
-                        open_close: Some(true),
-                        change: Some(TextDocumentSyncKind::INCREMENTAL),
-                        will_save: Some(false),
-                        will_save_wait_until: Some(false),
-                        save: Some(TextDocumentSyncSaveOptions::Supported(false)),
-                    },
-                )),
-                definition_provider: Some(OneOf::Left(true)),
-                ..ServerCapabilities::default()
+                text_document_sync: TextDocumentSyncOptions {
+                    open_close: true,
+                    change: TextDocumentSyncKind::INCREMENTAL,
+                    will_save: false,
+                    will_save_wait_until: false,
+                    save: false,
+                },
+                definition_provider: true,
             },
-            ..InitializeResult::default()
         })
     }
 
-    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+    async fn did_change(&mut self, params: DidChangeTextDocumentParams) {
         let file_uri = params.text_document.uri;
 
         static SUPPORTED_EXTENSIONS: [&str; 2] = ["php", "hack"];
@@ -290,38 +273,24 @@ impl LanguageServer for ServerBasedBackend {
             .extension()
             .and_then(&OsStr::to_str)
             && SUPPORTED_EXTENSIONS.contains(&file_ext)
-            && let Some(diagnostics_tx) = self
-                .diagnostics_tx
-                .lock()
-                .ok()
-                .and_then(|tx| tx.as_ref().cloned())
+            && let Some(diagnostics_tx) = &self.diagnostics_tx
         {
             let _ = diagnostics_tx.send(DiagnosticsEvent::Edit(file_uri, params.content_changes));
         }
     }
 
-    async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
-        Ok(None)
-    }
-
-    async fn initialized(&self, _: InitializedParams) {
+    async fn initialized(&mut self) {
         let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel();
-        let _ = self.shutdown_tx.lock().unwrap().insert(shutdown_tx);
+        self.shutdown_tx = Some(shutdown_tx);
 
         let client = self.client.clone();
         let config = self.analysis_config.clone();
         let conn = self.server_conn.clone();
         let (diagnostics_tx, mut diagnostics_rx) = tokio::sync::mpsc::unbounded_channel();
-        let _ = self
-            .diagnostics_tx
-            .lock()
-            .unwrap()
-            .insert(diagnostics_tx.clone());
+        self.diagnostics_tx = Some(diagnostics_tx.clone());
 
         tokio::spawn(async move {
-            client
-                .log_message(MessageType::INFO, "started watching for diagnostics")
-                .await;
+            client.log_message(MessageType::INFO, "started watching for diagnostics");
 
             let analysis_client = client.clone();
             let analysis_config = config.clone();
@@ -345,12 +314,10 @@ impl LanguageServer for ServerBasedBackend {
                         .send(DiagnosticsEvent::Analysis(all_diagnostics))
                         .is_err()
                     {
-                        analysis_client
-                            .log_message(
-                                MessageType::ERROR,
-                                "error reporting diagnostics from server",
-                            )
-                            .await;
+                        analysis_client.log_message(
+                            MessageType::ERROR,
+                            "error reporting diagnostics from server",
+                        );
                         break;
                     }
                 }
@@ -366,8 +333,7 @@ impl LanguageServer for ServerBasedBackend {
                                 for old_uri in diagnostics_by_file.keys() {
                                     if !all_diagnostics.contains_key(old_uri) {
                                         client
-                                            .publish_diagnostics(old_uri.clone(), vec![], None)
-                                            .await;
+                                            .publish_diagnostics(old_uri.clone(), vec![]);
                                     }
                                 }
 
@@ -375,17 +341,13 @@ impl LanguageServer for ServerBasedBackend {
                                     client
                                         .publish_diagnostics(
                                             uri.clone(),
-                                            diagnostics.clone(),
-                                            None,
-                                        )
-                                        .await;
+                                            diagnostics.clone());
                                 }
 
                                 diagnostics_by_file = all_diagnostics;
 
                                 client
-                                    .log_message(MessageType::INFO, "Diagnostics sent")
-                                    .await;
+                                    .log_message(MessageType::INFO, "Diagnostics sent");
                             }
                             DiagnosticsEvent::Edit(file_uri, content_changes) => {
                                 let Some(diagnostics) = diagnostics_by_file.get_mut(&file_uri)
@@ -400,8 +362,7 @@ impl LanguageServer for ServerBasedBackend {
                                     }
 
                                     client
-                                        .publish_diagnostics(file_uri, diagnostics, None)
-                                        .await;
+                                        .publish_diagnostics(file_uri, diagnostics);
                                 }
                             }
                         }
@@ -415,29 +376,23 @@ impl LanguageServer for ServerBasedBackend {
         });
 
         self.client
-            .log_message(MessageType::INFO, "server initialized!")
-            .await;
+            .log_message(MessageType::INFO, "server initialized!");
     }
 
-    async fn goto_definition(
-        &self,
-        params: GotoDefinitionParams,
-    ) -> Result<Option<GotoDefinitionResponse>> {
-        let position = params.text_document_position_params.position;
-        let uri = params.text_document_position_params.text_document.uri;
+    async fn goto_definition(&mut self, params: GotoDefinitionParams) -> Result<Option<Location>> {
+        let position = params.position;
+        let uri = params.text_document.uri;
         let file_path = uri.path().to_string();
 
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!(
-                    "Forwarding goto-definition to server: {}:{}:{}",
-                    file_path,
-                    position.line + 1,
-                    position.character + 1
-                ),
-            )
-            .await;
+        self.client.log_message(
+            MessageType::INFO,
+            format!(
+                "Forwarding goto-definition to server: {}:{}:{}",
+                file_path,
+                position.line + 1,
+                position.character + 1
+            ),
+        );
 
         // Convert absolute path to relative path for the server
         let relative_path = if file_path.starts_with(&self.analysis_config.root_dir) {
@@ -477,18 +432,16 @@ impl LanguageServer for ServerBasedBackend {
                         response.end_column,
                     )
                 {
-                    self.client
-                        .log_message(
-                            MessageType::INFO,
-                            format!(
-                                "Definition found: {}:{}:{}",
-                                def_file_path, start_line, start_column
-                            ),
-                        )
-                        .await;
+                    self.client.log_message(
+                        MessageType::INFO,
+                        format!(
+                            "Definition found: {}:{}:{}",
+                            def_file_path, start_line, start_column
+                        ),
+                    );
 
                     if let Ok(def_uri) = Url::from_file_path(&def_file_path) {
-                        return Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                        return Ok(Some(Location {
                             uri: def_uri,
                             range: Range {
                                 start: Position {
@@ -500,28 +453,25 @@ impl LanguageServer for ServerBasedBackend {
                                     character: (end_column - 1) as u32,
                                 },
                             },
-                        })));
+                        }));
                     }
                 }
                 self.client
-                    .log_message(MessageType::INFO, "Definition not found")
-                    .await;
+                    .log_message(MessageType::INFO, "Definition not found");
                 Ok(None)
             }
             Err(e) => {
-                self.client
-                    .log_message(
-                        MessageType::ERROR,
-                        format!("Failed to get definition from server: {}", e),
-                    )
-                    .await;
+                self.client.log_message(
+                    MessageType::ERROR,
+                    format!("Failed to get definition from server: {}", e),
+                );
                 Ok(None)
             }
         }
     }
 
-    async fn shutdown(&self) -> Result<()> {
-        if let Some(shutdown_tx) = self.shutdown_tx.lock().ok().and_then(|mut o| o.take()) {
+    async fn shutdown(&mut self) -> Result<()> {
+        if let Some(shutdown_tx) = self.shutdown_tx.take() {
             let _ = shutdown_tx.send(true);
         }
 
@@ -545,21 +495,17 @@ mod tests {
     }
 
     fn diagnostic(range: Range) -> Diagnostic {
-        Diagnostic::new(
+        Diagnostic {
             range,
-            None,
-            None,
-            Some("Hakana".to_string()),
-            "test diagnostic".to_string(),
-            None,
-            None,
-        )
+            source: Some("Hakana".to_string()),
+            message: "test diagnostic".to_string(),
+            ..Diagnostic::default()
+        }
     }
 
     fn content_change(range: Option<Range>, text: &str) -> TextDocumentContentChangeEvent {
         TextDocumentContentChangeEvent {
             range,
-            range_length: None,
             text: text.to_string(),
         }
     }

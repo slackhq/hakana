@@ -29,7 +29,6 @@ hakana-logger = { path = "src/logger" }
 hakana-mcp-server = { path = "src/mcp_server" }
 executable-finder = { path = "src/executable_code_finder" }
 mimalloc = { version = "*", default-features = false }
-tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 tokio = { version = "1.26.0", features = ["full"] }
 
 [workspace]

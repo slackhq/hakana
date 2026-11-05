@@ -11,40 +11,40 @@ use hakana_orchestrator::{SuccessfulScanData, scan_and_analyze};
 use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
-use tokio::sync::RwLock;
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
 
+use crate::lsp::jsonrpc::Result;
+use crate::lsp::types::*;
+use crate::lsp::{Client, LanguageServer, LspService, Server};
 use crate::server_backend::ServerBasedBackend;
 
+pub mod lsp;
 pub mod server_backend;
 pub mod server_client;
 mod server_factory;
 
 #[derive(Debug)]
 pub struct Backend {
-    client: Arc<Client>,
+    client: Client,
     analysis_config: Arc<Config>,
     starter_interner: Arc<Interner>,
-    previous_scan_data: RwLock<Option<SuccessfulScanData>>,
-    previous_analysis_result: RwLock<Option<AnalysisResult>>,
-    all_diagnostics: RwLock<Option<FxHashMap<Url, Vec<Diagnostic>>>>,
-    file_changes: RwLock<Option<FxHashMap<String, FileStatus>>>,
-    files_with_errors: RwLock<FxHashSet<Url>>,
+    previous_scan_data: Option<SuccessfulScanData>,
+    previous_analysis_result: Option<AnalysisResult>,
+    all_diagnostics: Option<FxHashMap<Url, Vec<Diagnostic>>>,
+    file_changes: Option<FxHashMap<String, FileStatus>>,
+    files_with_errors: FxHashSet<Url>,
 }
 
 impl Backend {
     pub fn new(client: Client, analysis_config: Config, starter_interner: Interner) -> Self {
         Self {
-            client: Arc::new(client),
+            client,
             analysis_config: Arc::new(analysis_config),
             starter_interner: Arc::new(starter_interner),
-            previous_scan_data: RwLock::new(None),
-            previous_analysis_result: RwLock::new(None),
-            all_diagnostics: RwLock::new(None),
-            file_changes: RwLock::new(None),
-            files_with_errors: RwLock::new(FxHashSet::default()),
+            previous_scan_data: None,
+            previous_analysis_result: None,
+            all_diagnostics: None,
+            file_changes: None,
+            files_with_errors: FxHashSet::default(),
         }
     }
 
@@ -92,28 +92,23 @@ fn file_event_to_status(file_event: FileEvent) -> Option<(String, FileStatus)> {
     Some((file_path, status))
 }
 
-#[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&mut self) -> Result<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Options(
-                    TextDocumentSyncOptions {
-                        open_close: Some(true),
-                        change: Some(TextDocumentSyncKind::NONE),
-                        will_save: Some(false),
-                        will_save_wait_until: Some(false),
-                        save: Some(TextDocumentSyncSaveOptions::Supported(true)),
-                    },
-                )),
-                definition_provider: Some(OneOf::Left(true)),
-                ..ServerCapabilities::default()
+                text_document_sync: TextDocumentSyncOptions {
+                    open_close: true,
+                    change: TextDocumentSyncKind::NONE,
+                    will_save: false,
+                    will_save_wait_until: false,
+                    save: true,
+                },
+                definition_provider: true,
             },
-            ..InitializeResult::default()
         })
     }
 
-    async fn initialized(&self, _: InitializedParams) {
+    async fn initialized(&mut self) {
         let registration = Registration {
             id: "watch-hack-files".to_string(),
             method: "workspace/didChangeWatchedFiles".to_string(),
@@ -121,16 +116,16 @@ impl LanguageServer for Backend {
                 serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
                     watchers: vec![
                         FileSystemWatcher {
-                            glob_pattern: GlobPattern::String("**/*.{hack,php,hhi}".to_string()),
+                            glob_pattern: "**/*.{hack,php,hhi}".to_string(),
                             kind: None,
                         },
                         FileSystemWatcher {
-                            glob_pattern: GlobPattern::String("**/.git/index.lock".to_string()),
-                            kind: Some(WatchKind::Delete),
+                            glob_pattern: "**/.git/index.lock".to_string(),
+                            kind: Some(WatchKind::DELETE),
                         },
                         FileSystemWatcher {
-                            glob_pattern: GlobPattern::String("**/[!.]*/**/".to_string()),
-                            kind: Some(WatchKind::Delete),
+                            glob_pattern: "**/[!.]*/**/".to_string(),
+                            kind: Some(WatchKind::DELETE),
                         },
                     ],
                 })
@@ -145,19 +140,17 @@ impl LanguageServer for Backend {
             .unwrap();
 
         self.do_analysis().await;
-        self.emit_issues().await;
+        self.emit_issues();
 
         self.client
-            .log_message(MessageType::INFO, "server initialized!")
-            .await;
+            .log_message(MessageType::INFO, "server initialized!");
     }
 
-    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+    async fn did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
         let mut new_file_statuses = FxHashMap::default();
 
         self.client
-            .log_message(MessageType::INFO, "watched files changed")
-            .await;
+            .log_message(MessageType::INFO, "watched files changed");
 
         for file_event in params.changes {
             if let Some((file_path, status)) = file_event_to_status(file_event) {
@@ -166,56 +159,33 @@ impl LanguageServer for Backend {
         }
 
         if !new_file_statuses.is_empty() {
-            let mut existing_file_changes = self.file_changes.write().await;
-
-            if let Some(existing_file_changes) = existing_file_changes.as_mut() {
-                existing_file_changes.extend(new_file_statuses);
-            } else {
-                *existing_file_changes = Some(new_file_statuses);
-            }
-        } else {
-            let file_changes_guard = self.file_changes.read().await;
-
-            if file_changes_guard.is_none() {
-                self.client
-                    .log_message(MessageType::INFO, "No files updated")
-                    .await;
-                return;
-            }
+            self.file_changes
+                .get_or_insert_default()
+                .extend(new_file_statuses);
+        } else if self.file_changes.is_none() {
+            self.client
+                .log_message(MessageType::INFO, "No files updated");
+            return;
         }
 
         if Path::new(".git/index.lock").exists() {
             self.client
-                .log_message(MessageType::INFO, "Waiting a sec while git is doing stuff")
-                .await;
+                .log_message(MessageType::INFO, "Waiting a sec while git is doing stuff");
         } else {
             self.do_analysis().await;
-            self.emit_issues().await;
+            self.emit_issues();
         }
     }
 
-    async fn did_save(&self, _params: DidSaveTextDocumentParams) {
-        // File saves are handled by the file watcher
-    }
-
-    async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
-        Ok(None)
-    }
-
-    async fn goto_definition(
-        &self,
-        params: GotoDefinitionParams,
-    ) -> Result<Option<GotoDefinitionResponse>> {
-        let position = params.text_document_position_params.position;
-        let uri = params.text_document_position_params.text_document.uri;
+    async fn goto_definition(&mut self, params: GotoDefinitionParams) -> Result<Option<Location>> {
+        let position = params.position;
+        let uri = params.text_document.uri;
         let Ok(file_path) = uri.to_file_path() else {
             return Ok(None);
         };
         let file_path = file_path.to_string_lossy().into_owned();
 
-        let scan_data_guard = self.previous_scan_data.read().await;
-        let analysis_result_guard = self.previous_analysis_result.read().await;
-        if let Some(scan_data) = scan_data_guard.as_ref() {
+        if let Some(scan_data) = self.previous_scan_data.as_ref() {
             // Convert LSP position to offset
             if let Ok(file_contents) = std::fs::read_to_string(&file_path) {
                 let offset = self.position_to_offset(&file_contents, position);
@@ -225,7 +195,7 @@ impl LanguageServer for Backend {
                     let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
 
                     // Check member definition locations (methods, properties, constants)
-                    if let Some(analysis_result) = analysis_result_guard.as_ref()
+                    if let Some(analysis_result) = self.previous_analysis_result.as_ref()
                         && let Some(definition_locations) =
                             analysis_result.definition_locations.get(&file_path_obj)
                     {
@@ -262,15 +232,11 @@ impl LanguageServer for Backend {
 
         Ok(None)
     }
-
-    async fn shutdown(&self) -> Result<()> {
-        Ok(())
-    }
 }
 
-fn pos_to_offset(def_pos: HPos, interner: &Interner) -> Option<GotoDefinitionResponse> {
+fn pos_to_offset(def_pos: HPos, interner: &Interner) -> Option<Location> {
     if let Ok(def_uri) = Url::from_file_path(interner.lookup(&def_pos.file_path.0)) {
-        return Some(GotoDefinitionResponse::Scalar(Location {
+        return Some(Location {
             uri: def_uri,
             range: Range {
                 start: Position {
@@ -282,36 +248,27 @@ fn pos_to_offset(def_pos: HPos, interner: &Interner) -> Option<GotoDefinitionRes
                     character: (def_pos.end_column - 1) as u32,
                 },
             },
-        }));
+        });
     }
 
     None
 }
 
 impl Backend {
-    async fn do_analysis(&self) {
-        let mut previous_scan_data_guard = self.previous_scan_data.write().await;
-        let mut previous_analysis_result_guard = self.previous_analysis_result.write().await;
-        let mut all_diagnostics_guard = self.all_diagnostics.write().await;
+    async fn do_analysis(&mut self) {
+        let successful_scan_data = self.previous_scan_data.take();
 
-        let successful_scan_data = previous_scan_data_guard.take();
+        let analysis_result = self.previous_analysis_result.take();
 
-        let analysis_result = previous_analysis_result_guard.take();
+        let file_changes = self.file_changes.take();
 
-        let mut file_changes_guard = self.file_changes.write().await;
-
-        let file_changes = file_changes_guard.take();
-
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!("scan & analyze changes — {:?}", file_changes),
-            )
-            .await;
+        self.client.log_message(
+            MessageType::INFO,
+            format!("scan & analyze changes — {:?}", file_changes),
+        );
 
         let analysis_config = self.analysis_config.clone();
         let interner = self.starter_interner.clone();
-        let client = self.client.clone();
 
         let (log_tx, mut log_rx) = tokio::sync::mpsc::channel(64);
 
@@ -338,9 +295,7 @@ impl Backend {
         loop {
             tokio::select! {
                 Some(log_message) = log_rx.recv() => {
-                    client
-                        .log_message(MessageType::INFO, log_message)
-                        .await;
+                    self.client.log_message(MessageType::INFO, log_message);
                 },
                 Ok(result) = (&mut task_result) => {
                     match result {
@@ -354,8 +309,8 @@ impl Backend {
                             ) {
                                 let mut diagnostics = vec![];
                                 for emitted_issue in emitted_issues {
-                                    diagnostics.push(Diagnostic::new(
-                                        Range {
+                                    diagnostics.push(Diagnostic {
+                                        range: Range {
                                             start: Position {
                                                 line: emitted_issue.pos.start_line - 1,
                                                 character: emitted_issue.pos.start_column as u32 - 1,
@@ -365,13 +320,11 @@ impl Backend {
                                                 character: emitted_issue.pos.end_column as u32 - 1,
                                             },
                                         },
-                                        Some(get_diagnostic_severity(&emitted_issue.kind.to_string())),
-                                        Some(NumberOrString::String(emitted_issue.kind.to_string())),
-                                        Some("Hakana".to_string()),
-                                        emitted_issue.description.clone(),
-                                        None,
-                                        None,
-                                    ));
+                                        severity: Some(get_diagnostic_severity(&emitted_issue.kind.to_string())),
+                                        code: Some(emitted_issue.kind.to_string()),
+                                        source: Some("Hakana".to_string()),
+                                        message: emitted_issue.description.clone(),
+                                    });
                                 }
 
                                 match Url::from_file_path(&file) {
@@ -379,70 +332,54 @@ impl Backend {
                                         all_diagnostics.insert(url, diagnostics);
                                     }
                                     Err(_) => {
-                                        self.client
-                                            .log_message(
-                                                MessageType::ERROR,
-                                                format!("Failure to get url from file {}", file),
-                                            )
-                                            .await;
+                                        self.client.log_message(
+                                            MessageType::ERROR,
+                                            format!("Failure to get url from file {}", file),
+                                        );
                                     }
                                 }
                             }
 
-                            *all_diagnostics_guard = Some(all_diagnostics);
-                            *previous_scan_data_guard = Some(successful_scan_data);
-                            *previous_analysis_result_guard = Some(analysis_result);
+                            self.all_diagnostics = Some(all_diagnostics);
+                            self.previous_scan_data = Some(successful_scan_data);
+                            self.previous_analysis_result = Some(analysis_result);
                         }
                         Err(error) => {
-                            *previous_scan_data_guard = None;
-                            *previous_analysis_result_guard = None;
-                            *all_diagnostics_guard = None;
+                            self.all_diagnostics = None;
 
-                            self.client
-                                .log_message(
-                                    MessageType::ERROR,
-                                    format!("Analysis failed with error {}", error),
-                                )
-                                .await;
+                            self.client.log_message(
+                                MessageType::ERROR,
+                                format!("Analysis failed with error {}", error),
+                            );
                         }
                     }
                     break;
                 }
             }
         }
-
-        *file_changes_guard = None;
     }
 
-    async fn emit_issues(&self) {
-        // Consume each analysis result once. Concurrent watcher handlers can both
-        // reach this method after one has already published the newest result.
-        let mut diagnostics_guard = self.all_diagnostics.write().await;
-        if let Some(all_diagnostics) = diagnostics_guard.take() {
+    fn emit_issues(&mut self) {
+        // Consume each analysis result once, so publishing again without a new
+        // analysis doesn't clear the diagnostics already sent.
+        if let Some(all_diagnostics) = self.all_diagnostics.take() {
             let mut new_files_with_errors = FxHashSet::default();
 
             for (uri, diagnostics) in all_diagnostics {
-                self.client
-                    .publish_diagnostics(uri.clone(), diagnostics, None)
-                    .await;
+                self.client.publish_diagnostics(uri.clone(), diagnostics);
                 new_files_with_errors.insert(uri);
             }
 
-            let mut files_with_errors = self.files_with_errors.write().await;
-
-            for old_uri in files_with_errors.iter() {
+            for old_uri in self.files_with_errors.iter() {
                 if !new_files_with_errors.contains(old_uri) {
-                    self.client
-                        .publish_diagnostics(old_uri.clone(), vec![], None)
-                        .await;
+                    self.client.publish_diagnostics(old_uri.clone(), vec![]);
                 }
             }
 
-            *files_with_errors = new_files_with_errors;
+            self.files_with_errors = new_files_with_errors;
 
             self.client
-                .log_message(MessageType::INFO, "Diagnostics sent")
-                .await;
+                .log_message(MessageType::INFO, "Diagnostics sent");
         }
     }
 }
