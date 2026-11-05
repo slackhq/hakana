@@ -68,3 +68,11 @@ function checkMutableId(vec<int> $ids, int $user_id): bool {
     $id = new HH\Lib\Ref($user_id);
     return C\contains_key($ids, $id->value);
 }
+
+function checkTimestamp(vec<int> $timestamps, shape('timestamp' => int) $row): bool {
+    return C\contains_key($timestamps, $row['timestamp']);
+}
+
+function checkValueLookup(vec<int> $items, int $value): bool {
+    return C\contains_key($items, $value);
+}

@@ -104,3 +104,29 @@ function checkMutableIndex(vec<int> $items): bool {
 function checkAssertedIndex(vec<int> $items, mixed $index): bool {
     return C\contains_key($items, $index as int);
 }
+
+function checkChunkCursor(
+    vec<shape('name' => string)> $chunks,
+    shape('next_chunk' => int) $state,
+): bool {
+    return C\contains_key($chunks, $state['next_chunk']);
+}
+
+function checkUnfamiliarIndexNames(vec<int> $items, int $page, int $attempt): bool {
+    return C\contains_key($items, $page) &&
+        C\contains_key($items, $attempt) &&
+        C\contains_key($items, $page + 1);
+}
+
+final class PageCursor {
+    public function __construct(public int $page) {}
+
+    public function currentPage(): int {
+        return $this->page;
+    }
+}
+
+function checkUnfamiliarIndexMembers(vec<int> $items, PageCursor $cursor): bool {
+    return C\contains_key($items, $cursor->page) &&
+        C\contains_key($items, $cursor->currentPage());
+}

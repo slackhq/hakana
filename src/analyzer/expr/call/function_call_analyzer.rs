@@ -615,14 +615,17 @@ fn check_vec_key_lookup(
     let Some(container_type) = analysis_data.get_expr_type(container.pos()) else {
         return;
     };
-    if !contains_vec_for_key_lookup(container_type, true) || is_index_expression(key) {
+    if !contains_vec_for_key_lookup(container_type, true)
+        || classify_vec_key(key) != VecKeyKind::Value
+    {
         return;
     }
     let Some(key_type) = analysis_data.get_expr_type(key.pos()) else {
         return;
     };
     // Incompatible key types already get an argument diagnostic. This heuristic
-    // catches integer IDs and values that are type-compatible with vec indexes.
+    // catches likely IDs and values that are type-compatible with vec indexes.
+    // An unfamiliar name alone is not evidence of a value lookup.
     if !union_type_comparator::can_expression_types_be_identical(
         statements_analyzer.codebase,
         statements_analyzer.get_file_path(),
@@ -637,7 +640,7 @@ fn check_vec_key_lookup(
         Issue::new(
             IssueKind::InvalidContainsCheck,
             format!(
-                "{} checks vec indexes, but argument 2 is not a recognizable index expression; use HH\\Lib\\C\\contains to check values",
+                "{} checks vec indexes, but argument 2 looks like a value lookup; use HH\\Lib\\C\\contains to check values",
                 statements_analyzer.interner.lookup(&function_name),
             ),
             statements_analyzer.get_hpos(key.pos()),
@@ -673,38 +676,62 @@ fn contains_vec_for_key_lookup(type_: &TUnion, allow_empty: bool) -> bool {
     })
 }
 
-fn is_index_expression(expr: &aast::Expr<(), ()>) -> bool {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum VecKeyKind {
+    Index,
+    Value,
+    Unknown,
+}
+
+fn classify_vec_key(expr: &aast::Expr<(), ()>) -> VecKeyKind {
     match &expr.2 {
-        aast::Expr_::Int(_) => true,
-        aast::Expr_::Lvar(var) => is_index_name(&var.1.1),
-        aast::Expr_::Id(id) => is_index_name(id.1.rsplit('\\').next().unwrap_or(&id.1)),
+        aast::Expr_::Int(_) => VecKeyKind::Index,
+        aast::Expr_::Lvar(var) => classify_vec_key_name(&var.1.1),
+        aast::Expr_::Id(id) => classify_vec_key_name(id.1.rsplit('\\').next().unwrap_or(&id.1)),
         aast::Expr_::ObjGet(member) => {
-            matches!(&member.1.2, aast::Expr_::Id(id) if is_index_name(&id.1))
-                // Mutable loop indexes are sometimes stored in Ref<int>.
-                || (member.3 == ast_defs::PropOrMethod::IsProp
-                    && matches!(&member.1.2, aast::Expr_::Id(id) if id.1 == "value")
-                    && is_index_expression(&member.0))
+            // Mutable loop indexes are sometimes stored in Ref<int>.
+            if member.3 == ast_defs::PropOrMethod::IsProp
+                && matches!(&member.1.2, aast::Expr_::Id(id) if id.1 == "value")
+                && classify_vec_key(&member.0) == VecKeyKind::Index
+            {
+                VecKeyKind::Index
+            } else if let aast::Expr_::Id(id) = &member.1.2 {
+                classify_vec_key_name(&id.1)
+            } else {
+                VecKeyKind::Unknown
+            }
         }
-        aast::Expr_::ClassConst(constant) => is_index_name(&constant.1.1),
-        aast::Expr_::ArrayGet(access) => access.1.as_ref().is_some_and(
-            |key| matches!(&key.2, aast::Expr_::String(name) if is_index_name(&name.to_string())),
-        ),
-        aast::Expr_::Call(call) => is_index_expression(&call.func),
-        aast::Expr_::Cast(cast) => is_index_expression(&cast.1),
-        aast::Expr_::As(assertion) => is_index_expression(&assertion.expr),
-        aast::Expr_::Upcast(cast) => is_index_expression(&cast.0),
-        aast::Expr_::Binop(binop) => {
-            matches!(
+        aast::Expr_::ClassConst(constant) => classify_vec_key_name(&constant.1.1),
+        aast::Expr_::ArrayGet(access) => {
+            if let Some(key) = &access.1
+                && let aast::Expr_::String(name) = &key.2
+            {
+                classify_vec_key_name(&name.to_string())
+            } else {
+                VecKeyKind::Unknown
+            }
+        }
+        aast::Expr_::Call(call) => classify_vec_key(&call.func),
+        aast::Expr_::Cast(cast) => classify_vec_key(&cast.1),
+        aast::Expr_::As(assertion) => classify_vec_key(&assertion.expr),
+        aast::Expr_::Upcast(cast) => classify_vec_key(&cast.0),
+        aast::Expr_::Binop(binop)
+            if matches!(
                 binop.bop,
                 ast_defs::Bop::Plus
                     | ast_defs::Bop::Minus
                     | ast_defs::Bop::Star
                     | ast_defs::Bop::Percent
-            ) && is_index_expression(&binop.lhs)
-                && is_index_expression(&binop.rhs)
+            ) =>
+        {
+            match (classify_vec_key(&binop.lhs), classify_vec_key(&binop.rhs)) {
+                (VecKeyKind::Index, VecKeyKind::Index) => VecKeyKind::Index,
+                (VecKeyKind::Value, _) | (_, VecKeyKind::Value) => VecKeyKind::Value,
+                _ => VecKeyKind::Unknown,
+            }
         }
-        aast::Expr_::Unop(unop) => {
-            matches!(
+        aast::Expr_::Unop(unop)
+            if matches!(
                 unop.0,
                 ast_defs::Uop::Uplus
                     | ast_defs::Uop::Uminus
@@ -712,9 +739,34 @@ fn is_index_expression(expr: &aast::Expr<(), ()>) -> bool {
                     | ast_defs::Uop::Udecr
                     | ast_defs::Uop::Upincr
                     | ast_defs::Uop::Updecr
-            ) && is_index_expression(&unop.1)
+            ) =>
+        {
+            classify_vec_key(&unop.1)
         }
-        _ => false,
+        _ => VecKeyKind::Unknown,
+    }
+}
+
+fn classify_vec_key_name(name: &str) -> VecKeyKind {
+    if is_index_name(name) {
+        return VecKeyKind::Index;
+    }
+
+    let name = name
+        .trim_start_matches('$')
+        .trim_end_matches(|c: char| c.is_ascii_digit());
+    if [("id", "Id"), ("value", "Value"), ("timestamp", "Timestamp")]
+        .iter()
+        .any(|(lower, camel)| {
+            name.rsplit('_')
+                .next()
+                .is_some_and(|part| part.eq_ignore_ascii_case(lower))
+                || name.ends_with(camel)
+        })
+    {
+        VecKeyKind::Value
+    } else {
+        VecKeyKind::Unknown
     }
 }
 
