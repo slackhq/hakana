@@ -1,0 +1,26 @@
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:13:12 - HH\legacy_is_truthy is unnecessary for type int; compare with 0 using !== instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:17:12 - HH\legacy_is_truthy is unnecessary for type float; compare with 0.0 using !== instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:21:12 - HH\legacy_is_truthy is unnecessary for type num; use an explicit numeric zero comparison instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:25:12 - HH\legacy_is_truthy is unnecessary for type bool; use the boolean value directly
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:29:12 - HH\legacy_is_truthy is unnecessary for type vec<string>; use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:33:12 - HH\legacy_is_truthy is unnecessary for type dict<string, mixed>; use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:37:12 - HH\legacy_is_truthy is unnecessary for type keyset<string>; use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:41:12 - HH\legacy_is_truthy is unnecessary for type tuple(int, string); use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:45:12 - HH\legacy_is_truthy is unnecessary for type shape('name' => string); use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:49:12 - HH\legacy_is_truthy is unnecessary for type ?int; check for nonnull and compare with 0 using !== instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:53:12 - HH\legacy_is_truthy is unnecessary for type ?bool; compare with true using === instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:57:12 - HH\legacy_is_truthy is unnecessary for type ?vec<int>; use a null check and !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:61:12 - HH\legacy_is_truthy is unnecessary for type null; this value is always falsy
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:65:12 - HH\legacy_is_truthy is unnecessary for type State; compare with 0 using !== instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:69:12 - HH\legacy_is_truthy is unnecessary for type int; compare with 0 using !== instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:73:12 - HH\legacy_is_truthy is unnecessary for type vec<int>; use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:77:12 - HH\legacy_is_truthy is unnecessary for type bool|int; use an explicit check for this type instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:81:12 - HH\legacy_is_truthy is unnecessary for type T:fn-genericInteger; compare with 0 using !== instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:85:12 - HH\legacy_is_truthy is unnecessary for type T:fn-genericCollection; use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:89:12 - HH\legacy_is_truthy is unnecessary for type HH\Vector<int>; use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:95:12 - HH\legacy_is_truthy is unnecessary for type StringContainer; use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:101:12 - HH\legacy_is_truthy is unnecessary for type Example; use an explicit check for this type instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:105:12 - HH\legacy_is_truthy is unnecessary for type ?Example; use an explicit check for this type instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:110:16 - HH\legacy_is_truthy is unnecessary for type int; compare with 0 using !== instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:116:12 - HH\legacy_is_truthy is unnecessary for type dict<string, string>|vec<int>; use !HH\Lib\C\is_empty(...) instead
+ERROR: UnnecessaryLegacyIsTruthy - input.hack:123:16 - HH\legacy_is_truthy is unnecessary for type int; compare with 0 using !== instead

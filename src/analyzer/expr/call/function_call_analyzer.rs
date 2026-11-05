@@ -280,6 +280,15 @@ pub(crate) fn analyze(
     }
 
     match name {
+        StrId::LEGACY_IS_TRUTHY if expr.2.len() == 1 => {
+            crate::truthiness::check_legacy_is_truthy(
+                statements_analyzer,
+                analysis_data,
+                context,
+                expr.2[0].to_expr_ref(),
+                pos,
+            );
+        }
         StrId::INVARIANT => {
             if let Some(first_arg) = &expr.2.first() {
                 process_invariant(
