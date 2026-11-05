@@ -20,7 +20,7 @@ use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing,
 };
-use hakana_str::Interner;
+use hakana_str::{Interner, StrId};
 use oxidized::aast;
 use oxidized::pos::Pos;
 
@@ -314,6 +314,32 @@ pub(crate) fn verify_type(
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
         );
+    }
+
+    // Membership tests compare values without requiring the lookup's entire
+    // type to fit the container. A broader type is valid if the values can
+    // overlap, e.g. an arraykey searched for in a collection of strings.
+    if !type_match_found
+        && argument_offset == 1
+        && !input_type.is_mixed()
+        && matches!(
+            functionlike_id,
+            FunctionLikeIdentifier::Function(
+                StrId::LIB_C_CONTAINS
+                    | StrId::LIB_C_CONTAINS_KEY
+                    | StrId::LIB_DICT_CONTAINS
+                    | StrId::LIB_DICT_CONTAINS_KEY
+            )
+        )
+        && union_type_comparator::can_expression_types_be_identical(
+            codebase,
+            statements_analyzer.get_file_path(),
+            input_type,
+            param_type,
+            false,
+        )
+    {
+        return;
     }
 
     if !type_match_found {
