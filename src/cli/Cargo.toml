@@ -7,6 +7,7 @@ edition = "2024"
 memory-profile = ["hakana-orchestrator/memory-profile"]
 
 [dependencies]
+hakana-syntax = { path = "../syntax" }
 hakana-format = { path = "../formatter" }
 hakana-file-discovery = { path = "../file_discovery" }
 hakana-orchestrator = { path = "../orchestrator" }
@@ -22,8 +23,7 @@ hakana-server = { path = "../server" }
 hakana-mcp-server = { path = "../mcp_server" }
 hakana-aast-helper = { path = "../aast_utils" }
 executable-finder = { path = "../executable_code_finder" }
-line_break_map = { path = "../../third-party/hhvm/hphp/hack/src/utils/line_break_map" }
-oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
+hakana-parser = { path = "../parser" }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 walkdir = "2"
 glob = "0.3"

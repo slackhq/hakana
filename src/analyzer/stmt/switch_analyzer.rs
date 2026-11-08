@@ -6,8 +6,9 @@ use hakana_code_info::{
     var_name::VarName,
 };
 
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use indexmap::IndexMap;
-use oxidized::{aast, aast::Pos};
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
@@ -27,18 +28,19 @@ use crate::{
 
 use super::{if_conditional_analyzer::add_branch_dataflow, switch_case_analyzer::analyze_case};
 
-pub(crate) fn analyze(
-    statements_analyzer: &StatementsAnalyzer,
+pub(crate) fn analyze<'ast>(
+    statements_analyzer: &StatementsAnalyzer<'ast>,
     stmt: (
-        &aast::Expr<(), ()>,
-        &Vec<aast::Case<(), ()>>,
-        &Option<aast::DefaultCase<(), ()>>,
+        &aast::Expr<'ast>,
+        &[aast::Case<'ast>],
+        &Option<aast::DefaultCase<'ast>>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
+    let arena = statements_analyzer.arena();
     let codebase = statements_analyzer.codebase;
 
     context.inside_conditional = true;
@@ -76,10 +78,10 @@ pub(crate) fn analyze(
 
         Some(aast::Expr(
             (),
-            stmt.0.1.clone(),
-            aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
-                stmt.0.1.clone(),
-                (0, switch_var_id.clone()),
+            stmt.0.1,
+            aast::Expr_::Lvar(&*arena.alloc(hakana_parser::aast::Lid(
+                stmt.0.1,
+                (0, &*arena.alloc_str(&switch_var_id)),
             ))),
         ))
     } else {
@@ -142,7 +144,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             Some(&case.0),
             case.0.pos(),
-            case.1.0.clone(),
+            case.1.0.to_vec(),
             &previous_empty_cases,
             analysis_data,
             context,
@@ -164,7 +166,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             None,
             &default_case.0,
-            default_case.1.0.clone(),
+            default_case.1.0.to_vec(),
             &previous_empty_cases,
             analysis_data,
             context,

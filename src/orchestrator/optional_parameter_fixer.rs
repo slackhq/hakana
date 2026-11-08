@@ -52,7 +52,7 @@ pub(crate) fn plan(
             .iter()
             .filter(|(offset, ch)| *offset > close && *offset <= first_statement && *ch == b'{')
             .map(|(offset, _)| *offset)
-            .last()?
+            .next_back()?
     } else {
         end - 1
     };

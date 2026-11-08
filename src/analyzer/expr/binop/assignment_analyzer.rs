@@ -43,16 +43,15 @@ use hakana_code_info::ttype::get_literal_int;
 use hakana_code_info::ttype::get_mixed;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::get_nothing;
-use oxidized::aast;
-use oxidized::ast_defs;
-use oxidized::pos::Pos;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
-pub(crate) fn analyze(
-    statements_analyzer: &StatementsAnalyzer,
+pub(crate) fn analyze<'ast>(
+    statements_analyzer: &StatementsAnalyzer<'ast>,
     expr: (
-        &aast::Expr<(), ()>,
-        Option<ast_defs::Bop>,
-        Option<&aast::Expr<(), ()>>,
+        &aast::Expr<'ast>,
+        Option<aast::Bop>,
+        Option<&aast::Expr<'ast>>,
     ),
     pos: &Pos,
     assign_value_type: Option<&TUnion>,
@@ -60,6 +59,7 @@ pub(crate) fn analyze(
     context: &mut BlockContext,
     inout_node: Option<(DataFlowNode, &Pos)>,
 ) -> Result<(), AnalysisError> {
+    let arena = statements_analyzer.arena();
     let (assign_var, binop, assign_value) = (expr.0, expr.1, expr.2);
 
     let var_id = get_var_id(
@@ -72,8 +72,8 @@ pub(crate) fn analyze(
     if statements_analyzer.get_config().add_fixmes
         && let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset
     {
-        if current_stmt_offset.line != expr.0.pos().line() as u32 {
-            current_stmt_offset.line = expr.0.pos().line() as u32;
+        if current_stmt_offset.line != expr.0.pos().line(statements_analyzer.lines()) as u32 {
+            current_stmt_offset.line = expr.0.pos().line(statements_analyzer.lines()) as u32;
         }
 
         if inout_node.is_none() {
@@ -142,11 +142,11 @@ pub(crate) fn analyze(
                     statements_analyzer,
                     &aast::Expr(
                         (),
-                        pos.clone(),
-                        aast::Expr_::Binop(Box::new(oxidized::aast::Binop {
+                        *pos,
+                        aast::Expr_::Binop(&*arena.alloc(hakana_parser::aast::Binop {
                             bop: assignment_type,
-                            lhs: assign_var.clone(),
-                            rhs: assign_value.clone(),
+                            lhs: *assign_var,
+                            rhs: *assign_value,
                         })),
                     ),
                     analysis_data,
@@ -415,8 +415,8 @@ pub(crate) fn analyze(
 
 fn analyze_list_assignment(
     statements_analyzer: &StatementsAnalyzer,
-    expressions: &[aast::Expr<(), ()>],
-    source_expr: Option<&aast::Expr<(), ()>>,
+    expressions: &[aast::Expr],
+    source_expr: Option<&aast::Expr>,
     assign_value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -547,8 +547,8 @@ fn analyze_list_assignment(
 
 fn analyze_assignment_to_variable(
     statements_analyzer: &StatementsAnalyzer,
-    var_expr: &aast::Expr<(), ()>,
-    source_expr: Option<&aast::Expr<(), ()>>,
+    var_expr: &aast::Expr,
+    source_expr: Option<&aast::Expr>,
     mut assign_value_type: TUnion,
     var_id: VarName,
     has_await_call: bool,
@@ -702,8 +702,8 @@ fn analyze_assignment_to_variable(
 }
 
 fn handle_assignment_with_boolean_logic(
-    var_expr: &aast::Expr<(), ()>,
-    source_expr: &aast::Expr<(), ()>,
+    var_expr: &aast::Expr,
+    source_expr: &aast::Expr,
     statements_analyzer: &StatementsAnalyzer<'_>,
     context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
@@ -771,7 +771,7 @@ fn handle_assignment_with_boolean_logic(
 
 pub(crate) fn analyze_inout_param(
     statements_analyzer: &StatementsAnalyzer,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     arg_type: TUnion,
     inout_type: &TUnion,
     inout_token_pos: &Pos,

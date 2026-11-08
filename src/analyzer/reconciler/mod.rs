@@ -29,9 +29,9 @@ use hakana_code_info::{
         wrap_atomic,
     },
 };
+use hakana_parser::aast::Pos;
 use hakana_str::{Interner, StrId};
 use lazy_static::lazy_static;
-use oxidized::ast_defs::Pos;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};

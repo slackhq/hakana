@@ -18,8 +18,8 @@ use hakana_code_info::{
     assertion::Assertion, functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 

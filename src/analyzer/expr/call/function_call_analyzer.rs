@@ -29,19 +29,19 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::taint::SinkType;
 use hakana_code_info::ttype::template::TemplateResult;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use indexmap::IndexMap;
-use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
 
 use super::function_call_return_type_fetcher;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        (&Pos, &ast_defs::Id_),
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        (&Pos, &aast::Id_),
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -606,8 +606,8 @@ pub(crate) fn check_service_calls(
 
 fn check_vec_key_lookup(
     statements_analyzer: &StatementsAnalyzer,
-    container: &aast::Expr<(), ()>,
-    key: &aast::Expr<(), ()>,
+    container: &aast::Expr,
+    key: &aast::Expr,
     function_name: StrId,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
@@ -683,25 +683,25 @@ enum VecKeyKind {
     Unknown,
 }
 
-fn classify_vec_key(expr: &aast::Expr<(), ()>) -> VecKeyKind {
+fn classify_vec_key(expr: &aast::Expr) -> VecKeyKind {
     match &expr.2 {
         aast::Expr_::Int(_) => VecKeyKind::Index,
-        aast::Expr_::Lvar(var) => classify_vec_key_name(&var.1.1),
-        aast::Expr_::Id(id) => classify_vec_key_name(id.1.rsplit('\\').next().unwrap_or(&id.1)),
+        aast::Expr_::Lvar(var) => classify_vec_key_name(var.1.1),
+        aast::Expr_::Id(id) => classify_vec_key_name(id.1.rsplit('\\').next().unwrap_or(id.1)),
         aast::Expr_::ObjGet(member) => {
             // Mutable loop indexes are sometimes stored in Ref<int>.
-            if member.3 == ast_defs::PropOrMethod::IsProp
+            if member.3 == aast::PropOrMethod::IsProp
                 && matches!(&member.1.2, aast::Expr_::Id(id) if id.1 == "value")
                 && classify_vec_key(&member.0) == VecKeyKind::Index
             {
                 VecKeyKind::Index
             } else if let aast::Expr_::Id(id) = &member.1.2 {
-                classify_vec_key_name(&id.1)
+                classify_vec_key_name(id.1)
             } else {
                 VecKeyKind::Unknown
             }
         }
-        aast::Expr_::ClassConst(constant) => classify_vec_key_name(&constant.1.1),
+        aast::Expr_::ClassConst(constant) => classify_vec_key_name(constant.1.1),
         aast::Expr_::ArrayGet(access) => {
             if let Some(key) = &access.1
                 && let aast::Expr_::String(name) = &key.2
@@ -718,10 +718,7 @@ fn classify_vec_key(expr: &aast::Expr<(), ()>) -> VecKeyKind {
         aast::Expr_::Binop(binop)
             if matches!(
                 binop.bop,
-                ast_defs::Bop::Plus
-                    | ast_defs::Bop::Minus
-                    | ast_defs::Bop::Star
-                    | ast_defs::Bop::Percent
+                aast::Bop::Plus | aast::Bop::Minus | aast::Bop::Star | aast::Bop::Percent
             ) =>
         {
             match (classify_vec_key(&binop.lhs), classify_vec_key(&binop.rhs)) {
@@ -733,12 +730,12 @@ fn classify_vec_key(expr: &aast::Expr<(), ()>) -> VecKeyKind {
         aast::Expr_::Unop(unop)
             if matches!(
                 unop.0,
-                ast_defs::Uop::Uplus
-                    | ast_defs::Uop::Uminus
-                    | ast_defs::Uop::Uincr
-                    | ast_defs::Uop::Udecr
-                    | ast_defs::Uop::Upincr
-                    | ast_defs::Uop::Updecr
+                aast::Uop::Uplus
+                    | aast::Uop::Uminus
+                    | aast::Uop::Uincr
+                    | aast::Uop::Udecr
+                    | aast::Uop::Upincr
+                    | aast::Uop::Updecr
             ) =>
         {
             classify_vec_key(&unop.1)
@@ -800,7 +797,7 @@ fn is_index_name(name: &str) -> bool {
 }
 
 fn process_invariant(
-    first_arg: &aast::Expr<(), ()>,
+    first_arg: &aast::Expr,
     context: &mut BlockContext,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
@@ -875,7 +872,7 @@ pub(crate) fn check_implicit_asio_join(
     functionlike_id: FunctionLikeIdentifier,
     async_version: FunctionLikeIdentifier,
     is_sub_expression: bool,
-    lhs_expr: Option<&aast::Expr<(), ()>>,
+    lhs_expr: Option<&aast::Expr>,
 ) {
     let issue = Issue::new(
         IssueKind::ImplicitAsioJoin,
@@ -981,7 +978,7 @@ pub(crate) fn check_implicit_asio_join(
 fn get_async_version_name(
     async_version: FunctionLikeIdentifier,
     functionlike_id: FunctionLikeIdentifier,
-    lhs_expr: Option<&aast::Expr<(), ()>>,
+    lhs_expr: Option<&aast::Expr>,
     context: &BlockContext,
     interner: &hakana_str::Interner,
     localize_string: bool,

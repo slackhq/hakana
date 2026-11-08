@@ -11,21 +11,22 @@ use hakana_code_info::{
 use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use oxidized::{aast, ast::PropOrMethod, ast_defs};
+use hakana_parser::aast;
+use hakana_parser::aast::PropOrMethod;
 
 use crate::statements_analyzer::StatementsAnalyzer;
 
 /** Gets the identifier for a simple variable */
 pub fn get_var_id(
-    conditional: &aast::Expr<(), ()>,
+    conditional: &aast::Expr,
     this_class_name: Option<StrId>,
     resolved_names: &FxHashMap<u32, StrId>,
     codebase: Option<(&CodebaseInfo, &Interner)>,
 ) -> Option<String> {
     match &conditional.2 {
-        aast::Expr_::Lvar(var_expr) => Some(var_expr.1.1.clone()),
+        aast::Expr_::Lvar(var_expr) => Some(var_expr.1.1.to_string()),
         aast::Expr_::ObjGet(boxed) => {
-            if let ast_defs::PropOrMethod::IsProp = boxed.3
+            if let aast::PropOrMethod::IsProp = boxed.3
                 && let Some(base_id) =
                     get_var_id(&boxed.0, this_class_name, resolved_names, codebase)
                 && let aast::Expr_::Id(boxed) = &boxed.1.2
@@ -36,7 +37,7 @@ pub fn get_var_id(
             None
         }
         aast::Expr_::ClassGet(boxed) => {
-            if let ast_defs::PropOrMethod::IsProp = boxed.2 {
+            if let aast::PropOrMethod::IsProp = boxed.2 {
                 let class_name = match &boxed.0.2 {
                     aast::ClassId_::CIexpr(inner_expr) => {
                         if let aast::Expr_::Id(id) = &inner_expr.2 {
@@ -108,9 +109,9 @@ pub fn get_var_id(
 }
 
 /** Gets the beginning var identifier from a chain */
-pub(crate) fn get_root_var_id(conditional: &aast::Expr<(), ()>) -> Option<String> {
+pub(crate) fn get_root_var_id(conditional: &aast::Expr) -> Option<String> {
     match &conditional.2 {
-        aast::Expr_::Lvar(var_expr) => Some(var_expr.1.1.clone()),
+        aast::Expr_::Lvar(var_expr) => Some(var_expr.1.1.to_string()),
         aast::Expr_::ArrayGet(boxed) => get_root_var_id(&boxed.0),
         aast::Expr_::ObjGet(boxed) => get_root_var_id(&boxed.0),
         _ => None,
@@ -122,14 +123,14 @@ pub(crate) fn get_root_var_id(conditional: &aast::Expr<(), ()>) -> Option<String
  * and property fetches, which themselves can be nested
  **/
 pub(crate) fn get_dim_id(
-    conditional: &aast::Expr<(), ()>,
+    conditional: &aast::Expr,
     codebase: Option<(&CodebaseInfo, &Interner)>,
     resolved_names: &FxHashMap<u32, StrId>,
 ) -> Option<String> {
     match &conditional.2 {
-        aast::Expr_::Lvar(var_expr) => Some(var_expr.1.1.clone()),
+        aast::Expr_::Lvar(var_expr) => Some(var_expr.1.1.to_string()),
         aast::Expr_::String(value) => Some(format!("'{}'", value)),
-        aast::Expr_::Int(value) => Some(value.clone().to_string()),
+        aast::Expr_::Int(value) => Some(value.to_string()),
         aast::Expr_::ClassConst(boxed) => {
             if let Some((codebase, interner)) = codebase
                 && let aast::ClassId_::CIexpr(lhs_expr) = &boxed.0.2
@@ -142,7 +143,7 @@ pub(crate) fn get_dim_id(
                 let constant_type = codebase.get_class_constant_type(
                     &classlike_name,
                     is_static,
-                    &interner.get(&boxed.1.1)?,
+                    &interner.get(boxed.1.1)?,
                     FxHashSet::default(),
                 );
 
@@ -160,7 +161,7 @@ pub(crate) fn get_dim_id(
 }
 
 pub fn get_functionlike_id_from_call(
-    call_expr: &oxidized::ast::CallExpr,
+    call_expr: &hakana_parser::aast::CallExpr,
     interner: &Interner,
     resolved_names: &FxHashMap<u32, StrId>,
     expr_types: &FxHashMap<(u32, u32), Rc<TUnion>>,
@@ -170,7 +171,7 @@ pub fn get_functionlike_id_from_call(
 }
 
 pub fn get_static_functionlike_id_from_call(
-    call: &oxidized::ast::CallExpr,
+    call: &hakana_parser::aast::CallExpr,
     interner: &Interner,
     resolved_names: &FxHashMap<u32, StrId>,
 ) -> Option<FunctionLikeIdentifier> {
@@ -196,7 +197,7 @@ pub fn get_static_functionlike_id_from_call(
             let offset = class_id.1.start_offset() as u32;
 
             if let Some(class_name) = resolved_names.get(&offset)
-                && let Some(method_name) = interner.get(&rhs_expr.1)
+                && let Some(method_name) = interner.get(rhs_expr.1)
             {
                 Some(FunctionLikeIdentifier::Method(*class_name, method_name))
             } else {
@@ -208,7 +209,7 @@ pub fn get_static_functionlike_id_from_call(
 }
 
 pub fn get_method_id_from_call(
-    call_expr: &oxidized::ast::CallExpr,
+    call_expr: &hakana_parser::aast::CallExpr,
     interner: &Interner,
     expr_types: &FxHashMap<(u32, u32), Rc<TUnion>>,
 ) -> Option<FunctionLikeIdentifier> {
@@ -238,7 +239,7 @@ pub fn get_method_id_from_call(
 
             if let aast::Expr_::Id(method_name_node) = &rhs_expr.2 {
                 interner
-                    .get(&method_name_node.1)
+                    .get(method_name_node.1)
                     .map(|method_id| FunctionLikeIdentifier::Method(*class_id, method_id))
             } else {
                 None
@@ -249,16 +250,16 @@ pub fn get_method_id_from_call(
 }
 
 pub fn get_expr_id(
-    conditional: &aast::Expr<(), ()>,
+    conditional: &aast::Expr,
     statements_analyzer: &StatementsAnalyzer,
 ) -> Option<ExprId> {
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => statements_analyzer
             .interner
-            .get(&var_expr.1.1)
+            .get(var_expr.1.1)
             .map(ExprId::Var),
         aast::Expr_::ObjGet(boxed) => {
-            if let ast_defs::PropOrMethod::IsProp = boxed.3
+            if let aast::PropOrMethod::IsProp = boxed.3
                 && let Some(ExprId::Var(base_id)) = get_expr_id(&boxed.0, statements_analyzer)
                 && let aast::Expr_::Id(boxed) = &boxed.1.2
                 && let Some(prop_name) = statements_analyzer.interner.get(boxed.name())

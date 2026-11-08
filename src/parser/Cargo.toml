@@ -1,0 +1,12 @@
+[package]
+name = "hakana-parser"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+bumpalo = { version = "3.11", features = ["collections"] }
+smallvec = "1"
+bstr = "1"

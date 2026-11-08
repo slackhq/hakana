@@ -1,5 +1,5 @@
 function r() : bool {
-    return (bool)rand(0, 1);
+    return rand(0, 1) === 1;
 }
 
 function foo(string $s) : void {

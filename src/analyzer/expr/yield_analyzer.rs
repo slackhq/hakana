@@ -7,12 +7,12 @@ use hakana_code_info::data_flow::graph::GraphKind;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::ttype::add_optional_union_type;
-use oxidized::aast;
-use oxidized::pos::Pos;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
 pub(crate) fn analyze(
     pos: &Pos,
-    field: &aast::Afield<(), ()>,
+    field: &aast::Afield,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,

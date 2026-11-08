@@ -11,14 +11,10 @@ name = "hakana-format"
 path = "main.rs"
 
 [dependencies]
-parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
-positioned_by_ref_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/api/cargo/positioned_by_ref_parser" }
-relative_path = { path = "../../third-party/hhvm/hphp/hack/src/utils/rust/relative_path" }
-bumpalo = "3.20.2"
+hakana-parser = { path = "../parser" }
 regex = "1"
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
-operator = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/operator" }
 hakana-file-discovery = { path = "../file_discovery" }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]

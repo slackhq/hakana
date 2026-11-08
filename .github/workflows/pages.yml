@@ -40,20 +40,10 @@ jobs:
         with:
           submodules: true
 
-      # Initialize submodules and apply patches if needed
       - name: Initialize dependencies
         run: |
-          # Initialize and update submodules
           git submodule init
           git submodule update
-
-          # Apply patch if not already applied
-          cd third-party/hhvm
-          if ! git diff --quiet; then
-            echo "Patch already applied or changes present"
-          else
-            git apply ../../hhvm-patch.diff || echo "Patch may already be applied"
-          fi
 
       # Setup Node.js after dependencies are initialized
       - name: Setup Node.js

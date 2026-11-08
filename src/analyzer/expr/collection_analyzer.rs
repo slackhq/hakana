@@ -15,13 +15,12 @@ use hakana_code_info::{
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::{TUnion, populate_union_type},
 };
+use hakana_parser::aast::Expr;
+use hakana_parser::aast::KvcKind;
+use hakana_parser::aast::Pos;
+use hakana_parser::aast::VcKind;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_str::StrId;
-use oxidized::{
-    ast::Expr,
-    ast::{KvcKind, VcKind},
-    ast_defs::Pos,
-};
 
 use crate::expr::call::arguments_analyzer::can_use_expected_type;
 use crate::expression_analyzer;
@@ -68,13 +67,13 @@ fn get_kvc_object_name(kvc_kind: &KvcKind) -> StrId {
 }
 
 fn resolve_element_type(
-    type_arg: &oxidized::aast::Targ<()>,
+    type_arg: &hakana_parser::aast::Targ,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
 ) -> TUnion {
     let mut ty = get_type_from_hint(
-        &type_arg.1.1,
+        type_arg.1.1,
         context.function_context.calling_class,
         statements_analyzer.get_type_resolution_context(),
         statements_analyzer.file_analyzer.resolved_names,
@@ -109,9 +108,9 @@ fn resolve_element_type(
 
 pub(crate) fn analyze_vals(
     statements_analyzer: &StatementsAnalyzer,
-    vc_kind: &oxidized::ast::VcKind,
-    type_arg: Option<&oxidized::aast::Targ<()>>,
-    items: &[oxidized::ast::Expr],
+    vc_kind: &hakana_parser::aast::VcKind,
+    type_arg: Option<&hakana_parser::aast::Targ>,
+    items: &[hakana_parser::aast::Expr],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -329,9 +328,9 @@ pub(crate) fn analyze_vals(
 
 pub(crate) fn analyze_keyvals(
     statements_analyzer: &StatementsAnalyzer,
-    kvc_kind: &oxidized::ast::KvcKind,
-    type_args: Option<&(oxidized::aast::Targ<()>, oxidized::aast::Targ<()>)>,
-    items: &Vec<oxidized::ast::Field>,
+    kvc_kind: &hakana_parser::aast::KvcKind,
+    type_args: Option<&(hakana_parser::aast::Targ, hakana_parser::aast::Targ)>,
+    items: &[hakana_parser::aast::Field],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -569,11 +568,11 @@ fn analyze_keyvals_item(
     statements_analyzer: &StatementsAnalyzer,
     context: &mut BlockContext,
     array_creation_info: &mut ArrayCreationInfo,
-    item: &oxidized::ast::Field,
+    item: &hakana_parser::aast::Field,
     container_type: &KvcKind,
     analysis_data: &mut FunctionAnalysisData,
 ) -> Result<(), AnalysisError> {
-    let oxidized::ast::Field(key, value) = &item;
+    let hakana_parser::aast::Field(key, value) = &item;
     // Analyze type for key
     expression_analyzer::analyze(statements_analyzer, key, analysis_data, context, true)?;
 
@@ -650,7 +649,7 @@ fn add_array_value_dataflow(
     value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
     key_item_type: &TUnion,
-    value: &oxidized::aast::Expr<(), ()>,
+    value: &hakana_parser::aast::Expr,
     array_creation_info: &mut ArrayCreationInfo,
 ) {
     if value_type.parent_nodes.is_empty()

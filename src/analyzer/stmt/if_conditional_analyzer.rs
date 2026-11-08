@@ -10,7 +10,7 @@ use hakana_code_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
 };
-use oxidized::{aast, ast};
+use hakana_parser::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -22,7 +22,7 @@ use super::if_conditional_scope::IfConditionalScope;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    cond: &aast::Expr<(), ()>,
+    cond: &aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
     outer_context: &BlockContext,
     if_scope: &mut IfScope,
@@ -76,7 +76,10 @@ pub(crate) fn analyze(
         old_outer_context
     };
 
-    if externally_applied_if_cond_expr != internally_applied_if_cond_expr {
+    if !std::ptr::eq(
+        externally_applied_if_cond_expr,
+        internally_applied_if_cond_expr,
+    ) {
         if_body_context = Some(externally_applied_context.clone());
     }
 
@@ -106,8 +109,8 @@ pub(crate) fn analyze(
         analysis_data,
         &mut externally_applied_context,
         is_sub_expression
-            || internally_applied_if_cond_expr != cond
-            || externally_applied_if_cond_expr != cond,
+            || !std::ptr::eq(internally_applied_if_cond_expr, cond)
+            || !std::ptr::eq(externally_applied_if_cond_expr, cond),
     )?;
 
     externally_applied_context.if_body_context = tmp_if_body_context;
@@ -146,7 +149,9 @@ pub(crate) fn analyze(
     let mut cond_referenced_var_ids;
     let assigned_in_conditional_var_ids;
 
-    if internally_applied_if_cond_expr != cond || externally_applied_if_cond_expr != cond {
+    if !std::ptr::eq(internally_applied_if_cond_expr, cond)
+        || !std::ptr::eq(externally_applied_if_cond_expr, cond)
+    {
         if_conditional_context.assigned_var_ids = FxHashMap::default();
         if_conditional_context.cond_referenced_var_ids = FxHashSet::default();
 
@@ -206,7 +211,9 @@ pub(crate) fn analyze(
         .into_inner();
 
     if_body_context.response = if_conditional_context.response;
-    if internally_applied_if_cond_expr != cond || externally_applied_if_cond_expr != cond {
+    if !std::ptr::eq(internally_applied_if_cond_expr, cond)
+        || !std::ptr::eq(externally_applied_if_cond_expr, cond)
+    {
         post_if_context.response = post_if_context
             .response
             .join(if_conditional_context.response);
@@ -223,22 +230,24 @@ pub(crate) fn analyze(
     })
 }
 
-fn get_definitely_evaluated_expression_after_if(stmt: &aast::Expr<(), ()>) -> &aast::Expr<(), ()> {
+fn get_definitely_evaluated_expression_after_if<'a>(
+    stmt: &'a aast::Expr<'a>,
+) -> &'a aast::Expr<'a> {
     match &stmt.2 {
         aast::Expr_::Binop(boxed) => {
             // todo handle <expr> === true
 
-            if let ast::Bop::Ampamp = boxed.bop {
+            if let aast::Bop::Ampamp = boxed.bop {
                 return get_definitely_evaluated_expression_after_if(&boxed.lhs);
             }
 
             return stmt;
         }
         aast::Expr_::Unop(boxed) => {
-            if let ast::Uop::Unot = boxed.0 {
+            if let aast::Uop::Unot = boxed.0 {
                 let inner_expr = get_definitely_evaluated_expression_inside_if(&boxed.1);
 
-                if inner_expr != &boxed.1 {
+                if !std::ptr::eq(inner_expr, &boxed.1) {
                     return inner_expr;
                 }
             }
@@ -249,22 +258,24 @@ fn get_definitely_evaluated_expression_after_if(stmt: &aast::Expr<(), ()>) -> &a
     stmt
 }
 
-fn get_definitely_evaluated_expression_inside_if(stmt: &aast::Expr<(), ()>) -> &aast::Expr<(), ()> {
+fn get_definitely_evaluated_expression_inside_if<'a>(
+    stmt: &'a aast::Expr<'a>,
+) -> &'a aast::Expr<'a> {
     match &stmt.2 {
         aast::Expr_::Binop(boxed) => {
             // todo handle <expr> === true
 
-            if let ast::Bop::Barbar = boxed.bop {
+            if let aast::Bop::Barbar = boxed.bop {
                 return get_definitely_evaluated_expression_inside_if(&boxed.lhs);
             }
 
             return stmt;
         }
         aast::Expr_::Unop(boxed) => {
-            if let ast::Uop::Unot = boxed.0 {
+            if let aast::Uop::Unot = boxed.0 {
                 let inner_expr = get_definitely_evaluated_expression_after_if(&boxed.1);
 
-                if inner_expr != &boxed.1 {
+                if !std::ptr::eq(inner_expr, &boxed.1) {
                     return inner_expr;
                 }
             }
@@ -277,7 +288,7 @@ fn get_definitely_evaluated_expression_inside_if(stmt: &aast::Expr<(), ()>) -> &
 
 pub(crate) fn add_branch_dataflow(
     statements_analyzer: &StatementsAnalyzer,
-    cond: &aast::Expr<(), ()>,
+    cond: &aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
 ) {
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
@@ -312,7 +323,7 @@ pub(crate) fn add_branch_dataflow(
 pub(crate) fn handle_paradoxical_condition(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     context: &BlockContext,
 ) {
     let pos = expr.pos();

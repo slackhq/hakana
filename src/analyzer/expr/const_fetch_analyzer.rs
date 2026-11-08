@@ -16,7 +16,7 @@ use crate::scope::BlockContext;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
-use oxidized::ast_defs;
+use hakana_parser::aast;
 
 use crate::statements_analyzer::StatementsAnalyzer;
 
@@ -42,7 +42,7 @@ pub(crate) fn is_newtype_outside_defining_file(
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    boxed: &ast_defs::Id,
+    boxed: &aast::Id,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
 ) -> Result<(), AnalysisError> {

@@ -7,12 +7,9 @@ use hakana_code_info::ttype::combine_union_types;
 
 use hakana_code_info::ttype::combine_optional_union_types;
 use hakana_code_info::var_name::VarName;
-use oxidized::aast;
-use oxidized::aast::CallExpr;
-use oxidized::ast::Binop;
-use oxidized::file_pos::FilePos;
-use oxidized::pos_span_raw::PosSpanRaw;
-use relative_path::RelativePath;
+use hakana_parser::aast;
+use hakana_parser::aast::Binop;
+use hakana_parser::aast::CallExpr;
 
 use crate::scope::CaseScope;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -21,7 +18,6 @@ use crate::stmt_analyzer::AnalysisError;
 use rustc_hash::FxHashMap;
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use crate::reconciler;
 
@@ -33,8 +29,6 @@ use crate::formula_generator;
 
 use super::control_analyzer::BreakContext;
 use super::if_conditional_analyzer::add_branch_dataflow;
-
-use oxidized::ast_defs;
 
 use hakana_code_info::ttype::get_mixed_any;
 
@@ -52,31 +46,32 @@ use crate::scope::BlockContext;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 
-use oxidized::aast::Pos;
+use hakana_parser::aast::Pos;
 
 use crate::statements_analyzer::StatementsAnalyzer;
 
-pub(crate) fn analyze_case(
-    statements_analyzer: &StatementsAnalyzer,
+pub(crate) fn analyze_case<'ast>(
+    statements_analyzer: &StatementsAnalyzer<'ast>,
     stmt: (
-        &aast::Expr<(), ()>,
-        &Vec<aast::Case<(), ()>>,
-        &Option<aast::DefaultCase<(), ()>>,
+        &aast::Expr<'ast>,
+        &[aast::Case<'ast>],
+        &Option<aast::DefaultCase<'ast>>,
     ),
-    switch_condition: &aast::Expr<(), ()>,
+    switch_condition: &aast::Expr<'ast>,
     condition_is_fake: bool,
     switch_var_id: &VarName,
-    case_cond: Option<&aast::Expr<(), ()>>,
+    case_cond: Option<&aast::Expr<'ast>>,
     case_pos: &Pos,
-    case_stmts: Vec<aast::Stmt<(), ()>>,
-    previous_empty_cases: &Vec<&aast::Case<(), ()>>,
+    case_stmts: Vec<aast::Stmt<'ast>>,
+    previous_empty_cases: &Vec<&aast::Case<'ast>>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     original_context: &BlockContext,
     is_last: bool,
-    switch_scope: &mut SwitchScope,
+    switch_scope: &mut SwitchScope<'ast>,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<ControlAction, AnalysisError> {
+    let arena = statements_analyzer.arena();
     let mut case_context = original_context.clone();
 
     let mut old_node_data = analysis_data.expr_types.clone();
@@ -117,62 +112,52 @@ pub(crate) fn analyze_case(
             let mut case_conds = previous_empty_cases
                 .clone()
                 .into_iter()
-                .map(|c| c.0.clone())
+                .map(|c| c.0)
                 .collect::<Vec<_>>();
-            case_conds.push(case_cond.clone());
+            case_conds.push(*case_cond);
             aast::Expr(
                 (),
-                case_cond.pos().clone(),
-                aast::Expr_::Call(Box::new(CallExpr {
+                *case_cond.pos(),
+                aast::Expr_::Call(&*arena.alloc(CallExpr {
                     func: aast::Expr(
                         (),
-                        case_cond.pos().clone(),
-                        aast::Expr_::Id(Box::new(oxidized::ast_defs::Id(
-                            case_cond.pos().clone(),
-                            "\\in_array".to_string(),
-                        ))),
+                        *case_cond.pos(),
+                        aast::Expr_::Id(
+                            &*arena.alloc(hakana_parser::aast::Id(*case_cond.pos(), "\\in_array")),
+                        ),
                     ),
-                    targs: vec![],
-                    args: vec![
-                        aast::Argument::Anormal(switch_condition.clone()),
+                    targs: &[],
+                    args: &*arena.alloc([
+                        aast::Argument::Anormal(*switch_condition),
                         aast::Argument::Anormal(aast::Expr(
                             (),
-                            case_cond.pos().clone(),
-                            aast::Expr_::ValCollection(Box::new((
-                                (case_cond.pos().clone(), oxidized::ast::VcKind::Vec),
+                            *case_cond.pos(),
+                            aast::Expr_::ValCollection(&*arena.alloc((
+                                (*case_cond.pos(), hakana_parser::aast::VcKind::Vec),
                                 None,
-                                case_conds,
+                                &*arena.alloc_slice_copy(&case_conds),
                             ))),
                         )),
-                    ],
+                    ]),
                     unpacked_arg: None,
                 })),
             )
         } else if switch_cond_type.is_true() {
-            case_cond.clone()
+            *case_cond
         } else {
-            let adjusted_pos = case_cond.pos().to_raw_span();
-            let adjusted_pos = Pos::from_lnum_bol_offset(
-                Arc::new(RelativePath::EMPTY),
-                (
-                    adjusted_pos.start.line() as usize,
-                    adjusted_pos.start.beg_of_line() as usize,
-                    adjusted_pos.start.offset() as usize - 1,
-                ),
-                (
-                    adjusted_pos.end.line() as usize,
-                    adjusted_pos.end.beg_of_line() as usize,
-                    adjusted_pos.end.offset() as usize,
-                ),
+            // Starts one byte before the case expression.
+            let adjusted_pos = Pos::new(
+                case_cond.pos().start_offset() as u32 - 1,
+                case_cond.pos().end_offset() as u32,
             );
 
             aast::Expr(
                 (),
                 adjusted_pos,
-                aast::Expr_::Binop(Box::new(Binop {
-                    bop: ast_defs::Bop::Eqeqeq,
-                    lhs: switch_condition.clone(),
-                    rhs: case_cond.clone(),
+                aast::Expr_::Binop(&*arena.alloc(Binop {
+                    bop: aast::Bop::Eqeqeq,
+                    lhs: *switch_condition,
+                    rhs: *case_cond,
                 })),
             )
         });
@@ -184,7 +169,7 @@ pub(crate) fn analyze_case(
 
     let case_stmts = leftover_statements;
 
-    if (case_stmts.is_empty() || case_stmts.last().unwrap().1 == aast::Stmt_::Fallthrough)
+    if (case_stmts.is_empty() || matches!(case_stmts.last().unwrap().1, aast::Stmt_::Fallthrough))
         && !is_last
     {
         // this is safe for non-defaults, and defaults are always last
@@ -193,21 +178,12 @@ pub(crate) fn analyze_case(
 
         switch_scope.leftover_case_equality_expr = Some(
             if let Some(leftover_case_equality_expr) = &switch_scope.leftover_case_equality_expr {
-                let new_pos_start = leftover_case_equality_expr.1.to_raw_span().start;
-                let new_pos_end = case_cond.pos().to_raw_span().end;
-
                 aast::Expr(
                     (),
-                    Pos::from_raw_span(
-                        Arc::new(RelativePath::EMPTY),
-                        PosSpanRaw {
-                            start: new_pos_start,
-                            end: new_pos_end,
-                        },
-                    ),
-                    aast::Expr_::Binop(Box::new(Binop {
-                        bop: ast_defs::Bop::Barbar,
-                        lhs: leftover_case_equality_expr.clone(),
+                    Pos::btw(&leftover_case_equality_expr.1, case_cond.pos()),
+                    aast::Expr_::Binop(&*arena.alloc(Binop {
+                        bop: aast::Bop::Barbar,
+                        lhs: *leftover_case_equality_expr,
                         rhs: case_equality_expression,
                     })),
                 )
@@ -217,11 +193,11 @@ pub(crate) fn analyze_case(
         );
 
         switch_scope.leftover_statements = vec![aast::Stmt(
-            stmt.0.1.clone(),
-            aast::Stmt_::If(Box::new((
-                switch_scope.leftover_case_equality_expr.clone().unwrap(),
-                aast::Block(case_stmts),
-                aast::Block(vec![]),
+            stmt.0.1,
+            aast::Stmt_::If(&*arena.alloc((
+                switch_scope.leftover_case_equality_expr.unwrap(),
+                aast::Block(&*arena.alloc_slice_copy(&case_stmts)),
+                aast::Block(&[]),
             ))),
         )];
 
@@ -234,6 +210,7 @@ pub(crate) fn analyze_case(
 
     if let Some(leftover_case_equality_expr) = &switch_scope.leftover_case_equality_expr {
         case_equality_expr = expand_case_equality_from_leftovers(
+            arena,
             switch_condition,
             case_equality_expr,
             leftover_case_equality_expr,
@@ -421,7 +398,7 @@ fn extend_switch_negated_clauses(
     switch_scope: &mut SwitchScope,
     assertion_context: &formula_generator::AssertionContext<'_>,
     case_clauses_for_negation: Vec<Clause>,
-    case_equality_expr: &aast::Expr<(), ()>,
+    case_equality_expr: &aast::Expr,
 ) {
     let negated_case_clauses = hakana_algebra::negate_formula(case_clauses_for_negation)
         .unwrap_or_else(|_| {
@@ -435,8 +412,8 @@ fn extend_switch_negated_clauses(
                 case_equality_expr_id,
                 &aast::Expr(
                     (),
-                    case_equality_expr.pos().clone(),
-                    aast::Expr_::Unop(Box::new((ast_defs::Uop::Unot, case_equality_expr.clone()))),
+                    *case_equality_expr.pos(),
+                    aast::Expr_::Unop(&(aast::Uop::Unot, *case_equality_expr)),
                 ),
                 assertion_context,
                 analysis_data,
@@ -451,12 +428,12 @@ fn extend_switch_negated_clauses(
 
 fn get_new_clauses(
     statements_analyzer: &StatementsAnalyzer<'_>,
-    case_cond: Option<&aast::Expr<(), ()>>,
+    case_cond: Option<&aast::Expr>,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
     original_context: &BlockContext,
     switch_scope: &SwitchScope,
-    case_equality_expr: &Option<aast::Expr<(), ()>>,
+    case_equality_expr: &Option<aast::Expr>,
     assertion_context: &formula_generator::AssertionContext<'_>,
 ) -> (Vec<Clause>, Vec<Rc<Clause>>) {
     let case_clauses = if let Some(case_equality_expr) = case_equality_expr {
@@ -529,28 +506,29 @@ fn get_new_clauses(
     (case_clauses, case_context_clauses)
 }
 
-fn expand_case_equality_from_leftovers(
-    switch_condition: &aast::Expr<(), ()>,
-    case_equality_expr: Option<aast::Expr<(), ()>>,
-    leftover_case_equality_expr: &aast::Expr<(), ()>,
-) -> Option<aast::Expr<(), ()>> {
+fn expand_case_equality_from_leftovers<'ast>(
+    arena: &'ast hakana_parser::Bump,
+    switch_condition: &aast::Expr<'ast>,
+    case_equality_expr: Option<aast::Expr<'ast>>,
+    leftover_case_equality_expr: &aast::Expr<'ast>,
+) -> Option<aast::Expr<'ast>> {
     let case_or_default_equality_expr = case_equality_expr.unwrap_or(aast::Expr(
         (),
-        switch_condition.pos().clone(),
-        aast::Expr_::Binop(Box::new(Binop {
-            bop: ast_defs::Bop::Eqeqeq,
-            lhs: switch_condition.clone(),
-            rhs: switch_condition.clone(),
+        *switch_condition.pos(),
+        aast::Expr_::Binop(&*arena.alloc(Binop {
+            bop: aast::Bop::Eqeqeq,
+            lhs: *switch_condition,
+            rhs: *switch_condition,
         })),
     ));
 
     Some(aast::Expr(
         (),
-        case_or_default_equality_expr.pos().clone(),
-        aast::Expr_::Binop(Box::new(Binop {
-            bop: ast_defs::Bop::Barbar,
-            lhs: leftover_case_equality_expr.clone(),
-            rhs: case_or_default_equality_expr.clone(),
+        *case_or_default_equality_expr.pos(),
+        aast::Expr_::Binop(&*arena.alloc(Binop {
+            bop: aast::Bop::Barbar,
+            lhs: *leftover_case_equality_expr,
+            rhs: case_or_default_equality_expr,
         })),
     ))
 }

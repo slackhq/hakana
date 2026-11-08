@@ -47,10 +47,10 @@ use hakana_code_info::ttype::{
     deep_generalize_template_bound, get_arrayish_params, get_arraykey, get_int, get_mixed_any,
     get_nothing, wrap_atomic,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
-use oxidized::aast;
-use oxidized::pos::Pos;
 
 use super::argument_analyzer::{self, get_removed_taints_in_comments};
 use super::method_call_info::MethodCallInfo;
@@ -59,9 +59,9 @@ use hakana_code_info::ttype::type_variable;
 
 pub(crate) fn check_arguments_match(
     statements_analyzer: &StatementsAnalyzer,
-    type_args: &[aast::Targ<()>],
-    args: &[aast::Argument<(), ()>],
-    unpacked_arg: &Option<aast::Expr<(), ()>>,
+    type_args: &[aast::Targ],
+    args: &[aast::Argument],
+    unpacked_arg: &Option<aast::Expr>,
     functionlike_id: &FunctionLikeIdentifier,
     functionlike_info: &FunctionLikeInfo,
     contextual_return_type: Option<&TUnion>,
@@ -95,7 +95,7 @@ pub(crate) fn check_arguments_match(
     if !type_args.is_empty() {
         for (i, type_arg) in type_args.iter().enumerate() {
             let mut param_type = get_type_from_hint(
-                &type_arg.1.1,
+                type_arg.1.1,
                 context.function_context.calling_class,
                 statements_analyzer.get_type_resolution_context(),
                 statements_analyzer.file_analyzer.resolved_names,
@@ -171,7 +171,7 @@ pub(crate) fn check_arguments_match(
                                 template_result
                                     .lower_bounds
                                     .entry(*foreign_template_id)
-                                    .or_insert_with(FxHashMap::default)
+                                    .or_default()
                                     .insert(
                                         GenericParent::ClassLike(declaring_method_id.0),
                                         vec![TemplateBound::new((**type_).clone(), 0, None, None)],
@@ -823,16 +823,22 @@ pub(crate) fn check_arguments_match(
                 if statements_analyzer.get_config().add_fixmes
                     && let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset
                 {
-                    if current_stmt_offset.line != arg.as_ainout().unwrap().0.line() as u32 {
+                    if current_stmt_offset.line
+                        != arg.as_ainout().unwrap().0.line(statements_analyzer.lines()) as u32
+                    {
                         if !matches!(arg_expr.2, aast::Expr_::Xml(..)) {
                             *current_stmt_offset = StmtStart {
                                 offset: inout_token_pos.start_offset() as u32,
-                                line: inout_token_pos.line() as u32,
-                                column: inout_token_pos.to_raw_span().start.column() as u16,
+                                line: inout_token_pos.line(statements_analyzer.lines()) as u32,
+                                column: inout_token_pos
+                                    .to_raw_span(statements_analyzer.lines())
+                                    .start
+                                    .column() as u16,
                                 add_newline: true,
                             };
                         } else {
-                            current_stmt_offset.line = inout_token_pos.line() as u32;
+                            current_stmt_offset.line =
+                                inout_token_pos.line(statements_analyzer.lines()) as u32;
                         }
                     }
 
@@ -1006,7 +1012,7 @@ pub(crate) fn check_arguments_match(
             last_param,
             &last_param_type.unwrap(),
             args.len(),
-            &aast::Argument::Anormal(unpacked_arg.clone()),
+            &aast::Argument::Anormal(*unpacked_arg),
             true,
             arg_value_type,
             context,
@@ -1044,7 +1050,7 @@ fn constrain_membership_templates(
     statements_analyzer: &StatementsAnalyzer,
     functionlike_id: &FunctionLikeIdentifier,
     params: &[FunctionLikeParameter],
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
     analysis_data: &FunctionAnalysisData,
     template_result: &mut TemplateResult,
 ) {
@@ -1166,16 +1172,16 @@ fn constrain_membership_templates(
 
 /// Whether an expression can use the type its parent expects of it: a call, which
 /// can solve its templates from it, or a wrapper that passes it to its contents.
-pub(crate) fn can_use_expected_type(expr: &aast::Expr<(), ()>) -> bool {
+pub(crate) fn can_use_expected_type(expr: &aast::Expr) -> bool {
     match &expr.2 {
         aast::Expr_::Call(_) | aast::Expr_::Await(_) => true,
-        aast::Expr_::ValCollection(boxed) => matches!(boxed.0.1, oxidized::ast::VcKind::Vec),
+        aast::Expr_::ValCollection(boxed) => matches!(boxed.0.1, hakana_parser::aast::VcKind::Vec),
         _ => false,
     }
 }
 
 fn get_splat_argument_type(
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
     argument_offset: usize,
     analysis_data: &FunctionAnalysisData,
 ) -> TUnion {
@@ -1203,7 +1209,7 @@ fn get_splat_argument_type(
 fn get_param_offset_for_arg(
     statements_analyzer: &StatementsAnalyzer,
     functionlike_params: &[FunctionLikeParameter],
-    arg: &aast::Argument<(), ()>,
+    arg: &aast::Argument,
     argument_offset: usize,
 ) -> Option<usize> {
     if let aast::Argument::Anamed(sid, _) = arg {
@@ -1211,7 +1217,7 @@ fn get_param_offset_for_arg(
         return functionlike_params.iter().position(|p| {
             let param_name = statements_analyzer.interner.lookup(&p.name.0);
             let clean_name = param_name.strip_prefix('$').unwrap_or(param_name);
-            clean_name == arg_name
+            clean_name == *arg_name
         });
     }
 
@@ -1405,7 +1411,7 @@ fn adjust_param_type(
                 template_result
                     .upper_bounds
                     .entry(param_name)
-                    .or_insert_with(FxHashMap::default)
+                    .or_default()
                     .insert(
                         defining_entity,
                         TemplateBound::new(bound_type, 0, None, None),
@@ -1475,8 +1481,8 @@ fn handle_closure_arg(
     context: &mut BlockContext,
     functionlike_id: &FunctionLikeIdentifier,
     template_result: &mut TemplateResult,
-    args: &[aast::Argument<(), ()>],
-    closure_expr: &aast::Expr<(), ()>,
+    args: &[aast::Argument],
+    closure_expr: &aast::Expr,
     param_type: &TUnion,
     argument_offset: usize,
 ) -> Option<TUnion> {
@@ -1643,7 +1649,7 @@ fn handle_closure_arg(
 
     analysis_data
         .closures
-        .insert(closure_expr.pos().clone(), closure_storage);
+        .insert(*closure_expr.pos(), closure_storage);
 
     params_changed.then_some(replaced_type)
 }
@@ -1715,7 +1721,7 @@ fn map_class_generic_params(
 
 pub(crate) fn evaluate_arbitrary_param(
     statements_analyzer: &StatementsAnalyzer,
-    arg: &aast::Argument<(), ()>,
+    arg: &aast::Argument,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
@@ -1781,10 +1787,10 @@ fn handle_possibly_matching_inout_param(
     analysis_data: &mut FunctionAnalysisData,
     functionlike_param: &FunctionLikeParameter,
     functionlike_id: &FunctionLikeIdentifier,
-    all_args: &[aast::Argument<(), ()>],
+    all_args: &[aast::Argument],
     argument_offset: usize,
     inout_token_pos: &Pos,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     context: &mut BlockContext,
@@ -2071,34 +2077,28 @@ pub(crate) fn get_template_types_for_class_member(
                             type_.clone()
                         };
 
-                        template_types
-                            .entry(*template_name)
-                            .or_insert_with(Vec::new)
-                            .push((
-                                GenericParent::ClassLike(declaring_classlike_storage.name),
-                                output_type,
-                            ));
+                        template_types.entry(*template_name).or_default().push((
+                            GenericParent::ClassLike(declaring_classlike_storage.name),
+                            output_type,
+                        ));
                     }
                 }
             }
         } else if !declaring_classlike_storage.template_types.is_empty() {
             for (template_name, type_map) in &declaring_classlike_storage.template_types {
                 for (key, type_) in type_map {
-                    template_types
-                        .entry(*template_name)
-                        .or_insert_with(Vec::new)
-                        .push((
-                            *key,
-                            class_template_params
-                                .get(template_name)
-                                .unwrap_or(&vec![])
-                                .iter()
-                                .filter(|(k, _)| k == key)
-                                .map(|(_, v)| v)
-                                .next()
-                                .cloned()
-                                .unwrap_or(type_.clone()),
-                        ));
+                    template_types.entry(*template_name).or_default().push((
+                        *key,
+                        class_template_params
+                            .get(template_name)
+                            .unwrap_or(&vec![])
+                            .iter()
+                            .filter(|(k, _)| k == key)
+                            .map(|(_, v)| v)
+                            .next()
+                            .cloned()
+                            .unwrap_or(type_.clone()),
+                    ));
                 }
             }
         }
@@ -2158,7 +2158,7 @@ pub(crate) fn get_template_types_for_class_member(
 /// - MissingRequiredNamedArgument: when a required named parameter wasn't provided
 fn check_named_arguments(
     statements_analyzer: &StatementsAnalyzer,
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
     function_params: &[FunctionLikeParameter],
     _functionlike_id: &FunctionLikeIdentifier,
     analysis_data: &mut FunctionAnalysisData,
@@ -2186,10 +2186,10 @@ fn check_named_arguments(
     // Check each argument
     for arg in args {
         if let aast::Argument::Anamed(sid, _expr) = arg {
-            let arg_name = &sid.1;
+            let arg_name = sid.1;
 
             // Check if this named argument matches a parameter
-            if !param_names.contains_key(arg_name.as_str()) {
+            if !param_names.contains_key(arg_name) {
                 // Unexpected named argument
                 analysis_data.maybe_add_issue(
                     Issue::new(
@@ -2202,7 +2202,7 @@ fn check_named_arguments(
                     statements_analyzer.get_file_path_actual(),
                 );
             } else {
-                provided_named_params.insert(arg_name.clone(), true);
+                provided_named_params.insert(arg_name.to_string(), true);
             }
         }
     }

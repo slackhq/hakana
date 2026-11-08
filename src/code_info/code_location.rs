@@ -1,4 +1,4 @@
-use oxidized::ast::Pos;
+use hakana_parser::aast::{CommentPos, LineIndex, Pos};
 use serde::{Deserialize, Serialize};
 
 use hakana_str::{Interner, StrId};
@@ -42,8 +42,21 @@ pub struct HPos {
 }
 
 impl HPos {
-    pub fn new(pos: &Pos, file_path: FilePath) -> HPos {
-        let (start, end) = pos.to_start_and_end_lnum_bol_offset();
+    /// The position `pos` of the file at `file_path`, whose line table is
+    /// `lines`, in the form issues and references are reported in.
+    pub fn new(pos: &Pos, file_path: FilePath, lines: &LineIndex) -> HPos {
+        Self::from_ends(pos.to_start_and_end_lnum_bol_offset(lines), file_path)
+    }
+
+    /// The position of a comment.
+    pub fn from_comment(pos: &CommentPos, file_path: FilePath) -> HPos {
+        Self::from_ends(pos.to_start_and_end_lnum_bol_offset(), file_path)
+    }
+
+    fn from_ends(
+        (start, end): ((usize, usize, usize), (usize, usize, usize)),
+        file_path: FilePath,
+    ) -> HPos {
         let (start_line, line_start_beginning_offset, start_offset) = start;
         let (end_line, line_end_beginning_offset, end_offset) = end;
 

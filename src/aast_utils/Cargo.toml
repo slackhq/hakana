@@ -7,13 +7,9 @@ edition = "2024"
 path = "lib.rs"
 
 [dependencies]
-parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
-oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
-relative_path = { path = "../../third-party/hhvm/hphp/hack/src/utils/rust/relative_path" }
-naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/naming" }
-aast_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/aast_parser" }
-ocamlrep = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
 hakana-code-info = { path = "../code_info" }
+hakana-parser = { path = "../parser" }
+bumpalo = { version = "3.11" }
 hakana-str = { path = "../str" }
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3.3"

@@ -7,7 +7,7 @@ use hakana_code_info::{
     functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
 };
-use oxidized::ast::Pos;
+use hakana_parser::aast::Pos;
 use rustc_hash::FxHashSet;
 
 use crate::{
@@ -23,7 +23,7 @@ pub(crate) fn check_for_paradox(
     pos: &Pos,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
 ) {
-    let negated_formula_2 = hakana_algebra::negate_formula(formula_2.clone());
+    let negated_formula_2 = hakana_algebra::negate_formula(formula_2.to_vec());
 
     if negated_formula_2.is_err() {
         return;

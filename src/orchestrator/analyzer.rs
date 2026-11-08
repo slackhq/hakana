@@ -12,8 +12,6 @@ use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_str::{Interner, StrId};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::debug;
-use oxidized::aast;
-use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -194,8 +192,17 @@ fn analyze_file(
         }
     }
 
-    let aast = match get_aast_for_path(file_path, str_path) {
-        Ok(aast) => (aast.0, aast.1),
+    let arena = hakana_aast_helper::FileArena::new();
+    let parsed = match get_aast_for_path(&arena, file_path, str_path) {
+        Ok(parsed) => {
+            if parsed.has_syntax_error {
+                // The scan already recorded the error, and the salvaged tree
+                // has no function bodies to analyse.
+                analysis_result.has_invalid_hack_files = true;
+                return Duration::default();
+            }
+            parsed
+        }
         Err(err) => {
             analysis_result.has_invalid_hack_files = true;
             analysis_result.emitted_issues.insert(
@@ -244,7 +251,8 @@ fn analyze_file(
     analyze_loaded_ast(
         str_path,
         file_path,
-        &aast,
+        &parsed,
+        &arena,
         resolved_names,
         codebase,
         interner,
@@ -255,45 +263,31 @@ fn analyze_file(
     analyzed_files_now.elapsed()
 }
 
-fn analyze_loaded_ast(
-    str_path: &String,
+fn analyze_loaded_ast<'a>(
+    str_path: &str,
     file_path: FilePath,
-    aast: &(aast::Program<(), ()>, ScouredComments),
-    resolved_names: &FxHashMap<u32, StrId>,
-    codebase: &CodebaseInfo,
-    interner: &Interner,
-    config: &Arc<Config>,
+    parsed: &'a crate::ParsedFile<'a>,
+    arena: &'a hakana_aast_helper::Bump,
+    resolved_names: &'a FxHashMap<u32, StrId>,
+    codebase: &'a CodebaseInfo,
+    interner: &'a Interner,
+    config: &'a Arc<Config>,
     analysis_result: &mut AnalysisResult,
 ) {
     let file_source = FileSource {
         is_production_code: true,
-        file_path_actual: str_path.clone(),
+        file_path_actual: str_path.to_owned(),
         file_path,
-        hh_fixmes: &aast.1.fixmes,
-        comments: &aast.1.comments,
-        file_contents: if !config.migration_symbols.is_empty()
-            || !config.issues_to_fix.is_empty()
-            || (matches!(
-                config.graph_kind,
-                hakana_code_info::data_flow::graph::GraphKind::WholeProgram(_)
-            ) && aast.1.comments.iter().any(|(_, comment)| {
-                matches!(
-                    comment, oxidized::prim_defs::Comment::CmtBlock(text)
-                    if text.trim_start().starts_with("HAKANA_SECURITY_IGNORE[")
-                )
-            })) {
-            match fs::read_to_string(str_path) {
-                Ok(str_file) => str_file,
-                Err(_) => panic!("Could not read {}", str_path),
-            }
-        } else {
-            "".to_string()
-        },
+        hh_fixmes: &parsed.comments.fixmes,
+        comments: &parsed.comments.comments,
+        file_contents: parsed.file_contents,
+        line_index: &parsed.lines,
+        arena,
     };
     let mut file_analyzer =
         file_analyzer::FileAnalyzer::new(file_source, resolved_names, codebase, interner, config);
 
-    match file_analyzer.analyze(&aast.0, analysis_result) {
+    match file_analyzer.analyze(&parsed.program, analysis_result) {
         Ok(()) => {}
         Err(err) => {
             analysis_result.has_invalid_hack_files = true;

@@ -16,17 +16,16 @@ use hakana_code_info::ttype::{
     wrap_atomic,
 };
 use hakana_code_info::{t_atomic::TAtomic, t_union::TUnion};
+use hakana_parser::aast;
+use hakana_parser::aast::ClassId;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
 use indexmap::IndexMap;
-use oxidized::{
-    aast::{self, ClassId},
-    ast_defs::Pos,
-};
 use rustc_hash::FxHashSet;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ClassId<(), ()>, (&Pos, &String)),
+    expr: (&ClassId, (&Pos, &str)),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -209,7 +208,7 @@ fn analyse_known_class_constant(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     classlike_name: &StrId,
-    const_name: &String,
+    const_name: &str,
     is_this: bool,
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,

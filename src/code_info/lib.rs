@@ -37,18 +37,24 @@ pub mod var_name;
 use std::collections::BTreeMap;
 
 use code_location::{FilePath, HPos};
+use hakana_parser::aast::Comment;
+use hakana_parser::aast::CommentPos;
+use hakana_parser::aast::Pos;
 use hakana_str::{Interner, StrId};
-use oxidized::{pos::Pos, prim_defs::Comment};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub struct FileSource<'a> {
     pub file_path: FilePath,
     pub file_path_actual: String,
-    pub file_contents: String,
+    pub file_contents: &'a str,
+    /// The arena the file's tree lives in; nodes built during analysis go here too.
+    pub arena: &'a hakana_parser::Bump,
     pub is_production_code: bool,
     pub hh_fixmes: &'a BTreeMap<isize, BTreeMap<isize, Pos>>,
-    pub comments: &'a Vec<(Pos, Comment)>,
+    pub comments: &'a Vec<(CommentPos, Comment)>,
+    /// The file's line table: turns the tree's positions into lines and columns.
+    pub line_index: &'a hakana_parser::aast::LineIndex,
 }
 
 pub const EFFECT_PURE: u8 = 0b00000000;

@@ -8,13 +8,13 @@ use hakana_code_info::EFFECT_IMPURE;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::{extend_dataflow_uniquely, get_mixed_any, wrap_atomic};
-use oxidized::aast;
+use hakana_parser::aast;
 use std::rc::Rc;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: &aast::Expr<(), ()>,
-    boxed: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
+    boxed: &aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {

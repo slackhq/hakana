@@ -9,12 +9,13 @@ use hakana_code_info::data_flow::node::{DataFlowNode, VariableSourceKind};
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::var_name::VarName;
 use hakana_code_info::{EFFECT_IMPURE, EFFECT_PURE, VarId};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{aast, aast_defs, ast_defs::Pos};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&aast_defs::Lid, &aast::Expr<(), ()>, &aast::Expr<(), ()>),
+    expr: (&aast::Lid, &aast::Expr, &aast::Expr),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,

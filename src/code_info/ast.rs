@@ -4,14 +4,14 @@ use rustc_hash::FxHashMap;
 use crate::codebase_info::CodebaseInfo;
 
 pub fn get_id_name(
-    id: &oxidized::ast_defs::Id,
+    id: &hakana_parser::aast::Id,
     calling_class: &Option<StrId>,
     calling_class_final: bool,
     codebase: &CodebaseInfo,
     is_static: &mut bool,
     resolved_names: &FxHashMap<u32, StrId>,
 ) -> Option<StrId> {
-    Some(match id.1.as_str() {
+    Some(match id.1 {
         "self" => {
             let self_name = if let Some(calling_class) = calling_class {
                 calling_class

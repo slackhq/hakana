@@ -1,8 +1,9 @@
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::symbol_references::CallUsage;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{aast, ast_defs::Pos};
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope::BlockContext,
@@ -14,7 +15,7 @@ use super::expression_identifier::get_static_functionlike_id_from_call;
 /// Mark only the result being discarded, not argument/receiver expressions.
 /// Await and join consume a wait handle but do not consume its resulting value.
 pub(crate) fn mark_discarded(
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     sa: &StatementsAnalyzer,
     data: &mut FunctionAnalysisData,
 ) {
@@ -127,7 +128,7 @@ pub(crate) fn record_call(
     context: &BlockContext,
     callee: &FunctionLikeIdentifier,
     info: &FunctionLikeInfo,
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
     has_unpack: bool,
     pos: &Pos,
 ) {

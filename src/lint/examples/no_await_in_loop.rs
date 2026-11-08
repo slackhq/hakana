@@ -4,12 +4,12 @@
 //! a linter using the Hakana lint framework.
 
 use crate::{LintContext, LintError, Linter, Severity, SyntaxVisitor};
-use parser_core_types::lexable_token::LexableToken;
-use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
-use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
-use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
-use parser_core_types::syntax_by_ref::syntax_variant_generated::*;
-use parser_core_types::token_kind::TokenKind;
+use hakana_syntax::lexable_token::LexableToken;
+use hakana_syntax::syntax_by_ref::positioned_syntax::PositionedSyntax;
+use hakana_syntax::syntax_by_ref::positioned_token::PositionedToken;
+use hakana_syntax::syntax_by_ref::positioned_value::PositionedValue;
+use hakana_syntax::syntax_by_ref::syntax_variant_generated::*;
+use hakana_syntax::token_kind::TokenKind;
 use std::cell::RefCell;
 
 pub struct NoAwaitInLoopLinter;

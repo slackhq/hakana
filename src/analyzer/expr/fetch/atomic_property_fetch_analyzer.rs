@@ -20,14 +20,15 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_parser::aast::Expr;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
 use indexmap::IndexMap;
-use oxidized::{aast::Expr, ast_defs::Pos};
 use rustc_hash::FxHashMap;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&Expr<(), ()>, &Expr<(), ()>),
+    expr: (&Expr, &Expr),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -370,7 +371,7 @@ fn update_template_types(
                 if i == (param_offset as i32) {
                     template_types
                         .entry(*calling_param_name)
-                        .or_insert_with(FxHashMap::default)
+                        .or_default()
                         .insert(GenericParent::ClassLike(property_class_storage.name), {
                             let mut lhs_param_type = lhs_param_type.clone();
 

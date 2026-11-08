@@ -23,9 +23,10 @@ use hakana_code_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
 use indexmap::IndexMap;
-use oxidized::{aast, ast_defs::Pos};
 use rustc_hash::FxHashMap;
 
 use crate::expr::fetch::array_fetch_analyzer::{
@@ -50,12 +51,8 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     mut classlike_name: StrId,
     method_name: &StrId,
-    lhs_expr: Option<&aast::Expr<(), ()>>,
-    call_expr: (
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
-    ),
+    lhs_expr: Option<&aast::Expr>,
+    call_expr: (&[aast::Targ], &[aast::Argument], &Option<aast::Expr>),
     lhs_type_part: &TAtomic,
     pos: &Pos,
     method_name_pos: Option<&Pos>,
@@ -429,9 +426,9 @@ pub(crate) fn analyze(
 fn handle_shapes_static_method(
     method_id: &MethodIdentifier,
     call_expr: (
-        &Vec<oxidized::aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<oxidized::aast::Expr<(), ()>>,
+        &[hakana_parser::aast::Targ],
+        &[aast::Argument],
+        &Option<hakana_parser::aast::Expr>,
     ),
     context: &mut BlockContext,
     statements_analyzer: &StatementsAnalyzer,
@@ -781,11 +778,7 @@ fn handle_shapes_static_method(
 }
 
 fn handle_defined_shape_idx(
-    call_expr: (
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
-    ),
+    call_expr: (&[aast::Targ], &[aast::Argument], &Option<aast::Expr>),
     context: &mut BlockContext,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,

@@ -8,12 +8,11 @@ use hakana_code_info::var_name::VarName;
 use hakana_code_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Bop;
+use hakana_parser::aast::Uop;
 use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
-use oxidized::{
-    aast,
-    ast::{Bop, Uop},
-};
 use rustc_hash::FxHashMap;
 
 use crate::config::Config;
@@ -32,7 +31,7 @@ pub(crate) struct AssertionContext<'a> {
 pub(crate) fn get_formula(
     conditional_object_id: (u32, u32),
     creating_object_id: (u32, u32),
-    conditional: &aast::Expr<(), ()>,
+    conditional: &aast::Expr,
     assertion_context: &AssertionContext,
     analysis_data: &mut FunctionAnalysisData,
     cache: bool,
@@ -134,14 +133,14 @@ pub(crate) fn get_formula(
 fn handle_binop(
     conditional_object_id: (u32, u32),
     bop: &Bop,
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    left: &aast::Expr,
+    right: &aast::Expr,
     assertion_context: &AssertionContext,
     analysis_data: &mut FunctionAnalysisData,
     cache: bool,
     inside_negation: bool,
 ) -> Option<Result<Vec<Clause>, String>> {
-    if let oxidized::ast::Bop::Ampamp = bop {
+    if let hakana_parser::aast::Bop::Ampamp = bop {
         return Some(handle_and(
             conditional_object_id,
             left,
@@ -153,7 +152,7 @@ fn handle_binop(
         ));
     }
 
-    if let oxidized::ast::Bop::Barbar = bop {
+    if let hakana_parser::aast::Bop::Barbar = bop {
         return Some(handle_or(
             conditional_object_id,
             left,
@@ -178,8 +177,8 @@ fn handle_binop(
 #[inline]
 fn handle_or(
     conditional_object_id: (u32, u32),
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    left: &aast::Expr,
+    right: &aast::Expr,
     assertion_context: &AssertionContext,
     analysis_data: &mut FunctionAnalysisData,
     cache: bool,
@@ -225,8 +224,8 @@ fn handle_or(
 #[inline]
 fn handle_and(
     conditional_object_id: (u32, u32),
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    left: &aast::Expr,
+    right: &aast::Expr,
     assertion_context: &AssertionContext,
     analysis_data: &mut FunctionAnalysisData,
     cache: bool,
@@ -271,28 +270,22 @@ fn handle_and(
 #[inline]
 fn handle_uop(
     conditional_object_id: (u32, u32),
-    uop: &oxidized::ast::Uop,
-    expr: &aast::Expr<(), ()>,
+    uop: &hakana_parser::aast::Uop,
+    expr: &aast::Expr,
     assertion_context: &AssertionContext,
     analysis_data: &mut FunctionAnalysisData,
     cache: bool,
     inside_negation: bool,
 ) -> Option<Result<Vec<Clause>, String>> {
-    if let oxidized::ast::Uop::Unot = uop {
+    if let hakana_parser::aast::Uop::Unot = uop {
         if let aast::Expr_::Binop(inner_expr) = &expr.2 {
-            if let oxidized::ast::Bop::Barbar = inner_expr.bop {
+            if let hakana_parser::aast::Bop::Barbar = inner_expr.bop {
+                // `!(a || b)` is `!a && !b`
+                let (not_lhs, not_rhs) = ((Uop::Unot, inner_expr.lhs), (Uop::Unot, inner_expr.rhs));
                 return Some(self::handle_and(
                     conditional_object_id,
-                    &aast::Expr(
-                        (),
-                        expr.pos().clone(),
-                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.lhs.clone()))),
-                    ),
-                    &aast::Expr(
-                        (),
-                        expr.pos().clone(),
-                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.rhs.clone()))),
-                    ),
+                    &aast::Expr((), *expr.pos(), aast::Expr_::Unop(&not_lhs)),
+                    &aast::Expr((), *expr.pos(), aast::Expr_::Unop(&not_rhs)),
                     assertion_context,
                     analysis_data,
                     cache,
@@ -300,19 +293,13 @@ fn handle_uop(
                 ));
             }
 
-            if let oxidized::ast::Bop::Ampamp = inner_expr.bop {
+            if let hakana_parser::aast::Bop::Ampamp = inner_expr.bop {
+                // `!(a && b)` is `!a || !b`
+                let (not_lhs, not_rhs) = ((Uop::Unot, inner_expr.lhs), (Uop::Unot, inner_expr.rhs));
                 return Some(self::handle_or(
                     conditional_object_id,
-                    &aast::Expr(
-                        (),
-                        expr.pos().clone(),
-                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.lhs.clone()))),
-                    ),
-                    &aast::Expr(
-                        (),
-                        expr.pos().clone(),
-                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.rhs.clone()))),
-                    ),
+                    &aast::Expr((), *expr.pos(), aast::Expr_::Unop(&not_lhs)),
+                    &aast::Expr((), *expr.pos(), aast::Expr_::Unop(&not_rhs)),
                     assertion_context,
                     analysis_data,
                     cache,

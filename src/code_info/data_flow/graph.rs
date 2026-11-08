@@ -2,6 +2,7 @@ use super::{
     node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
     path::{DataFlowPath, PathKind},
 };
+use crate::code_location::HPos;
 use crate::{
     code_location::FilePath,
     data_flow::node::VariableSourceKind,
@@ -10,7 +11,6 @@ use crate::{
     taint::{SinkType, SourceType},
 };
 use hakana_str::StrId;
-use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -294,7 +294,11 @@ impl DataFlowGraph {
         }
     }
 
-    pub fn add_mixed_data(&mut self, assignment_node: &DataFlowNode, pos: &Pos) {
+    pub fn add_mixed_data(&mut self, assignment_node: &DataFlowNode, pos: HPos) {
+        let pos_key = format!(
+            "{}:{}:{}",
+            pos.file_path.0.0, pos.start_offset, pos.end_offset
+        );
         let origin_node_ids = self.get_origin_node_ids(&assignment_node.id, &[], false);
 
         for origin_node_id in origin_node_ids {
@@ -302,11 +306,11 @@ impl DataFlowGraph {
                 origin_node_id
             {
                 if let Some(entry) = self.mixed_source_counts.get_mut(&origin_node_id) {
-                    entry.insert(pos.to_string());
+                    entry.insert(pos_key.clone());
                 } else {
                     self.mixed_source_counts.insert(
                         origin_node_id.clone(),
-                        FxHashSet::from_iter([pos.to_string()]),
+                        FxHashSet::from_iter([pos_key.clone()]),
                     );
                 }
             }

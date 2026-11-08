@@ -9,7 +9,6 @@ use crate::scope::BlockContext;
 use crate::scope::control_action::ControlAction;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_code_info::code_location::HPos;
 use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::{FnEffect, FunctionLikeInfo, MetaStart};
 use hakana_code_info::functionlike_parameter::FunctionLikeParameter;
@@ -17,10 +16,10 @@ use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::template::TemplateResult;
 use hakana_code_info::{EFFECT_CAN_THROW, VarId};
+use hakana_parser::aast::CallExpr;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
 use indexmap::IndexMap;
-use oxidized::ast::CallExpr;
-use oxidized::pos::Pos;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -82,8 +81,8 @@ pub(crate) fn analyze(
                 .map(|fn_param| {
                     let mut param = FunctionLikeParameter::new(
                         VarId(StrId::EMPTY),
-                        HPos::new(expr.func.pos(), *statements_analyzer.get_file_path()),
-                        HPos::new(expr.func.pos(), *statements_analyzer.get_file_path()),
+                        statements_analyzer.get_hpos(expr.func.pos()),
+                        statements_analyzer.get_hpos(expr.func.pos()),
                     );
                     param.signature_type = fn_param.signature_type.as_ref().map(|t| (**t).clone());
                     param.is_inout = fn_param.is_inout;
@@ -101,8 +100,8 @@ pub(crate) fn analyze(
 
             arguments_analyzer::check_arguments_match(
                 statements_analyzer,
-                &expr.targs,
-                &expr.args,
+                expr.targs,
+                expr.args,
                 &expr.unpacked_arg,
                 &functionlike_id,
                 &lambda_storage,
@@ -120,7 +119,7 @@ pub(crate) fn analyze(
                 &lambda_storage,
                 analysis_data,
                 pos,
-                &expr.args,
+                expr.args,
             );
 
             stmt_type = Some(hakana_code_info::ttype::combine_optional_union_types(

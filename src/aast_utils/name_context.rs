@@ -1,7 +1,7 @@
 use hakana_str::{StrId, ThreadedInterner};
 use rustc_hash::FxHashMap;
 
-use oxidized::aast::NsKind;
+use hakana_parser::aast::NsKind;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -36,7 +36,7 @@ pub struct NameContext<'a> {
     pub in_constant_id: bool,
     pub in_xhp_id: bool,
     pub in_member_id: bool,
-    pub generic_params: Vec<&'a String>,
+    pub generic_params: Vec<&'a str>,
 }
 
 impl NameContext<'_> {
@@ -154,7 +154,7 @@ impl NameContext<'_> {
     pub fn get_resolved_name(
         &mut self,
         interner: &mut ThreadedInterner,
-        name: &String,
+        name: &str,
         alias_kind: NsKind,
         uses: &mut Vec<(StrId, StrId)>,
     ) -> StrId {
@@ -168,7 +168,7 @@ impl NameContext<'_> {
             return interner.intern(stripped.replace(':', "\\"));
         }
 
-        match name.as_str() {
+        match name {
             "__FUNCTION__" => return StrId::FUNCTION_CONST,
             "__FILE__" => return StrId::FILE_CONST,
             "__DIR__" => return StrId::DIR_CONST,

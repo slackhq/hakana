@@ -9,28 +9,28 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{get_bool, get_int};
-use oxidized::pos::Pos;
-use oxidized::{aast, ast};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ast::Bop, &aast::Expr<(), ()>, &aast::Expr<(), ()>),
+    expr: (&aast::Bop, &aast::Expr, &aast::Expr),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     match &expr.0 {
-        oxidized::ast_defs::Bop::Plus
-        | oxidized::ast_defs::Bop::Minus
-        | oxidized::ast_defs::Bop::Star
-        | oxidized::ast_defs::Bop::Slash
-        | oxidized::ast_defs::Bop::Amp
-        | oxidized::ast_defs::Bop::Bar
-        | oxidized::ast_defs::Bop::Ltlt
-        | oxidized::ast_defs::Bop::Gtgt
-        | oxidized::ast_defs::Bop::Percent
-        | oxidized::ast_defs::Bop::Xor
-        | oxidized::ast_defs::Bop::Starstar => {
+        hakana_parser::aast::Bop::Plus
+        | hakana_parser::aast::Bop::Minus
+        | hakana_parser::aast::Bop::Star
+        | hakana_parser::aast::Bop::Slash
+        | hakana_parser::aast::Bop::Amp
+        | hakana_parser::aast::Bop::Bar
+        | hakana_parser::aast::Bop::Ltlt
+        | hakana_parser::aast::Bop::Gtgt
+        | hakana_parser::aast::Bop::Percent
+        | hakana_parser::aast::Bop::Xor
+        | hakana_parser::aast::Bop::Starstar => {
             crate::expr::binop::arithmetic_analyzer::analyze(
                 statements_analyzer,
                 pos,
@@ -43,7 +43,7 @@ pub(crate) fn analyze(
             Ok(())
         }
 
-        oxidized::ast_defs::Bop::Ampamp => {
+        hakana_parser::aast::Bop::Ampamp => {
             crate::expr::binop::and_analyzer::analyze(
                 statements_analyzer,
                 pos,
@@ -65,7 +65,7 @@ pub(crate) fn analyze(
             Ok(())
         }
 
-        oxidized::ast_defs::Bop::Barbar => {
+        hakana_parser::aast::Bop::Barbar => {
             crate::expr::binop::or_analyzer::analyze(
                 statements_analyzer,
                 expr.1,
@@ -86,14 +86,14 @@ pub(crate) fn analyze(
             Ok(())
         }
 
-        oxidized::ast_defs::Bop::Eqeq
-        | oxidized::ast_defs::Bop::Eqeqeq
-        | oxidized::ast_defs::Bop::Diff
-        | oxidized::ast_defs::Bop::Diff2
-        | oxidized::ast_defs::Bop::Lt
-        | oxidized::ast_defs::Bop::Lte
-        | oxidized::ast_defs::Bop::Gt
-        | oxidized::ast_defs::Bop::Gte => {
+        hakana_parser::aast::Bop::Eqeq
+        | hakana_parser::aast::Bop::Eqeqeq
+        | hakana_parser::aast::Bop::Diff
+        | hakana_parser::aast::Bop::Diff2
+        | hakana_parser::aast::Bop::Lt
+        | hakana_parser::aast::Bop::Lte
+        | hakana_parser::aast::Bop::Gt
+        | hakana_parser::aast::Bop::Gte => {
             expression_analyzer::analyze(
                 statements_analyzer,
                 expr.1,
@@ -143,7 +143,7 @@ pub(crate) fn analyze(
                     );
                 } else if matches!(
                     expr.0,
-                    oxidized::ast_defs::Bop::Eqeqeq | oxidized::ast_defs::Bop::Diff2
+                    hakana_parser::aast::Bop::Eqeqeq | hakana_parser::aast::Bop::Diff2
                 ) && lhs_type.types.len() == 1
                     && lhs_type.types[0] == rhs_type.types[0]
                     && matches!(lhs_type.types[0], TAtomic::TNamedObject { .. })
@@ -178,7 +178,7 @@ pub(crate) fn analyze(
             Ok(())
         }
 
-        oxidized::ast_defs::Bop::Dot => {
+        hakana_parser::aast::Bop::Dot => {
             crate::expr::binop::concat_analyzer::analyze(
                 statements_analyzer,
                 pos,
@@ -191,7 +191,7 @@ pub(crate) fn analyze(
             Ok(())
         }
 
-        oxidized::ast_defs::Bop::Cmp => {
+        hakana_parser::aast::Bop::Cmp => {
             expression_analyzer::analyze(
                 statements_analyzer,
                 expr.1,
@@ -222,7 +222,7 @@ pub(crate) fn analyze(
             Ok(())
         }
 
-        oxidized::ast_defs::Bop::QuestionQuestion => {
+        hakana_parser::aast::Bop::QuestionQuestion => {
             crate::expr::binop::coalesce_analyzer::analyze(
                 statements_analyzer,
                 pos,
@@ -237,6 +237,6 @@ pub(crate) fn analyze(
     }
 }
 
-fn is_resolvable(expr: &aast::Expr<(), ()>) -> bool {
+fn is_resolvable(expr: &aast::Expr) -> bool {
     matches!(expr.2, aast::Expr_::Lvar(_) | aast::Expr_::ObjGet(_))
 }

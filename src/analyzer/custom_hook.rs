@@ -3,8 +3,9 @@ use hakana_code_info::function_context::FunctionLikeIdentifier;
 use hakana_code_info::{
     codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo, t_union::TUnion,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::{Interner, StrId};
-use oxidized::{aast, ast_defs::Pos};
 use rustc_hash::FxHashMap;
 
 use crate::config::Config;
@@ -15,7 +16,7 @@ use crate::{
 
 pub struct AfterExprAnalysisData<'a> {
     pub context: &'a BlockContext,
-    pub expr: &'a aast::Expr<(), ()>,
+    pub expr: &'a aast::Expr<'a>,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
     pub already_called: bool,
     pub is_sub_expression: bool,
@@ -24,27 +25,27 @@ pub struct AfterExprAnalysisData<'a> {
 pub struct AfterStmtAnalysisData<'a> {
     pub context: &'a BlockContext,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
-    pub stmt: &'a aast::Stmt<(), ()>,
+    pub stmt: &'a aast::Stmt<'a>,
 }
 
 pub struct AfterDefAnalysisData<'a> {
     pub context: &'a BlockContext,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
-    pub def: &'a aast::Def<(), ()>,
+    pub def: &'a aast::Def<'a>,
 }
 
 pub struct FunctionLikeParamData<'a> {
     pub context: &'a BlockContext,
     pub config: &'a config::Config,
     pub param_type: &'a TUnion,
-    pub param_node: &'a aast::FunParam<(), ()>,
+    pub param_node: &'a aast::FunParam<'a>,
     pub codebase: &'a CodebaseInfo,
     pub interner: &'a Interner,
     pub in_migratable_function: bool,
 }
 
 pub struct AfterArgAnalysisData<'a> {
-    pub arg: &'a aast::Argument<(), ()>,
+    pub arg: &'a aast::Argument<'a>,
     pub arg_value_type: &'a TUnion,
     pub argument_offset: usize,
     pub context: &'a BlockContext,
@@ -130,7 +131,7 @@ pub trait InternalHook {
         inferred_return_type: &mut Option<TUnion>,
         codebase: &CodebaseInfo,
         statements_analyzer: &StatementsAnalyzer,
-        fb_ast: &[aast::Stmt<(), ()>],
+        fb_ast: &[aast::Stmt],
     ) -> bool {
         false
     }
@@ -155,7 +156,7 @@ pub trait InternalHook {
         interner: &Interner,
         codebase: &CodebaseInfo,
         resolved_names: &FxHashMap<u32, StrId>,
-        def: &aast::Def<(), ()>,
+        def: &aast::Def,
     ) -> bool {
         false
     }

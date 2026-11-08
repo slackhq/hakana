@@ -1,5 +1,5 @@
 function getBool(): bool {
-  return (bool)rand(0, 1);
+  return rand(0, 1) === 1;
 }
 
 function takesBool(bool $b): void {

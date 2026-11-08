@@ -497,7 +497,7 @@ pub fn can_type_assertion_succeed(
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct OverlapOptions {
+pub(crate) struct OverlapOptions {
     pub inside_assertion: bool,
     pub allow_enum_coercion: bool,
 }
@@ -563,17 +563,10 @@ pub fn can_type_bounds_be_compatible(
             if let (Some((left_key, left_value)), Some((right_key, right_value))) = (
                 get_arrayish_params(left, codebase),
                 get_arrayish_params(right, codebase),
-            ) {
-                if !can_type_bounds_be_compatible(codebase, file_path, &left_key, &right_key)
-                    || !can_type_bounds_be_compatible(
-                        codebase,
-                        file_path,
-                        &left_value,
-                        &right_value,
-                    )
-                {
-                    continue;
-                }
+            ) && (!can_type_bounds_be_compatible(codebase, file_path, &left_key, &right_key)
+                || !can_type_bounds_be_compatible(codebase, file_path, &left_value, &right_value))
+            {
+                continue;
             }
             return true;
         }

@@ -15,7 +15,8 @@ use hakana_code_info::{
     issue::{Issue, IssueKind},
     t_union::TUnion,
 };
-use oxidized::{ast::Lid, ast_defs::Pos};
+use hakana_parser::aast::Lid;
+use hakana_parser::aast::Pos;
 use std::rc::Rc;
 
 pub(crate) fn analyze(
@@ -25,7 +26,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    if !context.has_variable(&lid.1.1) {
+    if !context.has_variable(lid.1.1) {
         analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::UndefinedVariable,
@@ -43,7 +44,7 @@ pub(crate) fn analyze(
             (pos.start_offset() as u32, pos.end_offset() as u32),
             EFFECT_READ_GLOBALS,
         );
-    } else if let Some(var_type) = context.locals.get(lid.1.1.as_str()) {
+    } else if let Some(var_type) = context.locals.get(lid.1.1) {
         if var_type.parent_nodes.len() > 1
             && !context.inside_loop_exprs
             && context.for_loop_init_bounds.0 == 0
@@ -141,7 +142,7 @@ fn add_dataflow_to_variable(
         let pos = statements_analyzer.get_hpos(pos);
 
         let assignment_node = DataFlowNode {
-            id: if let Some(var_id) = statements_analyzer.interner.get(&lid.1.1) {
+            id: if let Some(var_id) = statements_analyzer.interner.get(lid.1.1) {
                 DataFlowNodeId::Var(
                     VarId(var_id),
                     pos.file_path,

@@ -35,10 +35,10 @@ use hakana_code_info::ttype::{
     add_optional_union_type, comparison, get_mixed_any, get_nothing, get_void, wrap_atomic,
 };
 use hakana_code_info::var_name::VarName;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::{Interner, StrId};
 use itertools::Itertools;
-use oxidized::ast_defs::Pos;
-use oxidized::{aast, ast};
 use rustc_hash::FxHashSet;
 
 use std::rc::Rc;
@@ -58,7 +58,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
     pub fn analyze_fun(
         &mut self,
-        stmt: &aast::FunDef<(), ()>,
+        stmt: &aast::FunDef,
         analysis_result: &mut AnalysisResult,
     ) -> Result<(), AnalysisError> {
         let resolved_names = self.file_analyzer.resolved_names.clone();
@@ -68,7 +68,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve function name".to_string(),
-                HPos::new(stmt.name.pos(), self.file_analyzer.file_source.file_path),
+                HPos::new(
+                    stmt.name.pos(),
+                    self.file_analyzer.file_source.file_path,
+                    self.file_analyzer.file_source.line_index,
+                ),
             ));
         };
 
@@ -88,7 +92,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot load function storage".to_string(),
-                HPos::new(stmt.name.pos(), self.file_analyzer.file_source.file_path),
+                HPos::new(
+                    stmt.name.pos(),
+                    self.file_analyzer.file_source.file_path,
+                    self.file_analyzer.file_source.line_index,
+                ),
             ));
         };
 
@@ -122,8 +130,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             functionlike_id,
             function_storage,
             BlockContext::new(function_context),
-            &stmt.fun.params,
-            &stmt.fun.body.fb_ast.0,
+            stmt.fun.params,
+            stmt.fun.body.fb_ast.0,
             analysis_result,
             None,
             false,
@@ -133,7 +141,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
     pub fn analyze_lambda(
         &mut self,
-        stmt: &aast::Fun_<(), ()>,
+        stmt: &aast::Fun_,
         mut context: BlockContext,
         analysis_data: &mut FunctionAnalysisData,
         analysis_result: &mut AnalysisResult,
@@ -148,7 +156,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 None => {
                     return Err(AnalysisError::InternalError(
                         "Cannot get closure storage".to_string(),
-                        HPos::new(&stmt.span, self.file_analyzer.file_source.file_path),
+                        HPos::new(
+                            &stmt.span,
+                            self.file_analyzer.file_source.file_path,
+                            self.file_analyzer.file_source.line_index,
+                        ),
                     ));
                 }
                 Some(value) => value,
@@ -187,8 +199,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             FunctionLikeIdentifier::Closure(file_path, expr_pos.start_offset() as u32),
             &lambda_storage,
             context,
-            &stmt.params,
-            &stmt.body.fb_ast.0,
+            stmt.params,
+            stmt.body.fb_ast.0,
             analysis_result,
             Some(analysis_data),
             false,
@@ -208,7 +220,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
     pub fn analyze_method(
         &mut self,
-        stmt: &aast::Method_<(), ()>,
+        stmt: &aast::Method_,
         classlike_storage: &ClassLikeInfo,
         analysis_result: &mut AnalysisResult,
     ) -> Result<(), AnalysisError> {
@@ -216,12 +228,16 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             return Ok(());
         }
 
-        let method_name = if let Some(method_name) = self.interner.get(&stmt.name.1) {
+        let method_name = if let Some(method_name) = self.interner.get(stmt.name.1) {
             method_name
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve method name".to_string(),
-                HPos::new(&stmt.name.0, self.file_analyzer.file_source.file_path),
+                HPos::new(
+                    &stmt.name.0,
+                    self.file_analyzer.file_source.file_path,
+                    self.file_analyzer.file_source.line_index,
+                ),
             ));
         };
 
@@ -243,7 +259,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve function storage".to_string(),
-                HPos::new(&stmt.name.0, self.file_analyzer.file_source.file_path),
+                HPos::new(
+                    &stmt.name.0,
+                    self.file_analyzer.file_source.file_path,
+                    self.file_analyzer.file_source.line_index,
+                ),
             ));
         };
 
@@ -348,8 +368,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             functionlike_id,
             functionlike_storage,
             context,
-            &stmt.params,
-            &stmt.body.fb_ast.0,
+            stmt.params,
+            stmt.body.fb_ast.0,
             analysis_result,
             None,
             is_missing_override_attribute,
@@ -461,8 +481,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         functionlike_id: FunctionLikeIdentifier,
         functionlike_storage: &FunctionLikeInfo,
         mut context: BlockContext,
-        params: &[aast::FunParam<(), ()>],
-        fb_ast: &Vec<aast::Stmt<(), ()>>,
+        params: &[aast::FunParam],
+        fb_ast: &[aast::Stmt],
         analysis_result: &mut AnalysisResult,
         parent_analysis_data: Option<&mut FunctionAnalysisData>,
         is_missing_override_attribute: bool,
@@ -1123,11 +1143,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         } else {
             crate::expr::call::template_inference::propagate(
-                &statements_analyzer,
+                statements_analyzer,
                 &mut analysis_data,
             );
             crate::expr::call::template_inference::check_deferred_constraints(
-                &statements_analyzer,
+                statements_analyzer,
                 &mut analysis_data,
             );
             if !analysis_data.type_variable_bounds.is_empty() {
@@ -1192,7 +1212,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
     fn add_param_types_to_context(
         &mut self,
-        params: &[aast::FunParam<(), ()>],
+        params: &[aast::FunParam],
         functionlike_storage: &FunctionLikeInfo,
         analysis_data: &mut FunctionAnalysisData,
         context: &mut BlockContext,
@@ -1296,7 +1316,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 ));
             };
 
-            if let ast::FunParamInfo::ParamOptional(Some(default)) = &param_node.info {
+            if let aast::FunParamInfo::ParamOptional(Some(default)) = &param_node.info {
                 expression_analyzer::analyze(
                     statements_analyzer,
                     default,
@@ -1530,7 +1550,7 @@ pub(crate) fn add_symbol_references_with_location(
 fn report_unused_expressions(
     analysis_data: &mut FunctionAnalysisData,
     config: &Config,
-    fb_ast: &Vec<aast::Stmt<(), ()>>,
+    fb_ast: &[aast::Stmt],
     statements_analyzer: &StatementsAnalyzer,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,

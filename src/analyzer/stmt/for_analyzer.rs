@@ -1,4 +1,5 @@
-use oxidized::{aast, ast::Pos};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
 use crate::{
     expression_analyzer,
@@ -13,10 +14,10 @@ use super::{control_analyzer::BreakContext, loop_analyzer};
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: (
-        &Vec<aast::Expr<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
-        &Vec<aast::Expr<(), ()>>,
-        &aast::Block<(), ()>,
+        &[aast::Expr],
+        &Option<aast::Expr>,
+        &[aast::Expr],
+        &aast::Block,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -57,7 +58,7 @@ pub(crate) fn analyze(
 
     loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.3.0,
+        stmt.3.0,
         if let Some(cond_expr) = stmt.1 {
             vec![cond_expr]
         } else {

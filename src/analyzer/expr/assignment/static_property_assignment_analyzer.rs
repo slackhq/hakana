@@ -15,12 +15,11 @@ use hakana_code_info::{
     },
     var_name::VarName,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::ClassId;
+use hakana_parser::aast::Id;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{
-    aast::{self, ClassId},
-    ast::Id,
-    ast_defs::{self, Pos},
-};
 
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
@@ -54,7 +53,7 @@ fn resolve_id(
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ClassId<(), ()>, &ast_defs::Pstring),
+    expr: (&ClassId, &aast::Pstring),
     assign_value_pos: Option<&Pos>,
     assign_value_type: &TUnion,
     var_id: &Option<String>,

@@ -16,20 +16,21 @@ use hakana_code_info::ttype::{
 };
 use hakana_code_info::var_name::VarName;
 use hakana_code_info::{data_flow::graph::DataFlowGraph, t_union::populate_union_type};
+use hakana_parser::aast;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_str::StrId;
-use oxidized::aast;
 
-pub(crate) fn analyze<'expr>(
-    statements_analyzer: &StatementsAnalyzer,
+pub(crate) fn analyze<'ast, 'expr>(
+    statements_analyzer: &StatementsAnalyzer<'ast>,
     stmt_pos: &aast::Pos,
-    left: &'expr aast::Expr<(), ()>,
-    hint: &'expr aast::Hint,
+    left: &'expr aast::Expr<'ast>,
+    hint: &'expr aast::Hint<'ast>,
     null_if_false: bool,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let mut root_expr = left.clone();
+    let arena = statements_analyzer.arena();
+    let mut root_expr = *left;
     let mut has_arrayget_key = false;
 
     analysis_data.expr_effects.insert(
@@ -65,7 +66,7 @@ pub(crate) fn analyze<'expr>(
         }
     }
 
-    let mut replacement_left: Option<aast::Expr<(), ()>> = None;
+    let mut replacement_left: Option<aast::Expr> = None;
 
     if has_arrayget_key
         || matches!(
@@ -90,34 +91,30 @@ pub(crate) fn analyze<'expr>(
 
     let ternary = aast::Expr(
         (),
-        stmt_pos.clone(),
-        aast::Expr_::Eif(Box::new((
+        *stmt_pos,
+        aast::Expr_::Eif(&*arena.alloc((
             aast::Expr(
                 (),
-                stmt_pos.clone(),
-                aast::Expr_::Is(Box::new((
-                    replacement_left.clone().unwrap_or(left.clone()),
-                    hint.clone(),
-                ))),
+                *stmt_pos,
+                aast::Expr_::Is(&*arena.alloc((replacement_left.unwrap_or(*left), *hint))),
             ),
-            Some(replacement_left.unwrap_or(left.clone())),
+            Some(replacement_left.unwrap_or(*left)),
             aast::Expr(
                 (),
-                stmt_pos.clone(),
+                *stmt_pos,
                 if null_if_false {
                     aast::Expr_::Null
                 } else {
-                    aast::Expr_::Call(Box::new(aast::CallExpr {
+                    aast::Expr_::Call(&*arena.alloc(aast::CallExpr {
                         func: aast::Expr(
                             (),
-                            stmt_pos.clone(),
-                            aast::Expr_::Id(Box::new(oxidized::ast_defs::Id(
-                                stmt_pos.clone(),
-                                "exit".to_string(),
-                            ))),
+                            *stmt_pos,
+                            aast::Expr_::Id(
+                                &*arena.alloc(hakana_parser::aast::Id(*stmt_pos, "exit")),
+                            ),
                         ),
-                        targs: vec![],
-                        args: vec![],
+                        targs: &[],
+                        args: &[],
                         unpacked_arg: None,
                     }))
                 },
@@ -138,7 +135,7 @@ pub(crate) fn analyze<'expr>(
     if ternary_type.is_mixed() {
         let codebase = statements_analyzer.codebase;
         let mut hint_type = get_type_from_hint(
-            &hint.1,
+            hint.1,
             context.function_context.calling_class,
             statements_analyzer.get_type_resolution_context(),
             statements_analyzer.file_analyzer.resolved_names,
@@ -200,12 +197,13 @@ pub(crate) fn analyze<'expr>(
     Ok(())
 }
 
-fn get_fake_as_var(
-    left: &aast::Expr<(), ()>,
-    statements_analyzer: &StatementsAnalyzer,
+fn get_fake_as_var<'ast>(
+    left: &aast::Expr<'ast>,
+    statements_analyzer: &StatementsAnalyzer<'ast>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-) -> Option<aast::Expr<(), ()>> {
+) -> Option<aast::Expr<'ast>> {
+    let arena = statements_analyzer.arena();
     let left_var_id = format!("$<tmp coalesce var>{}", left.pos().start_offset());
 
     expression_analyzer::analyze(statements_analyzer, left, analysis_data, context, true).ok();
@@ -221,10 +219,10 @@ fn get_fake_as_var(
 
     Some(aast::Expr(
         (),
-        left.pos().clone(),
-        aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
-            left.pos().clone(),
-            (5, left_var_id.clone()),
+        *left.pos(),
+        aast::Expr_::Lvar(&*arena.alloc(hakana_parser::aast::Lid(
+            *left.pos(),
+            (5, &*arena.alloc_str(&left_var_id)),
         ))),
     ))
 }

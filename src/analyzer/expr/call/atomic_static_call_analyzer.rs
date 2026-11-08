@@ -7,8 +7,9 @@ use hakana_code_info::{
     t_union::TUnion,
     ttype::{add_optional_union_type, intersect_union_types_simple},
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{aast, ast_defs::Pos};
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope::BlockContext,
@@ -31,11 +32,11 @@ use super::{
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        &aast::ClassId<(), ()>,
-        &(Pos, String),
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        &aast::ClassId,
+        &(Pos, &str),
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -128,11 +129,11 @@ fn handle_static_call_on_named_objects(
     statements_analyzer: &StatementsAnalyzer,
     mut classlike_names: Vec<StrId>,
     expr: (
-        &aast::ClassId<(), ()>,
-        &(Pos, String),
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        &aast::ClassId,
+        &(Pos, &str),
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -159,7 +160,7 @@ fn handle_static_call_on_named_objects(
                 statements_analyzer.get_file_path_actual(),
             );
 
-            let method_name = statements_analyzer.interner.get(&expr.1.1);
+            let method_name = statements_analyzer.interner.get(expr.1.1);
 
             if let Some(method_name) = method_name {
                 analysis_data
@@ -184,7 +185,7 @@ fn handle_static_call_on_named_objects(
     // Use the first classlike name for error messages and goto-definition
     let first_classlike_name = classlike_names[0];
 
-    let method_name = if let Some(method_name) = statements_analyzer.interner.get(&expr.1.1) {
+    let method_name = if let Some(method_name) = statements_analyzer.interner.get(expr.1.1) {
         method_name
     } else {
         analysis_data.maybe_add_issue(

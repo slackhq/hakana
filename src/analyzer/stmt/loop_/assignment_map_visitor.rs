@@ -1,8 +1,9 @@
-use oxidized::{
-    aast::{self, Argument},
-    aast_visitor::{AstParams, Node, Visitor, visit},
-    ast_defs::{self},
-};
+use hakana_parser::aast;
+use hakana_parser::aast::Argument;
+use hakana_parser::aast_visitor::AstParams;
+use hakana_parser::aast_visitor::Node;
+use hakana_parser::aast_visitor::Visitor;
+use hakana_parser::aast_visitor::visit;
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -31,13 +32,10 @@ impl<'ast> Visitor<'ast> for Scanner {
         self
     }
 
-    fn visit_expr(&mut self, c: &mut Context, expr: &aast::Expr<(), ()>) -> Result<(), ()> {
+    fn visit_expr(&mut self, c: &mut Context, expr: &aast::Expr) -> Result<(), ()> {
         match &expr.2 {
             aast::Expr_::Unop(boxed) => match boxed.0 {
-                ast_defs::Uop::Udecr
-                | ast_defs::Uop::Uincr
-                | ast_defs::Uop::Updecr
-                | ast_defs::Uop::Upincr => {
+                aast::Uop::Udecr | aast::Uop::Uincr | aast::Uop::Updecr | aast::Uop::Upincr => {
                     let var_id = expression_identifier::get_root_var_id(&boxed.1);
 
                     if let Some(var_id) = &var_id {
@@ -53,7 +51,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 _ => {}
             },
             aast::Expr_::Call(boxed) => {
-                for arg_expr in &boxed.args {
+                for arg_expr in boxed.args.iter() {
                     if let Argument::Ainout(_, arg_expr) = arg_expr {
                         let arg_var_id = expression_identifier::get_root_var_id(arg_expr);
 
@@ -78,7 +76,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3);
 
                             match prop_or_method {
-                                ast_defs::PropOrMethod::IsMethod => {
+                                aast::PropOrMethod::IsMethod => {
                                     let lhs_var_id =
                                         expression_identifier::get_root_var_id(lhs_expr);
 
@@ -110,7 +108,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 let right_var_id = expression_identifier::get_root_var_id(&boxed.2);
 
                 if let aast::Expr_::List(contents) = &boxed.0.2 {
-                    for list_expr in contents {
+                    for list_expr in contents.iter() {
                         let left_var_id = expression_identifier::get_root_var_id(list_expr);
 
                         if let Some(left_var_id) = &left_var_id {
@@ -145,9 +143,9 @@ impl<'ast> Visitor<'ast> for Scanner {
 }
 
 pub fn get_assignment_map(
-    pre_conditions: &Vec<&aast::Expr<(), ()>>,
-    post_expressions: &Vec<&aast::Expr<(), ()>>,
-    stmts: &Vec<aast::Stmt<(), ()>>,
+    pre_conditions: &Vec<&aast::Expr>,
+    post_expressions: &Vec<&aast::Expr>,
+    stmts: &[aast::Stmt],
 ) -> (FxHashMap<String, FxHashSet<String>>, Option<String>) {
     let mut scanner = Scanner::new();
     let mut context = Context {};

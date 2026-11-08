@@ -29,15 +29,15 @@ use hakana_code_info::ttype::{
     add_optional_union_type, get_mixed_any, get_named_object, get_nothing, get_placeholder,
     type_expander, wrap_atomic,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use indexmap::IndexMap;
-use oxidized::aast;
-use oxidized::pos::Pos;
 
 use super::atomic_method_call_analyzer::AtomicMethodCallAnalysisResult;
 
 fn resolve_id(
-    id: &oxidized::ast_defs::Id,
+    id: &hakana_parser::aast::Id,
     pos: &Pos,
     can_extend: &mut bool,
     context: &BlockContext,
@@ -45,7 +45,7 @@ fn resolve_id(
     statements_analyzer: &StatementsAnalyzer,
 ) -> Result<TUnion, AnalysisError> {
     let name_string = &id.1;
-    Ok(match name_string.as_str() {
+    Ok(match *name_string {
         "self" => {
             let self_name = &context.function_context.calling_class.unwrap();
 
@@ -96,10 +96,10 @@ fn resolve_id(
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        &aast::ClassId<(), ()>,
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        &aast::ClassId,
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -182,10 +182,10 @@ pub(crate) fn analyze(
 fn analyze_atomic(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        &aast::ClassId<(), ()>,
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        &aast::ClassId,
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -286,10 +286,10 @@ fn analyze_atomic(
 fn analyze_named_constructor(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        &aast::ClassId<(), ()>,
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        &aast::ClassId,
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -425,7 +425,7 @@ fn analyze_named_constructor(
             analysis_data,
             &method_id,
             method_storage,
-            (expr.1, &expr.2.to_vec(), expr.3),
+            (expr.1, expr.2, expr.3),
             None,
             &mut template_result,
             context,
@@ -445,7 +445,7 @@ fn analyze_named_constructor(
             for (i, (template_name, base_type_map)) in storage.template_types.iter().enumerate() {
                 let mut param_type = if let Some(type_arg) = expr.1.get(i) {
                     get_type_from_hint(
-                        &type_arg.1.1,
+                        type_arg.1.1,
                         context.function_context.calling_class,
                         statements_analyzer.get_type_resolution_context(),
                         statements_analyzer.file_analyzer.resolved_names,
@@ -646,7 +646,7 @@ fn analyze_named_constructor(
                 if !expr.1.is_empty() {
                     for type_arg in expr.1.iter() {
                         let mut param_type = get_type_from_hint(
-                            &type_arg.1.1,
+                            type_arg.1.1,
                             context.function_context.calling_class,
                             statements_analyzer.get_type_resolution_context(),
                             statements_analyzer.file_analyzer.resolved_names,
@@ -750,7 +750,7 @@ fn add_dataflow<'a>(
     from_classname: bool,
     analysis_data: &mut FunctionAnalysisData,
     call_pos: &Pos,
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
 
@@ -845,7 +845,7 @@ pub(super) fn native_exception_args(
     statements_analyzer: &StatementsAnalyzer,
     functionlike_storage: Option<&FunctionLikeInfo>,
     method_id: &MethodIdentifier,
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
     analysis_data: &FunctionAnalysisData,
 ) -> Vec<(&'static str, Vec<DataFlowNode>)> {
     let native_exception = functionlike_storage.is_some_and(|storage| !storage.user_defined)

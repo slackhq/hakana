@@ -18,7 +18,7 @@ use hakana_code_info::{
     },
     var_name::VarName,
 };
-use oxidized::ast_defs::Pos;
+use hakana_parser::aast::Pos;
 use rustc_hash::FxHashMap;
 
 // This performs type intersections and more general reconciliations

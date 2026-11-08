@@ -9,10 +9,10 @@ use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::t_atomic::{TAtomic, TNamedObject};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
+use hakana_parser::aast;
+use hakana_parser::aast::Id;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::aast;
-use oxidized::ast::Id;
-use oxidized::pos::Pos;
 
 use super::atomic_method_call_analyzer::AtomicMethodCallAnalysisResult;
 use super::atomic_static_call_analyzer;
@@ -134,11 +134,11 @@ fn resolve_id(
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        &aast::ClassId<(), ()>,
-        &(Pos, String),
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        &aast::ClassId,
+        &(Pos, &str),
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,

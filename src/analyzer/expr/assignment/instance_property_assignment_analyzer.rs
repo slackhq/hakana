@@ -18,11 +18,10 @@ use hakana_code_info::{
     },
     var_name::VarName,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Expr;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{
-    aast::{self, Expr},
-    ast_defs::Pos,
-};
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -41,7 +40,7 @@ use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&Expr<(), ()>, &Expr<(), ()>),
+    expr: (&Expr, &Expr),
     pos: &Pos,
     var_id: Option<String>,
     assign_value_type: &TUnion,
@@ -224,7 +223,7 @@ pub(crate) fn analyze(
 
 pub(crate) fn analyze_regular_assignment(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&Expr<(), ()>, &Expr<(), ()>),
+    expr: (&Expr, &Expr),
     pos: &Pos,
     var_id: Option<String>,
     assign_value_type: &TUnion,
@@ -273,7 +272,7 @@ pub(crate) fn analyze_regular_assignment(
                 for origin in &lhs_type.parent_nodes {
                     analysis_data
                         .data_flow_graph
-                        .add_mixed_data(origin, expr.1.pos());
+                        .add_mixed_data(origin, statements_analyzer.get_hpos(expr.1.pos()));
                 }
 
                 analysis_data.maybe_add_issue(
@@ -372,7 +371,7 @@ pub(crate) fn analyze_regular_assignment(
 
 pub(crate) fn analyze_atomic_assignment(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&Expr<(), ()>, &Expr<(), ()>),
+    expr: (&Expr, &Expr),
     assign_value_type: &TUnion,
     lhs_type_part: &TAtomic,
     analysis_data: &mut FunctionAnalysisData,
@@ -409,7 +408,7 @@ pub(crate) fn analyze_atomic_assignment(
     };
 
     let prop_name = if let aast::Expr_::Id(id) = &expr.1.2 {
-        if let Some(prop_name) = statements_analyzer.interner.get(&id.1) {
+        if let Some(prop_name) = statements_analyzer.interner.get(id.1) {
             prop_name
         } else {
             analysis_data.maybe_add_issue(

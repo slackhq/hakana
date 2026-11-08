@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::RwLock;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 
@@ -278,7 +279,7 @@ pub fn scan_files(
         CodebaseDiff::default()
     };
 
-    let interner = Arc::new(Mutex::new(interner));
+    let interner = Arc::new(RwLock::new(interner));
     let resolved_names = Arc::new(Mutex::new(resolved_names));
 
     let has_new_files = !files_to_scan.is_empty() || !changed_files.is_empty();
@@ -358,7 +359,7 @@ pub fn scan_files(
                 for file_path in &pgc {
                     let str_path = new_interner
                         .parent
-                        .lock()
+                        .read()
                         .unwrap()
                         .lookup(&file_path.0)
                         .to_string();
@@ -548,20 +549,14 @@ pub(crate) fn scan_file(
 ) -> Result<FxHashMap<u32, StrId>, ParserError> {
     debug!("scanning {}", str_path);
 
-    let aast = get_aast_for_path(file_path, str_path);
-
-    let aast = match aast {
-        Ok(aast) => aast,
-        Err(err) => {
-            return Err(err);
-        }
-    };
+    let arena = hakana_aast_helper::FileArena::new();
+    let parsed = get_aast_for_path(&arena, file_path, str_path)?;
 
     let (resolved_names, uses) =
-        hakana_aast_helper::scope_names(&aast.0, interner, empty_name_context);
+        hakana_aast_helper::scope_names(&parsed.program, interner, empty_name_context);
 
     hakana_reflector::collect_info_for_aast(
-        &aast.0,
+        &parsed.program,
         &resolved_names,
         interner,
         codebase,
@@ -570,13 +565,15 @@ pub(crate) fn scan_file(
             is_production_code,
             file_path_actual: str_path.to_string(),
             file_path,
-            hh_fixmes: &aast.1.fixmes,
-            comments: &aast.1.comments,
-            file_contents: aast.2,
+            hh_fixmes: &parsed.comments.fixmes,
+            comments: &parsed.comments.comments,
+            file_contents: parsed.file_contents,
+            line_index: &parsed.lines,
+            arena: &arena,
         },
         user_defined,
         uses,
-        aast.3,
+        parsed.parser_errors,
     );
 
     Ok(resolved_names)

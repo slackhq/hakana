@@ -1,5 +1,5 @@
 $i = false;
-$b = (bool) rand(0, 1);
+$b = rand(0, 1) === 1;
 foreach (vec[$b] as $n) {
     $i = $n;
     if ($i) {

@@ -25,7 +25,7 @@ use crate::stmt::{
 };
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::TAtomic;
-use oxidized::aast;
+use hakana_parser::aast;
 
 pub enum AnalysisError {
     UserError,
@@ -34,7 +34,7 @@ pub enum AnalysisError {
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    stmt: &aast::Stmt<(), ()>,
+    stmt: &aast::Stmt,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
@@ -55,19 +55,27 @@ pub(crate) fn analyze(
         context.response.invalidate();
     }
     if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
-        if current_stmt_offset.line != stmt.0.line() as u32 {
+        if current_stmt_offset.line != stmt.0.line(statements_analyzer.lines()) as u32 {
             analysis_data.current_stmt_offset = Some(StmtStart {
                 offset: stmt.0.start_offset() as u32,
-                line: stmt.0.line() as u32,
-                column: stmt.0.to_raw_span().start.column() as u16,
+                line: stmt.0.line(statements_analyzer.lines()) as u32,
+                column: stmt
+                    .0
+                    .to_raw_span(statements_analyzer.lines())
+                    .start
+                    .column() as u16,
                 add_newline: true,
             });
         }
     } else {
         analysis_data.current_stmt_offset = Some(StmtStart {
             offset: stmt.0.start_offset() as u32,
-            line: stmt.0.line() as u32,
-            column: stmt.0.to_raw_span().start.column() as u16,
+            line: stmt.0.line(statements_analyzer.lines()) as u32,
+            column: stmt
+                .0
+                .to_raw_span(statements_analyzer.lines())
+                .start
+                .column() as u16,
             add_newline: true,
         });
     }
@@ -75,7 +83,7 @@ pub(crate) fn analyze(
 
     if statements_analyzer.get_config().remove_fixmes {
         for (fixme_line, b) in analysis_data.hakana_fixme_or_ignores.iter_mut() {
-            if *fixme_line == stmt.0.line() as u32 {
+            if *fixme_line == stmt.0.line(statements_analyzer.lines()) as u32 {
                 for (_, (_, _, line_start, line_end, is_same_line)) in b {
                     *line_start = stmt.0.start_offset() as u32;
                     *line_end = stmt.0.end_offset() as u32;
@@ -148,9 +156,9 @@ pub(crate) fn analyze(
             for_analyzer::analyze(
                 statements_analyzer,
                 (
-                    &boxed.0,
-                    &boxed.1.as_ref().map(|lc| lc.2.clone()),
-                    &boxed.2.2,
+                    boxed.0,
+                    &boxed.1.as_ref().map(|lc| lc.2),
+                    boxed.2.2,
                     &boxed.3,
                 ),
                 &stmt.0,
@@ -179,7 +187,7 @@ pub(crate) fn analyze(
         aast::Stmt_::Switch(boxed) => {
             switch_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, &boxed.1, &boxed.2),
+                (&boxed.0, boxed.1, &boxed.2),
                 &stmt.0,
                 analysis_data,
                 context,
@@ -205,7 +213,7 @@ pub(crate) fn analyze(
         aast::Stmt_::Try(boxed) => {
             try_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, &boxed.1, &boxed.2),
+                (&boxed.0, boxed.1, &boxed.2),
                 analysis_data,
                 context,
                 loop_scope,
@@ -216,7 +224,7 @@ pub(crate) fn analyze(
         }
         aast::Stmt_::Awaitall(boxed) => {
             analyze_awaitall(
-                (&boxed.0, &boxed.1.0),
+                (boxed.0, boxed.1.0),
                 statements_analyzer,
                 analysis_data,
                 context,
@@ -225,7 +233,7 @@ pub(crate) fn analyze(
             )?;
         }
         aast::Stmt_::Using(boxed) => {
-            for boxed_expr in &boxed.exprs.1 {
+            for boxed_expr in boxed.exprs.1.iter() {
                 expression_analyzer::analyze(
                     statements_analyzer,
                     boxed_expr,
@@ -278,7 +286,7 @@ pub(crate) fn analyze(
                 .concurrent_block_boundaries
                 .push((concurrent_block_start, concurrent_block_end));
 
-            for boxed_stmt in &boxed.0 {
+            for boxed_stmt in boxed.0.iter() {
                 analyze(
                     statements_analyzer,
                     boxed_stmt,
@@ -317,10 +325,10 @@ pub(crate) fn analyze(
 }
 
 fn detect_unused_statement_expressions(
-    boxed: &aast::Expr<(), ()>,
+    boxed: &aast::Expr,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    stmt: &aast::Stmt<(), ()>,
+    stmt: &aast::Stmt,
     context: &mut BlockContext,
 ) {
     let must_use_issue = has_unused_must_use(boxed, statements_analyzer, analysis_data, context);
@@ -439,7 +447,7 @@ fn detect_unused_statement_expressions(
 }
 
 fn has_unused_must_use(
-    boxed: &aast::Expr<(), ()>,
+    boxed: &aast::Expr,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
@@ -530,17 +538,18 @@ fn has_unused_must_use(
     None
 }
 
-fn analyze_awaitall(
+fn analyze_awaitall<'ast>(
     boxed: (
-        &Vec<(oxidized::ast::Lid, aast::Expr<(), ()>)>,
-        &Vec<aast::Stmt<(), ()>>,
+        &[(hakana_parser::aast::Lid<'ast>, aast::Expr<'ast>)],
+        &[aast::Stmt<'ast>],
     ),
-    statements_analyzer: &StatementsAnalyzer,
+    statements_analyzer: &StatementsAnalyzer<'ast>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    stmt: &aast::Stmt<(), ()>,
+    stmt: &aast::Stmt<'ast>,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
+    let arena = statements_analyzer.arena();
     context.inside_awaitall = true;
 
     // Track concurrent block boundaries for unused variable analysis
@@ -577,8 +586,8 @@ fn analyze_awaitall(
             (
                 &aast::Expr(
                     (),
-                    assignment_id.0.clone(),
-                    aast::Expr_::Lvar(Box::new(assignment_id.clone())),
+                    assignment_id.0,
+                    aast::Expr_::Lvar(&*arena.alloc(*assignment_id)),
                 ),
                 None,
                 None,

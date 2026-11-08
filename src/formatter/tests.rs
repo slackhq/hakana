@@ -1,6 +1,6 @@
 use super::*;
 use crate::{format, format_at_offset, format_intervals, format_range, syntax};
-use parser_core_types::token_kind::TokenKind;
+use hakana_parser::cst::TokenKind;
 
 fn assert_stable(source: &str, config: &Config) -> String {
     let formatted = format(source, config).unwrap();

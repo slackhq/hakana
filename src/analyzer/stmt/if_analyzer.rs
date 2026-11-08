@@ -12,16 +12,12 @@ use hakana_algebra::clause::ClauseKey;
 use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::ttype::add_union_type;
 use hakana_code_info::var_name::VarName;
-use oxidized::aast;
+use hakana_parser::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    stmt: (
-        &aast::Expr<(), ()>,
-        &aast::Block<(), ()>,
-        &aast::Block<(), ()>,
-    ),
+    stmt: (&aast::Expr, &aast::Block, &aast::Block),
     analysis_data: &mut FunctionAnalysisData,
     if_scope: &mut IfScope,
     mut cond_referenced_var_ids: FxHashSet<VarName>,
@@ -125,13 +121,13 @@ pub(crate) fn analyze(
             .push((if_block_start, if_block_end));
     }
 
-    statements_analyzer.analyze(&stmt.1.0, analysis_data, if_context, loop_scope)?;
+    statements_analyzer.analyze(stmt.1.0, analysis_data, if_context, loop_scope)?;
 
     let final_actions = control_analyzer::get_control_actions(
         codebase,
         statements_analyzer.interner,
         statements_analyzer.file_analyzer.resolved_names,
-        &stmt.1.0,
+        stmt.1.0,
         analysis_data,
         Vec::new(),
         true,

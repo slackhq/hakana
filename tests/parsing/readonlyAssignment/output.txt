@@ -1,0 +1,1 @@
+ERROR: InvalidHackFile - input.hack:6:5 - This expression is readonly, its members cannot be modified

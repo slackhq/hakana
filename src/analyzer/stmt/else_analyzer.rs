@@ -7,8 +7,8 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
 };
-use oxidized::aast;
-use oxidized::aast::Pos;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -16,7 +16,7 @@ use std::rc::Rc;
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     if_cond_pos: &Pos,
-    stmts: &aast::Block<(), ()>,
+    stmts: &aast::Block,
     analysis_data: &mut FunctionAnalysisData,
     if_scope: &mut IfScope,
     else_context: &mut BlockContext,
@@ -89,7 +89,7 @@ pub(crate) fn analyze(
             .push((else_block_start, else_block_end));
     }
 
-    statements_analyzer.analyze(&stmts.0, analysis_data, else_context, loop_scope)?;
+    statements_analyzer.analyze(stmts.0, analysis_data, else_context, loop_scope)?;
 
     for var_id in &else_context.parent_conflicting_clause_vars {
         outer_context.remove_var_from_conflicting_clauses(var_id, None, None, analysis_data);
@@ -110,7 +110,7 @@ pub(crate) fn analyze(
             statements_analyzer.codebase,
             statements_analyzer.interner,
             statements_analyzer.file_analyzer.resolved_names,
-            &stmts.0,
+            stmts.0,
             analysis_data,
             Vec::new(),
             true,

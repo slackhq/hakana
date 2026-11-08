@@ -1,8 +1,8 @@
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::control_action::ControlAction;
 use hakana_code_info::codebase_info::CodebaseInfo;
+use hakana_parser::aast;
 use hakana_str::{Interner, StrId};
-use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -15,7 +15,7 @@ pub(crate) fn get_control_actions(
     codebase: &CodebaseInfo,
     interner: &Interner,
     resolved_names: &FxHashMap<u32, StrId>,
-    stmts: &Vec<aast::Stmt<(), ()>>,
+    stmts: &[aast::Stmt],
     analysis_data: &FunctionAnalysisData,
     break_context: Vec<BreakContext>,
     return_is_exit: bool, // default true
@@ -75,7 +75,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &if_stmt.1.0,
+                    if_stmt.1.0,
                     analysis_data,
                     break_context.clone(),
                     return_is_exit,
@@ -91,7 +91,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &if_stmt.2.0,
+                    if_stmt.2.0,
                     analysis_data,
                     break_context.clone(),
                     return_is_exit,
@@ -134,7 +134,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &loop_stmts.0,
+                    loop_stmts.0,
                     analysis_data,
                     loop_break_context,
                     return_is_exit,
@@ -204,7 +204,7 @@ pub(crate) fn get_control_actions(
 
                 let switch_stmt = stmt.1.as_switch().unwrap();
 
-                let mut cases = switch_stmt.1.clone();
+                let mut cases = switch_stmt.1.to_vec();
 
                 cases.reverse();
 
@@ -220,7 +220,7 @@ pub(crate) fn get_control_actions(
                         codebase,
                         interner,
                         resolved_names,
-                        &inner_case_stmts.0,
+                        inner_case_stmts.0,
                         analysis_data,
                         switch_break_context.clone(),
                         return_is_exit,
@@ -269,7 +269,7 @@ pub(crate) fn get_control_actions(
                         codebase,
                         interner,
                         resolved_names,
-                        &inner_case_stmts.0,
+                        inner_case_stmts.0,
                         analysis_data,
                         switch_break_context.clone(),
                         return_is_exit,
@@ -333,7 +333,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &stmt.0.0,
+                    stmt.0.0,
                     analysis_data,
                     break_context.clone(),
                     return_is_exit,
@@ -355,7 +355,7 @@ pub(crate) fn get_control_actions(
                             codebase,
                             interner,
                             resolved_names,
-                            &catch.2.0,
+                            catch.2.0,
                             analysis_data,
                             break_context.clone(),
                             return_is_exit,
@@ -396,7 +396,7 @@ pub(crate) fn get_control_actions(
                         codebase,
                         interner,
                         resolved_names,
-                        &stmt.2.0,
+                        stmt.2.0,
                         analysis_data,
                         break_context.clone(),
                         return_is_exit,
@@ -447,7 +447,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &boxed.1.0,
+                    boxed.1.0,
                     analysis_data,
                     break_context.clone(),
                     return_is_exit,
@@ -482,7 +482,7 @@ fn handle_block(
     codebase: &CodebaseInfo,
     interner: &Interner,
     resolved_names: &FxHashMap<u32, StrId>,
-    block_stmts: &aast::Block<(), ()>,
+    block_stmts: &aast::Block,
     analysis_data: &FunctionAnalysisData,
     break_context: Vec<BreakContext>,
     return_is_exit: bool,
@@ -492,7 +492,7 @@ fn handle_block(
         codebase,
         interner,
         resolved_names,
-        &block_stmts.0,
+        block_stmts.0,
         analysis_data,
         break_context,
         return_is_exit,

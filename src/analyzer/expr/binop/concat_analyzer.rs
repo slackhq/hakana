@@ -15,13 +15,13 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     taint::SinkType,
 };
-use oxidized::aast;
+use hakana_parser::aast;
 
 pub(crate) fn analyze<'expr>(
     statements_analyzer: &StatementsAnalyzer,
     stmt_pos: &aast::Pos,
-    left: &'expr aast::Expr<(), ()>,
-    right: &'expr aast::Expr<(), ()>,
+    left: &'expr aast::Expr,
+    right: &'expr aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
@@ -55,7 +55,7 @@ pub(crate) fn analyze<'expr>(
 }
 
 pub(crate) fn analyze_concat_nodes(
-    concat_nodes: Vec<&aast::Expr<(), ()>>,
+    concat_nodes: Vec<&aast::Expr>,
     statements_analyzer: &StatementsAnalyzer<'_>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -255,12 +255,12 @@ pub(crate) fn analyze_concat_nodes(
     result_type
 }
 
-pub(crate) fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {
+pub(crate) fn get_concat_nodes<'a>(expr: &'a aast::Expr<'a>) -> Vec<&'a aast::Expr<'a>> {
     match &expr.2 {
         aast::Expr_::Binop(x) => {
             let (binop, e1, e2) = (&x.bop, &x.lhs, &x.rhs);
             match binop {
-                oxidized::ast_defs::Bop::Dot => {
+                hakana_parser::aast::Bop::Dot => {
                     let mut concat_nodes = get_concat_nodes(e1);
                     concat_nodes.push(e2);
                     concat_nodes
@@ -275,7 +275,7 @@ pub(crate) fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(),
 fn can_be_coerced_to_string(
     statements_analyzer: &StatementsAnalyzer<'_>,
     analysis_data: &mut FunctionAnalysisData,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     t: &TAtomic,
     from_format: bool,
 ) -> bool {
@@ -331,7 +331,7 @@ fn concat_non_string(
     statements_analyzer: &StatementsAnalyzer<'_>,
     context: &BlockContext,
     analysis_data: &mut FunctionAnalysisData,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     t: &TAtomic,
 ) {
     let pos = expr.pos();

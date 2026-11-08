@@ -5,12 +5,13 @@ use crate::{
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
-use oxidized::{aast, ast_defs, pos::Pos};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use std::rc::Rc;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    stmt: (&aast::Expr<(), ()>, &aast::Block<(), ()>),
+    stmt: (&aast::Expr, &aast::Block),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -48,7 +49,7 @@ pub(crate) fn analyze(
 
     let inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.1.0,
+        stmt.1.0,
         get_and_expressions(stmt.0),
         vec![],
         &mut loop_scope,
@@ -103,9 +104,9 @@ pub(crate) fn analyze(
     Ok(())
 }
 
-pub(crate) fn get_and_expressions(cond: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {
+pub(crate) fn get_and_expressions<'a>(cond: &'a aast::Expr<'a>) -> Vec<&'a aast::Expr<'a>> {
     if let aast::Expr_::Binop(boxed) = &cond.2
-        && let ast_defs::Bop::Ampamp = boxed.bop
+        && let aast::Bop::Ampamp = boxed.bop
     {
         let mut anded = get_and_expressions(&boxed.lhs);
         anded.extend(get_and_expressions(&boxed.rhs));

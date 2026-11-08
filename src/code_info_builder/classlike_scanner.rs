@@ -3,8 +3,8 @@ use std::sync::Arc;
 use hakana_aast_helper::Uses;
 use hakana_code_info::t_atomic::{TGenericParam, TNamedObject};
 use hakana_str::{StrId, ThreadedInterner};
-use no_pos_hash::{Hasher, NoPosHash, position_insensitive_hash};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::hash::{Hash, Hasher};
 
 use hakana_code_info::ttype::{get_mixed_any, get_named_object, wrap_atomic};
 use hakana_code_info::{
@@ -21,10 +21,9 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
 };
-use oxidized::{
-    aast::{self, ClassConstKind},
-    ast_defs::{self, ClassishKind},
-};
+use hakana_parser::aast;
+use hakana_parser::aast::ClassConstKind;
+use hakana_parser::aast::ClassishKind;
 
 use crate::{
     functionlike_scanner::{self, adjust_location_from_comments},
@@ -38,17 +37,28 @@ pub(crate) fn scan(
     all_custom_issues: &FxHashSet<String>,
     resolved_names: &FxHashMap<u32, StrId>,
     class_name: &StrId,
-    classlike_node: &aast::Class_<(), ()>,
+    classlike_node: &aast::Class_,
     file_source: &FileSource,
     user_defined: bool,
-    comments: &Vec<(oxidized::pos::Pos, oxidized::prim_defs::Comment)>,
+    comments: &Vec<(
+        hakana_parser::aast::CommentPos,
+        hakana_parser::aast::Comment,
+    )>,
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
     ast_nodes: &mut Vec<DefSignatureNode>,
     all_uses: &Uses,
 ) -> bool {
-    let definition_location = HPos::new(&classlike_node.span, file_source.file_path);
-    let name_location = HPos::new(classlike_node.name.pos(), file_source.file_path);
+    let definition_location = HPos::new(
+        &classlike_node.span,
+        file_source.file_path,
+        file_source.line_index,
+    );
+    let name_location = HPos::new(
+        classlike_node.name.pos(),
+        file_source.file_path,
+        file_source.line_index,
+    );
 
     let mut meta_start = MetaStart {
         start_offset: definition_location.start_offset,
@@ -118,7 +128,7 @@ pub(crate) fn scan(
 
             let template_as_type = if let Some((_, constraint_hint)) = first_constraint {
                 get_type_from_hint(
-                    &constraint_hint.1,
+                    constraint_hint.1,
                     Some(*class_name),
                     &type_context,
                     resolved_names,
@@ -143,14 +153,14 @@ pub(crate) fn scan(
             ));
 
             match type_param_node.variance {
-                ast_defs::Variance::Covariant => {
+                aast::Variance::Covariant => {
                     storage.generic_variance.insert(i, Variance::Covariant);
                     storage.template_readonly.insert(*param_name);
                 }
-                ast_defs::Variance::Contravariant => {
+                aast::Variance::Contravariant => {
                     storage.generic_variance.insert(i, Variance::Contravariant);
                 }
-                ast_defs::Variance::Invariant => {
+                aast::Variance::Invariant => {
                     // default, do nothing
                     if class_name == &interner.intern_str("HH\\Vector") {
                         // cheat here for vectors
@@ -167,13 +177,13 @@ pub(crate) fn scan(
 
     match classlike_node.kind {
         ClassishKind::Cclass(abstraction) => {
-            storage.is_abstract = matches!(abstraction, ast_defs::Abstraction::Abstract);
+            storage.is_abstract = matches!(abstraction, aast::Abstraction::Abstract);
             storage.is_final = classlike_node.final_;
 
             codebase.symbols.add_class_name(class_name);
 
             if let Some(parent_class) = classlike_node.extends.first()
-                && let oxidized::ast::Hint_::Happly(name, params) = &*parent_class.1
+                && let hakana_parser::aast::Hint_::Happly(name, params) = parent_class.1
             {
                 signature_end = name.0.end_offset() as u32;
 
@@ -193,7 +203,7 @@ pub(crate) fn scan(
                         .map(|param| {
                             Arc::new(
                                 get_type_from_hint(
-                                    &param.1,
+                                    param.1,
                                     Some(*class_name),
                                     &TypeResolutionContext {
                                         template_type_map: storage.template_types.clone(),
@@ -210,8 +220,8 @@ pub(crate) fn scan(
                 );
             }
 
-            for extended_interface in &classlike_node.implements {
-                if let oxidized::ast::Hint_::Happly(name, params) = &*extended_interface.1 {
+            for extended_interface in classlike_node.implements.iter() {
+                if let hakana_parser::aast::Hint_::Happly(name, params) = extended_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
                     let interface_name =
@@ -239,7 +249,7 @@ pub(crate) fn scan(
                                 .map(|param| {
                                     Arc::new(
                                         get_type_from_hint(
-                                            &param.1,
+                                            param.1,
                                             Some(*class_name),
                                             &TypeResolutionContext {
                                                 template_type_map: storage.template_types.clone(),
@@ -259,7 +269,7 @@ pub(crate) fn scan(
             }
         }
         ClassishKind::CenumClass(abstraction) => {
-            storage.is_abstract = matches!(abstraction, ast_defs::Abstraction::Abstract);
+            storage.is_abstract = matches!(abstraction, aast::Abstraction::Abstract);
             storage.is_final = classlike_node.final_;
 
             storage.kind = SymbolKind::EnumClass;
@@ -267,9 +277,9 @@ pub(crate) fn scan(
             codebase.symbols.add_enum_class_name(class_name);
 
             if let Some(enum_node) = &classlike_node.enum_ {
-                for enum_extends in &enum_node.includes {
+                for enum_extends in enum_node.includes.iter() {
                     let extend_class = get_type_from_hint(
-                        &enum_extends.1,
+                        enum_extends.1,
                         None,
                         &TypeResolutionContext::new(),
                         resolved_names,
@@ -297,7 +307,7 @@ pub(crate) fn scan(
 
                 storage.enum_underlying_type = Some(
                     get_type_from_hint(
-                        &enum_node.base.1,
+                        enum_node.base.1,
                         None,
                         &TypeResolutionContext::new(),
                         resolved_names,
@@ -345,8 +355,8 @@ pub(crate) fn scan(
                 file_source,
             );
 
-            for parent_interface in &classlike_node.extends {
-                if let oxidized::ast::Hint_::Happly(name, params) = &*parent_interface.1 {
+            for parent_interface in classlike_node.extends.iter() {
+                if let hakana_parser::aast::Hint_::Happly(name, params) = parent_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
                     let parent_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
@@ -365,7 +375,7 @@ pub(crate) fn scan(
                             .map(|param| {
                                 Arc::new(
                                     get_type_from_hint(
-                                        &param.1,
+                                        param.1,
                                         Some(*class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
@@ -396,8 +406,8 @@ pub(crate) fn scan(
                 file_source,
             );
 
-            for extended_interface in &classlike_node.implements {
-                if let oxidized::ast::Hint_::Happly(name, params) = &*extended_interface.1 {
+            for extended_interface in classlike_node.implements.iter() {
+                if let hakana_parser::aast::Hint_::Happly(name, params) = extended_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
                     let interface_name =
@@ -417,7 +427,7 @@ pub(crate) fn scan(
                             .map(|param| {
                                 Arc::new(
                                     get_type_from_hint(
-                                        &param.1,
+                                        param.1,
                                         Some(*class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
@@ -446,8 +456,8 @@ pub(crate) fn scan(
 
                 // Ordinary enums can include other enums with `use`, including
                 // transitively. Populate their constants just as for enum classes.
-                for included in &enum_node.includes {
-                    if let oxidized::ast::Hint_::Happly(name, _) = &*included.1
+                for included in enum_node.includes.iter() {
+                    if let hakana_parser::aast::Hint_::Happly(name, _) = included.1
                         && let Some(included_name) =
                             resolved_names.get(&(name.0.start_offset() as u32))
                     {
@@ -458,7 +468,7 @@ pub(crate) fn scan(
 
                 storage.enum_underlying_type = Some(
                     get_type_from_hint(
-                        &enum_node.base.1,
+                        enum_node.base.1,
                         None,
                         &TypeResolutionContext::new(),
                         resolved_names,
@@ -475,7 +485,7 @@ pub(crate) fn scan(
 
                     storage.enum_as_type = Some(
                         get_type_from_hint(
-                            &constraint.1,
+                            constraint.1,
                             None,
                             &TypeResolutionContext::new(),
                             resolved_names,
@@ -513,7 +523,7 @@ pub(crate) fn scan(
     // `require extends` / `require implements` / `require class` clauses sit inside the
     // body braces, so they're outside the text hashed above — but they determine what a
     // trait or interface inherits, so they're part of its signature.
-    for req in &classlike_node.reqs {
+    for req in classlike_node.reqs.iter() {
         let req_kind: u8 = match &req.1 {
             aast::RequireKind::RequireExtends => 0,
             aast::RequireKind::RequireImplements => 1,
@@ -527,7 +537,7 @@ pub(crate) fn scan(
             ))
             .wrapping_add(xxhash_rust::xxh3::xxh3_64(&[req_kind]));
 
-        if let oxidized::ast::Hint_::Happly(name, _) = &*req.0.1
+        if let hakana_parser::aast::Hint_::Happly(name, _) = req.0.1
             && let Some(require_name) = resolved_names.get(&(name.0.start_offset() as u32))
         {
             signature_hash = signature_hash
@@ -535,13 +545,13 @@ pub(crate) fn scan(
         }
     }
 
-    for xhp_attribute in &classlike_node.xhp_attrs {
+    for xhp_attribute in classlike_node.xhp_attrs.iter() {
         if let Some(r) = xhp_attribute.2 {
             // required attributes are _essentially_ part of the
             // XHP class's signature
             if r.is_required() {
                 let attr_name_pos = xhp_attribute.1.id.pos();
-                let attribute_id = interner.intern(xhp_attribute.1.id.1.clone());
+                let attribute_id = interner.intern(xhp_attribute.1.id.1.to_string());
 
                 let attr_uses_hash = get_uses_hash(
                     all_uses
@@ -560,9 +570,9 @@ pub(crate) fn scan(
         }
     }
 
-    for trait_use in &classlike_node.uses {
+    for trait_use in classlike_node.uses.iter() {
         let trait_type = get_type_from_hint(
-            &trait_use.1,
+            trait_use.1,
             None,
             &TypeResolutionContext {
                 template_type_map: storage.template_types.clone(),
@@ -599,7 +609,7 @@ pub(crate) fn scan(
     // Like methods and properties below, the *set* of constants (including enum cases)
     // and type constants is part of the classlike's signature: adding or removing one
     // changes what dependents can reference and, for enums, what a switch must cover.
-    for class_const_node in &classlike_node.consts {
+    for class_const_node in classlike_node.consts.iter() {
         let const_name = visit_class_const_declaration(
             class_const_node,
             class_name,
@@ -617,7 +627,7 @@ pub(crate) fn scan(
             signature_hash.wrapping_add(xxhash_rust::xxh3::xxh3_64(&const_name.0.to_le_bytes()));
     }
 
-    for class_typeconst_node in &classlike_node.typeconsts {
+    for class_typeconst_node in classlike_node.typeconsts.iter() {
         if !class_typeconst_node.is_ctx {
             let typeconst_name = visit_class_typeconst_declaration(
                 class_typeconst_node,
@@ -665,7 +675,7 @@ pub(crate) fn scan(
         if name == StrId::SEALED {
             let mut child_classlikes = FxHashSet::default();
 
-            for attribute_param_expr in &user_attribute.params {
+            for attribute_param_expr in user_attribute.params.iter() {
                 let attribute_param_type =
                     simple_type_inferer::infer(attribute_param_expr, resolved_names, false);
 
@@ -683,8 +693,8 @@ pub(crate) fn scan(
 
     // todo iterate over enum cases
 
-    for property_node in &classlike_node.vars {
-        let property_name = interner.intern(property_node.id.1.clone());
+    for property_node in classlike_node.vars.iter() {
+        let property_name = interner.intern(property_node.id.1.to_string());
         visit_property_declaration(
             property_name,
             property_node,
@@ -699,7 +709,7 @@ pub(crate) fn scan(
             signature_hash.wrapping_add(xxhash_rust::xxh3::xxh3_64(&property_name.0.to_le_bytes()));
     }
 
-    for xhp_attribute in &classlike_node.xhp_attrs {
+    for xhp_attribute in classlike_node.xhp_attrs.iter() {
         let attribute_name = visit_xhp_attribute(
             xhp_attribute,
             resolved_names,
@@ -714,7 +724,7 @@ pub(crate) fn scan(
             .wrapping_add(xxhash_rust::xxh3::xxh3_64(&attribute_name.0.to_le_bytes()));
     }
 
-    for m in &classlike_node.methods {
+    for m in classlike_node.methods.iter() {
         let (method_name, functionlike_storage) = functionlike_scanner::scan_method(
             interner,
             all_custom_issues,
@@ -728,11 +738,11 @@ pub(crate) fn scan(
         );
 
         let (method_signature_hash, body_hash) = get_function_hashes(
-            &file_source.file_contents,
+            file_source.file_contents,
             &functionlike_storage.def_location,
             &m.name,
-            &m.tparams,
-            &m.params,
+            m.tparams,
+            m.params,
             &functionlike_storage.attributes,
             functionlike_storage
                 .suppressed_issues
@@ -740,7 +750,7 @@ pub(crate) fn scan(
                 .map(|k| &k.0)
                 .collect(),
             &m.ret,
-            &m.where_constraints,
+            m.where_constraints,
             &m.ctxs,
             all_uses
                 .symbol_member_uses
@@ -765,7 +775,7 @@ pub(crate) fn scan(
             signature_hash.wrapping_add(xxhash_rust::xxh3::xxh3_64(&method_name.0.to_le_bytes()));
 
         if !storage.template_readonly.is_empty()
-            && matches!(m.visibility, ast_defs::Visibility::Public)
+            && matches!(m.visibility, aast::Visibility::Public)
             && method_name != StrId::CONSTRUCT
         {
             for param in &functionlike_storage.params {
@@ -818,14 +828,14 @@ pub(crate) fn scan(
 }
 
 fn handle_reqs(
-    classlike_node: &aast::Class_<(), ()>,
+    classlike_node: &aast::Class_,
     resolved_names: &FxHashMap<u32, StrId>,
     storage: &mut ClassLikeInfo,
     class_name: &StrId,
     file_source: &FileSource,
 ) {
-    for req in &classlike_node.reqs {
-        if let oxidized::ast::Hint_::Happly(name, params) = &*req.0.1 {
+    for req in classlike_node.reqs.iter() {
+        if let hakana_parser::aast::Hint_::Happly(name, params) = req.0.1 {
             let require_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
             match &req.1 {
@@ -849,7 +859,7 @@ fn handle_reqs(
                     .map(|param| {
                         Arc::new(
                             get_type_from_hint(
-                                &param.1,
+                                param.1,
                                 Some(*class_name),
                                 &TypeResolutionContext {
                                     template_type_map: storage.template_types.clone(),
@@ -869,7 +879,7 @@ fn handle_reqs(
 }
 
 fn visit_xhp_attribute(
-    xhp_attribute: &aast::XhpAttr<(), ()>,
+    xhp_attribute: &aast::XhpAttr,
     resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
@@ -879,9 +889,13 @@ fn visit_xhp_attribute(
 ) -> StrId {
     let mut attribute_type_location = None;
     let mut attribute_type = if let Some(hint) = &xhp_attribute.0.1 {
-        attribute_type_location = Some(HPos::new(&hint.0, file_source.file_path));
+        attribute_type_location = Some(HPos::new(
+            &hint.0,
+            file_source.file_path,
+            file_source.line_index,
+        ));
         get_type_from_hint(
-            &hint.1,
+            hint.1,
             None,
             &TypeResolutionContext {
                 template_type_map: vec![],
@@ -911,10 +925,17 @@ fn visit_xhp_attribute(
         attribute_type.types.push(TAtomic::TNull);
     }
 
-    let mut stmt_pos = HPos::new(&xhp_attribute.1.span, file_source.file_path);
+    let mut stmt_pos = HPos::new(
+        &xhp_attribute.1.span,
+        file_source.file_path,
+        file_source.line_index,
+    );
 
     if let Some(type_hint) = &xhp_attribute.0.1 {
-        let (line, bol, offset) = type_hint.0.to_start_and_end_lnum_bol_offset().0;
+        let (line, bol, offset) = type_hint
+            .0
+            .to_start_and_end_lnum_bol_offset(file_source.line_index)
+            .0;
         stmt_pos.start_offset = offset as u32;
         stmt_pos.start_line = line as u32;
         stmt_pos.start_column = (offset - bol) as u16;
@@ -922,18 +943,18 @@ fn visit_xhp_attribute(
 
     if let Some(attr_tag) = &xhp_attribute.2 {
         match attr_tag {
-            oxidized::ast::XhpAttrTag::Required => {
+            hakana_parser::aast::XhpAttrTag::Required => {
                 stmt_pos.end_offset += 10;
                 stmt_pos.end_column += 10;
             }
-            oxidized::ast::XhpAttrTag::LateInit => {
+            hakana_parser::aast::XhpAttrTag::LateInit => {
                 stmt_pos.end_offset += 11;
                 stmt_pos.end_column += 11;
             }
         }
     }
 
-    let attribute_id = interner.intern(xhp_attribute.1.id.1.clone());
+    let attribute_id = interner.intern(xhp_attribute.1.id.1.to_string());
 
     let uses_hash = get_uses_hash(
         all_uses
@@ -961,7 +982,11 @@ fn visit_xhp_attribute(
         is_constant: false,
     });
 
-    let name_pos = HPos::new(xhp_attribute.1.id.pos(), file_source.file_path);
+    let name_pos = HPos::new(
+        xhp_attribute.1.id.pos(),
+        file_source.file_path,
+        file_source.line_index,
+    );
 
     let property_storage = PropertyInfo {
         is_static: false,
@@ -988,10 +1013,43 @@ fn visit_xhp_attribute(
     attribute_id
 }
 
+/// A hash of what a class constant declares: its attributes, type, name and value.
+///
+/// The constant's own span is no use here, because for an enum case it is the span of
+/// the whole enum.
+fn get_class_const_hash(const_node: &aast::ClassConst, file_contents: &str) -> u64 {
+    let value = match &const_node.kind {
+        aast::ClassConstKind::CCConcrete(expr) => Some(expr),
+        aast::ClassConstKind::CCAbstract(expr) => expr.as_ref(),
+    };
+    let mut hash = crate::source_range_hash(
+        file_contents,
+        [
+            const_node.type_.as_ref().map(|h| &h.0),
+            Some(&const_node.id.0),
+            value.map(|expr| &expr.1),
+        ],
+    );
+    for attribute in const_node.user_attributes.iter() {
+        let start = attribute.name.0.start_offset();
+        let end = attribute
+            .params
+            .last()
+            .map_or(attribute.name.0.end_offset(), |param| param.1.end_offset());
+        hash = hash
+            .rotate_left(17)
+            .wrapping_add(hakana_parser::source_hash(file_contents, start, end));
+    }
+    hash
+}
+
 fn visit_class_const_declaration(
-    const_node: &aast::ClassConst<(), ()>,
+    const_node: &aast::ClassConst,
     class_name: &StrId,
-    comments: &Vec<(oxidized::pos::Pos, oxidized::prim_defs::Comment)>,
+    comments: &Vec<(
+        hakana_parser::aast::CommentPos,
+        hakana_parser::aast::Comment,
+    )>,
     all_custom_issues: &FxHashSet<String>,
     resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
@@ -1006,7 +1064,7 @@ fn visit_class_const_declaration(
 
     if let Some(supplied_type_hint) = &const_node.type_ {
         provided_type = get_type_from_hint(
-            &supplied_type_hint.1,
+            supplied_type_hint.1,
             Some(classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
@@ -1017,10 +1075,18 @@ fn visit_class_const_declaration(
             supplied_type_hint.0.start_offset() as u32,
         );
 
-        supplied_type_location = Some(HPos::new(&supplied_type_hint.0, file_source.file_path));
+        supplied_type_location = Some(HPos::new(
+            &supplied_type_hint.0,
+            file_source.file_path,
+            file_source.line_index,
+        ));
     }
 
-    let def_pos = HPos::new(&const_node.span, file_source.file_path);
+    let def_pos = HPos::new(
+        &const_node.span,
+        file_source.file_path,
+        file_source.line_index,
+    );
 
     let mut meta_start = MetaStart {
         start_offset: def_pos.start_offset,
@@ -1038,7 +1104,7 @@ fn visit_class_const_declaration(
         all_custom_issues,
     );
 
-    let name = interner.intern(const_node.id.1.clone());
+    let name = interner.intern(const_node.id.1.to_string());
 
     let uses_hash = get_uses_hash(
         all_uses
@@ -1055,7 +1121,8 @@ fn visit_class_const_declaration(
         end_line: def_pos.end_line,
         start_colum: def_pos.start_column,
         end_column: def_pos.end_column,
-        signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
+        signature_hash: get_class_const_hash(const_node, file_source.file_contents)
+            .wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
         is_function: false,
@@ -1093,7 +1160,7 @@ fn visit_class_const_declaration(
 }
 
 fn visit_class_typeconst_declaration(
-    const_node: &aast::ClassTypeconstDef<(), ()>,
+    const_node: &aast::ClassTypeconstDef,
     resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
@@ -1106,7 +1173,7 @@ fn visit_class_typeconst_declaration(
             ClassConstantType::Abstract(if let Some(hint) = &abstract_node.as_constraint {
                 Some(
                     get_type_from_hint(
-                        &hint.1,
+                        hint.1,
                         Some(classlike_storage.name),
                         &TypeResolutionContext {
                             template_type_map: classlike_storage.template_types.clone(),
@@ -1124,7 +1191,7 @@ fn visit_class_typeconst_declaration(
         }
         aast::ClassTypeconst::TCConcrete(const_node) => ClassConstantType::Concrete(
             get_type_from_hint(
-                &const_node.c_tc_type.1,
+                const_node.c_tc_type.1,
                 Some(classlike_storage.name),
                 &TypeResolutionContext {
                     template_type_map: classlike_storage.template_types.clone(),
@@ -1138,9 +1205,13 @@ fn visit_class_typeconst_declaration(
         ),
     };
 
-    let def_pos = HPos::new(&const_node.span, file_source.file_path);
+    let def_pos = HPos::new(
+        &const_node.span,
+        file_source.file_path,
+        file_source.line_index,
+    );
 
-    let name = interner.intern(const_node.name.1.clone());
+    let name = interner.intern(const_node.name.1.to_string());
 
     let uses_hash = get_uses_hash(
         all_uses
@@ -1157,7 +1228,11 @@ fn visit_class_typeconst_declaration(
         end_line: def_pos.end_line,
         start_colum: def_pos.start_column,
         end_column: def_pos.end_column,
-        signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
+        signature_hash: crate::source_range_hash(
+            file_source.file_contents,
+            [Some(&const_node.span), Some(&const_node.name.0)],
+        )
+        .wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
         is_function: false,
@@ -1173,7 +1248,7 @@ fn visit_class_typeconst_declaration(
 
 fn visit_property_declaration(
     property_ref_id: StrId,
-    property_node: &aast::ClassVar<(), ()>,
+    property_node: &aast::ClassVar,
     resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
@@ -1186,7 +1261,7 @@ fn visit_property_declaration(
 
     if let Some(property_type_hint) = &property_node.type_.1 {
         property_type = get_type_from_hint(
-            &property_type_hint.1,
+            property_type_hint.1,
             Some(classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
@@ -1197,10 +1272,18 @@ fn visit_property_declaration(
             property_type_hint.0.start_offset() as u32,
         );
 
-        property_type_location = Some(HPos::new(&property_type_hint.0, file_source.file_path));
+        property_type_location = Some(HPos::new(
+            &property_type_hint.0,
+            file_source.file_path,
+            file_source.line_index,
+        ));
     }
 
-    let def_pos = HPos::new(&property_node.span, file_source.file_path);
+    let def_pos = HPos::new(
+        &property_node.span,
+        file_source.file_path,
+        file_source.line_index,
+    );
 
     let uses_hash = get_uses_hash(
         all_uses
@@ -1229,7 +1312,7 @@ fn visit_property_declaration(
     });
 
     if !classlike_storage.template_readonly.is_empty()
-        && matches!(property_node.visibility, ast_defs::Visibility::Public)
+        && matches!(property_node.visibility, aast::Visibility::Public)
         && let Some(property_type) = &property_type
     {
         let template_types = property_type.get_template_types();
@@ -1244,14 +1327,16 @@ fn visit_property_declaration(
     let property_storage = PropertyInfo {
         is_static: property_node.is_static,
         visibility: match property_node.visibility {
-            ast_defs::Visibility::Private => MemberVisibility::Private,
-            ast_defs::Visibility::Public | ast_defs::Visibility::Internal => {
-                MemberVisibility::Public
-            }
-            ast_defs::Visibility::Protected => MemberVisibility::Protected,
-            ast_defs::Visibility::ProtectedInternal => MemberVisibility::Protected,
+            aast::Visibility::Private => MemberVisibility::Private,
+            aast::Visibility::Public | aast::Visibility::Internal => MemberVisibility::Public,
+            aast::Visibility::Protected => MemberVisibility::Protected,
+            aast::Visibility::ProtectedInternal => MemberVisibility::Protected,
         },
-        pos: Some(HPos::new(property_node.id.pos(), file_source.file_path)),
+        pos: Some(HPos::new(
+            property_node.id.pos(),
+            file_source.file_path,
+            file_source.line_index,
+        )),
         kind: PropertyKind::Property,
         stmt_pos: Some(def_pos),
         type_pos: property_type_location,
@@ -1259,11 +1344,11 @@ fn visit_property_declaration(
         has_default: property_node.expr.is_some(),
         soft_readonly: false,
         is_promoted: false,
-        is_internal: matches!(property_node.visibility, ast_defs::Visibility::Internal),
+        is_internal: matches!(property_node.visibility, aast::Visibility::Internal),
         suppressed_issues: None,
     };
 
-    if !matches!(property_node.visibility, ast_defs::Visibility::Private) {
+    if !matches!(property_node.visibility, aast::Visibility::Private) {
         classlike_storage
             .inheritable_property_ids
             .insert(property_ref_id, classlike_storage.name);

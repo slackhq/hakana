@@ -15,16 +15,15 @@ use hakana_code_info::{
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
-use oxidized::{
-    aast,
-    ast_defs::{Pos, ShapeFieldName},
-};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
+use hakana_parser::aast::ShapeFieldName;
 use rustc_hash::FxHashSet;
 use std::{collections::BTreeMap, sync::Arc};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    shape_fields: &[aast::ShapeExprField<(), ()>],
+    shape_fields: &[aast::ShapeExprField],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -68,12 +67,15 @@ pub(crate) fn analyze(
         };
 
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset
-            && current_stmt_offset.line != start_pos.line() as u32
+            && current_stmt_offset.line != start_pos.line(statements_analyzer.lines()) as u32
         {
             *current_stmt_offset = StmtStart {
                 offset: start_pos.start_offset() as u32,
-                line: start_pos.line() as u32,
-                column: start_pos.to_raw_span().start.column() as u16,
+                line: start_pos.line(statements_analyzer.lines()) as u32,
+                column: start_pos
+                    .to_raw_span(statements_analyzer.lines())
+                    .start
+                    .column() as u16,
                 add_newline: true,
             };
         }
@@ -97,7 +99,7 @@ pub(crate) fn analyze(
                 let constant_type = codebase.get_class_constant_type(
                     lhs_name,
                     false,
-                    &statements_analyzer.interner.get(&name.1).unwrap(),
+                    &statements_analyzer.interner.get(name.1).unwrap(),
                     FxHashSet::default(),
                 );
 
@@ -119,7 +121,7 @@ pub(crate) fn analyze(
                             // the same case, so the keys still compare equal
                             _ => Some(DictKey::Enum(
                                 *lhs_name,
-                                statements_analyzer.interner.get(&name.1).unwrap(),
+                                statements_analyzer.interner.get(name.1).unwrap(),
                             )),
                         }
                     } else {
@@ -238,7 +240,7 @@ fn add_shape_value_dataflow(
     value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
     key_value: &String,
-    value: &aast::Expr<(), ()>,
+    value: &aast::Expr,
 ) -> Option<DataFlowNode> {
     if value_type.parent_nodes.is_empty()
         || (matches!(

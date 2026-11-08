@@ -39,15 +39,15 @@ use hakana_code_info::ttype::{
     get_null, get_true, wrap_atomic,
 };
 use hakana_code_info::var_name::VarName;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_reflector::simple_type_inferer::int_from_string;
 use hakana_str::StrId;
-use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     is_sub_expression: bool,
@@ -55,16 +55,20 @@ pub(crate) fn analyze(
     if statements_analyzer.get_config().add_fixmes
         && let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset
     {
-        if current_stmt_offset.line != expr.1.line() as u32 {
+        if current_stmt_offset.line != expr.1.line(statements_analyzer.lines()) as u32 {
             if !matches!(expr.2, aast::Expr_::Xml(..)) {
                 *current_stmt_offset = StmtStart {
                     offset: expr.1.start_offset() as u32,
-                    line: expr.1.line() as u32,
-                    column: expr.1.to_raw_span().start.column() as u16,
+                    line: expr.1.line(statements_analyzer.lines()) as u32,
+                    column: expr
+                        .1
+                        .to_raw_span(statements_analyzer.lines())
+                        .start
+                        .column() as u16,
                     add_newline: true,
                 };
             } else {
-                current_stmt_offset.line = expr.1.line() as u32;
+                current_stmt_offset.line = expr.1.line(statements_analyzer.lines()) as u32;
             }
         }
 
@@ -134,7 +138,7 @@ pub(crate) fn analyze(
                 .get_config()
                 .collect_goto_definition_locations
                 && let Some(hint_type) = hakana_reflector::typehint_resolver::get_type_from_hint(
-                    &hint.1,
+                    hint.1,
                     context.function_context.calling_class,
                     statements_analyzer.get_type_resolution_context(),
                     statements_analyzer.file_analyzer.resolved_names,
@@ -243,7 +247,7 @@ pub(crate) fn analyze(
                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3);
 
             match prop_or_method {
-                ast_defs::PropOrMethod::IsProp => {
+                aast::PropOrMethod::IsProp => {
                     instance_property_fetch_analyzer::analyze(
                         statements_analyzer,
                         (lhs_expr, rhs_expr),
@@ -251,22 +255,22 @@ pub(crate) fn analyze(
                         analysis_data,
                         context,
                         context.inside_assignment,
-                        matches!(nullfetch, ast_defs::OperatorNullFlavor::Nullsafe),
+                        matches!(nullfetch, aast::OperatorNullFlavor::Nullsafe),
                     )?;
                 }
-                ast_defs::PropOrMethod::IsMethod => {
+                aast::PropOrMethod::IsMethod => {
                     panic!("should be handled in call_analyzer")
                 }
             }
 
-            if let ast_defs::OperatorNullFlavor::Nullsafe = nullfetch {
+            if let aast::OperatorNullFlavor::Nullsafe = nullfetch {
                 // handle nullsafe calls
             }
         }
         aast::Expr_::New(boxed) => {
             new_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, &boxed.1, &boxed.2, &boxed.3),
+                (&boxed.0, boxed.1, boxed.2, &boxed.3),
                 &expr.1,
                 analysis_data,
                 context,
@@ -277,7 +281,7 @@ pub(crate) fn analyze(
             let (lhs, rhs, prop_or_method) = (&boxed.0, &boxed.1, &boxed.2);
 
             match prop_or_method {
-                ast_defs::PropOrMethod::IsProp => {
+                aast::PropOrMethod::IsProp => {
                     static_property_fetch_analyzer::analyze(
                         statements_analyzer,
                         (lhs, rhs),
@@ -286,7 +290,7 @@ pub(crate) fn analyze(
                         context,
                     )?;
                 }
-                ast_defs::PropOrMethod::IsMethod => {
+                aast::PropOrMethod::IsMethod => {
                     panic!("should be handled in call_analyzer")
                 }
             }
@@ -335,7 +339,7 @@ pub(crate) fn analyze(
         aast::Expr_::ClassConst(boxed) => {
             class_constant_fetch_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, (&boxed.1.0, &boxed.1.1)),
+                (&boxed.0, (&boxed.1.0, boxed.1.1)),
                 &expr.1,
                 analysis_data,
                 context,
@@ -361,7 +365,7 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::String2(exprs) => {
-            for concat_node in exprs {
+            for concat_node in exprs.iter() {
                 let was_inside_string_fragment = context.inside_string_fragment;
                 context.inside_string_fragment |= matches!(concat_node.2, aast::Expr_::String(_));
                 expression_analyzer::analyze(
@@ -454,7 +458,7 @@ pub(crate) fn analyze(
             } else {
                 None
             };
-            if let Some(member_name) = statements_analyzer.interner.get(&boxed.1) {
+            if let Some(member_name) = statements_analyzer.interner.get(boxed.1) {
                 analysis_data.expr_types.insert(
                     (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                     Rc::new(wrap_atomic(TAtomic::TEnumClassLabel {
@@ -474,7 +478,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 &boxed.0.1,
                 boxed.1.as_ref(),
-                &boxed.2,
+                boxed.2,
                 expr.pos(),
                 analysis_data,
                 context,
@@ -485,7 +489,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 &boxed.0.1,
                 boxed.1.as_ref(),
-                &boxed.2,
+                boxed.2,
                 expr.pos(),
                 analysis_data,
                 context,
@@ -514,17 +518,17 @@ pub(crate) fn analyze(
             match collection_name {
                 "Vector" | "ImmVector" | "Set" | "ImmSet" => {
                     let vc_kind = match collection_name {
-                        "Vector" => oxidized::ast::VcKind::Vector,
-                        "ImmVector" => oxidized::ast::VcKind::ImmVector,
-                        "Set" => oxidized::ast::VcKind::Set,
-                        _ => oxidized::ast::VcKind::ImmSet,
+                        "Vector" => hakana_parser::aast::VcKind::Vector,
+                        "ImmVector" => hakana_parser::aast::VcKind::ImmVector,
+                        "Set" => hakana_parser::aast::VcKind::Set,
+                        _ => hakana_parser::aast::VcKind::ImmSet,
                     };
 
                     let items = boxed
                         .2
                         .iter()
                         .filter_map(|field| match field {
-                            aast::Afield::AFvalue(value_expr) => Some(value_expr.clone()),
+                            aast::Afield::AFvalue(value_expr) => Some(*value_expr),
                             aast::Afield::AFkvalue(..) => None,
                         })
                         .collect::<Vec<_>>();
@@ -541,9 +545,9 @@ pub(crate) fn analyze(
                 }
                 "Map" | "ImmMap" => {
                     let kvc_kind = if collection_name == "Map" {
-                        oxidized::ast::KvcKind::Map
+                        hakana_parser::aast::KvcKind::Map
                     } else {
-                        oxidized::ast::KvcKind::ImmMap
+                        hakana_parser::aast::KvcKind::ImmMap
                     };
 
                     let items = boxed
@@ -551,7 +555,7 @@ pub(crate) fn analyze(
                         .iter()
                         .filter_map(|field| match field {
                             aast::Afield::AFkvalue(key_expr, value_expr) => {
-                                Some(oxidized::ast::Field(key_expr.clone(), value_expr.clone()))
+                                Some(hakana_parser::aast::Field(*key_expr, *value_expr))
                             }
                             aast::Afield::AFvalue(_) => None,
                         })
@@ -570,7 +574,7 @@ pub(crate) fn analyze(
                 "Pair" => {
                     let mut item_types = vec![];
 
-                    for field in &boxed.2 {
+                    for field in boxed.2.iter() {
                         if let aast::Afield::AFvalue(value_expr) = field {
                             expression_analyzer::analyze(
                                 statements_analyzer,
@@ -729,17 +733,17 @@ pub(crate) fn analyze(
     Ok(())
 }
 
-pub(crate) fn expr_has_logic(expr: &aast::Expr<(), ()>) -> bool {
+pub(crate) fn expr_has_logic(expr: &aast::Expr) -> bool {
     match &expr.2 {
         aast::Expr_::Binop(boxed) => matches!(
             boxed.bop,
-            oxidized::nast::Bop::Eqeq
-                | oxidized::nast::Bop::Eqeqeq
-                | oxidized::nast::Bop::Diff
-                | oxidized::nast::Bop::Diff2
-                | oxidized::nast::Bop::Ampamp
-                | oxidized::nast::Bop::Barbar
-                | oxidized::nast::Bop::QuestionQuestion
+            hakana_parser::aast::Bop::Eqeq
+                | hakana_parser::aast::Bop::Eqeqeq
+                | hakana_parser::aast::Bop::Diff
+                | hakana_parser::aast::Bop::Diff2
+                | hakana_parser::aast::Bop::Ampamp
+                | hakana_parser::aast::Bop::Barbar
+                | hakana_parser::aast::Bop::QuestionQuestion
         ),
         aast::Expr_::Is(_) => true,
         _ => false,
@@ -749,7 +753,7 @@ pub(crate) fn expr_has_logic(expr: &aast::Expr<(), ()>) -> bool {
 pub(crate) fn find_expr_logic_issues(
     statements_analyzer: &StatementsAnalyzer,
     context: &BlockContext,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
 ) {
     let assertion_context = statements_analyzer.get_assertion_context(
@@ -872,13 +876,13 @@ pub(crate) fn find_expr_logic_issues(
 fn analyze_function_pointer(
     statements_analyzer: &StatementsAnalyzer,
     parts: &(
-        aast::FunctionPtrId<(), ()>,
-        Vec<aast::Targ<()>>,
-        oxidized::nast::FunctionPointerSource,
+        aast::FunctionPtrId,
+        &[aast::Targ],
+        hakana_parser::aast::FunctionPointerSource,
     ),
     context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.codebase;
     let id = match &parts.0 {
@@ -945,7 +949,7 @@ fn analyze_function_pointer(
                 ),
             };
 
-            let method_name = statements_analyzer.interner.get(&method_name.1);
+            let method_name = statements_analyzer.interner.get(method_name.1);
 
             if let Some(method_name) = method_name {
                 FunctionLikeIdentifier::Method(class_name, method_name)
@@ -1094,8 +1098,8 @@ fn analyze_function_pointer(
 pub(crate) fn add_decision_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    lhs_expr: &aast::Expr<(), ()>,
-    rhs_expr: Option<&aast::Expr<(), ()>>,
+    lhs_expr: &aast::Expr,
+    rhs_expr: Option<&aast::Expr>,
     expr_pos: &Pos,
     mut cond_type: TUnion,
 ) {

@@ -10,16 +10,18 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
 use crate::{function_analysis_data::FunctionAnalysisData, scope::if_scope::IfScope};
 use hakana_code_info::ttype::combine_union_types;
-use oxidized::ast::{Binop, Uop};
-use oxidized::{aast, ast};
+use hakana_parser::aast;
+use hakana_parser::aast::Binop;
+use hakana_parser::aast::Uop;
 
-pub(crate) fn analyze<'expr>(
-    statements_analyzer: &StatementsAnalyzer,
-    left: &'expr aast::Expr<(), ()>,
-    right: &'expr aast::Expr<(), ()>,
+pub(crate) fn analyze<'ast, 'expr>(
+    statements_analyzer: &StatementsAnalyzer<'ast>,
+    left: &'expr aast::Expr<'ast>,
+    right: &'expr aast::Expr<'ast>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
+    let arena = statements_analyzer.arena();
     let codebase = statements_analyzer.codebase;
 
     let mut left_context;
@@ -127,8 +129,8 @@ pub(crate) fn analyze<'expr>(
                 left_cond_id,
                 &aast::Expr(
                     (),
-                    left.pos().clone(),
-                    aast::Expr_::Unop(Box::new((Uop::Unot, left.clone()))),
+                    *left.pos(),
+                    aast::Expr_::Unop(&*arena.alloc((Uop::Unot, *left))),
                 ),
                 &assertion_context,
                 analysis_data,
@@ -345,13 +347,13 @@ pub(crate) fn analyze<'expr>(
     Ok(())
 }
 
-fn is_or(cond: &aast::Expr<(), ()>, max_nesting: usize) -> bool {
+fn is_or(cond: &aast::Expr, max_nesting: usize) -> bool {
     if max_nesting == 0 {
         return true;
     }
 
     if let Some(Binop {
-        bop: ast::Bop::Barbar,
+        bop: aast::Bop::Barbar,
         lhs: left,
         ..
     }) = cond.2.as_binop()

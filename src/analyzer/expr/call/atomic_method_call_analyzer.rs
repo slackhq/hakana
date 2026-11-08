@@ -7,10 +7,8 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use oxidized::{
-    aast,
-    ast_defs::{self, Pos},
-};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope::BlockContext,
@@ -46,11 +44,11 @@ impl AtomicMethodCallAnalysisResult {
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        &aast::Expr<(), ()>,
-        &aast::Expr<(), ()>,
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        &aast::Expr,
+        &aast::Expr,
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -191,11 +189,11 @@ pub(crate) fn handle_method_call_on_named_object(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     expr: (
-        &aast::Expr<(), ()>,
-        &aast::Expr<(), ()>,
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        &aast::Expr,
+        &aast::Expr,
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     lhs_type_part: &TAtomic,
     context: &mut BlockContext,
@@ -237,7 +235,7 @@ pub(crate) fn handle_method_call_on_named_object(
     if let aast::Expr_::Id(boxed) = &expr.1.2 {
         result.has_valid_method_call_type = true;
 
-        let method_name = if let Some(method_name) = statements_analyzer.interner.get(&boxed.1) {
+        let method_name = if let Some(method_name) = statements_analyzer.interner.get(boxed.1) {
             method_name
         } else {
             return handle_nonexistent_method(
@@ -315,11 +313,11 @@ pub(crate) fn handle_method_call_on_named_object(
 fn handle_nonexistent_method(
     analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
-    id: &ast_defs::Id,
+    id: &aast::Id,
     classlike_name: &StrId,
     pos: &Pos,
     context: &mut BlockContext,
-    expr_args: &Vec<aast::Argument<(), ()>>,
+    expr_args: &[aast::Argument],
 ) -> Result<(), AnalysisError> {
     analysis_data.maybe_add_issue(
         Issue::new(
@@ -336,7 +334,7 @@ fn handle_nonexistent_method(
         statements_analyzer.get_file_path_actual(),
     );
 
-    if let Some(method_name) = statements_analyzer.interner.get(&id.1) {
+    if let Some(method_name) = statements_analyzer.interner.get(id.1) {
         analysis_data
             .symbol_references
             .add_reference_to_class_member(

@@ -1,11 +1,11 @@
 //! Context provided to linters during analysis
 
-use line_break_map::LineBreakMap;
-use parser_core_types::lexable_token::LexableToken;
-use parser_core_types::source_text::SourceText;
-use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
-use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
-use parser_core_types::syntax_trait::SyntaxTrait;
+use hakana_syntax::lexable_token::LexableToken;
+use hakana_syntax::line_break_map::LineBreakMap;
+use hakana_syntax::source_text::SourceText;
+use hakana_syntax::syntax_by_ref::positioned_syntax::PositionedSyntax;
+use hakana_syntax::syntax_by_ref::positioned_token::PositionedToken;
+use hakana_syntax::syntax_trait::SyntaxTrait;
 use std::path::Path;
 
 /// Context passed to linters containing the file being analyzed and utilities

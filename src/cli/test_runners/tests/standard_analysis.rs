@@ -27,7 +27,7 @@ impl IntegrationTest for StandardAnalysisTest {
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
         if ctx.dir.to_ascii_lowercase().contains("xhp") {
-            stub_dirs.push(cwd.clone() + "/third-party/xhp-lib/src");
+            stub_dirs.push(super::xhp_lib_dir(cwd));
         }
 
         let interner = Arc::new(Interner::default());
@@ -37,7 +37,7 @@ impl IntegrationTest for StandardAnalysisTest {
             None,
             Some(FxHashSet::from_iter([
                 format!("{}/tests/stubs/stubs.hack", cwd),
-                format!("{}/third-party/xhp-lib/src", cwd),
+                super::xhp_lib_dir(cwd),
             ])),
             config,
             if ctx.previous_scan_data.is_none() {

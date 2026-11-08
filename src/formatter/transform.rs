@@ -7,7 +7,7 @@ use crate::{
 };
 use Doc::*;
 use Rule::*;
-use parser_core_types::{syntax_kind::SyntaxKind, token_kind::TokenKind, trivia_kind::TriviaKind};
+use hakana_parser::cst::{SyntaxKind, TokenKind, TriviaKind};
 pub struct Formatter<'a> {
     pub env: &'a Config,
 }
@@ -182,8 +182,80 @@ fn unwrap_item(n: &Node) -> &Node {
         n
     }
 }
-fn op(n: &Node) -> operator::Operator {
-    operator::Operator::trailing_from_token(n.token.as_ref().unwrap().kind)
+/// A binary operator, by its token.
+#[derive(Clone, Copy)]
+struct Operator(TokenKind);
+impl Operator {
+    fn is_comparison(self) -> bool {
+        use TokenKind::*;
+        matches!(
+            self.0,
+            EqualEqual
+                | EqualEqualEqual
+                | ExclamationEqual
+                | ExclamationEqualEqual
+                | LessThan
+                | LessThanEqual
+                | GreaterThan
+                | GreaterThanEqual
+                | LessThanEqualGreaterThan
+        )
+    }
+    fn is_assignment(self) -> bool {
+        use TokenKind::*;
+        matches!(
+            self.0,
+            Equal
+                | PlusEqual
+                | MinusEqual
+                | StarEqual
+                | SlashEqual
+                | StarStarEqual
+                | DotEqual
+                | PercentEqual
+                | AmpersandEqual
+                | BarEqual
+                | CaratEqual
+                | LessThanLessThanEqual
+                | GreaterThanGreaterThanEqual
+                | QuestionQuestionEqual
+        )
+    }
+    /// How tightly the operator binds; operators of equal precedence chain.
+    fn precedence(self) -> usize {
+        use TokenKind::*;
+        match self.0 {
+            _ if self.is_assignment() => 6,
+            BarGreaterThan | BarQuestionGreaterThan => 7,
+            Question | Colon | QuestionColon => 8,
+            QuestionQuestion => 9,
+            BarBar => 10,
+            AmpersandAmpersand => 11,
+            Bar => 12,
+            Carat => 13,
+            Ampersand => 14,
+            EqualEqual | EqualEqualEqual | ExclamationEqual | ExclamationEqualEqual => 15,
+            LessThanEqualGreaterThan
+            | LessThan
+            | LessThanEqual
+            | GreaterThan
+            | GreaterThanEqual => 16,
+            LessThanLessThan | GreaterThanGreaterThan => 17,
+            Plus | Minus | Dot => 18,
+            Star | Slash | Percent => 19,
+            Instanceof | Is | As | QuestionAs | Upcast => 21,
+            StarStar => 22,
+            PlusPlus | MinusMinus => 23,
+            LeftParen | Hash => 26,
+            MinusGreaterThan | QuestionMinusGreaterThan => 28,
+            LeftBracket | LeftBrace => 29,
+            ColonColon => 30,
+            other => panic!("{other:?} is not a binary operator"),
+        }
+    }
+}
+fn op(n: &Node) -> Operator {
+    Operator(n.token.as_ref().unwrap().kind)
 }
 impl Formatter<'_> {
     fn list(&self, n: &Node, before: Doc, after: Doc, last: Doc) -> Doc {
@@ -465,9 +537,7 @@ impl Formatter<'_> {
             ]);
         }
         fn flatten<'a>(n: &'a Node, precedence: usize, out: &mut Vec<&'a Node>) {
-            if n.kind == SyntaxKind::BinaryExpression
-                && op(n.c(1)).precedence(&Default::default()) == precedence
-            {
+            if n.kind == SyntaxKind::BinaryExpression && op(n.c(1)).precedence() == precedence {
                 flatten(n.c(0), precedence, out);
                 out.push(n.c(1));
                 flatten(n.c(2), precedence, out);
@@ -475,7 +545,7 @@ impl Formatter<'_> {
                 out.push(n);
             }
         }
-        let p = operator.precedence(&Default::default());
+        let p = operator.precedence();
         let mut xs = vec![];
         flatten(l, p, &mut xs);
         xs.push(o);

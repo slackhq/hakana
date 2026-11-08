@@ -1,7 +1,8 @@
-use oxidized::{
-    aast,
-    aast_visitor::{AstParams, Node, Visitor, visit},
-};
+use hakana_parser::aast;
+use hakana_parser::aast_visitor::AstParams;
+use hakana_parser::aast_visitor::Node;
+use hakana_parser::aast_visitor::Visitor;
+use hakana_parser::aast_visitor::visit;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 
@@ -17,7 +18,7 @@ impl<'ast> Visitor<'ast> for Scanner {
     fn visit_expr(
         &mut self,
         analysis_data: &mut FunctionAnalysisData,
-        expr: &aast::Expr<(), ()>,
+        expr: &aast::Expr,
     ) -> Result<(), ()> {
         analysis_data
             .expr_types
@@ -27,10 +28,7 @@ impl<'ast> Visitor<'ast> for Scanner {
     }
 }
 
-pub(crate) fn clean_nodes(
-    stmts: &Vec<aast::Stmt<(), ()>>,
-    analysis_data: &mut FunctionAnalysisData,
-) {
+pub(crate) fn clean_nodes(stmts: &[aast::Stmt], analysis_data: &mut FunctionAnalysisData) {
     let mut scanner = Scanner {};
 
     for stmt in stmts {

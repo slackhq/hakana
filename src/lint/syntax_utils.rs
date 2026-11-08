@@ -1,10 +1,10 @@
 //! Utility functions for working with syntax nodes
 
-use line_break_map::LineBreakMap;
-use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
-use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
-use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
-use parser_core_types::syntax_by_ref::syntax_variant_generated::SyntaxVariant;
+use hakana_syntax::line_break_map::LineBreakMap;
+use hakana_syntax::syntax_by_ref::positioned_syntax::PositionedSyntax;
+use hakana_syntax::syntax_by_ref::positioned_token::PositionedToken;
+use hakana_syntax::syntax_by_ref::positioned_value::PositionedValue;
+use hakana_syntax::syntax_by_ref::syntax_variant_generated::SyntaxVariant;
 
 /// Check if a SyntaxVariant represents a statement
 ///

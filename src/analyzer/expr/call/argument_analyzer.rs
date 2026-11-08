@@ -20,9 +20,9 @@ use hakana_code_info::ttype::comparison::union_type_comparator;
 use hakana_code_info::ttype::{
     add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::{Interner, StrId};
-use oxidized::aast;
-use oxidized::pos::Pos;
 
 use super::method_call_info::MethodCallInfo;
 
@@ -33,7 +33,7 @@ pub(crate) fn check_argument_matches(
     function_param: &FunctionLikeParameter,
     param_type: &TUnion,
     argument_offset: usize,
-    arg: &aast::Argument<(), ()>,
+    arg: &aast::Argument,
     arg_unpacked: bool,
     arg_value_type: TUnion,
     context: &mut BlockContext,
@@ -139,7 +139,9 @@ fn get_unpacked_type(
             }
             TAtomic::TMixedWithFlags(true, ..) => {
                 for origin in &arg_value_type.parent_nodes {
-                    analysis_data.data_flow_graph.add_mixed_data(origin, pos);
+                    analysis_data
+                        .data_flow_graph
+                        .add_mixed_data(origin, statements_analyzer.get_hpos(pos));
                 }
 
                 analysis_data.maybe_add_issue(
@@ -160,7 +162,9 @@ fn get_unpacked_type(
             }
             TAtomic::TMixedWithFlags(_, true) | TAtomic::TMixed => {
                 for origin in &arg_value_type.parent_nodes {
-                    analysis_data.data_flow_graph.add_mixed_data(origin, pos);
+                    analysis_data
+                        .data_flow_graph
+                        .add_mixed_data(origin, statements_analyzer.get_hpos(pos));
                 }
 
                 analysis_data.maybe_add_issue(
@@ -225,7 +229,7 @@ pub(crate) fn verify_type(
     param_type: &TUnion,
     functionlike_id: &FunctionLikeIdentifier,
     argument_offset: usize,
-    input_expr: &aast::Expr<(), ()>,
+    input_expr: &aast::Expr,
     context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     function_param: &FunctionLikeParameter,
@@ -350,7 +354,7 @@ pub(crate) fn verify_type(
                 for origin in &input_type.parent_nodes {
                     analysis_data
                         .data_flow_graph
-                        .add_mixed_data(origin, input_expr.pos());
+                        .add_mixed_data(origin, statements_analyzer.get_hpos(input_expr.pos()));
                 }
 
                 analysis_data.maybe_add_issue(
@@ -538,7 +542,7 @@ fn add_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     functionlike_id: &FunctionLikeIdentifier,
     argument_offset: usize,
-    input_expr: &aast::Expr<(), ()>,
+    input_expr: &aast::Expr,
     input_type: &TUnion,
     param_type: &TUnion,
     context: &BlockContext,
@@ -787,8 +791,8 @@ pub(crate) fn get_removed_taints_in_comments(
 
     for tag in tags {
         match &tag.1 {
-            oxidized::prim_defs::Comment::CmtLine(_) => {}
-            oxidized::prim_defs::Comment::CmtBlock(text) => {
+            hakana_parser::aast::Comment::CmtLine(_) => {}
+            hakana_parser::aast::Comment::CmtBlock(text) => {
                 let trimmed_text = text.trim();
 
                 if let Some(without_prefix) = trimmed_text.strip_prefix("HAKANA_SECURITY_IGNORE[") {

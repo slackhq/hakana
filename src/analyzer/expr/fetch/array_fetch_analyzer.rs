@@ -19,8 +19,9 @@ use hakana_code_info::{
     },
     var_name::VarName,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{aast, ast_defs::Pos};
 
 use crate::{
     expr::expression_identifier, function_analysis_data::FunctionAnalysisData,
@@ -31,7 +32,7 @@ use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&aast::Expr<(), ()>, Option<&aast::Expr<(), ()>>),
+    expr: (&aast::Expr, Option<&aast::Expr>),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -147,7 +148,7 @@ pub(crate) fn analyze(
  */
 pub(crate) fn add_array_fetch_dataflow_rc(
     statements_analyzer: &StatementsAnalyzer,
-    array_expr: &aast::Expr<(), ()>,
+    array_expr: &aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
     keyed_array_var_id: Option<String>,
     value_type: &mut Rc<TUnion>,
@@ -294,7 +295,7 @@ pub(crate) fn add_array_fetch_dataflow_from_parents(
 pub(crate) fn get_array_access_type_given_offset(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    stmt: (&aast::Expr<(), ()>, Option<&aast::Expr<(), ()>>, &Pos),
+    stmt: (&aast::Expr, Option<&aast::Expr>, &Pos),
     array_type: &TUnion,
     offset_type: &TUnion,
     in_assignment: bool,
@@ -596,7 +597,9 @@ pub(crate) fn get_array_access_type_given_offset(
         let mut mixed_with_any = false;
         if offset_type.is_mixed_with_any(&mut mixed_with_any) {
             for origin in &offset_type.parent_nodes {
-                analysis_data.data_flow_graph.add_mixed_data(origin, stmt.2);
+                analysis_data
+                    .data_flow_graph
+                    .add_mixed_data(origin, statements_analyzer.get_hpos(stmt.2));
             }
 
             analysis_data.maybe_add_issue(
@@ -653,7 +656,7 @@ pub(crate) fn get_array_access_type_given_offset(
 
 fn unset_array_item(
     statements_analyzer: &StatementsAnalyzer<'_>,
-    lhs: &aast::Expr<(), ()>,
+    lhs: &aast::Expr,
     context: &mut BlockContext,
 ) {
     if let Some(expr_var_id) = expression_identifier::get_var_id(
@@ -1052,7 +1055,9 @@ pub(crate) fn handle_array_access_on_mixed(
 ) -> TUnion {
     if !context.inside_isset {
         for origin in &mixed_union.parent_nodes {
-            analysis_data.data_flow_graph.add_mixed_data(origin, pos);
+            analysis_data
+                .data_flow_graph
+                .add_mixed_data(origin, statements_analyzer.get_hpos(pos));
         }
 
         if context.inside_assignment {

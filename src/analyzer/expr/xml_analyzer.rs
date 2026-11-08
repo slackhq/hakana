@@ -19,11 +19,10 @@ use hakana_code_info::t_atomic::TNamedObject;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::SinkType;
 use hakana_code_info::ttype::get_named_object;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
 use itertools::Itertools;
-use oxidized::aast;
-use oxidized::ast_defs;
-use oxidized::pos::Pos;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::rc::Rc;
@@ -37,11 +36,7 @@ use attribute_security::{AttributeContext, attribute_sinks, is_escaped_value};
 
 pub(crate) fn analyze(
     context: &mut BlockContext,
-    parts: &(
-        ast_defs::Id,
-        Vec<aast::XhpAttribute<(), ()>>,
-        Vec<aast::Expr<(), ()>>,
-    ),
+    parts: &(aast::Id, &[aast::XhpAttribute], &[aast::Expr]),
     pos: &Pos,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
@@ -82,9 +77,9 @@ pub(crate) fn analyze(
     let mut used_attributes = FxHashSet::default();
 
     let codebase = statements_analyzer.codebase;
-    let attribute_context = AttributeContext::new(&parts.1);
+    let attribute_context = AttributeContext::new(parts.1);
 
-    for attribute in &parts.1 {
+    for attribute in parts.1.iter() {
         match attribute {
             aast::XhpAttribute::XhpSimple(xhp_simple) => {
                 let attribute_name = get_attribute_name(
@@ -203,7 +198,7 @@ pub(crate) fn analyze(
         },
     );
 
-    for inner_expr in &parts.2 {
+    for inner_expr in parts.2.iter() {
         let was_inside_string_fragment = context.inside_string_fragment;
         context.inside_string_fragment |= matches!(inner_expr.2, aast::Expr_::String(_));
         expression_analyzer::analyze(
@@ -268,7 +263,7 @@ pub(crate) fn analyze(
 
 fn handle_attribute_spread(
     statements_analyzer: &StatementsAnalyzer,
-    xhp_expr: &aast::Expr<(), ()>,
+    xhp_expr: &aast::Expr,
     element_name: &StrId,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -397,7 +392,7 @@ fn analyze_xhp_attribute_assignment(
     statements_analyzer: &StatementsAnalyzer,
     attribute_name: StrId,
     element_name: &StrId,
-    attribute_info: &aast::XhpSimple<(), ()>,
+    attribute_info: &aast::XhpSimple,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     attribute_context: &AttributeContext,
@@ -456,7 +451,7 @@ fn analyze_xhp_attribute_assignment(
             attribute_name_pos,
             attribute_value_pos,
             attribute_value_type,
-            &attribute_info.name.1,
+            attribute_info.name.1,
             attribute_context,
         );
     }
@@ -505,7 +500,7 @@ fn add_all_dataflow(
 
 fn get_attribute_name(
     statements_analyzer: &StatementsAnalyzer,
-    attribute_info: &oxidized::ast::XhpSimple,
+    attribute_info: &hakana_parser::aast::XhpSimple,
     resolved_names: &FxHashMap<u32, StrId>,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,

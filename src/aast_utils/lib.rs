@@ -1,193 +1,152 @@
-use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
-
 use hakana_code_info::code_location::{FilePath, HPos};
 use hakana_code_info::file_info::ParserError;
+use hakana_parser::aast;
+use hakana_parser::aast::ScouredComments;
+use hakana_parser::aast_visitor::visit;
 use hakana_str::{StrId, ThreadedInterner};
 use name_context::NameContext;
 use naming_visitor::Scanner;
-use oxidized::ast_defs::Pos;
-use oxidized::prim_defs::Comment;
-use oxidized::scoured_comments::ScouredComments;
-use oxidized::{
-    aast,
-    aast_visitor::{AstParams, NodeMut, VisitorMut, visit, visit_mut},
-};
-use parser_core_types::{indexed_source_text::IndexedSourceText, source_text::SourceText};
-use relative_path::{Prefix, RelativePath};
 use rustc_hash::FxHashMap;
-use std::collections::HashSet;
-use std::path::PathBuf;
-use std::sync::Arc;
+
+pub use bumpalo::Bump;
+pub use hakana_parser::LineIndex;
+
+thread_local! {
+    static ARENAS: std::cell::RefCell<Vec<Bump>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// An arena for one file's source and tree, taken from a per-thread pool.
+///
+/// Files are parsed by the thousand, and a fresh `Bump` for each means a large
+/// allocation and release per file; reusing them keeps that memory mapped.
+pub struct FileArena(std::mem::ManuallyDrop<Bump>);
+
+impl FileArena {
+    /// Arenas that grew beyond this are released rather than kept.
+    const MAX_POOLED_BYTES: usize = 32 * 1024 * 1024;
+
+    pub fn new() -> Self {
+        let arena = ARENAS
+            .with(|arenas| arenas.borrow_mut().pop())
+            .unwrap_or_default();
+        FileArena(std::mem::ManuallyDrop::new(arena))
+    }
+}
+
+impl Default for FileArena {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl std::ops::Deref for FileArena {
+    type Target = Bump;
+
+    #[inline]
+    fn deref(&self) -> &Bump {
+        &self.0
+    }
+}
+
+impl Drop for FileArena {
+    fn drop(&mut self) {
+        // SAFETY: the arena is not used again after being taken here.
+        let mut arena = unsafe { std::mem::ManuallyDrop::take(&mut self.0) };
+        if arena.allocated_bytes() > Self::MAX_POOLED_BYTES {
+            return;
+        }
+        arena.reset();
+        // Ignore the pool if the thread is shutting down.
+        let _ = ARENAS.try_with(|arenas| {
+            let mut arenas = arenas.borrow_mut();
+            if arenas.len() < 4 {
+                arenas.push(arena);
+            }
+        });
+    }
+}
 
 pub mod name_context;
 mod naming_visitor;
 
-type AastParseResult = (
-    aast::Program<(), ()>,
-    ScouredComments,
-    String,
-    Vec<ParserError>,
-);
+/// A parsed file: the tree (allocated in the caller's arena and borrowing the
+/// source text), its comments, the errors found, and whether one of them is a
+/// syntax error that left only the file's declarations (without function
+/// bodies) in the tree.
+pub struct AastParseResult<'a> {
+    pub program: aast::Program<'a>,
+    pub comments: ScouredComments,
+    /// The file's line table: positions in the tree are byte ranges.
+    pub lines: hakana_parser::LineIndex,
+    pub parser_errors: Vec<ParserError>,
+    /// One of the errors is a syntax error, and `program` only declares
+    /// what could be salvaged (without function bodies).
+    pub has_syntax_error: bool,
+}
 
-// Keep the representation consumed by Hakana's name, member, and call resolvers.
-// HHVM now lowers `parent` to CIparent; those resolvers use the identifier and
-// its source offset to resolve the parent and preserve forwarding-call behavior.
-struct ParentClassIds;
-
-impl<'ast> VisitorMut<'ast> for ParentClassIds {
-    type Params = AstParams<(), std::convert::Infallible>;
-
-    fn object(&mut self) -> &mut dyn VisitorMut<'ast, Params = Self::Params> {
-        self
-    }
-
-    fn visit_class_id(
-        &mut self,
-        context: &mut (),
-        id: &'ast mut aast::ClassId<(), ()>,
-    ) -> Result<(), std::convert::Infallible> {
-        if matches!(id.2, aast::ClassId_::CIparent) {
-            id.2 = aast::ClassId_::CIexpr(aast::Expr(
-                (),
-                id.1.clone(),
-                aast::Expr_::Id(Box::new(oxidized::ast_defs::Id(
-                    id.1.clone(),
-                    "parent".to_owned(),
-                ))),
-            ));
+/// Parses a Hack file with Hakana's parser.
+///
+/// The tree lives in `arena` and borrows `file_contents`, so both have to
+/// outlive it. Errors come back alongside the tree, including a syntax error:
+/// the tree then holds the declarations that could be salvaged. `Err` is for
+/// files that are not Hack at all.
+pub fn get_aast_for_path_and_contents<'a>(
+    arena: &'a Bump,
+    file_path: FilePath,
+    file_path_str: &str,
+    file_contents: &'a str,
+) -> Result<AastParseResult<'a>, ParserError> {
+    match hakana_parser::parse_file(arena, file_contents, file_path_str) {
+        Ok(parsed) => {
+            let errors = parsed
+                .errors
+                .iter()
+                .map(|e| ParserError::SyntaxError {
+                    message: e.message.to_string(),
+                    pos: error_pos(file_path, file_contents, e.start, e.end),
+                })
+                .collect();
+            Ok(AastParseResult {
+                program: parsed.program,
+                comments: parsed.comments,
+                lines: parsed.lines,
+                parser_errors: errors,
+                has_syntax_error: parsed.has_syntax_error,
+            })
         }
-        id.recurse(context, self)
+        Err(e) if e.message == hakana_parser::NOT_A_HACK_FILE => Err(ParserError::NotAHackFile),
+        Err(e) => Err(ParserError::SyntaxError {
+            message: e.message.to_string(),
+            pos: error_pos(FilePath(StrId::EMPTY), file_contents, e.offset, e.offset),
+        }),
     }
 }
 
-pub fn get_aast_for_path_and_contents(
-    file_path: FilePath,
-    file_path_str: &str,
-    file_contents: String,
-) -> Result<AastParseResult, ParserError> {
-    let relative_path = Arc::new(RelativePath::make(
-        Prefix::Root,
-        PathBuf::from(&file_path_str),
-    ));
-
-    let text = SourceText::make(relative_path.clone(), file_contents.as_bytes());
-    let indexed_source_text = IndexedSourceText::new(text.clone());
-
-    let mut parser_env = AastParserEnv {
-        include_line_comments: true,
-        scour_comments: true,
-        ..AastParserEnv::default()
+/// The position of a syntax error, from its byte offsets.
+fn error_pos(file_path: FilePath, file_contents: &str, start: u32, end: u32) -> HPos {
+    let bytes = file_contents.as_bytes();
+    let start = (start as usize).min(bytes.len());
+    let end = (end as usize).clamp(start, bytes.len());
+    let locate = |offset: usize| {
+        let before = &bytes[..offset];
+        let line = before.iter().filter(|&&b| b == b'\n').count() + 1;
+        let bol = before
+            .iter()
+            .rposition(|&b| b == b'\n')
+            .map_or(0, |i| i + 1);
+        (line as u32, (offset - bol) as u16 + 1)
     };
-    parser_env.parser_options.enable_xhp_class_modifier = true;
-    parser_env.parser_options.allow_unstable_features = true;
-
-    let mut parser_result = match aast_parser::AastParser::from_text(
-        &parser_env,
-        &indexed_source_text,
-        HashSet::default(),
-    ) {
-        Ok(parser_result) => parser_result,
-        Err(err) => {
-            return Err(match err {
-                aast_parser::Error::ParserFatal(err, pos) => ParserError::SyntaxError {
-                    message: err.message.to_string(),
-                    pos: HPos::new(&pos, FilePath(StrId::EMPTY)),
-                },
-                _ => ParserError::NotAHackFile,
-            });
-        }
-    };
-
-    let mut syntax_errors = vec![];
-
-    for e in parser_result.syntax_errors {
-        let lines = file_contents[0..e.start_offset]
-            .split('\n')
-            .collect::<Vec<_>>();
-        let column = lines.last().unwrap().len();
-        let line_count = lines.len();
-
-        let err = ParserError::SyntaxError {
-            message: e.message.to_string(),
-            pos: HPos {
-                file_path,
-                start_offset: e.start_offset as u32,
-                end_offset: e.end_offset as u32,
-                start_line: line_count as u32,
-                end_line: line_count as u32,
-                start_column: (column as u16) + 1,
-                end_column: (column as u16) + 1,
-            },
-        };
-
-        syntax_errors.push(err);
+    let (start_line, start_column) = locate(start);
+    let (end_line, end_column) = locate(end);
+    HPos {
+        file_path,
+        start_offset: start as u32,
+        end_offset: end as u32,
+        start_line,
+        end_line,
+        start_column,
+        end_column,
     }
-
-    for e in parser_result.lowerer_parsing_errors {
-        let (pos, msg) = e;
-
-        let lines = file_contents[0..pos.start_offset()]
-            .split('\n')
-            .collect::<Vec<_>>();
-        let column = lines.last().unwrap().len();
-        let line_count = lines.len();
-
-        let err = ParserError::SyntaxError {
-            message: msg,
-            pos: HPos {
-                file_path,
-                start_offset: pos.start_offset() as u32,
-                end_offset: pos.end_offset() as u32,
-                start_line: line_count as u32,
-                end_line: line_count as u32,
-                start_column: (column as u16) + 1,
-                end_column: (column as u16) + 1,
-            },
-        };
-
-        syntax_errors.push(err);
-    }
-
-    let mut aast = parser_result.aast;
-    visit_mut(&mut ParentClassIds, &mut (), &mut aast).unwrap();
-
-    // rewrite positional data for comments because it comes out wrong in the AST
-    for (pos, comment) in parser_result.scoured_comments.comments.iter_mut() {
-        match comment {
-            Comment::CmtLine(_) => {
-                let mut offsets = pos.to_start_and_end_lnum_bol_offset();
-                offsets.0.2 -= 2;
-                *pos = Pos::from_lnum_bol_offset(relative_path.clone(), offsets.0, offsets.1);
-            }
-            Comment::CmtBlock(text) => {
-                let mut offsets = pos.to_start_and_end_lnum_bol_offset();
-                let newline_count = text.as_bytes().iter().filter(|&&c| c == b'\n').count();
-                let comment_length = text.len();
-
-                offsets.0.0 -= newline_count;
-                offsets.0.2 -= comment_length + 2;
-                if newline_count > 0 {
-                    // we lose the true bol here for the comment, which is a shame
-                    offsets.0.1 = offsets.0.2;
-                }
-                offsets.1.2 += 1;
-                *pos = Pos::from_lnum_bol_offset(relative_path.clone(), offsets.0, offsets.1);
-            }
-        }
-    }
-
-    // reorder so single line and multiline comments are intermingled
-    parser_result
-        .scoured_comments
-        .comments
-        .sort_by(|(a, _), (b, _)| a.start_offset().cmp(&b.start_offset()));
-
-    Ok((
-        aast,
-        parser_result.scoured_comments,
-        file_contents,
-        syntax_errors,
-    ))
 }
 
 pub struct Uses {
@@ -196,7 +155,7 @@ pub struct Uses {
 }
 
 pub fn scope_names<'ast>(
-    program: &'ast aast::Program<(), ()>,
+    program: &'ast aast::Program<'ast>,
     interner: &mut ThreadedInterner,
     mut name_context: NameContext<'ast>,
 ) -> (FxHashMap<u32, StrId>, Uses) {

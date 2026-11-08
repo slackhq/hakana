@@ -13,9 +13,9 @@ use hakana_code_info::data_flow::graph::DataFlowGraph;
 use hakana_code_info::function_context::{FunctionContext, FunctionLikeIdentifier};
 use hakana_code_info::issue::IssueKind;
 use hakana_code_info::{analysis_result::AnalysisResult, issue::Issue};
+use hakana_parser::aast;
 use hakana_reflector::typehint_resolver::get_type_references_from_hint;
 use hakana_str::StrId;
-use oxidized::aast;
 use rustc_hash::FxHashMap;
 
 pub(crate) struct ClassLikeAnalyzer<'a> {
@@ -29,7 +29,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
 
     pub fn analyze(
         &mut self,
-        stmt: &aast::Class_<(), ()>,
+        stmt: &aast::Class_,
         statements_analyzer: &StatementsAnalyzer,
         analysis_result: &mut AnalysisResult,
     ) -> Result<(), AnalysisError> {
@@ -94,7 +94,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
                 .or_default();
 
             // Extends clause (parent class for classes, parent interfaces for interfaces)
-            for parent_hint in &stmt.extends {
+            for parent_hint in stmt.extends.iter() {
                 let type_refs = get_type_references_from_hint(parent_hint, resolved_names);
                 for (type_name, start_offset, end_offset) in type_refs {
                     file_def_locations.insert(
@@ -105,7 +105,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
             }
 
             // Implements clause
-            for interface_hint in &stmt.implements {
+            for interface_hint in stmt.implements.iter() {
                 let type_refs = get_type_references_from_hint(interface_hint, resolved_names);
                 for (type_name, start_offset, end_offset) in type_refs {
                     file_def_locations.insert(
@@ -116,7 +116,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
             }
 
             // Uses clause (traits)
-            for use_ in &stmt.uses {
+            for use_ in stmt.uses.iter() {
                 let type_refs = get_type_references_from_hint(use_, resolved_names);
                 for (type_name, start_offset, end_offset) in type_refs {
                     file_def_locations.insert(
@@ -219,7 +219,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
         let mut existing_enum_str_values = FxHashMap::default();
         let mut existing_enum_int_values = FxHashMap::default();
 
-        for constant in &stmt.consts {
+        for constant in stmt.consts.iter() {
             match &constant.kind {
                 aast::ClassConstKind::CCAbstract(Some(expr))
                 | aast::ClassConstKind::CCConcrete(expr) => {
@@ -269,7 +269,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
             }
         }
 
-        for var in &stmt.vars {
+        for var in stmt.vars.iter() {
             if let Some(default) = &var.expr {
                 expression_analyzer::analyze(
                     statements_analyzer,
@@ -324,7 +324,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
             false,
         );
 
-        for method in &stmt.methods {
+        for method in stmt.methods.iter() {
             if method.abstract_ || matches!(classlike_storage.kind, SymbolKind::Interface) {
                 continue;
             }
@@ -342,7 +342,7 @@ fn emit_dupe_enum_case_issue(
     statements_analyzer: &StatementsAnalyzer<'_>,
     enum_name: StrId,
     existing_name: &hakana_str::StrId,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
 ) {
     analysis_data.maybe_add_issue(
         Issue::new(

@@ -3,8 +3,9 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TNamedObject};
 use hakana_code_info::t_union::TUnion;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{aast, pos::Pos};
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope::BlockContext;
@@ -15,7 +16,7 @@ pub(crate) fn check_legacy_is_truthy(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
-    argument: &aast::Expr<(), ()>,
+    argument: &aast::Expr,
     call_pos: &Pos,
 ) {
     // C\is_empty itself uses legacy_is_truthy for its array-backed cases.

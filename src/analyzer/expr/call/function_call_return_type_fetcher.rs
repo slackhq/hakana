@@ -1,5 +1,5 @@
 use crate::scope_analyzer::ScopeAnalyzer;
-use bstr::BString;
+use bstr::{BStr, BString, ByteSlice};
 use hakana_code_info::classlike_info::ClassConstantType;
 use hakana_code_info::code_location::HPos;
 use hakana_code_info::codebase_info::CodebaseInfo;
@@ -21,8 +21,8 @@ use hakana_code_info::ttype::{
     get_string, get_vec, template, type_expander, wrap_atomic,
 };
 use hakana_code_info::{EFFECT_IMPURE, GenericParent, VarId};
+use hakana_parser::aast::Argument;
 use hakana_str::StrId;
-use oxidized::aast::Argument;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -35,16 +35,16 @@ use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use hakana_code_info::ttype::template::{TemplateBound, TemplateResult};
-use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
 pub(crate) fn fetch(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        (&Pos, &ast_defs::Id_),
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        (&Pos, &aast::Id_),
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     functionlike_id: &FunctionLikeIdentifier,
@@ -172,7 +172,7 @@ pub(crate) fn fetch(
 fn handle_special_functions(
     statements_analyzer: &StatementsAnalyzer,
     name: &StrId,
-    args: &Vec<aast::Argument<(), ()>>,
+    args: &[aast::Argument],
     pos: &Pos,
     codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
@@ -495,12 +495,12 @@ fn handle_special_functions(
 
                         for concat_node in concat_nodes {
                             if let aast::Expr_::String(simple_string) = &concat_node.2 {
-                                more_complex_string.append(&mut simple_string.clone());
+                                more_complex_string.extend_from_slice(simple_string);
                             }
                         }
 
                         return Some(handle_str_format(
-                            &more_complex_string,
+                            more_complex_string.as_bstr(),
                             first_arg,
                             args,
                             statements_analyzer,
@@ -754,14 +754,15 @@ fn get_type_for_superglobal(
 }
 
 fn handle_str_format(
-    simple_string: &BString,
-    first_arg: &aast::Argument<(), ()>,
-    args: &[aast::Argument<(), ()>],
+    simple_string: &BStr,
+    first_arg: &aast::Argument,
+    args: &[aast::Argument],
     statements_analyzer: &StatementsAnalyzer<'_>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     pos: &Pos,
 ) -> TUnion {
+    let arena = statements_analyzer.arena();
     let mut escaped = false;
     let mut in_format_string = false;
     let mut literals = vec![];
@@ -778,8 +779,8 @@ fn handle_str_format(
                 in_format_string = true;
                 literals.push(aast::Expr(
                     (),
-                    first_arg.to_expr_ref().pos().clone(),
-                    aast::Expr_::String(BString::from(cur_literal)),
+                    *first_arg.to_expr_ref().pos(),
+                    aast::Expr_::String(BStr::new(&*arena.alloc_str(&cur_literal))),
                 ));
                 cur_literal = "".to_string();
                 continue;
@@ -805,8 +806,8 @@ fn handle_str_format(
 
     literals.push(aast::Expr(
         (),
-        first_arg.to_expr_ref().pos().clone(),
-        aast::Expr_::String(BString::from(cur_literal)),
+        *first_arg.to_expr_ref().pos(),
+        aast::Expr_::String(BStr::new(&*arena.alloc_str(&cur_literal))),
     ));
 
     let mut concat_args = vec![];
@@ -916,10 +917,10 @@ fn get_type_structure_type(
 fn add_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        (&Pos, &ast_defs::Id_),
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        (&Pos, &aast::Id_),
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     functionlike_id: &FunctionLikeIdentifier,
@@ -1327,10 +1328,10 @@ The optional path is for functions with ... params.
 fn get_special_argument_nodes(
     functionlike_id: &FunctionLikeIdentifier,
     expr: (
-        (&Pos, &ast_defs::Id_),
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        (&Pos, &aast::Id_),
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
 ) -> (Vec<(usize, PathKind)>, Option<PathKind>) {
     match functionlike_id {
@@ -1911,7 +1912,7 @@ fn get_special_argument_nodes(
 fn get_special_added_removed_taints(
     functionlike_id: &FunctionLikeIdentifier,
     statements_analyzer: &StatementsAnalyzer,
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
     analysis_data: &FunctionAnalysisData,
 ) -> FxHashMap<usize, (Vec<SinkType>, Vec<SinkType>)> {
     let FunctionLikeIdentifier::Function(name) = functionlike_id else {
@@ -1966,7 +1967,7 @@ fn get_special_added_removed_taints(
 }
 
 pub(crate) fn has_json_hex_tag(
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     analyzer: &StatementsAnalyzer,
     data: &FunctionAnalysisData,
 ) -> bool {
@@ -1985,7 +1986,7 @@ pub(crate) fn has_json_hex_tag(
             .resolved_names
             .get(&(id.0.start_offset() as u32))
             .is_some_and(|name| analyzer.interner.lookup(name) == "JSON_HEX_TAG"),
-        aast::Expr_::Binop(binop) if binop.bop == oxidized::ast_defs::Bop::Bar => {
+        aast::Expr_::Binop(binop) if binop.bop == hakana_parser::aast::Bop::Bar => {
             has_json_hex_tag(&binop.lhs, analyzer, data)
                 || has_json_hex_tag(&binop.rhs, analyzer, data)
         }
@@ -1994,7 +1995,7 @@ pub(crate) fn has_json_hex_tag(
 }
 
 fn has_ent_quotes(
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     analyzer: &StatementsAnalyzer,
     data: &FunctionAnalysisData,
 ) -> bool {
@@ -2010,7 +2011,7 @@ fn has_ent_quotes(
             .resolved_names
             .get(&(id.0.start_offset() as u32))
             .is_some_and(|id| analyzer.interner.lookup(id) == "ENT_QUOTES"),
-        aast::Expr_::Binop(binop) if binop.bop == oxidized::ast_defs::Bop::Bar => {
+        aast::Expr_::Binop(binop) if binop.bop == hakana_parser::aast::Bop::Bar => {
             has_ent_quotes(&binop.lhs, analyzer, data) || has_ent_quotes(&binop.rhs, analyzer, data)
         }
         _ => false,
@@ -2018,7 +2019,7 @@ fn has_ent_quotes(
 }
 
 fn curl_option_sinks(
-    option: &aast::Expr<(), ()>,
+    option: &aast::Expr,
     analyzer: &StatementsAnalyzer,
     data: &FunctionAnalysisData,
 ) -> Vec<SinkType> {
@@ -2056,7 +2057,7 @@ fn curl_option_sinks(
 fn add_option_dependent_sinks(
     statements_analyzer: &StatementsAnalyzer,
     id: &FunctionLikeIdentifier,
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
     call_pos: &Pos,

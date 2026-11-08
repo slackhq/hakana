@@ -16,14 +16,14 @@ use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::get_nothing;
 use hakana_code_info::ttype::wrap_atomic;
 use hakana_code_info::type_resolution::TypeResolutionContext;
+use hakana_parser::aast;
+use hakana_parser::aast::Hint;
+use hakana_parser::aast::Hint_;
+use hakana_parser::aast::HintFun;
+use hakana_parser::aast::Id;
+use hakana_parser::aast::NastShapeInfo;
+use hakana_parser::aast::ParamKind;
 use hakana_str::StrId;
-use oxidized::aast::Hint;
-use oxidized::aast::Hint_;
-use oxidized::aast_defs::NastShapeInfo;
-use oxidized::ast::HintFun;
-use oxidized::ast::Id;
-use oxidized::ast_defs;
-use oxidized::ast_defs::ParamKind;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -38,7 +38,7 @@ fn get_vec_type_from_hint(
     TAtomic::TVec(TVec {
         type_param: Box::new(
             get_type_from_hint(
-                &hint.1,
+                hint.1,
                 classlike_name,
                 type_context,
                 resolved_names,
@@ -55,7 +55,7 @@ fn get_vec_type_from_hint(
 }
 
 fn get_tuple_type_from_hints(
-    tuple_info: &oxidized::ast::TupleInfo,
+    tuple_info: &hakana_parser::aast::TupleInfo,
     classlike_name: Option<StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<u32, StrId>,
@@ -70,7 +70,7 @@ fn get_tuple_type_from_hints(
                 (
                     false,
                     get_type_from_hint(
-                        &tuple_member.1,
+                        tuple_member.1,
                         classlike_name,
                         type_context,
                         resolved_names,
@@ -86,10 +86,10 @@ fn get_tuple_type_from_hints(
     };
 
     // Handle open tuples like (mixed...), used for type splatting
-    let variadic_type = if let oxidized::ast::TupleExtra::Hextra(info) = &tuple_info.extra
+    let variadic_type = if let hakana_parser::aast::TupleExtra::Hextra(info) = &tuple_info.extra
         && let Some(splat_hint) = &info.variadic
         && let Some(splat_type) = get_type_from_hint(
-            &splat_hint.1,
+            splat_hint.1,
             classlike_name,
             type_context,
             resolved_names,
@@ -120,7 +120,7 @@ fn get_keyset_type_from_hint(
     TAtomic::TKeyset {
         type_param: Box::new(
             get_type_from_hint(
-                &hint.1,
+                hint.1,
                 classlike_name,
                 type_context,
                 resolved_names,
@@ -142,7 +142,7 @@ fn get_classname_type_from_hint(
     is_class_ptr: bool,
 ) -> TAtomic {
     if let Some(inner_type) = get_type_from_hint(
-        &hint.1,
+        hint.1,
         classlike_name,
         type_context,
         resolved_names,
@@ -203,7 +203,7 @@ fn get_typename_type_from_hint(
     file_path: FilePath,
 ) -> TAtomic {
     if let Some(inner_type) = get_type_from_hint(
-        &hint.1,
+        hint.1,
         classlike_name,
         type_context,
         resolved_names,
@@ -246,7 +246,7 @@ fn get_dict_type_from_hints(
         params: Some((
             Box::new(if let Some(k) = &key_hint {
                 get_type_from_hint(
-                    &k.1,
+                    k.1,
                     classlike_name,
                     type_context,
                     resolved_names,
@@ -259,7 +259,7 @@ fn get_dict_type_from_hints(
             }),
             Box::new(if let Some(v) = &value_hint {
                 get_type_from_hint(
-                    &v.1,
+                    v.1,
                     classlike_name,
                     type_context,
                     resolved_names,
@@ -288,15 +288,15 @@ fn get_shape_type_from_hints(
     let mut known_items = BTreeMap::new();
     let mut has_splat = false;
 
-    for element in &shape_info.field_map {
-        let oxidized::aast_defs::ShapeElement::SEField(field) = element else {
+    for element in shape_info.field_map.iter() {
+        let hakana_parser::aast::ShapeElement::SEField(field) = element else {
             // Splat hints may refer to aliases which have not been populated yet.
             // Keep the shape open rather than incorrectly treating it as closed.
             has_splat = true;
             continue;
         };
         let field_type = get_type_from_hint(
-            &field.hint.1,
+            field.hint.1,
             classlike_name,
             type_context,
             resolved_names,
@@ -306,13 +306,13 @@ fn get_shape_type_from_hints(
         .unwrap();
 
         match &field.name {
-            ast_defs::ShapeFieldName::SFlitStr(name) => {
+            aast::ShapeFieldName::SFlitStr(name) => {
                 known_items.insert(
                     DictKey::String(name.1.to_string()),
                     (field.optional, Arc::new(field_type)),
                 );
             }
-            ast_defs::ShapeFieldName::SFclassConst(lhs, name) => {
+            aast::ShapeFieldName::SFclassConst(lhs, name) => {
                 let lhs_name = resolved_names.get(&(lhs.0.start_offset() as u32)).unwrap();
                 let rhs_name = resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
                 known_items.insert(
@@ -320,7 +320,7 @@ fn get_shape_type_from_hints(
                     (field.optional, Arc::new(field_type)),
                 );
             }
-            ast_defs::ShapeFieldName::SFclassname(_) => todo!(),
+            aast::ShapeFieldName::SFclassname(_) => todo!(),
         }
     }
 
@@ -330,7 +330,7 @@ fn get_shape_type_from_hints(
                 get_mixed_any()
             } else if let Some(hint) = &shape_info.unknown_fields_type {
                 get_type_from_hint(
-                    &hint.1,
+                    hint.1,
                     classlike_name,
                     type_context,
                     resolved_names,
@@ -379,7 +379,7 @@ fn get_function_type_from_hints(
                     false
                 },
                 signature_type: get_type_from_hint(
-                    &param_type.1,
+                    param_type.1,
                     classlike_name,
                     type_context,
                     resolved_names,
@@ -397,7 +397,7 @@ fn get_function_type_from_hints(
         let param = FnParameter {
             is_inout: false,
             signature_type: get_type_from_hint(
-                &variadic_type.1,
+                variadic_type.1,
                 classlike_name,
                 type_context,
                 resolved_names,
@@ -415,7 +415,7 @@ fn get_function_type_from_hints(
     TAtomic::TClosure(Box::new(TClosure {
         params,
         return_type: get_type_from_hint(
-            &function_info.return_ty.1,
+            function_info.return_ty.1,
             classlike_name,
             type_context,
             resolved_names,
@@ -446,12 +446,12 @@ fn get_reference_type(
     let type_name = &applied_type.1;
 
     // special case classname<mixed> and classname<nonnull>
-    if type_name == "mixed" || type_name == "nonnull" {
+    if *type_name == "mixed" || *type_name == "nonnull" {
         return TAtomic::TObject;
     }
 
     // static & self are used in class type constants
-    if type_name == "this" || type_name == "static" || type_name == "self" {
+    if *type_name == "this" || *type_name == "static" || *type_name == "self" {
         let class_name = if let Some(classlike_name) = classlike_name {
             classlike_name
         } else {
@@ -461,7 +461,7 @@ fn get_reference_type(
         return TAtomic::TNamedObject(TNamedObject {
             name: class_name,
             type_params: None,
-            is_this: type_name != "self",
+            is_this: *type_name != "self",
             remapped_params: false,
         });
     }
@@ -470,7 +470,7 @@ fn get_reference_type(
         .iter()
         .map(|hint| {
             get_type_from_hint(
-                &hint.1,
+                hint.1,
                 classlike_name,
                 type_context,
                 resolved_names,
@@ -481,7 +481,7 @@ fn get_reference_type(
         })
         .collect();
 
-    if type_name == "Generator" {
+    if *type_name == "Generator" {
         return TAtomic::TNamedObject(TNamedObject {
             name: *resolved_names
                 .get(&(applied_type.0.start_offset() as u32))
@@ -500,7 +500,7 @@ fn get_reference_type(
         });
     }
 
-    if type_name == "\\HH\\MemberOf" {
+    if *type_name == "\\HH\\MemberOf" {
         return TAtomic::TTypeAlias {
             name: StrId::MEMBER_OF,
             type_params: Some(type_params),
@@ -560,9 +560,7 @@ pub fn get_type_from_hint(
     let base = match hint {
         Hint_::Happly(id, extra_info) => {
             let applied_type = &id.1;
-            let applied_type_str = applied_type
-                .strip_prefix('\\')
-                .unwrap_or(applied_type.as_str());
+            let applied_type_str = applied_type.strip_prefix('\\').unwrap_or(applied_type);
 
             if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32))
                 && let Some((_, type_name)) = type_context
@@ -722,7 +720,7 @@ pub fn get_type_from_hint(
                 "Awaitable" | "HH\\Awaitable" => {
                     if let Some(param) = extra_info.first() {
                         if let Some(inner_type) = get_type_from_hint(
-                            &param.1,
+                            param.1,
                             classlike_name,
                             type_context,
                             resolved_names,
@@ -774,7 +772,7 @@ pub fn get_type_from_hint(
         Hint_::Hoption(inner) => {
             types.push(TAtomic::TNull);
             let union = get_type_from_hint(
-                &inner.1,
+                inner.1,
                 classlike_name,
                 type_context,
                 resolved_names,
@@ -797,7 +795,7 @@ pub fn get_type_from_hint(
         }
         Hint_::Hlike(inner) => {
             let union = get_type_from_hint(
-                &inner.1,
+                inner.1,
                 classlike_name,
                 type_context,
                 resolved_names,
@@ -828,7 +826,7 @@ pub fn get_type_from_hint(
         ),
         Hint_::Haccess(class, type_names) => {
             let mut inner_type = get_type_from_hint(
-                &class.1,
+                class.1,
                 classlike_name,
                 type_context,
                 resolved_names,
@@ -838,7 +836,7 @@ pub fn get_type_from_hint(
             .unwrap()
             .get_single_owned();
 
-            for type_id in type_names {
+            for type_id in type_names.iter() {
                 inner_type = TAtomic::TClassTypeConstant {
                     class_type: Box::new(inner_type),
                     member_name: if let Some(resolved_name) =
@@ -856,7 +854,7 @@ pub fn get_type_from_hint(
         }
         Hint_::Hsoft(hint) => {
             return get_type_from_hint(
-                &hint.1,
+                hint.1,
                 classlike_name,
                 type_context,
                 resolved_names,
@@ -873,9 +871,9 @@ pub fn get_type_from_hint(
         Hint_::Hnothing => TAtomic::TNothing,
         Hint_::Hunion(union_hints) => {
             let mut all_atomic_types = vec![];
-            for inner_hint in union_hints {
+            for inner_hint in union_hints.iter() {
                 let inner_type = get_type_from_hint(
-                    &inner_hint.1,
+                    inner_hint.1,
                     classlike_name,
                     type_context,
                     resolved_names,
@@ -899,7 +897,7 @@ pub fn get_type_from_hint(
             // this is a hack, and misses type refinements
             // of the form MyClass with { SomeClassTypeConst = OtherType, ... }
             return get_type_from_hint(
-                &hint.1,
+                hint.1,
                 classlike_name,
                 type_context,
                 resolved_names,
@@ -933,7 +931,7 @@ pub fn get_type_from_optional_hint(
 ) -> Option<TUnion> {
     match hint {
         Some(x) => get_type_from_hint(
-            &x.1,
+            x.1,
             classlike_name,
             type_context,
             resolved_names,
@@ -949,11 +947,11 @@ pub fn get_type_references_from_hint(
     resolved_names: &FxHashMap<u32, StrId>,
 ) -> Vec<(StrId, usize, usize)> {
     let mut refs = vec![];
-    match &*hint.1 {
+    match hint.1 {
         Hint_::Happly(id, type_params) => {
             let applied_type = &id.1;
 
-            match applied_type.as_str() {
+            match *applied_type {
                 "int"
                 | "string"
                 | "HH\\string"
@@ -993,22 +991,22 @@ pub fn get_type_references_from_hint(
                 }
             }
 
-            for type_param in type_params {
+            for type_param in type_params.iter() {
                 refs.extend(get_type_references_from_hint(type_param, resolved_names));
             }
         }
         Hint_::Hshape(shape_info) => {
-            for element in &shape_info.field_map {
+            for element in shape_info.field_map.iter() {
                 match element {
-                    oxidized::aast_defs::ShapeElement::SEField(field) => {
+                    hakana_parser::aast::ShapeElement::SEField(field) => {
                         refs.extend(get_type_references_from_hint(&field.hint, resolved_names));
-                        if let ast_defs::ShapeFieldName::SFclassConst(lhs, _) = &field.name {
+                        if let aast::ShapeFieldName::SFclassConst(lhs, _) = &field.name {
                             let lhs_name =
                                 resolved_names.get(&(lhs.0.start_offset() as u32)).unwrap();
                             refs.push((*lhs_name, lhs.0.start_offset(), lhs.0.end_offset()));
                         }
                     }
-                    oxidized::aast_defs::ShapeElement::SESplat(hint) => {
+                    hakana_parser::aast::ShapeElement::SESplat(hint) => {
                         refs.extend(get_type_references_from_hint(hint, resolved_names));
                     }
                 }
@@ -1018,7 +1016,7 @@ pub fn get_type_references_from_hint(
             }
         }
         Hint_::Htuple(tuple_info) => {
-            for hint in &tuple_info.required {
+            for hint in tuple_info.required.iter() {
                 refs.extend(get_type_references_from_hint(hint, resolved_names));
             }
         }
@@ -1026,7 +1024,7 @@ pub fn get_type_references_from_hint(
             refs.extend(get_type_references_from_hint(inner, resolved_names));
         }
         Hint_::Hfun(hint_fun) => {
-            for param_hint in &hint_fun.param_tys {
+            for param_hint in hint_fun.param_tys.iter() {
                 refs.extend(get_type_references_from_hint(param_hint, resolved_names));
             }
             refs.extend(get_type_references_from_hint(

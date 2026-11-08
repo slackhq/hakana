@@ -13,7 +13,7 @@ use hakana_code_info::data_flow::node::{
 use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::ttype::{combine_union_types, get_named_object};
 use hakana_code_info::var_name::VarName;
-use oxidized::aast;
+use hakana_parser::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::{collections::BTreeMap, rc::Rc};
@@ -22,11 +22,7 @@ use super::control_analyzer;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    stmt: (
-        &aast::Block<(), ()>,
-        &Vec<aast::Catch<(), ()>>,
-        &aast::FinallyBlock<(), ()>,
-    ),
+    stmt: (&aast::Block, &[aast::Catch], &aast::FinallyBlock),
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
@@ -46,7 +42,7 @@ pub(crate) fn analyze(
     let assigned_var_ids = context.assigned_var_ids.clone();
     context.assigned_var_ids = FxHashMap::default();
 
-    statements_analyzer.analyze(&stmt.0.0, analysis_data, context, loop_scope)?;
+    statements_analyzer.analyze(stmt.0.0, analysis_data, context, loop_scope)?;
 
     context.has_returned = false;
     try_context.has_returned = false;
@@ -55,7 +51,7 @@ pub(crate) fn analyze(
         codebase,
         statements_analyzer.interner,
         statements_analyzer.file_analyzer.resolved_names,
-        &stmt.0.0,
+        stmt.0.0,
         analysis_data,
         vec![],
         true,
@@ -198,19 +194,19 @@ pub(crate) fn analyze(
 
         catch_context
             .locals
-            .insert(VarName::new(catch_var_id.clone()), Rc::new(catch_type));
+            .insert(VarName::new(*catch_var_id), Rc::new(catch_type));
 
         let old_catch_assigned_var_ids = catch_context.assigned_var_ids.clone();
 
         catch_context.assigned_var_ids = FxHashMap::default();
-        statements_analyzer.analyze(&catch.2.0, analysis_data, &mut catch_context, loop_scope)?;
+        statements_analyzer.analyze(catch.2.0, analysis_data, &mut catch_context, loop_scope)?;
 
         // recalculate in case there's a nothing function call
         let catch_actions = control_analyzer::get_control_actions(
             codebase,
             statements_analyzer.interner,
             statements_analyzer.file_analyzer.resolved_names,
-            &catch.2.0,
+            catch.2.0,
             analysis_data,
             vec![],
             true,
@@ -315,7 +311,7 @@ pub(crate) fn analyze(
         }
 
         let before_finally_locals = finally_context.locals.clone();
-        statements_analyzer.analyze(&stmt.2.0, analysis_data, &mut finally_context, loop_scope)?;
+        statements_analyzer.analyze(stmt.2.0, analysis_data, &mut finally_context, loop_scope)?;
 
         finally_has_returned = finally_context.has_returned;
 
@@ -323,7 +319,7 @@ pub(crate) fn analyze(
             codebase,
             statements_analyzer.interner,
             statements_analyzer.file_analyzer.resolved_names,
-            &stmt.2.0,
+            stmt.2.0,
             analysis_data,
             vec![],
             true,

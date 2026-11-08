@@ -2,19 +2,22 @@ use hakana_analyzer::config::Config;
 use hakana_code_info::code_location::FilePath;
 use hakana_code_info::file_info::ParserError;
 use hakana_orchestrator::scanner::get_filesystem;
+use hakana_parser::aast;
+use hakana_parser::aast::Def;
+use hakana_parser::aast::Expr_;
+use hakana_parser::aast::Pos;
+use hakana_parser::aast::Stmt_;
+use hakana_parser::aast_visitor::AstParams;
+use hakana_parser::aast_visitor::Node;
+use hakana_parser::aast_visitor::Visitor;
+use hakana_parser::aast_visitor::visit;
 use hakana_str::{Interner, ThreadedInterner};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::debug;
-use oxidized::aast::{Def, Expr_, Stmt_};
-use oxidized::ast::Pos;
-use oxidized::{
-    aast,
-    aast_visitor::{AstParams, Node, Visitor, visit},
-};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -79,7 +82,7 @@ pub fn scan_files(
                 .push(FilePath(interner.get(str_path.as_str()).unwrap()));
         }
 
-        let interner = Arc::new(Mutex::new(interner));
+        let interner = Arc::new(RwLock::new(interner));
         let mut handles = vec![];
 
         for (_, path_group) in path_groups {
@@ -135,18 +138,19 @@ pub(crate) fn scan_file(
     root_dir: &str,
     file_path: FilePath,
 ) -> ExecutableLines {
-    let interner = interner.parent.lock().unwrap();
+    let interner = interner.parent.read().unwrap();
     let str_path = interner.lookup(&file_path.0).to_string();
 
     debug!("scanning {}", str_path);
-    let aast = hakana_orchestrator::get_aast_for_path(file_path, &str_path);
+    let arena = hakana_parser::Bump::new();
+    let aast = hakana_orchestrator::get_aast_for_path(&arena, file_path, &str_path);
     let aast = match aast {
         Ok(aast) => aast,
         Err(_) => panic!("invalid file: {}", str_path),
     };
-    let mut checker = Scanner {};
+    let mut checker = Scanner { lines: &aast.lines };
     let mut context = BTreeSet::new();
-    match visit(&mut checker, &mut context, &aast.0) {
+    match visit(&mut checker, &mut context, &aast.program) {
         Ok(_) => ExecutableLines {
             path: file_path.get_relative_path(&interner, root_dir),
             executable_lines: to_ranges(context.clone()),
@@ -155,9 +159,12 @@ pub(crate) fn scan_file(
     }
 }
 
-struct Scanner {}
+struct Scanner<'a> {
+    /// The file's line table: positions are byte ranges.
+    lines: &'a hakana_parser::aast::LineIndex,
+}
 
-impl<'ast> Visitor<'ast> for Scanner {
+impl<'ast> Visitor<'ast> for Scanner<'_> {
     type Params = AstParams<BTreeSet<u64>, ParserError>;
 
     fn object(&mut self) -> &mut dyn Visitor<'ast, Params = Self::Params> {
@@ -167,18 +174,18 @@ impl<'ast> Visitor<'ast> for Scanner {
     fn visit_program(
         &mut self,
         c: &mut BTreeSet<u64>,
-        p: &aast::Program<(), ()>,
+        p: &aast::Program,
     ) -> Result<(), ParserError> {
-        for def in &p.0 {
+        for def in p.0.iter() {
             match &def {
                 Def::Namespace(boxed) => {
-                    for ns_def in &boxed.1 {
+                    for ns_def in boxed.1.iter() {
                         match &ns_def {
                             Def::Fun(boxed) => {
                                 self.visit_block(c, &boxed.fun.body.fb_ast)?;
                             }
                             Def::Class(boxed) => {
-                                for method in &boxed.methods {
+                                for method in boxed.methods.iter() {
                                     self.visit_block(c, &method.body.fb_ast)?;
                                 }
                             }
@@ -190,7 +197,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                     self.visit_block(c, &boxed.fun.body.fb_ast)?;
                 }
                 Def::Class(boxed) => {
-                    for method in &boxed.methods {
+                    for method in boxed.methods.iter() {
                         self.visit_block(c, &method.body.fb_ast)?;
                     }
                 }
@@ -200,37 +207,33 @@ impl<'ast> Visitor<'ast> for Scanner {
         Ok(())
     }
 
-    fn visit_stmt(
-        &mut self,
-        c: &mut BTreeSet<u64>,
-        p: &aast::Stmt<(), ()>,
-    ) -> Result<(), ParserError> {
+    fn visit_stmt(&mut self, c: &mut BTreeSet<u64>, p: &aast::Stmt) -> Result<(), ParserError> {
         match &p.1 {
             Stmt_::For(boxed) => {
-                push_start(&p.0, c); // The line where for loop is declared is coverable
+                self.push_start(&p.0, c); // The line where for loop is declared is coverable
                 boxed.3.recurse(c, self)
             }
             Stmt_::Foreach(boxed) => {
-                push_start(&p.0, c); // The line where foreach loop is declared is coverable
+                self.push_start(&p.0, c); // The line where foreach loop is declared is coverable
                 boxed.2.recurse(c, self)
             }
             Stmt_::Do(boxed) => {
-                push_pos(&boxed.1.2.1, c);
+                self.push_pos(&boxed.1.2.1, c);
                 boxed.0.recurse(c, self)
             }
             Stmt_::While(boxed) => {
-                push_pos(&boxed.0.2.1, c);
+                self.push_pos(&boxed.0.2.1, c);
                 boxed.1.recurse(c, self)
             }
             Stmt_::If(boxed) => {
-                push_pos(&boxed.0.1, c); // if expression
+                self.push_pos(&boxed.0.1, c); // if expression
                 boxed.1.recurse(c, self)?;
                 boxed.2.recurse(c, self)
             }
             Stmt_::Switch(boxed) => {
-                push_start(&p.0, c);
-                for case_stmt in &boxed.1 {
-                    push_pos(&case_stmt.0.1, c);
+                self.push_start(&p.0, c);
+                for case_stmt in boxed.1.iter() {
+                    self.push_pos(&case_stmt.0.1, c);
                     case_stmt.recurse(c, self)?;
                 }
                 boxed.2.recurse(c, self)
@@ -239,13 +242,13 @@ impl<'ast> Visitor<'ast> for Scanner {
             Stmt_::Expr(boxed) => self.visit_expr(c, boxed),
             Stmt_::Try(boxed) => self.visit_block(c, &boxed.0),
             Stmt_::Concurrent(boxed) => {
-                push_start(&p.0, c); // The line where concurrent block is declared is coverable
+                self.push_start(&p.0, c); // The line where concurrent block is declared is coverable
                 self.visit_block(c, boxed)
             }
             Stmt_::Return(boxed) => {
                 // a single-line return is always coverable
-                if is_single_line(&p.0) {
-                    push_pos(&p.0, c);
+                if self.is_single_line(&p.0) {
+                    self.push_pos(&p.0, c);
                     return Ok(());
                 }
                 match **boxed {
@@ -255,17 +258,13 @@ impl<'ast> Visitor<'ast> for Scanner {
             }
             _ => {
                 let result = p.recurse(c, self);
-                push_pos(&p.0, c);
+                self.push_pos(&p.0, c);
                 result
             }
         }
     }
 
-    fn visit_expr(
-        &mut self,
-        c: &mut BTreeSet<u64>,
-        p: &aast::Expr<(), ()>,
-    ) -> Result<(), ParserError> {
+    fn visit_expr(&mut self, c: &mut BTreeSet<u64>, p: &aast::Expr) -> Result<(), ParserError> {
         match &p.2 {
             Expr_::Efun(boxed) => self.visit_block(c, &boxed.fun.body.fb_ast),
             Expr_::Lfun(boxed) => self.visit_block(c, &boxed.0.body.fb_ast),
@@ -273,51 +272,51 @@ impl<'ast> Visitor<'ast> for Scanner {
             Expr_::As(boxed) => self.visit_expr(c, &boxed.expr),
             Expr_::Assign(boxed) => {
                 // a single-line assignment is always coverable
-                if is_single_line(&boxed.2.1) {
-                    push_pos(&boxed.2.1, c);
+                if self.is_single_line(&boxed.2.1) {
+                    self.push_pos(&boxed.2.1, c);
                     return Ok(());
                 }
                 self.visit_expr(c, &boxed.2)?;
                 Ok(())
             }
             Expr_::Shape(vec) => {
-                for field in vec {
+                for field in vec.iter() {
                     let expr = match field {
                         aast::ShapeExprField::SFField(_, expr)
                         | aast::ShapeExprField::SFSplat(expr) => expr,
                     };
                     // a single-line shape field is always coverable
-                    if is_single_line(expr.pos()) {
-                        push_pos(expr.pos(), c);
+                    if self.is_single_line(expr.pos()) {
+                        self.push_pos(expr.pos(), c);
                     }
                 }
-                push_end(&p.1, c);
+                self.push_end(&p.1, c);
                 Ok(())
             }
             Expr_::ValCollection(boxed) => {
-                for expr in &boxed.2 {
+                for expr in boxed.2.iter() {
                     self.visit_expr(c, expr)?;
                 }
-                push_end(&p.1, c);
+                self.push_end(&p.1, c);
                 Ok(())
             }
             Expr_::KeyValCollection(boxed) => {
-                for field in &boxed.2 {
+                for field in boxed.2.iter() {
                     self.visit_expr(c, &field.0)?;
                     self.visit_expr(c, &field.1)?;
                 }
-                push_end(&p.1, c);
+                self.push_end(&p.1, c);
                 Ok(())
             }
             Expr_::Call(boxed) => {
                 // a single-line function call is always coverable
-                if is_single_line(&p.1) {
-                    push_pos(&p.1, c);
+                if self.is_single_line(&p.1) {
+                    self.push_pos(&p.1, c);
                     return Ok(());
                 }
 
                 self.visit_expr(c, &boxed.func)?;
-                for arg in &boxed.args {
+                for arg in boxed.args.iter() {
                     match &arg {
                         aast::Argument::Ainout(_, expr) => {
                             self.visit_expr(c, expr)?;
@@ -330,7 +329,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                         }
                     }
                 }
-                push_end(&p.1, c);
+                self.push_end(&p.1, c);
                 Ok(())
             }
             Expr_::Pipe(boxed) => {
@@ -347,49 +346,47 @@ impl<'ast> Visitor<'ast> for Scanner {
             | Expr_::String2(_)
             | Expr_::PrefixedString(_)
             | Expr_::Lvar(_) => {
-                push_pos(&p.1, c);
+                self.push_pos(&p.1, c);
                 Ok(())
             }
             _ => Ok(()),
         }
     }
 
-    fn visit_block(
-        &mut self,
-        c: &mut BTreeSet<u64>,
-        p: &aast::Block<(), ()>,
-    ) -> Result<(), ParserError> {
-        for stmt in &p.0 {
+    fn visit_block(&mut self, c: &mut BTreeSet<u64>, p: &aast::Block) -> Result<(), ParserError> {
+        for stmt in p.0.iter() {
             self.visit_stmt(c, stmt)?;
         }
         Ok(())
     }
 }
 
-fn push_start(p: &Pos, res: &mut BTreeSet<u64>) {
-    let start = p.to_raw_span().start.line();
-    res.insert(start);
-}
+impl Scanner<'_> {
+    fn push_start(&self, p: &Pos, res: &mut BTreeSet<u64>) {
+        let start = p.to_raw_span(self.lines).start.line() as u64;
+        res.insert(start);
+    }
 
-fn push_pos(p: &Pos, res: &mut BTreeSet<u64>) {
-    let start = p.to_raw_span().start.line();
-    let end = p.to_raw_span().end.line();
-    if start != 0 && end != 0 {
-        for line in start..(end + 1) {
-            res.insert(line);
+    fn push_pos(&self, p: &Pos, res: &mut BTreeSet<u64>) {
+        let span = p.to_raw_span(self.lines);
+        let start = span.start.line() as u64;
+        let end = span.end.line() as u64;
+        if start != 0 && end != 0 {
+            for line in start..(end + 1) {
+                res.insert(line);
+            }
         }
     }
-}
 
-fn push_end(p: &Pos, res: &mut BTreeSet<u64>) {
-    let end = p.to_raw_span().end.line();
-    res.insert(end);
-}
+    fn push_end(&self, p: &Pos, res: &mut BTreeSet<u64>) {
+        let end = p.to_raw_span(self.lines).end.line() as u64;
+        res.insert(end);
+    }
 
-fn is_single_line(p: &Pos) -> bool {
-    let start = p.to_raw_span().start.line();
-    let end = p.to_raw_span().end.line();
-    start == end
+    fn is_single_line(&self, p: &Pos) -> bool {
+        let span = p.to_raw_span(self.lines);
+        span.start.line() == span.end.line()
+    }
 }
 
 // Given an ordered set of ints representing individual executable lines,

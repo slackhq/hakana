@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
 use hakana_algebra::Clause;
-use oxidized::{aast, pos::Pos};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -17,7 +18,7 @@ use super::{control_analyzer::BreakContext, loop_analyzer, while_analyzer::get_a
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    stmt: (&aast::Block<(), ()>, &aast::Expr<(), ()>),
+    stmt: (&aast::Block, &aast::Expr),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -77,7 +78,7 @@ pub(crate) fn analyze(
 
     let mut inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.0.0,
+        stmt.0.0,
         get_and_expressions(stmt.1),
         vec![],
         &mut loop_scope,

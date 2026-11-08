@@ -21,14 +21,15 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use oxidized::{aast, ast, ast_defs::Pos};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
 pub(crate) fn analyze<'expr: 'tast, 'tast>(
     statements_analyzer: &StatementsAnalyzer,
     stmt_pos: &aast::Pos,
-    operator: &'expr ast::Bop,
-    left: &'expr aast::Expr<(), ()>,
-    right: &'expr aast::Expr<(), ()>,
+    operator: &'expr aast::Bop,
+    left: &'expr aast::Expr,
+    right: &'expr aast::Expr,
     analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
@@ -207,17 +208,17 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                         | TAtomic::TNothing
                         | TAtomic::TMixedFromLoopIsset,
                     ) => match operator {
-                        oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
+                        hakana_parser::aast::Bop::Slash => TAtomic::TNum,
                         _ => TAtomic::TInt,
                     },
                     _ => match operator {
                         // modulo and bitwise operators are int-only in Hack
-                        oxidized::ast_defs::Bop::Percent
-                        | oxidized::ast_defs::Bop::Amp
-                        | oxidized::ast_defs::Bop::Bar
-                        | oxidized::ast_defs::Bop::Xor
-                        | oxidized::ast_defs::Bop::Ltlt
-                        | oxidized::ast_defs::Bop::Gtgt => TAtomic::TInt,
+                        hakana_parser::aast::Bop::Percent
+                        | hakana_parser::aast::Bop::Amp
+                        | hakana_parser::aast::Bop::Bar
+                        | hakana_parser::aast::Bop::Xor
+                        | hakana_parser::aast::Bop::Ltlt
+                        | hakana_parser::aast::Bop::Gtgt => TAtomic::TInt,
                         _ => {
                             // mixed operands produce mixed results — assuming float
                             // would emit knock-on false positives. TMixedFromLoopIsset
@@ -270,19 +271,19 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                         TAtomic::TLiteralInt { value: e1_value },
                         TAtomic::TLiteralInt { value: e2_value },
                     ) => match operator {
-                        oxidized::ast_defs::Bop::Plus => TAtomic::TLiteralInt {
+                        hakana_parser::aast::Bop::Plus => TAtomic::TLiteralInt {
                             value: e1_value.wrapping_add(*e2_value),
                         },
-                        oxidized::ast_defs::Bop::Minus => TAtomic::TLiteralInt {
+                        hakana_parser::aast::Bop::Minus => TAtomic::TLiteralInt {
                             value: e1_value.wrapping_sub(*e2_value),
                         },
-                        oxidized::ast_defs::Bop::Amp => TAtomic::TLiteralInt {
+                        hakana_parser::aast::Bop::Amp => TAtomic::TLiteralInt {
                             value: e1_value & e2_value,
                         },
-                        oxidized::ast_defs::Bop::Bar => TAtomic::TLiteralInt {
+                        hakana_parser::aast::Bop::Bar => TAtomic::TLiteralInt {
                             value: e1_value | e2_value,
                         },
-                        oxidized::ast_defs::Bop::Ltlt => TAtomic::TLiteralInt {
+                        hakana_parser::aast::Bop::Ltlt => TAtomic::TLiteralInt {
                             value: e1_value.wrapping_shl(
                                 if let Ok(result) = (*e2_value).try_into() {
                                     result
@@ -291,7 +292,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                                 },
                             ),
                         },
-                        oxidized::ast_defs::Bop::Gtgt => TAtomic::TLiteralInt {
+                        hakana_parser::aast::Bop::Gtgt => TAtomic::TLiteralInt {
                             value: e1_value.wrapping_shr(
                                 if let Ok(result) = (*e2_value).try_into() {
                                     result
@@ -300,10 +301,10 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                                 },
                             ),
                         },
-                        oxidized::ast_defs::Bop::Percent => TAtomic::TLiteralInt {
+                        hakana_parser::aast::Bop::Percent => TAtomic::TLiteralInt {
                             value: e1_value % e2_value,
                         },
-                        oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
+                        hakana_parser::aast::Bop::Slash => TAtomic::TNum,
                         _ => TAtomic::TInt,
                     },
                     (
@@ -316,17 +317,17 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                         | TAtomic::TNothing
                         | TAtomic::TMixedFromLoopIsset,
                     ) => match operator {
-                        oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
+                        hakana_parser::aast::Bop::Slash => TAtomic::TNum,
                         _ => TAtomic::TInt,
                     },
                     _ => match operator {
                         // modulo and bitwise operators are int-only in Hack
-                        oxidized::ast_defs::Bop::Percent
-                        | oxidized::ast_defs::Bop::Amp
-                        | oxidized::ast_defs::Bop::Bar
-                        | oxidized::ast_defs::Bop::Xor
-                        | oxidized::ast_defs::Bop::Ltlt
-                        | oxidized::ast_defs::Bop::Gtgt => TAtomic::TInt,
+                        hakana_parser::aast::Bop::Percent
+                        | hakana_parser::aast::Bop::Amp
+                        | hakana_parser::aast::Bop::Bar
+                        | hakana_parser::aast::Bop::Xor
+                        | hakana_parser::aast::Bop::Ltlt
+                        | hakana_parser::aast::Bop::Gtgt => TAtomic::TInt,
                         _ => {
                             // mixed operands produce mixed results — assuming float
                             // would emit knock-on false positives. TMixedFromLoopIsset
@@ -399,8 +400,8 @@ pub(crate) fn assign_arithmetic_type(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     cond_type: TUnion,
-    lhs_expr: &aast::Expr<(), ()>,
-    rhs_expr: &aast::Expr<(), ()>,
+    lhs_expr: &aast::Expr,
+    rhs_expr: &aast::Expr,
     expr_pos: &Pos,
 ) {
     let mut cond_type = cond_type;

@@ -8,16 +8,15 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
 use hakana_code_info::var_name::VarName;
+use hakana_parser::aast;
+use hakana_parser::aast::Expr;
+use hakana_parser::aast::Pos;
 use itertools::Itertools;
-use oxidized::{
-    aast::{self, Expr},
-    ast_defs::Pos,
-};
 use std::rc::Rc;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&Expr<(), ()>, &Expr<(), ()>),
+    expr: (&Expr, &Expr),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -28,7 +27,7 @@ pub(crate) fn analyze(
     context.inside_general_use = true;
 
     let prop_name = if let aast::Expr_::Id(id) = &expr.1.2 {
-        Some(id.1.clone())
+        Some(id.1.to_string())
     } else {
         expression_analyzer::analyze(statements_analyzer, expr.1, analysis_data, context, true)?;
 

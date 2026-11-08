@@ -13,15 +13,16 @@ use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::ReferenceSource;
 use hakana_code_info::type_resolution::TypeResolutionContext;
+use hakana_parser::aast;
+use hakana_parser::aast::Comment;
+use hakana_parser::aast::CommentPos;
+use hakana_parser::aast::Pos;
 use hakana_str::{Interner, StrId};
-use oxidized::aast;
-use oxidized::ast_defs::Pos;
-use oxidized::prim_defs::Comment;
 
 pub struct StatementsAnalyzer<'a> {
     pub file_analyzer: &'a FileAnalyzer<'a>,
     function_info: Option<&'a FunctionLikeInfo>,
-    pub comments: &'a Vec<&'a (Pos, Comment)>,
+    pub comments: &'a Vec<&'a (CommentPos, Comment)>,
     type_resolution_context: &'a TypeResolutionContext,
     pub in_migratable_function: bool,
     pub interner: &'a Interner,
@@ -29,10 +30,22 @@ pub struct StatementsAnalyzer<'a> {
 }
 
 impl<'a> StatementsAnalyzer<'a> {
+    /// The file's line table, for the line and column of a position.
+    #[inline]
+    pub fn lines(&self) -> &'a hakana_parser::aast::LineIndex {
+        self.file_analyzer.file_source.line_index
+    }
+
+    /// The arena holding the file's tree, for nodes built during analysis.
+    #[inline]
+    pub fn arena(&self) -> &'a hakana_parser::Bump {
+        self.file_analyzer.file_source.arena
+    }
+
     pub fn new(
         file_analyzer: &'a FileAnalyzer,
         type_resolution_context: &'a TypeResolutionContext,
-        comments: &'a Vec<&'a (Pos, Comment)>,
+        comments: &'a Vec<&'a (CommentPos, Comment)>,
     ) -> Self {
         Self {
             file_analyzer,
@@ -47,7 +60,7 @@ impl<'a> StatementsAnalyzer<'a> {
 
     pub(crate) fn analyze(
         &self,
-        stmts: &Vec<aast::Stmt<(), ()>>,
+        stmts: &[aast::Stmt],
         analysis_data: &mut FunctionAnalysisData,
         context: &mut BlockContext,
         loop_scope: &mut Option<LoopScope>,
@@ -62,7 +75,7 @@ impl<'a> StatementsAnalyzer<'a> {
                         _ => false,
                     };
 
-                    if stmt.0.line() > 0 {
+                    if stmt.0.line(self.lines()) > 0 {
                         if is_harmless {
                             analysis_data.maybe_add_issue(
                                 Issue::new(
@@ -112,7 +125,11 @@ impl<'a> StatementsAnalyzer<'a> {
 
     #[inline]
     pub fn get_hpos(&self, pos: &Pos) -> HPos {
-        HPos::new(pos, self.file_analyzer.file_source.file_path)
+        HPos::new(
+            pos,
+            self.file_analyzer.file_source.file_path,
+            self.file_analyzer.file_source.line_index,
+        )
     }
 
     #[inline]

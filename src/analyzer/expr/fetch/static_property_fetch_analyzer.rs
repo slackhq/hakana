@@ -15,16 +15,14 @@ use hakana_code_info::ttype::{
     type_expander::{self, StaticClassType},
 };
 use hakana_code_info::var_name::VarName;
-use oxidized::ast;
-use oxidized::{
-    aast::{self, ClassId},
-    ast_defs::{self, Pos},
-};
+use hakana_parser::aast;
+use hakana_parser::aast::ClassId;
+use hakana_parser::aast::Pos;
 use std::rc::Rc;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ClassId<(), ()>, &ast_defs::Pstring),
+    expr: (&ClassId, &aast::Pstring),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -281,7 +279,7 @@ pub(crate) fn analyze(
  */
 fn analyze_variable_static_property_fetch(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&ClassId<(), ()>, &ast_defs::Pstring),
+    expr: (&ClassId, &aast::Pstring),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -448,15 +446,17 @@ fn analyze_variable_static_property_fetch(
     Ok(())
 }
 
-fn analyze_variable_static_property_fetch_fallback(
-    statements_analyzer: &StatementsAnalyzer,
-    expr: (&ClassId<(), ()>, &ast_defs::Pstring),
+fn analyze_variable_static_property_fetch_fallback<'ast>(
+    statements_analyzer: &StatementsAnalyzer<'ast>,
+    expr: (&ClassId<'ast>, &aast::Pstring<'ast>),
     pos: &Pos,
     stmt_class_type: &hakana_code_info::t_union::TUnion,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
-    let fake_var_name = "__fake_var_".to_string() + &pos.line().to_string();
+    let arena = statements_analyzer.arena();
+    let fake_var_name =
+        "__fake_var_".to_string() + &pos.line(statements_analyzer.lines()).to_string();
     context.locals.insert(
         VarName::new(&fake_var_name),
         Rc::new(stmt_class_type.clone()),
@@ -464,23 +464,20 @@ fn analyze_variable_static_property_fetch_fallback(
 
     let lhs = &aast::Expr(
         (),
-        pos.clone(),
-        aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
-            pos.clone(),
+        *pos,
+        aast::Expr_::Lvar(&*arena.alloc(hakana_parser::aast::Lid(
+            *pos,
             (
                 fake_var_name.len().try_into().unwrap(),
-                fake_var_name.clone(),
+                &*arena.alloc_str(&fake_var_name),
             ),
         ))),
     );
 
     let rhs = aast::Expr(
         (),
-        expr.1.0.clone(),
-        aast::Expr_::Id(Box::new(ast::Id(
-            expr.1.0.clone(),
-            expr.1.1[1..].to_string(),
-        ))),
+        expr.1.0,
+        aast::Expr_::Id(&*arena.alloc(aast::Id(expr.1.0, &expr.1.1[1..]))),
     );
 
     instance_property_fetch_analyzer::analyze(

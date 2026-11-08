@@ -4,11 +4,11 @@
 //! It ensures if/while/for/foreach/else statements always use braces.
 
 use crate::{Edit, EditSet, LintContext, LintError, Linter, Severity, SyntaxVisitor};
-use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
-use parser_core_types::syntax_by_ref::positioned_token::PositionedToken;
-use parser_core_types::syntax_by_ref::positioned_value::PositionedValue;
-use parser_core_types::syntax_by_ref::syntax_variant_generated::*;
-use parser_core_types::syntax_trait::SyntaxTrait;
+use hakana_syntax::syntax_by_ref::positioned_syntax::PositionedSyntax;
+use hakana_syntax::syntax_by_ref::positioned_token::PositionedToken;
+use hakana_syntax::syntax_by_ref::positioned_value::PositionedValue;
+use hakana_syntax::syntax_by_ref::syntax_variant_generated::*;
+use hakana_syntax::syntax_trait::SyntaxTrait;
 
 pub struct MustUseBracesForControlFlowLinter;
 

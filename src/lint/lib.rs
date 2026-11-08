@@ -53,8 +53,8 @@ pub use runner::{LintConfig, LintResult, run_linters};
 pub use syntax_utils::{collect_statements, is_statement, offset_to_line_column};
 pub use visitor::SyntaxVisitor;
 
-use parser_core_types::source_text::SourceText;
-use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
+use hakana_syntax::source_text::SourceText;
+use hakana_syntax::syntax_by_ref::positioned_syntax::PositionedSyntax;
 
 /// Parse a Hack file into a full-fidelity syntax tree
 pub fn parse_file<'a>(
@@ -62,15 +62,13 @@ pub fn parse_file<'a>(
     source: &SourceText<'a>,
 ) -> (
     PositionedSyntax<'a>,
-    Vec<parser_core_types::syntax_error::SyntaxError>,
+    Vec<hakana_syntax::syntax_error::SyntaxError>,
 ) {
-    let env = parser_core_types::parser_env::ParserEnv {
+    let env = hakana_syntax::parser_env::ParserEnv {
         enable_xhp_class_modifier: true,
         disable_xhp_element_mangling: false,
         disable_xhp_children_declarations: false,
-        ..Default::default()
     };
 
-    let (root, errors, _state) = positioned_by_ref_parser::parse_script(arena, source, env);
-    (root, errors)
+    hakana_syntax::parse_script(arena, source, env)
 }

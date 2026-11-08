@@ -1,0 +1,36 @@
+[package]
+name = "hakana-parser-bench"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "parse-bench"
+path = "main.rs"
+
+[[test]]
+name = "differential"
+path = "tests/differential.rs"
+
+[[test]]
+name = "keywords"
+path = "tests/keywords.rs"
+
+[dependencies]
+hakana-parser = { path = "../parser" }
+aast_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/aast_parser" }
+hh_autoimport_rust = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/hh_autoimport" }
+naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/naming" }
+stack_limit = { path = "../../third-party/hhvm/hphp/hack/src/utils/stack_limit" }
+rustc-hash = "1.1.0"
+parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
+positioned_by_ref_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/api/cargo/positioned_by_ref_parser" }
+relative_path = { path = "../../third-party/hhvm/hphp/hack/src/utils/rust/relative_path" }
+oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
+lowerer = { path = "../../third-party/hhvm/hphp/hack/src/parser/lowerer" }
+hash = { path = "../../third-party/hhvm/hphp/hack/src/utils/hash" }
+bumpalo = { version = "3.11" }
+mimalloc = { version = "*", default-features = false }

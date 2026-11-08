@@ -1,13 +1,13 @@
 use hakana_code_info::t_atomic::{DictKey, TAtomic, TDict, TVec};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{get_nothing, get_string, wrap_atomic};
+use hakana_parser::aast;
 use hakana_str::StrId;
-use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, num::ParseIntError, sync::Arc};
 
 pub fn infer(
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     resolved_names: &FxHashMap<u32, StrId>,
     always_infer_shape: bool,
 ) -> Option<TAtomic> {
@@ -16,7 +16,7 @@ pub fn infer(
         aast::Expr_::ClassConst(boxed) => match &boxed.0.2 {
             aast::ClassId_::CIexpr(lhs_expr) => {
                 if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                    match id.1.as_str() {
+                    match id.1 {
                         "self" | "parent" | "static" => None,
                         _ => {
                             let name_string =
@@ -44,12 +44,12 @@ pub fn infer(
         aast::Expr_::Shape(shape_fields) => {
             let mut known_items = BTreeMap::new();
 
-            for field in shape_fields {
+            for field in shape_fields.iter() {
                 let aast::ShapeExprField::SFField(shape_field_name, field_expr) = field else {
                     // Splat values need full expression analysis.
                     return None;
                 };
-                if let ast_defs::ShapeFieldName::SFlitStr((_, str)) = shape_field_name {
+                if let aast::ShapeFieldName::SFlitStr((_, str)) = shape_field_name {
                     let field_type = infer(field_expr, resolved_names, false);
 
                     if let Some(field_type) = field_type {
@@ -87,21 +87,21 @@ pub fn infer(
             }
 
             match boxed.0.1 {
-                oxidized::ast::VcKind::Vec => Some(TAtomic::TVec(TVec {
+                hakana_parser::aast::VcKind::Vec => Some(TAtomic::TVec(TVec {
                     known_count: Some(entries.len()),
                     known_items: Some(entries),
                     type_param: Box::new(get_nothing()),
                     non_empty: true,
                     variadic_type: None,
                 })),
-                oxidized::ast::VcKind::Keyset => None,
+                hakana_parser::aast::VcKind::Keyset => None,
                 _ => panic!(),
             }
         }
         aast::Expr_::KeyValCollection(boxed) => {
             let mut known_items = BTreeMap::new();
 
-            for entry_field in &boxed.2 {
+            for entry_field in boxed.2.iter() {
                 if let aast::Expr_::String(key_value) = &entry_field.0.2 {
                     let value_type = infer(&entry_field.1, resolved_names, false);
 
@@ -120,7 +120,7 @@ pub fn infer(
 
             if known_items.len() < 100 || always_infer_shape {
                 match boxed.0.1 {
-                    oxidized::ast::KvcKind::Dict => Some(TAtomic::TDict(TDict {
+                    hakana_parser::aast::KvcKind::Dict => Some(TAtomic::TDict(TDict {
                         non_empty: !known_items.is_empty(),
                         known_items: Some(std::sync::Arc::new(known_items)),
                         params: None,
@@ -169,14 +169,14 @@ pub fn infer(
             }))
         }
         aast::Expr_::Binop(boxed) => {
-            if let ast_defs::Bop::Dot = boxed.bop {
+            if let aast::Bop::Dot = boxed.bop {
                 Some(TAtomic::TStringWithFlags(true, true))
             } else {
                 None
             }
         }
         aast::Expr_::Unop(boxed) => {
-            if let ast_defs::Uop::Uminus = boxed.0 {
+            if let aast::Uop::Uminus = boxed.0 {
                 let number_type = infer(&boxed.1, resolved_names, false);
 
                 if let Some(number_type) = number_type {
@@ -188,7 +188,7 @@ pub fn infer(
                 } else {
                     None
                 }
-            } else if let ast_defs::Uop::Utild = boxed.0 {
+            } else if let aast::Uop::Utild = boxed.0 {
                 Some(TAtomic::TInt)
             } else {
                 panic!()
@@ -256,7 +256,7 @@ pub fn infer(
         aast::Expr_::Nameof(class) => match &class.2 {
             aast::ClassId_::CIexpr(lhs_expr) => {
                 if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                    match id.1.as_str() {
+                    match id.1 {
                         "self" | "parent" | "static" => None,
                         _ => {
                             let name_string =

@@ -13,12 +13,12 @@ use hakana_code_info::{
         type_expander::{self, TypeExpansionOptions},
     },
 };
-use oxidized::aast;
+use hakana_parser::aast;
 
 pub(super) fn check(
     statements_analyzer: &StatementsAnalyzer,
     functionlike_info: &FunctionLikeInfo,
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
     template_result: &TemplateResult,
     analysis_data: &mut FunctionAnalysisData,
     context: &BlockContext,
@@ -55,11 +55,11 @@ pub(super) fn check(
     else {
         return;
     };
-    if !template_result
+    if template_result
         .lower_bounds
         .get(param_name)
         .and_then(|bounds| bounds.get(defining_entity))
-        .is_some_and(|bounds| !bounds.is_empty())
+        .is_none_or(|bounds| bounds.is_empty())
     {
         return;
     }

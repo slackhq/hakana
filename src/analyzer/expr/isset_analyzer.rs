@@ -3,11 +3,12 @@ use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use hakana_code_info::ttype::get_bool;
-use oxidized::{aast, ast::Pos};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,

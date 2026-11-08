@@ -6,8 +6,8 @@ use hakana_code_info::taint::SinkType;
 use hakana_code_info::ttype::get_mixed;
 use hakana_code_info::var_name::VarName;
 use hakana_code_info::{ExprId, GenericParent, VarId};
+use hakana_parser::aast;
 use hakana_str::{Interner, StrId};
-use oxidized::aast;
 use rustc_hash::FxHashMap;
 
 use hakana_code_info::classlike_info::ClassLikeInfo;
@@ -21,7 +21,7 @@ use hakana_code_info::ttype::{
     get_mixed_any, get_nothing, get_string, template,
     type_expander::{self, TypeExpansionOptions},
 };
-use oxidized::ast_defs::Pos;
+use hakana_parser::aast::Pos;
 
 use crate::expr::expression_identifier::get_expr_id;
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -36,12 +36,8 @@ pub(crate) fn fetch(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    lhs_expr: Option<&aast::Expr<(), ()>>,
-    call_expr: (
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
-    ),
+    lhs_expr: Option<&aast::Expr>,
+    call_expr: (&[aast::Targ], &[aast::Argument], &Option<aast::Expr>),
     method_id: &MethodIdentifier,
     declaring_method_id: &MethodIdentifier,
     lhs_type_part: &TAtomic,
@@ -247,12 +243,8 @@ fn add_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     mut return_type_candidate: TUnion,
     context: &mut BlockContext,
-    lhs_expr: Option<&aast::Expr<(), ()>>,
-    call_expr: (
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
-    ),
+    lhs_expr: Option<&aast::Expr>,
+    call_expr: (&[aast::Targ], &[aast::Argument], &Option<aast::Expr>),
     method_id: &MethodIdentifier,
     declaring_method_id: &MethodIdentifier,
     lhs_var_id: Option<&String>,
@@ -571,7 +563,7 @@ fn add_dataflow(
 fn get_tainted_method_node(
     statements_analyzer: &StatementsAnalyzer<'_>,
     context: &mut BlockContext,
-    lhs_expr: Option<&aast::Expr<(), ()>>,
+    lhs_expr: Option<&aast::Expr>,
     method_id: &MethodIdentifier,
     declaring_method_id: &MethodIdentifier,
     lhs_var_id: Option<&String>,

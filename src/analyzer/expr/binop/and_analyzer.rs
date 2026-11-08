@@ -9,13 +9,13 @@ use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
 use hakana_code_info::ttype::get_bool;
-use oxidized::aast;
+use hakana_parser::aast;
 
 pub(crate) fn analyze<'expr>(
     statements_analyzer: &StatementsAnalyzer,
     stmt_pos: &aast::Pos,
-    left: &'expr aast::Expr<(), ()>,
-    right: &'expr aast::Expr<(), ()>,
+    left: &'expr aast::Expr,
+    right: &'expr aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {

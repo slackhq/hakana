@@ -3,12 +3,10 @@
 use crate::collect_statements;
 
 use super::{LintContext, LintError, Linter, Migrator};
-use line_break_map::LineBreakMap;
-use parser_core_types::source_text::SourceText;
-use relative_path::{Prefix, RelativePath};
+use hakana_syntax::line_break_map::LineBreakMap;
+use hakana_syntax::source_text::SourceText;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::Duration;
 
 /// Configuration for running linters
@@ -167,10 +165,10 @@ fn parse_suppressions(source: &str) -> SuppressionInfo {
 /// Parse suppressions and collect statement boundaries for better suppression handling
 fn parse_suppressions_with_statements<'a>(
     source: &str,
-    root: &'a parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax<'a>,
+    root: &'a hakana_syntax::syntax_by_ref::positioned_syntax::PositionedSyntax<'a>,
     line_break_map: &LineBreakMap,
 ) -> (SuppressionInfo, Vec<(usize, usize)>) {
-    use parser_core_types::syntax_trait::SyntaxTrait;
+    use hakana_syntax::syntax_trait::SyntaxTrait;
 
     let suppression_info = parse_suppressions(source);
 
@@ -424,8 +422,7 @@ pub fn run_linters(
 ) -> Result<LintResult, String> {
     // Parse the file
     let arena = bumpalo::Bump::new();
-    let relative_path = Arc::new(RelativePath::make(Prefix::Root, PathBuf::from(file_path)));
-    let source_text = SourceText::make(relative_path, file_contents.as_bytes());
+    let source_text = SourceText::make(file_path.to_string_lossy(), file_contents.as_bytes());
 
     let (root, parse_errors) = crate::parse_file(&arena, &source_text);
 
@@ -562,8 +559,7 @@ pub fn run_migrator(
     migrator: &dyn Migrator,
 ) -> Result<Option<String>, String> {
     let arena = bumpalo::Bump::new();
-    let relative_path = Arc::new(RelativePath::make(Prefix::Root, PathBuf::from(file_path)));
-    let source_text = SourceText::make(relative_path, file_contents.as_bytes());
+    let source_text = SourceText::make(file_path.to_string_lossy(), file_contents.as_bytes());
 
     let (root, parse_errors) = crate::parse_file(&arena, &source_text);
 

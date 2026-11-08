@@ -12,8 +12,8 @@ use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::data_flow::graph::DataFlowGraph;
 use hakana_code_info::function_context::FunctionContext;
 use hakana_code_info::type_resolution::TypeResolutionContext;
+use hakana_parser::aast;
 use hakana_str::{Interner, StrId};
-use oxidized::aast;
 use rustc_hash::FxHashMap;
 
 pub struct InternalError(pub String, pub HPos);
@@ -54,7 +54,7 @@ impl<'a> FileAnalyzer<'a> {
 
     pub fn analyze(
         &mut self,
-        program: &aast::Program<(), ()>,
+        program: &aast::Program,
         analysis_result: &mut AnalysisResult,
     ) -> Result<(), InternalError> {
         let mut analysis_data = FunctionAnalysisData::new(

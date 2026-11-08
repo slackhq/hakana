@@ -1,5 +1,5 @@
-function string_to_bool(string $a): bool {
-    $b = (bool)$a;
+function string_to_int(string $a): int {
+    $b = (int)$a;
     return $b;
 }
 

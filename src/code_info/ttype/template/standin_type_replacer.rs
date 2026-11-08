@@ -1298,7 +1298,7 @@ fn handle_template_param_class_standin(
                     template_result
                         .lower_bounds
                         .entry(*param_name)
-                        .or_insert_with(FxHashMap::default)
+                        .or_default()
                         .insert(
                             *defining_entity,
                             vec![TemplateBound {
@@ -1493,7 +1493,7 @@ fn handle_template_param_type_standin(
                     template_result
                         .lower_bounds
                         .entry(*param_name)
-                        .or_insert_with(FxHashMap::default)
+                        .or_default()
                         .insert(
                             *defining_entity,
                             vec![TemplateBound {

@@ -6,7 +6,7 @@ use diff::{CachedAnalysis, mark_safe_symbols_from_diff};
 #[cfg(test)]
 mod invalidation_tests;
 use file::{FileStatus, VirtualFileSystem};
-use hakana_aast_helper::get_aast_for_path_and_contents;
+use hakana_aast_helper::{Bump, get_aast_for_path_and_contents};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_code_info::analysis_result::AnalysisResult;
@@ -16,11 +16,11 @@ use hakana_code_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_code_info::file_info::ParserError;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
+use hakana_parser::aast;
+use hakana_parser::aast::ScouredComments;
 use hakana_str::{Interner, StrId};
 use indicatif::ProgressBar;
 use log::{debug, info};
-use oxidized::aast;
-use oxidized::scoured_comments::ScouredComments;
 use populator::populate_codebase;
 use rust_embed::RustEmbed;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -598,42 +598,75 @@ fn get_references_path(cache_dir: Option<&String>) -> Option<String> {
     cache_dir.map(|cache_dir| format!("{}/references", cache_dir))
 }
 
-pub fn get_aast_for_path(
-    file_path: FilePath,
-    file_path_str: &str,
-) -> Result<
-    (
-        aast::Program<(), ()>,
-        ScouredComments,
-        String,
-        Vec<ParserError>,
-    ),
-    ParserError,
-> {
-    let file_contents = if file_path_str.starts_with("hsl_embedded_") {
-        std::str::from_utf8(
-            &HslAsset::get(file_path_str)
-                .unwrap_or_else(|| panic!("Could not read HSL file {}", file_path_str))
-                .data,
-        )
-        .unwrap_or_else(|_| panic!("Could not convert HSL file {}", file_path_str))
-        .to_string()
-    } else if file_path_str.starts_with("hhi_embedded_") {
-        std::str::from_utf8(
-            &HhiAsset::get(file_path_str)
-                .unwrap_or_else(|| panic!("Could not read HSL file {}", file_path_str))
-                .data,
-        )
-        .unwrap_or_else(|_| panic!("Could not convert HHI file {}", file_path_str))
-        .to_string()
-    } else {
-        match fs::read_to_string(file_path_str) {
-            Ok(str_file) => str_file,
+/// Reads a file into `arena`: from disk, or from the HSL/HHI definitions built
+/// into the binary.
+pub fn get_file_contents<'a>(arena: &'a Bump, file_path_str: &str) -> Result<&'a str, ParserError> {
+    if file_path_str.starts_with("hsl_embedded_") {
+        let asset = HslAsset::get(file_path_str)
+            .unwrap_or_else(|| panic!("Could not read HSL file {}", file_path_str));
+        let contents = std::str::from_utf8(&asset.data)
+            .unwrap_or_else(|_| panic!("Could not convert HSL file {}", file_path_str));
+        return Ok(arena.alloc_str(contents));
+    }
+
+    if file_path_str.starts_with("hhi_embedded_") {
+        let asset = HhiAsset::get(file_path_str)
+            .unwrap_or_else(|| panic!("Could not read HHI file {}", file_path_str));
+        let contents = std::str::from_utf8(&asset.data)
+            .unwrap_or_else(|_| panic!("Could not convert HHI file {}", file_path_str));
+        return Ok(arena.alloc_str(contents));
+    }
+
+    // Read straight into the arena rather than into a `String` that then has to
+    // be kept alongside it.
+    let mut file = fs::File::open(file_path_str).map_err(|_| ParserError::CannotReadFile)?;
+    let len = file
+        .metadata()
+        .map_err(|_| ParserError::CannotReadFile)?
+        .len() as usize;
+    let buffer = arena.alloc_slice_fill_copy(len, 0u8);
+    let mut filled = 0;
+    while filled < len {
+        match std::io::Read::read(&mut file, &mut buffer[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled += n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
             Err(_) => return Err(ParserError::CannotReadFile),
         }
-    };
+    }
+    std::str::from_utf8(&buffer[..filled]).map_err(|_| ParserError::CannotReadFile)
+}
 
-    get_aast_for_path_and_contents(file_path, file_path_str, file_contents)
+/// A file read and parsed by [`get_aast_for_path`]. Everything borrowed lives
+/// in the arena passed to it.
+pub struct ParsedFile<'a> {
+    pub program: aast::Program<'a>,
+    pub comments: ScouredComments,
+    /// The file's line table: positions in the tree are byte ranges.
+    pub lines: hakana_aast_helper::LineIndex,
+    pub file_contents: &'a str,
+    pub parser_errors: Vec<ParserError>,
+    /// The file has a syntax error: `program` only declares what could be
+    /// salvaged, without function bodies, so there is nothing to analyse.
+    pub has_syntax_error: bool,
+}
+
+/// Reads and parses a file.
+pub fn get_aast_for_path<'a>(
+    arena: &'a Bump,
+    file_path: FilePath,
+    file_path_str: &str,
+) -> Result<ParsedFile<'a>, ParserError> {
+    let file_contents = get_file_contents(arena, file_path_str)?;
+    let parsed = get_aast_for_path_and_contents(arena, file_path, file_path_str, file_contents)?;
+    Ok(ParsedFile {
+        program: parsed.program,
+        comments: parsed.comments,
+        lines: parsed.lines,
+        file_contents,
+        parser_errors: parsed.parser_errors,
+        has_syntax_error: parsed.has_syntax_error,
+    })
 }
 
 fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {

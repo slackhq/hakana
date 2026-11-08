@@ -4,7 +4,7 @@ use crate::{
     engine::{self, Group, Range},
     syntax::Node,
 };
-use parser_core_types::{syntax_kind::SyntaxKind, trivia_kind::TriviaKind};
+use hakana_parser::cst::{SyntaxKind, TriviaKind};
 use std::sync::LazyLock;
 
 static BEGIN_MANUAL_SECTION: LazyLock<regex::Regex> =

@@ -51,6 +51,9 @@ members = [
     "src/protocol",
     "src/server",
     "src/mcp_server",
+    "src/parser",
+    "src/syntax",
+    "src/parser_bench",
 ]
 exclude = ["third-party"]
 

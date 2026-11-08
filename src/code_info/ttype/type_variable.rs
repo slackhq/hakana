@@ -180,7 +180,7 @@ fn atomic_contains(atomic: &TAtomic) -> bool {
                     .known_items
                     .as_ref()
                     .is_some_and(|items| items.values().any(|(_, ty)| contains(ty)))
-                || vec.variadic_type.as_ref().is_some_and(|ty| contains(ty))
+                || vec.variadic_type.as_ref().is_some_and(contains)
         }
         TAtomic::TDict(dict) => {
             dict.params
@@ -196,7 +196,7 @@ fn atomic_contains(atomic: &TAtomic) -> bool {
         TAtomic::TGenericParam(TGenericParam { as_type, .. })
         | TAtomic::TClassTypeConstant { as_type, .. } => contains(as_type),
         TAtomic::TClosure(closure) => {
-            closure.return_type.as_ref().is_some_and(|ty| contains(ty))
+            closure.return_type.as_ref().is_some_and(contains)
                 || closure
                     .params
                     .iter()
@@ -437,10 +437,11 @@ fn map_children(atomic: &mut TAtomic, f: &mut impl FnMut(&mut TUnion)) {
                 params.iter_mut().for_each(f);
             }
         }
-        TAtomic::TReference { type_params, .. } => {
-            if let Some(params) = type_params {
-                params.iter_mut().for_each(f);
-            }
+        TAtomic::TReference {
+            type_params: Some(params),
+            ..
+        } => {
+            params.iter_mut().for_each(f);
         }
         TAtomic::TTypeAlias {
             type_params,

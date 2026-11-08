@@ -16,8 +16,8 @@ use hakana_code_info::{
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 
 // This performs type subtractions and more general reconciliations

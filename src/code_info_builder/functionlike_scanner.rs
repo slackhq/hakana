@@ -31,16 +31,15 @@ use hakana_code_info::taint::string_to_source_types;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::wrap_atomic;
 use hakana_code_info::type_resolution::TypeResolutionContext;
+use hakana_parser::aast;
+use hakana_parser::aast::Comment;
+use hakana_parser::aast::CommentPos;
+use hakana_parser::aast::Pos;
+use hakana_parser::aast::SplatKind;
+use hakana_parser::aast::Stmt;
+use hakana_parser::aast::UserAttribute;
+use hakana_parser::aast::WhereConstraintHint;
 use hakana_str::{StrId, ThreadedInterner};
-use oxidized::aast;
-use oxidized::aast::Stmt;
-use oxidized::ast;
-use oxidized::ast::SplatKind;
-use oxidized::ast::UserAttribute;
-use oxidized::ast::WhereConstraintHint;
-use oxidized::ast_defs;
-use oxidized::ast_defs::Pos;
-use oxidized::prim_defs::Comment;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
@@ -48,14 +47,14 @@ pub(crate) fn scan_method(
     interner: &mut ThreadedInterner,
     all_custom_issues: &FxHashSet<String>,
     resolved_names: &FxHashMap<u32, StrId>,
-    m: &aast::Method_<(), ()>,
+    m: &aast::Method_,
     classlike_name: StrId,
     classlike_storage: &mut ClassLikeInfo,
-    comments: &Vec<(Pos, Comment)>,
+    comments: &Vec<(CommentPos, Comment)>,
     file_source: &FileSource,
     user_defined: bool,
 ) -> (StrId, FunctionLikeInfo) {
-    let method_name = interner.intern(m.name.1.clone());
+    let method_name = interner.intern(m.name.1.to_string());
 
     let mut type_resolution_context = TypeResolutionContext {
         template_type_map: classlike_storage.template_types.clone(),
@@ -68,14 +67,14 @@ pub(crate) fn scan_method(
         Some(method_name),
         &m.span,
         Some(&m.name.0),
-        &m.tparams,
-        &m.params,
-        &m.body.fb_ast.0,
+        m.tparams,
+        m.params,
+        m.body.fb_ast.0,
         &m.ret,
         &m.fun_kind,
-        &m.user_attributes.0,
+        m.user_attributes.0,
         &m.ctxs,
-        &m.where_constraints,
+        m.where_constraints,
         &mut type_resolution_context,
         Some(classlike_name),
         resolved_names,
@@ -104,13 +103,13 @@ pub(crate) fn scan_method(
     method_info.is_final = m.final_ || classlike_storage.is_final;
     method_info.is_abstract = m.abstract_;
     method_info.visibility = match m.visibility {
-        ast_defs::Visibility::Private => MemberVisibility::Private,
-        ast_defs::Visibility::Public | ast_defs::Visibility::Internal => MemberVisibility::Public,
-        ast_defs::Visibility::Protected => MemberVisibility::Protected,
-        ast_defs::Visibility::ProtectedInternal => MemberVisibility::Protected,
+        aast::Visibility::Private => MemberVisibility::Private,
+        aast::Visibility::Public | aast::Visibility::Internal => MemberVisibility::Public,
+        aast::Visibility::Protected => MemberVisibility::Protected,
+        aast::Visibility::ProtectedInternal => MemberVisibility::Protected,
     };
 
-    if !matches!(m.visibility, ast_defs::Visibility::Private)
+    if !matches!(m.visibility, aast::Visibility::Private)
         || method_name != StrId::CONSTRUCT
         || matches!(classlike_storage.kind, SymbolKind::Trait)
     {
@@ -119,7 +118,7 @@ pub(crate) fn scan_method(
             .insert(method_name, classlike_name);
     }
 
-    for param_node in &m.params {
+    for param_node in m.params.iter() {
         if param_node.visibility.is_some() {
             add_promoted_param_property(param_node, classlike_storage, interner);
         }
@@ -132,7 +131,7 @@ pub(crate) fn scan_method(
 }
 
 fn add_promoted_param_property(
-    param_node: &aast::FunParam<(), ()>,
+    param_node: &aast::FunParam,
     classlike_storage: &mut ClassLikeInfo,
     interner: &mut ThreadedInterner,
 ) {
@@ -149,22 +148,22 @@ pub(crate) fn get_functionlike(
     name: Option<StrId>,
     def_pos: &Pos,
     name_pos: Option<&Pos>,
-    tparams: &[aast::Tparam<(), ()>],
-    params: &[aast::FunParam<(), ()>],
-    stmts: &[Stmt<(), ()>],
-    ret: &aast::TypeHint<()>,
-    fun_kind: &ast_defs::FunKind,
-    user_attributes: &Vec<UserAttribute>,
-    contexts: &Option<ast::Contexts>,
-    where_constraints: &Vec<WhereConstraintHint>,
+    tparams: &[aast::Tparam],
+    params: &[aast::FunParam],
+    stmts: &[Stmt],
+    ret: &aast::TypeHint,
+    fun_kind: &aast::FunKind,
+    user_attributes: &[UserAttribute],
+    contexts: &Option<aast::Contexts>,
+    where_constraints: &[WhereConstraintHint],
     type_context: &mut TypeResolutionContext,
     this_name: Option<StrId>,
     resolved_names: &FxHashMap<u32, StrId>,
-    comments: &Vec<(Pos, Comment)>,
+    comments: &Vec<(CommentPos, Comment)>,
     file_source: &FileSource,
     user_defined: bool,
 ) -> FunctionLikeInfo {
-    let definition_location = HPos::new(def_pos, file_source.file_path);
+    let definition_location = HPos::new(def_pos, file_source.file_path, file_source.line_index);
 
     let mut suppressed_issues = vec![];
 
@@ -220,12 +219,12 @@ pub(crate) fn get_functionlike(
 
             let mut template_as_type = None;
 
-            for (constraint_type, constraint_hint) in &type_param_node.constraints {
-                if let ast_defs::ConstraintKind::ConstraintAs
-                | ast_defs::ConstraintKind::ConstraintEq = constraint_type
+            for (constraint_type, constraint_hint) in type_param_node.constraints.iter() {
+                if let aast::ConstraintKind::ConstraintAs | aast::ConstraintKind::ConstraintEq =
+                    constraint_type
                 {
                     template_as_type = get_type_from_hint(
-                        &constraint_hint.1,
+                        constraint_hint.1,
                         this_name,
                         type_context,
                         resolved_names,
@@ -235,10 +234,10 @@ pub(crate) fn get_functionlike(
                 }
             }
 
-            for (constraint_type, constraint_hint) in &type_param_node.constraints {
-                if let ast_defs::ConstraintKind::ConstraintSuper = constraint_type {
+            for (constraint_type, constraint_hint) in type_param_node.constraints.iter() {
+                if let aast::ConstraintKind::ConstraintSuper = constraint_type {
                     let mut super_type = get_type_from_hint(
-                        &constraint_hint.1,
+                        constraint_hint.1,
                         this_name,
                         type_context,
                         resolved_names,
@@ -273,7 +272,7 @@ pub(crate) fn get_functionlike(
 
     for where_hint in where_constraints {
         let where_first = get_type_from_hint(
-            &where_hint.0.1,
+            where_hint.0.1,
             this_name,
             type_context,
             resolved_names,
@@ -284,7 +283,7 @@ pub(crate) fn get_functionlike(
         .get_single_owned();
 
         let where_second = get_type_from_hint(
-            &where_hint.2.1,
+            where_hint.2.1,
             this_name,
             type_context,
             resolved_names,
@@ -294,7 +293,7 @@ pub(crate) fn get_functionlike(
         .unwrap();
 
         if let TAtomic::TGenericParam(TGenericParam { param_name, .. }) = where_first
-            && let ast_defs::ConstraintKind::ConstraintEq | ast_defs::ConstraintKind::ConstraintAs =
+            && let aast::ConstraintKind::ConstraintEq | aast::ConstraintKind::ConstraintAs =
                 where_hint.1
         {
             functionlike_info
@@ -339,9 +338,14 @@ pub(crate) fn get_functionlike(
         if let Some(message) =
             validate_security_attribute(attribute, params, resolved_names, interner)
         {
-            functionlike_info
-                .invalid_security_annotations
-                .push((HPos::new(&attribute.name.0, file_source.file_path), message));
+            functionlike_info.invalid_security_annotations.push((
+                HPos::new(
+                    &attribute.name.0,
+                    file_source.file_path,
+                    file_source.line_index,
+                ),
+                message,
+            ));
         }
     }
     for attribute in params.iter().flat_map(|param| &param.user_attributes) {
@@ -352,7 +356,11 @@ pub(crate) fn get_functionlike(
                 | Some(&StrId::HAKANA_SECURITY_ANALYSIS_RESPONSE_OUTPUT)
         ) {
             functionlike_info.invalid_security_annotations.push((
-                HPos::new(&attribute.name.0, file_source.file_path),
+                HPos::new(
+                    &attribute.name.0,
+                    file_source.file_path,
+                    file_source.line_index,
+                ),
                 "Response effects must annotate the function or method, not a parameter".into(),
             ));
         }
@@ -386,7 +394,11 @@ pub(crate) fn get_functionlike(
                     Ok(assertion) => functionlike_info.type_assertion = Some(Box::new(assertion)),
                     Err(message) => {
                         functionlike_info.invalid_type_assertion_annotation = Some(Box::new((
-                            HPos::new(&user_attribute.name.0, file_source.file_path),
+                            HPos::new(
+                                &user_attribute.name.0,
+                                file_source.file_path,
+                                file_source.line_index,
+                            ),
                             message,
                         )));
                     }
@@ -506,11 +518,19 @@ pub(crate) fn get_functionlike(
     }
 
     if let Some(ret) = &ret.1 {
-        functionlike_info.return_type_location = Some(HPos::new(&ret.0, file_source.file_path));
+        functionlike_info.return_type_location = Some(HPos::new(
+            &ret.0,
+            file_source.file_path,
+            file_source.line_index,
+        ));
     }
 
     if let Some(name_pos) = name_pos {
-        functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path));
+        functionlike_info.name_location = Some(HPos::new(
+            name_pos,
+            file_source.file_path,
+            file_source.line_index,
+        ));
     }
 
     functionlike_info.suppressed_issues = suppressed_issues;
@@ -551,7 +571,11 @@ pub(crate) fn get_functionlike(
         };
         if let Some(reason) = reason {
             functionlike_info.invalid_security_annotations.push((
-                HPos::new(&attribute.name.0, file_source.file_path),
+                HPos::new(
+                    &attribute.name.0,
+                    file_source.file_path,
+                    file_source.line_index,
+                ),
                 reason.into(),
             ));
         } else {
@@ -600,7 +624,7 @@ pub(crate) fn get_functionlike(
 }
 
 fn get_effect_from_contexts(
-    contexts: &ast::Contexts,
+    contexts: &aast::Contexts,
     functionlike_info: &FunctionLikeInfo,
     interner: &mut ThreadedInterner,
 ) -> FnEffect {
@@ -609,11 +633,11 @@ fn get_effect_from_contexts(
     } else if contexts.1.len() == 1 {
         let context = &contexts.1[0];
 
-        if let ast::Hint_::HfunContext(boxed) = &*context.1 {
+        if let aast::Hint_::HfunContext(boxed) = context.1 {
             let position = functionlike_info
                 .params
                 .iter()
-                .position(|p| interner.lookup(p.name.0) == boxed);
+                .position(|p| interner.lookup(p.name.0) == *boxed);
 
             if let Some(position) = position {
                 FnEffect::Arg(position as u8)
@@ -629,7 +653,7 @@ fn get_effect_from_contexts(
 }
 
 fn get_async_version(
-    expr: &oxidized::ast::Expr,
+    expr: &hakana_parser::aast::Expr,
     resolved_names: &FxHashMap<u32, StrId>,
     params: &[FunctionLikeParameter],
     interner: &mut ThreadedInterner,
@@ -645,7 +669,7 @@ fn get_async_version(
                 let first_join_expr = &call.args[0].to_expr_ref().2;
 
                 if let aast::Expr_::Call(call) = &first_join_expr {
-                    if !is_async_call_is_same_as_sync(&call.args, params, interner) {
+                    if !is_async_call_is_same_as_sync(call.args, params, interner) {
                         return None;
                     }
 
@@ -666,7 +690,7 @@ fn get_async_version(
                 && call.args.len() == 1
                 && let aast::Expr_::Call(call) = &boxed.1.2
             {
-                if !is_async_call_is_same_as_sync(&call.args, params, interner) {
+                if !is_async_call_is_same_as_sync(call.args, params, interner) {
                     return None;
                 }
 
@@ -682,7 +706,7 @@ fn get_async_version(
 fn get_name_from_expr(
     resolved_names: &FxHashMap<u32, StrId>,
     interner: &mut ThreadedInterner,
-    func_name: &aast::Expr_<(), ()>,
+    func_name: &aast::Expr_,
     current_class: Option<StrId>,
 ) -> Option<FunctionLikeIdentifier> {
     match func_name {
@@ -701,7 +725,7 @@ fn get_name_from_expr(
                     {
                         return Some(FunctionLikeIdentifier::Method(
                             *class_name,
-                            interner.intern(rhs_expr.1.clone()),
+                            interner.intern(rhs_expr.1.to_string()),
                         ));
                     }
                 }
@@ -709,7 +733,7 @@ fn get_name_from_expr(
                     if let Some(class_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
                         return Some(FunctionLikeIdentifier::Method(
                             *class_name,
-                            interner.intern(rhs_expr.1.clone()),
+                            interner.intern(rhs_expr.1.to_string()),
                         ));
                     }
                 }
@@ -717,14 +741,14 @@ fn get_name_from_expr(
                     // Handle self::method() using current class context
                     return Some(FunctionLikeIdentifier::Method(
                         StrId::SELF,
-                        interner.intern(rhs_expr.1.clone()),
+                        interner.intern(rhs_expr.1.to_string()),
                     ));
                 }
                 aast::ClassId_::CIstatic => {
                     // Handle static::method() using current class context
                     return Some(FunctionLikeIdentifier::Method(
                         StrId::STATIC,
-                        interner.intern(rhs_expr.1.clone()),
+                        interner.intern(rhs_expr.1.to_string()),
                     ));
                 }
                 _ => {}
@@ -741,7 +765,7 @@ fn get_name_from_expr(
             {
                 return Some(FunctionLikeIdentifier::Method(
                     class_name,
-                    interner.intern(method_id.1.clone()),
+                    interner.intern(method_id.1.to_string()),
                 ));
             }
         }
@@ -751,7 +775,7 @@ fn get_name_from_expr(
 }
 
 fn is_async_call_is_same_as_sync(
-    call_args: &[aast::Argument<(), ()>],
+    call_args: &[aast::Argument],
     params: &[FunctionLikeParameter],
     interner: &mut ThreadedInterner,
 ) -> bool {
@@ -774,7 +798,7 @@ fn is_async_call_is_same_as_sync(
 
 #[allow(clippy::ptr_arg)]
 pub(crate) fn adjust_location_from_comments(
-    comments: &Vec<(Pos, Comment)>,
+    comments: &Vec<(CommentPos, Comment)>,
     meta_start: &mut MetaStart,
     file_source: &FileSource,
     suppressed_issues: &mut Vec<(IssueKind, HPos)>,
@@ -803,7 +827,7 @@ pub(crate) fn adjust_location_from_comments(
                     if let Some(Ok(issue_kind)) =
                         get_issue_from_comment(trimmed_text, all_custom_issues)
                     {
-                        let comment_pos = HPos::new(comment_pos, file_source.file_path);
+                        let comment_pos = HPos::from_comment(comment_pos, file_source.file_path);
                         suppressed_issues.push((issue_kind, comment_pos));
                     }
 
@@ -816,24 +840,31 @@ pub(crate) fn adjust_location_from_comments(
 }
 
 fn convert_param_nodes(
-    param_nodes: &[aast::FunParam<(), ()>],
+    param_nodes: &[aast::FunParam],
     resolved_names: &FxHashMap<u32, StrId>,
     type_context: &TypeResolutionContext,
     file_source: &FileSource,
     all_custom_issues: &FxHashSet<String>,
-    mut comments: Vec<&(Pos, Comment)>,
+    mut comments: Vec<&(CommentPos, Comment)>,
 ) -> Vec<FunctionLikeParameter> {
     param_nodes
         .iter()
         .map(|param_node| {
-            let mut location = HPos::new(&param_node.pos, file_source.file_path);
+            let mut location = HPos::new(
+                &param_node.pos,
+                file_source.file_path,
+                file_source.line_index,
+            );
 
             if let Some(param_type) = &param_node.type_hint.1 {
                 location.start_offset = param_type.0.start_offset() as u32;
-                location.start_line = param_type.0.line() as u32;
+                location.start_line = param_type.0.line(file_source.line_index) as u32;
                 location.start_column = (location.start_offset as usize
-                    - param_type.0.to_start_and_end_lnum_bol_offset().0.1)
-                    as u16;
+                    - param_type
+                        .0
+                        .to_start_and_end_lnum_bol_offset(file_source.line_index)
+                        .0
+                        .1) as u16;
             }
 
             let param_id = *resolved_names
@@ -865,21 +896,25 @@ fn convert_param_nodes(
             let mut param = FunctionLikeParameter::new(
                 VarId(param_id),
                 location,
-                HPos::new(&param_node.pos, file_source.file_path),
+                HPos::new(
+                    &param_node.pos,
+                    file_source.file_path,
+                    file_source.line_index,
+                ),
             );
 
             if !suppressed_issues.is_empty() {
                 param.suppressed_issues = Some(suppressed_issues);
             }
 
-            param.is_variadic = param_node.info == ast::FunParamInfo::ParamVariadic;
+            param.is_variadic = matches!(param_node.info, aast::FunParamInfo::ParamVariadic);
             if let Some(SplatKind::Splat) = param_node.splat {
                 param.is_splat = true;
             }
             param.is_named = param_node.named.is_some();
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
                 get_type_from_hint(
-                    &param_type.1,
+                    param_type.1,
                     None,
                     type_context,
                     resolved_names,
@@ -889,12 +924,10 @@ fn convert_param_nodes(
             } else {
                 None
             };
-            param.is_inout = matches!(param_node.callconv, ast_defs::ParamKind::Pinout(_));
-            param.signature_type_location = param_node
-                .type_hint
-                .1
-                .as_ref()
-                .map(|param_type| HPos::new(&param_type.0, file_source.file_path));
+            param.is_inout = matches!(param_node.callconv, aast::ParamKind::Pinout(_));
+            param.signature_type_location = param_node.type_hint.1.as_ref().map(|param_type| {
+                HPos::new(&param_type.0, file_source.file_path, file_source.line_index)
+            });
             for user_attribute in &param_node.user_attributes {
                 let name = resolved_names
                     .get(&(user_attribute.name.0.start_offset() as u32))
@@ -938,10 +971,13 @@ fn convert_param_nodes(
             }
             param.promoted_property = param_node.visibility.is_some();
             param.is_optional = match &param_node.info {
-                ast::FunParamInfo::ParamOptional(expr) => {
+                aast::FunParamInfo::ParamOptional(expr) => {
                     if let Some(expr) = expr {
-                        param.default_value_location =
-                            Some(HPos::new(expr.pos(), file_source.file_path));
+                        param.default_value_location = Some(HPos::new(
+                            expr.pos(),
+                            file_source.file_path,
+                            file_source.line_index,
+                        ));
                         let default = simple_type_inferer::infer(expr, resolved_names, false);
 
                         if let Some(default) = default {
@@ -953,8 +989,8 @@ fn convert_param_nodes(
                         false
                     }
                 }
-                ast::FunParamInfo::ParamRequired => false,
-                ast::FunParamInfo::ParamVariadic => false,
+                aast::FunParamInfo::ParamRequired => false,
+                aast::FunParamInfo::ParamVariadic => false,
             };
             param
         })
@@ -962,7 +998,7 @@ fn convert_param_nodes(
 }
 
 fn get_type_assertion(
-    attribute: &aast::UserAttribute<(), ()>,
+    attribute: &aast::UserAttribute,
     functionlike_info: &FunctionLikeInfo,
     type_context: &TypeResolutionContext,
     interner: &ThreadedInterner,
@@ -1013,7 +1049,7 @@ fn get_type_assertion(
     ))
 }
 
-fn get_spread_params_from_attribute(user_attribute: &aast::UserAttribute<(), ()>) -> Vec<String> {
+fn get_spread_params_from_attribute(user_attribute: &aast::UserAttribute) -> Vec<String> {
     user_attribute
         .params
         .iter()
@@ -1028,8 +1064,8 @@ fn get_spread_params_from_attribute(user_attribute: &aast::UserAttribute<(), ()>
 }
 
 fn validate_security_attribute(
-    attribute: &aast::UserAttribute<(), ()>,
-    params: &[aast::FunParam<(), ()>],
+    attribute: &aast::UserAttribute,
+    params: &[aast::FunParam],
     resolved_names: &FxHashMap<u32, StrId>,
     interner: &ThreadedInterner,
 ) -> Option<String> {
@@ -1080,9 +1116,9 @@ fn validate_security_attribute(
                         .to_string()
                 })
             } else if params.iter().any(|param| {
-                param.info == ast::FunParamInfo::ParamVariadic
+                matches!(param.info, aast::FunParamInfo::ParamVariadic)
                     || param.splat.is_some()
-                    || matches!(param.callconv, ast_defs::ParamKind::Pinout(_))
+                    || matches!(param.callconv, aast::ParamKind::Pinout(_))
                     || param.named.is_some()
             }) {
                 Some("requires ordinary positional parameters".to_string())

@@ -10,14 +10,14 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind};
 use hakana_code_info::ttype::get_mixed_any;
+use hakana_parser::aast;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
-use oxidized::aast;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr_pos: &aast::Pos,
     hint: &aast::Hint,
-    inner_expr: &aast::Expr<(), ()>,
+    inner_expr: &aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
@@ -35,7 +35,7 @@ pub(crate) fn analyze(
         .unwrap_or(Rc::new(get_mixed_any()));
 
     let mut hint_type = get_type_from_hint(
-        &hint.1,
+        hint.1,
         None,
         statements_analyzer.get_type_resolution_context(),
         &FxHashMap::default(),

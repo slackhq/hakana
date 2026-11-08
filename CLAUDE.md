@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Building
 - `cargo build --release` - Build release version
-- `git submodule init && git submodule update` - Initialize HHVM submodule (required for first build)
-- `cd third-party/hhvm && git apply ../../hhvm-patch.diff && cd ../../` - Apply HHVM patches for WASM compilation
+- `git submodule init && git submodule update` - Initialize HHVM submodule (required for first build: lint, the formatter and the embedded HSL/HHI files come from it)
+- HHVM is used exactly as checked out - there is no patch to apply. Its parser is only compiled by the parser's differential tests (`hakana-parser-bench`); building Hakana itself needs none of HHVM's code
 - Binary is created at `./target/release/hakana-default`
 
 ### Formatting
@@ -97,10 +97,47 @@ Hakana is a typechecker for Hack built in Rust, designed to complement HHVM's bu
 - Uses custom attributes for annotation: `@Sink`, `@Source`, `@Sanitize`, etc.
 - Security-specific analysis separate from regular type checking
 
-### Parser Integration
-- Uses HHVM's parser via git submodule in `third-party/hhvm/`
-- Requires nightly Rust toolchain
-- HHVM patches applied for WASM compilation support
+### Parser
+Hakana parses Hack with its own parser. HHVM's parser is not part of the product: it is only linked into the test oracle (`src/parser_bench`).
+
+- `src/parser/` (`hakana-parser`) has no HHVM dependencies:
+  - `lexer.rs`, `parser/` - hand-written lexer and recursive-descent parser producing a compact arena-allocated **syntax tree** (`ast.rs`): `Copy` nodes, `&'a [T]` children, byte-offset `Span`s, names borrowed from the source.
+  - `checks.rs` (+ hooks in `parser/`) - the syntax errors HHVM reports for code that parses ("`async` functions must return `Awaitable`", ...). Messages and positions follow HHVM's.
+  - `readonly_check.rs` - HHVM's readonly analysis, ported function for function over the analysis tree. It only runs for files that use `readonly`.
+  - `expr_tree.rs` - what an expression tree literal (`` Dsl`1 + ${$x}` ``) stands for: a port of HHVM's desugaring, which `lower.rs` applies to each literal. Its errors ("Expression trees do not support ...") are the only ones found while lowering.
+  - `lower.rs` - lowers the syntax tree to the **analysis tree** (`aast.rs`), which is what the scanner, analyzer and plugins read. It has the shape and names of HHVM's `oxidized::aast` (`Expr((), Pos, Expr_)`, `Stmt_::If`, `Hint_::Happly`, ...) but lives in the arena: nodes are `Copy`, children are `&'a T` / `&'a [T]`, names are `&'a str`.
+  - `aast_visitor.rs` - `Visitor` / `Node::recurse` over the analysis tree, visiting the same children in the same order as HHVM's visitor did.
+  - `parser/recovery.rs` - a file with a syntax error is re-parsed leniently so its declarations stay known (bodies skipped, broken members dropped); such a file is reported as `InvalidHackFile` and not analysed.
+- `hakana_aast_helper::get_aast_for_path_and_contents(arena, ..)` is the entry point. The tree borrows the arena **and the source text**, so callers own both (`FileArena::new()` is a pooled per-thread arena). `FileSource` carries `arena` and `file_contents`.
+- Code that builds nodes during analysis allocates them in the same arena: `statements_analyzer.arena()`, then `aast::Expr_::Binop(&*arena.alloc(..))`. Temporaries that do not outlive the function can live on the stack.
+- Positions (`aast::Pos`) are 8-byte byte ranges: they know neither their file nor their line. Use `statements_analyzer.get_hpos(pos)` for a reportable position, and `pos.line(lines)` / `pos.to_raw_span(lines)` with the file's line table (`statements_analyzer.lines()`, `file_source.line_index`) when a line or column is needed. Comment positions (`aast::CommentPos`) carry their lines.
+- The syntax tree is built in a private arena and dropped once lowered; only the analysis tree goes into the caller's arena. In `lower.rs` this is enforced by lifetimes (`'s` for the syntax tree, `'a` for the output): a string taken from the syntax tree has to go through `self.s(..)` / `self.b(..)` to reach the output.
+- `src/parser_bench/` (`hakana-parser-bench`) is the test oracle and benchmark, and the only place HHVM's parser crates are linked.
+
+**The lossless syntax tree** (linters and the formatter):
+- The same parser has a recording mode (`hakana_parser::parse_cst`, `src/parser/cst/`, hooks named `c_*` in `src/parser/parser/`) that produces every token with its trivia, arranged in nodes. Node kinds, child order, token kinds and trivia attachment are exactly those of HHVM's full-fidelity tree, because hackfmt's rules and the HHAST-style linters are written against that shape. Recording costs nothing when off.
+- `src/parser/cst/kinds.rs` and `src/syntax/syntax_by_ref/syntax_variant_generated.rs` are generated from HHVM's definitions: `python3 src/parser/cst/generate.py`. Rerun it after an HHVM bump; the differential tests then say what the parser has to learn.
+- `src/syntax/` (`hakana-syntax`) puts the typed API on top (`SyntaxVariant`, `...Children` structs with named fields, `PositionedSyntax`, `SyntaxTrait` offsets, `LineBreakMap`). `src/lint`, the Slack linters and `hakana lint` use it; `src/formatter` reads `hakana_parser::cst` directly.
+- The one deliberate difference from HHVM: a `/* */` comment never trails a token (it leads the next one), so that every block comment is seen by the comment scourer - HHVM never reports one that follows a token on its line. It shows in the lossless tree and in the comment list, nowhere else: where HHVM derives something from the extent of trailing trivia (the position of a "... is expected here" error, which doc comment a declaration has), the parser uses HHVM's rule (`cst::trivia::hhvm_trailing_width`). The test oracle restates HHVM's tree and comment list under Hakana's rule (`src/parser_bench/hakana_trivia.rs`) rather than patching HHVM. The formatter moves such comments back itself.
+- Any new syntax added to the parser must also record its lossless tree.
+
+**After any change to the parser, lowering or checks, or an HHVM submodule bump**, run:
+```sh
+cargo test --release -p hakana-parser -p hakana-parser-bench
+# and against a large codebase (one path per line in files.txt):
+cargo run --release -p hakana-parser-bench --bin parse-bench -- diff files.txt
+cargo run --release -p hakana-parser-bench --bin parse-bench -- errors files.txt
+cargo run --release -p hakana-parser-bench --bin parse-bench -- cst files.txt
+# SHOW_FAILURES=1 lists files; DIFF_DUMP_LIMIT=20 writes both ASTs to /tmp/parse-diff
+```
+- `diff` must report no "mismatch": wherever both parsers accept a file, the AST, comments and fixmes are identical.
+- `errors` compares the syntax errors reported; on real code it must report nothing.
+- `cst` compares the lossless tree with HHVM's (`CST_TOKENS=1`: tokens only; `CST_DUMP=1`: dump both trees of the first file that differs); it must report nothing wherever HHVM parses the file.
+- `tests/hhvm_suite.rs` runs HHVM's own parser tests and test corpus (`third-party/hhvm/hphp/hack/test`, `hphp/test`); its `MAX_*` constants are ratchets - lower them when the numbers improve, never raise them.
+- `readonly` / `readonly-injected` compare the readonly analysis with HHVM's own pass on the same tree (the second after sprinkling `readonly` over the code, since real code rarely uses it); `tests/readonly.rs` adds generated programs. Zero differences is the bar.
+- Other `parse-bench` modes: `native`, `hhvm-aast` (timing) and `mem` (tree sizes).
+
+The parser accepts every construct HHVM's parser does. Its one deliberate limit is depth: code nested more than 400 levels deep (`parser/mod.rs`, `MAX_DEPTH`) is reported as `InvalidHackFile`, where HHVM grows its stack instead.
 
 ### Plugin System
 - Hook-based architecture using Rust traits (`CustomHook`, `InternalHook`)

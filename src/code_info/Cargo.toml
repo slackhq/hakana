@@ -11,13 +11,13 @@ memory-profile = ["dep:allocative", "hakana-str/memory-profile"]
 
 [dependencies]
 allocative = { version = "0.3.6", optional = true }
-oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
+hakana-parser = { path = "../parser" }
 hakana-str = { path = "../str" }
 itertools = "0.10.1"
 indexmap = "1.8.0"
 strum = "0.23"
 strum_macros = "0.23"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 rustc-hash = "1.1.0"
 derivative = "2.2.0"

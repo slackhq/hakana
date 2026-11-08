@@ -4,6 +4,6 @@ function response_header(string $value, bool $replace = true): void { header($va
 function response_output(string $value): void { echo $value; }
 function run(): void {
     $value = (string)HH\global_get('_POST')['value'];
-    response_header('Content-Type: text/plain', (bool)print('already HTML'));
+    response_header('Content-Type: text/plain', print('already HTML') === 1);
     response_output($value);
 }

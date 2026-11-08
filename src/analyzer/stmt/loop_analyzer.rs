@@ -5,7 +5,7 @@ use hakana_algebra::Clause;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{combine_union_types, extend_dataflow_uniquely};
 use hakana_code_info::var_name::VarName;
-use oxidized::aast;
+use hakana_parser::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -25,9 +25,9 @@ use super::{
 
 pub(crate) fn analyze<'a>(
     statements_analyzer: &'a StatementsAnalyzer,
-    stmts: &Vec<aast::Stmt<(), ()>>,
-    pre_conditions: Vec<&aast::Expr<(), ()>>,
-    post_expressions: Vec<&aast::Expr<(), ()>>,
+    stmts: &[aast::Stmt],
+    pre_conditions: Vec<&aast::Expr>,
+    post_expressions: Vec<&aast::Expr>,
     loop_scope: &'a mut LoopScope,
     loop_context: &'a mut BlockContext,
     loop_parent_context: &'a mut BlockContext,
@@ -686,7 +686,7 @@ fn get_assignment_map_depth(
 
 fn apply_pre_condition_to_loop_context(
     statements_analyzer: &StatementsAnalyzer,
-    pre_condition: &aast::Expr<(), ()>,
+    pre_condition: &aast::Expr,
     pre_condition_clauses: &[Clause],
     loop_context: &mut BlockContext,
     loop_parent_context: &mut BlockContext,

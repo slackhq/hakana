@@ -18,11 +18,10 @@ use hakana_code_info::{
     t_atomic::{DictKey, TAtomic, TDict},
     t_union::TUnion,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Expr;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{
-    aast::{self, Expr},
-    ast_defs::Pos,
-};
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::TypeVariableBounds;
@@ -37,7 +36,7 @@ use super::instance_property_assignment_analyzer;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&Expr<(), ()>, Option<&Expr<(), ()>>, &Pos),
+    expr: (&Expr, Option<&Expr>, &Pos),
     assign_value_type: TUnion,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -783,14 +782,14 @@ fn update_array_assignment_child_type(
 
 pub(crate) fn analyze_nested_array_assignment<'a>(
     statements_analyzer: &StatementsAnalyzer,
-    mut array_exprs: Vec<(&'a Expr<(), ()>, Option<&'a Expr<(), ()>>, &aast::Pos)>,
+    mut array_exprs: Vec<(&'a Expr<'a>, Option<&'a Expr<'a>>, &aast::Pos)>,
     assign_value_type: TUnion,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     root_var_id: Option<String>,
     root_type: &mut TUnion,
     last_array_expr_type: &mut TUnion,
-) -> Result<Option<&'a Expr<(), ()>>, AnalysisError> {
+) -> Result<Option<&'a Expr<'a>>, AnalysisError> {
     let mut var_id_additions = Vec::new();
     let mut last_array_expr_dim = None;
     let mut extended_var_id = None;

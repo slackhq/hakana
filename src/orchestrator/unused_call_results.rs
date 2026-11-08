@@ -141,10 +141,7 @@ pub(crate) fn check(
         if !call.return_value_used
             && !info.must_use
             && !info.has_yield
-            && info
-                .return_type
-                .as_ref()
-                .is_some_and(|ty| returns_value(ty))
+            && info.return_type.as_ref().is_some_and(returns_value)
         {
             emit(
                 result,

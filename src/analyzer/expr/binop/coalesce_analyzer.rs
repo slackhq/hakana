@@ -12,18 +12,20 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use hakana_code_info::var_name::VarName;
-use oxidized::aast::{self, CallExpr};
-use oxidized::ast::Argument;
+use hakana_parser::aast;
+use hakana_parser::aast::Argument;
+use hakana_parser::aast::CallExpr;
 use rustc_hash::FxHashSet;
 
-pub(crate) fn analyze<'expr>(
-    statements_analyzer: &StatementsAnalyzer,
+pub(crate) fn analyze<'ast, 'expr>(
+    statements_analyzer: &StatementsAnalyzer<'ast>,
     pos: &aast::Pos,
-    left: &'expr aast::Expr<(), ()>,
-    right: &'expr aast::Expr<(), ()>,
+    left: &'expr aast::Expr<'ast>,
+    right: &'expr aast::Expr<'ast>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
+    let arena = statements_analyzer.arena();
     let mut root_expr = left;
     let mut root_not_left = false;
     let mut has_arrayget_key = false;
@@ -165,10 +167,7 @@ pub(crate) fn analyze<'expr>(
     }
 
     if let Some(aast::Expr(_, _, aast::Expr_::Lvar(var))) = &replacement_left
-        && context
-            .locals
-            .get(var.1.1.as_str())
-            .is_some_and(|ty| ty.is_null())
+        && context.locals.get(var.1.1).is_some_and(|ty| ty.is_null())
     {
         // The evaluated fetch has no possible value, as on the first
         // iteration of a reducer with an empty accumulator.
@@ -184,29 +183,26 @@ pub(crate) fn analyze<'expr>(
 
     let ternary = aast::Expr(
         (),
-        pos.clone(),
-        aast::Expr_::Eif(Box::new((
+        *pos,
+        aast::Expr_::Eif(&*arena.alloc((
             aast::Expr(
                 (),
-                left.pos().clone(),
-                aast::Expr_::Call(Box::new(CallExpr {
+                *left.pos(),
+                aast::Expr_::Call(&*arena.alloc(CallExpr {
                     func: aast::Expr(
                         (),
-                        left.pos().clone(),
-                        aast::Expr_::Id(Box::new(oxidized::ast_defs::Id(
-                            left.pos().clone(),
-                            "isset".to_string(),
-                        ))),
+                        *left.pos(),
+                        aast::Expr_::Id(
+                            &*arena.alloc(hakana_parser::aast::Id(*left.pos(), "isset")),
+                        ),
                     ),
-                    targs: vec![],
-                    args: vec![Argument::Anormal(
-                        replacement_left.clone().unwrap_or(left.clone()),
-                    )],
+                    targs: &[],
+                    args: &*arena.alloc([Argument::Anormal(replacement_left.unwrap_or(*left))]),
                     unpacked_arg: None,
                 })),
             ),
-            Some(replacement_left.unwrap_or(left.clone())),
-            right.clone(),
+            Some(replacement_left.unwrap_or(*left)),
+            *right,
         ))),
     );
 
@@ -228,15 +224,16 @@ pub(crate) fn analyze<'expr>(
     Ok(())
 }
 
-fn get_left_expr(
+fn get_left_expr<'ast>(
     context: &mut BlockContext,
-    statements_analyzer: &StatementsAnalyzer,
-    left: &aast::Expr<(), ()>,
+    statements_analyzer: &StatementsAnalyzer<'ast>,
+    left: &aast::Expr<'ast>,
     analysis_data: &mut FunctionAnalysisData,
-    root_expr: &aast::Expr<(), ()>,
+    root_expr: &aast::Expr<'ast>,
     root_type: &Option<Rc<TUnion>>,
     make_nullable: bool,
-) -> aast::Expr<(), ()> {
+) -> aast::Expr<'ast> {
+    let arena = statements_analyzer.arena();
     let mut isset_context = context.clone();
     isset_context.inside_isset = true;
 
@@ -293,50 +290,54 @@ fn get_left_expr(
         .locals
         .insert(VarName::new(root_expr_var_id.clone()), condition_type);
 
-    if root_expr != left {
-        let mut left = left.clone();
+    if root_expr.1 != left.1 {
+        let mut left = *left;
 
         let new_root_expr = aast::Expr(
             (),
-            root_expr.pos().clone(),
-            aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
-                root_expr.pos().clone(),
-                (5, root_expr_var_id.clone()),
+            *root_expr.pos(),
+            aast::Expr_::Lvar(&*arena.alloc(hakana_parser::aast::Lid(
+                *root_expr.pos(),
+                (5, &*arena.alloc_str(&root_expr_var_id)),
             ))),
         );
 
-        replace_expr_with_root(&mut left, new_root_expr);
+        replace_expr_with_root(arena, &mut left, new_root_expr);
         left
     } else {
         aast::Expr(
             (),
-            root_expr.pos().clone(),
-            aast::Expr_::Lvar(Box::new(oxidized::ast::Lid(
-                root_expr.pos().clone(),
-                (5, root_expr_var_id.clone()),
+            *root_expr.pos(),
+            aast::Expr_::Lvar(&*arena.alloc(hakana_parser::aast::Lid(
+                *root_expr.pos(),
+                (5, &*arena.alloc_str(&root_expr_var_id)),
             ))),
         )
     }
 }
 
-fn replace_expr_with_root(expr: &mut aast::Expr<(), ()>, root: aast::Expr<(), ()>) {
+fn replace_expr_with_root<'ast>(
+    arena: &'ast hakana_parser::Bump,
+    expr: &mut aast::Expr<'ast>,
+    root: aast::Expr<'ast>,
+) {
     match &expr.2 {
         aast::Expr_::ArrayGet(boxed) => {
-            let mut left = boxed.0.clone();
-            replace_expr_with_root(&mut left, root);
+            let mut left = boxed.0;
+            replace_expr_with_root(arena, &mut left, root);
             *expr = aast::Expr(
                 (),
-                expr.pos().clone(),
-                aast::Expr_::ArrayGet(Box::new((left, boxed.1.clone()))),
+                *expr.pos(),
+                aast::Expr_::ArrayGet(&*arena.alloc((left, boxed.1))),
             );
         }
         aast::Expr_::ObjGet(boxed) => {
-            let mut left = boxed.0.clone();
-            replace_expr_with_root(&mut left, root);
+            let mut left = boxed.0;
+            replace_expr_with_root(arena, &mut left, root);
             *expr = aast::Expr(
                 (),
-                expr.pos().clone(),
-                aast::Expr_::ObjGet(Box::new((left, boxed.1.clone(), boxed.2, boxed.3))),
+                *expr.pos(),
+                aast::Expr_::ObjGet(&*arena.alloc((left, boxed.1, boxed.2, boxed.3))),
             );
         }
         _ => {

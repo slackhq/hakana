@@ -1,6 +1,6 @@
 final class A {
     public function isValid() : bool {
-        return (bool) rand(0, 1);
+        return rand(0, 1) === 1;
     }
 
     public function foo() : void {}

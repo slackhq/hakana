@@ -1,7 +1,7 @@
 use clap::Args;
 use hakana_code_info::analysis_result::{CheckPointEntry, CheckPointEntryLevel};
 use hakana_file_discovery::{DiscoveryOptions, discover_files};
-use line_break_map::LineBreakMap;
+use hakana_syntax::line_break_map::LineBreakMap;
 use rustc_hash::FxHashSet;
 use std::fs;
 use std::io::Write;

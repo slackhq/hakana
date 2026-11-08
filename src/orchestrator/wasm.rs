@@ -13,7 +13,7 @@ use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::symbol_references::SymbolReferences;
 use hakana_str::{Interner, StrId, ThreadedInterner};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use crate::file::VirtualFileSystem;
 use crate::populator::populate_codebase;
@@ -37,7 +37,7 @@ pub fn scan_and_analyze_single_file(
         GraphKind::FunctionBody
     };
 
-    let mut interner = ThreadedInterner::new(Arc::new(Mutex::new(interner.clone())));
+    let mut interner = ThreadedInterner::new(Arc::new(RwLock::new(interner.clone())));
 
     let resolved_names = scan_single_file(
         codebase,
@@ -96,7 +96,7 @@ pub fn get_single_file_codebase(
     additional_files: Vec<&str>,
 ) -> (CodebaseInfo, Interner, VirtualFileSystem) {
     let mut codebase = CodebaseInfo::new();
-    let interner = Arc::new(Mutex::new(Interner::default()));
+    let interner = Arc::new(RwLock::new(Interner::default()));
 
     let mut threaded_interner = ThreadedInterner::new(interner.clone());
     let empty_name_context = NameContext::new(&mut threaded_interner);
@@ -186,16 +186,19 @@ pub fn scan_single_file(
     path: String,
     file_contents: String,
 ) -> std::result::Result<FxHashMap<u32, StrId>, ParserError> {
-    let aast = get_aast_for_path_and_contents(FilePath(StrId::EMPTY), &path, file_contents)?;
+    let arena = hakana_aast_helper::FileArena::new();
+    let aast =
+        get_aast_for_path_and_contents(&arena, FilePath(StrId::EMPTY), &path, &file_contents)?;
 
     let file_path = FilePath(interner.intern(path.clone()));
 
     let name_context = NameContext::new(interner);
 
-    let (resolved_names, uses) = hakana_aast_helper::scope_names(&aast.0, interner, name_context);
+    let (resolved_names, uses) =
+        hakana_aast_helper::scope_names(&aast.program, interner, name_context);
 
     hakana_reflector::collect_info_for_aast(
-        &aast.0,
+        &aast.program,
         &resolved_names,
         interner,
         codebase,
@@ -204,13 +207,15 @@ pub fn scan_single_file(
             is_production_code: true,
             file_path_actual: path.clone(),
             file_path,
-            hh_fixmes: &aast.1.fixmes,
-            comments: &aast.1.comments,
-            file_contents: aast.2,
+            hh_fixmes: &aast.comments.fixmes,
+            comments: &aast.comments.comments,
+            file_contents: &file_contents,
+            line_index: &aast.lines,
+            arena: &arena,
         },
         true,
         uses,
-        aast.3,
+        aast.parser_errors,
     );
 
     Ok(resolved_names)
@@ -229,7 +234,8 @@ pub fn analyze_single_file(
 
     let file_path = FilePath(interner.get(path.as_str()).unwrap());
 
-    let aast_result = get_aast_for_path_and_contents(file_path, &path, file_contents);
+    let arena = hakana_aast_helper::FileArena::new();
+    let aast_result = get_aast_for_path_and_contents(&arena, file_path, &path, &file_contents);
 
     let aast = match aast_result {
         Ok(aast) => aast,
@@ -247,13 +253,32 @@ pub fn analyze_single_file(
         },
     };
 
+    if aast.has_syntax_error {
+        // A syntax error: report it rather than analysing what was salvaged.
+        let issues = aast
+            .parser_errors
+            .into_iter()
+            .filter_map(|error| match error {
+                ParserError::SyntaxError { message, pos } => {
+                    Some(Issue::new(IssueKind::InvalidHackFile, message, pos, &None))
+                }
+                _ => None,
+            })
+            .collect();
+        analysis_result.emitted_issues.insert(file_path, issues);
+
+        return Ok(analysis_result);
+    }
+
     let file_source = FileSource {
         is_production_code: true,
         file_path_actual: path.clone(),
         file_path,
-        hh_fixmes: &aast.1.fixmes,
-        comments: &aast.1.comments,
-        file_contents: aast.2.clone(),
+        hh_fixmes: &aast.comments.fixmes,
+        comments: &aast.comments.comments,
+        file_contents: &file_contents,
+        line_index: &aast.lines,
+        arena: &arena,
     };
 
     let mut file_analyzer = file_analyzer::FileAnalyzer::new(
@@ -264,7 +289,7 @@ pub fn analyze_single_file(
         analysis_config,
     );
 
-    match file_analyzer.analyze(&aast.0, &mut analysis_result) {
+    match file_analyzer.analyze(&aast.program, &mut analysis_result) {
         Ok(()) => {}
         Err(err) => {
             analysis_result.emitted_issues.insert(

@@ -13,12 +13,13 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{aast, pos::Pos};
 
 pub(crate) fn apply(
     analyzer: &StatementsAnalyzer,
-    call: &aast::CallExpr<(), ()>,
+    call: &aast::CallExpr,
     pos: &Pos,
     data: &mut FunctionAnalysisData,
     context: &mut BlockContext,

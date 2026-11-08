@@ -10,8 +10,10 @@ use hakana_code_info::{
     symbol_references::SymbolReferences,
     t_union::TUnion,
 };
+use hakana_parser::aast::Comment;
+use hakana_parser::aast::CommentPos;
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     collections::{BTreeMap, hash_map},
@@ -90,76 +92,6 @@ impl IntoIterator for TypeVariableBoundsMap {
     }
 }
 
-#[cfg(test)]
-mod bounds_map_tests {
-    use super::{TypeVariableBounds, TypeVariableBoundsMap};
-    use hakana_code_info::ttype::{get_int, template::TemplateBound};
-    use rustc_hash::FxHashSet;
-
-    fn empty_bounds() -> TypeVariableBounds {
-        TypeVariableBounds {
-            lower_bounds: vec![],
-            upper_bounds: vec![],
-        }
-    }
-
-    #[test]
-    fn mutations_are_queued_without_reading_unchanged_variables() {
-        let mut variables = TypeVariableBoundsMap::default();
-        variables.insert("T".to_owned(), empty_bounds());
-        variables.insert("U".to_owned(), empty_bounds());
-        variables.take_changed();
-
-        variables
-            .get_mut("T")
-            .unwrap()
-            .lower_bounds
-            .push(TemplateBound::new(get_int(), 0, None, None));
-        variables
-            .get_mut("T")
-            .unwrap()
-            .upper_bounds
-            .push(TemplateBound::new(get_int(), 0, None, None));
-        assert!(variables.get("U").unwrap().lower_bounds.is_empty());
-        assert_eq!(variables.snapshot()["T"].lower_bounds.len(), 1);
-        assert_eq!(
-            variables.take_changed(),
-            FxHashSet::from_iter(["T".to_owned()])
-        );
-        assert!(!variables.has_changes());
-    }
-
-    #[test]
-    fn inherited_bounds_are_propagated_independently() {
-        let mut parent = TypeVariableBoundsMap::default();
-        parent.insert("T".to_owned(), empty_bounds());
-        parent.take_changed();
-        let mut child = TypeVariableBoundsMap::default();
-        child.inherit_from(&parent);
-        assert!(!child.has_changes());
-        assert!(std::rc::Rc::ptr_eq(&parent["T"], &child["T"]));
-
-        let snapshot = child.snapshot();
-        child
-            .get_mut("T")
-            .unwrap()
-            .lower_bounds
-            .push(TemplateBound::new(get_int(), 0, None, None));
-        assert!(parent["T"].lower_bounds.is_empty());
-        assert!(!parent.has_changes());
-        assert!(child.has_changes());
-        assert!(snapshot["T"].lower_bounds.is_empty());
-        assert!(!std::rc::Rc::ptr_eq(&snapshot["T"], &child["T"]));
-
-        let mut grandchild = TypeVariableBoundsMap::default();
-        grandchild.inherit_from(&child);
-        assert_eq!(
-            grandchild.take_changed(),
-            FxHashSet::from_iter(["T".to_owned()])
-        );
-    }
-}
-
 pub struct FunctionAnalysisData {
     pub expr_types: FxHashMap<(u32, u32), Rc<TUnion>>,
     /// The type a parent expression expects of a sub-expression, keyed by the
@@ -226,7 +158,7 @@ impl FunctionAnalysisData {
     pub(crate) fn new(
         data_flow_graph: DataFlowGraph,
         file_source: &FileSource,
-        comments: &Vec<&(Pos, Comment)>,
+        comments: &Vec<&(CommentPos, Comment)>,
         all_custom_issues: &FxHashSet<String>,
         current_stmt_offset: Option<StmtStart>,
         current_stmt_end: Option<u32>,
@@ -886,7 +818,7 @@ fn hack_error_covers_issue(hack_error: isize, issue_kind: &IssueKind) -> bool {
 }
 
 fn get_hakana_fixmes_and_ignores(
-    comments: &Vec<&(Pos, Comment)>,
+    comments: &Vec<&(CommentPos, Comment)>,
     all_custom_issues: &FxHashSet<String>,
 ) -> BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>> {
     let mut hakana_fixme_or_ignores = BTreeMap::new();
@@ -923,4 +855,74 @@ fn get_hakana_fixmes_and_ignores(
         }
     }
     hakana_fixme_or_ignores
+}
+
+#[cfg(test)]
+mod bounds_map_tests {
+    use super::{TypeVariableBounds, TypeVariableBoundsMap};
+    use hakana_code_info::ttype::{get_int, template::TemplateBound};
+    use rustc_hash::FxHashSet;
+
+    fn empty_bounds() -> TypeVariableBounds {
+        TypeVariableBounds {
+            lower_bounds: vec![],
+            upper_bounds: vec![],
+        }
+    }
+
+    #[test]
+    fn mutations_are_queued_without_reading_unchanged_variables() {
+        let mut variables = TypeVariableBoundsMap::default();
+        variables.insert("T".to_owned(), empty_bounds());
+        variables.insert("U".to_owned(), empty_bounds());
+        variables.take_changed();
+
+        variables
+            .get_mut("T")
+            .unwrap()
+            .lower_bounds
+            .push(TemplateBound::new(get_int(), 0, None, None));
+        variables
+            .get_mut("T")
+            .unwrap()
+            .upper_bounds
+            .push(TemplateBound::new(get_int(), 0, None, None));
+        assert!(variables.get("U").unwrap().lower_bounds.is_empty());
+        assert_eq!(variables.snapshot()["T"].lower_bounds.len(), 1);
+        assert_eq!(
+            variables.take_changed(),
+            FxHashSet::from_iter(["T".to_owned()])
+        );
+        assert!(!variables.has_changes());
+    }
+
+    #[test]
+    fn inherited_bounds_are_propagated_independently() {
+        let mut parent = TypeVariableBoundsMap::default();
+        parent.insert("T".to_owned(), empty_bounds());
+        parent.take_changed();
+        let mut child = TypeVariableBoundsMap::default();
+        child.inherit_from(&parent);
+        assert!(!child.has_changes());
+        assert!(std::rc::Rc::ptr_eq(&parent["T"], &child["T"]));
+
+        let snapshot = child.snapshot();
+        child
+            .get_mut("T")
+            .unwrap()
+            .lower_bounds
+            .push(TemplateBound::new(get_int(), 0, None, None));
+        assert!(parent["T"].lower_bounds.is_empty());
+        assert!(!parent.has_changes());
+        assert!(child.has_changes());
+        assert!(snapshot["T"].lower_bounds.is_empty());
+        assert!(!std::rc::Rc::ptr_eq(&snapshot["T"], &child["T"]));
+
+        let mut grandchild = TypeVariableBoundsMap::default();
+        grandchild.inherit_from(&child);
+        assert_eq!(
+            grandchild.take_changed(),
+            FxHashSet::from_iter(["T".to_owned()])
+        );
+    }
 }

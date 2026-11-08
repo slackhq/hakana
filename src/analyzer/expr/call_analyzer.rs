@@ -8,9 +8,9 @@ use hakana_code_info::ttype::template::standin_type_replacer::get_relevant_bound
 use hakana_code_info::{
     EFFECT_CAN_THROW, EFFECT_IMPURE, EFFECT_PURE, EFFECT_WRITE_PROPS, GenericParent,
 };
+use hakana_parser::aast::CallExpr;
 use hakana_str::StrId;
 use itertools::Itertools;
-use oxidized::ast::CallExpr;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -25,9 +25,9 @@ use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::template::{TemplateBound, TemplateResult};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 use indexmap::IndexMap;
-use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
 
 use super::call::{
     arguments_analyzer, expression_call_analyzer, function_call_analyzer, instance_call_analyzer,
@@ -48,9 +48,9 @@ pub(crate) fn analyze(
         aast::Expr_::Id(boxed_id) => function_call_analyzer::analyze(
             statements_analyzer,
             (
-                (&boxed_id.0, &boxed_id.1),
-                &expr.targs,
-                &expr.args,
+                (&boxed_id.0, boxed_id.1),
+                expr.targs,
+                expr.args,
                 &expr.unpacked_arg,
             ),
             pos,
@@ -63,19 +63,19 @@ pub(crate) fn analyze(
                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3);
 
             match prop_or_method {
-                ast_defs::PropOrMethod::IsMethod => instance_call_analyzer::analyze(
+                aast::PropOrMethod::IsMethod => instance_call_analyzer::analyze(
                     statements_analyzer,
                     (
                         lhs_expr,
                         rhs_expr,
-                        &expr.targs,
-                        &expr.args,
+                        expr.targs,
+                        expr.args,
                         &expr.unpacked_arg,
                     ),
                     pos,
                     analysis_data,
                     context,
-                    matches!(nullfetch, ast_defs::OperatorNullFlavor::Nullsafe),
+                    matches!(nullfetch, aast::OperatorNullFlavor::Nullsafe),
                 ),
                 _ => {
                     expression_call_analyzer::analyze(
@@ -97,8 +97,8 @@ pub(crate) fn analyze(
                 (
                     class_id,
                     rhs_expr,
-                    &expr.targs,
-                    &expr.args,
+                    expr.targs,
+                    expr.args,
                     &expr.unpacked_arg,
                 ),
                 pos,
@@ -161,8 +161,8 @@ pub(crate) fn check_template_result(
 }
 
 pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
-    lower_bounds: &Vec<TemplateBound>,
-    upper_bounds: &Vec<TemplateBound>,
+    lower_bounds: &[TemplateBound],
+    upper_bounds: &[TemplateBound],
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     pos: HPos,
@@ -540,6 +540,149 @@ fn find_generic_param_for_offset(
     }
 }
 
+pub(crate) fn check_method_args(
+    statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &mut FunctionAnalysisData,
+    method_id: &MethodIdentifier,
+    functionlike_storage: &FunctionLikeInfo,
+    call_expr: (&[aast::Targ], &[aast::Argument], &Option<aast::Expr>),
+    lhs_type_part: Option<&TAtomic>,
+    template_result: &mut TemplateResult,
+    context: &mut BlockContext,
+    pos: &Pos,
+    method_name_pos: Option<&Pos>,
+    is_virtual: bool,
+) -> Result<(), AnalysisError> {
+    let codebase = statements_analyzer.codebase;
+
+    let functionlike_id = FunctionLikeIdentifier::Method(method_id.0, method_id.1);
+
+    arguments_analyzer::check_arguments_match(
+        statements_analyzer,
+        call_expr.0,
+        call_expr.1,
+        call_expr.2,
+        &functionlike_id,
+        functionlike_storage,
+        // Shapes methods derive their result from the argument's fields.
+        // The HHI signature alone does not describe that result (for example,
+        // idx's default argument must not determine the field's value type).
+        if method_id.0 == StrId::SHAPES {
+            None
+        } else {
+            functionlike_storage.return_type.as_ref()
+        },
+        Some((method_id.0, lhs_type_part, is_virtual)),
+        analysis_data,
+        context,
+        template_result,
+        pos,
+        method_name_pos,
+    )?;
+
+    apply_effects(
+        FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+        functionlike_storage,
+        analysis_data,
+        pos,
+        call_expr.1,
+    );
+
+    if !template_result.template_types.is_empty() {
+        check_template_result(statements_analyzer, template_result, pos, &functionlike_id);
+    }
+
+    if !functionlike_storage.is_production_code
+        && functionlike_storage.user_defined
+        && context.function_context.is_production(codebase)
+    {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::TestOnlyCall,
+                format!(
+                    "Cannot call test-only function {} from non-test context",
+                    method_id.to_string(statements_analyzer.interner),
+                ),
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        )
+    }
+
+    Ok(())
+}
+
+pub(crate) fn apply_effects(
+    functionlike_id: FunctionLikeIdentifier,
+    function_storage: &FunctionLikeInfo,
+    analysis_data: &mut FunctionAnalysisData,
+    pos: &Pos,
+    expr_args: &[aast::Argument],
+) {
+    if functionlike_id == FunctionLikeIdentifier::Function(StrId::ASIO_JOIN) {
+        analysis_data.expr_effects.insert(
+            (pos.start_offset() as u32, pos.end_offset() as u32),
+            EFFECT_IMPURE,
+        );
+        return;
+    }
+
+    match function_storage.effects {
+        FnEffect::Some(stored_effects) => {
+            if stored_effects > EFFECT_WRITE_PROPS {
+                analysis_data.expr_effects.insert(
+                    (pos.start_offset() as u32, pos.end_offset() as u32),
+                    stored_effects,
+                );
+            }
+        }
+        FnEffect::Arg(arg_offset) => {
+            if let Some(arg) = expr_args.get(arg_offset as usize) {
+                let arg_expr = arg.to_expr_ref();
+                if let Some(arg_type) = analysis_data.expr_types.get(&(
+                    arg_expr.pos().start_offset() as u32,
+                    arg_expr.pos().end_offset() as u32,
+                )) {
+                    for arg_atomic_type in &arg_type.types {
+                        if let TAtomic::TClosure(closure) = arg_atomic_type {
+                            if let Some(evaluated_effects) = closure.effects {
+                                analysis_data.expr_effects.insert(
+                                    (pos.start_offset() as u32, pos.end_offset() as u32),
+                                    evaluated_effects,
+                                );
+                            } else {
+                                analysis_data.expr_effects.insert(
+                                    (pos.start_offset() as u32, pos.end_offset() as u32),
+                                    EFFECT_IMPURE,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        FnEffect::Pure => {
+            analysis_data.expr_effects.insert(
+                (pos.start_offset() as u32, pos.end_offset() as u32),
+                if function_storage.has_throw {
+                    EFFECT_CAN_THROW
+                } else {
+                    EFFECT_PURE
+                },
+            );
+        }
+        FnEffect::Unknown => {
+            // yet to be computed
+        }
+    }
+
+    for arg in expr_args {
+        analysis_data.combine_effects(arg.to_expr_ref().pos(), pos, pos);
+    }
+}
+
 #[cfg(test)]
 mod generic_lookup_tests {
     use super::*;
@@ -631,152 +774,5 @@ mod generic_lookup_tests {
             get_generic_param_for_offset(&child, &template, &extended, &FxHashMap::default(),)
                 .is_any()
         );
-    }
-}
-
-pub(crate) fn check_method_args(
-    statements_analyzer: &StatementsAnalyzer,
-    analysis_data: &mut FunctionAnalysisData,
-    method_id: &MethodIdentifier,
-    functionlike_storage: &FunctionLikeInfo,
-    call_expr: (
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
-    ),
-    lhs_type_part: Option<&TAtomic>,
-    template_result: &mut TemplateResult,
-    context: &mut BlockContext,
-    pos: &Pos,
-    method_name_pos: Option<&Pos>,
-    is_virtual: bool,
-) -> Result<(), AnalysisError> {
-    let codebase = statements_analyzer.codebase;
-
-    let functionlike_id = FunctionLikeIdentifier::Method(method_id.0, method_id.1);
-
-    arguments_analyzer::check_arguments_match(
-        statements_analyzer,
-        call_expr.0,
-        call_expr.1,
-        call_expr.2,
-        &functionlike_id,
-        functionlike_storage,
-        // Shapes methods derive their result from the argument's fields.
-        // The HHI signature alone does not describe that result (for example,
-        // idx's default argument must not determine the field's value type).
-        if method_id.0 == StrId::SHAPES {
-            None
-        } else {
-            functionlike_storage.return_type.as_ref()
-        },
-        Some((method_id.0, lhs_type_part, is_virtual)),
-        analysis_data,
-        context,
-        template_result,
-        pos,
-        method_name_pos,
-    )?;
-
-    apply_effects(
-        FunctionLikeIdentifier::Method(method_id.0, method_id.1),
-        functionlike_storage,
-        analysis_data,
-        pos,
-        call_expr.1,
-    );
-
-    if !template_result.template_types.is_empty() {
-        check_template_result(statements_analyzer, template_result, pos, &functionlike_id);
-    }
-
-    if !functionlike_storage.is_production_code
-        && functionlike_storage.user_defined
-        && context.function_context.is_production(codebase)
-    {
-        analysis_data.maybe_add_issue(
-            Issue::new(
-                IssueKind::TestOnlyCall,
-                format!(
-                    "Cannot call test-only function {} from non-test context",
-                    method_id.to_string(statements_analyzer.interner),
-                ),
-                statements_analyzer.get_hpos(pos),
-                &context.function_context.calling_functionlike_id,
-            ),
-            statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual(),
-        )
-    }
-
-    Ok(())
-}
-
-pub(crate) fn apply_effects(
-    functionlike_id: FunctionLikeIdentifier,
-    function_storage: &FunctionLikeInfo,
-    analysis_data: &mut FunctionAnalysisData,
-    pos: &Pos,
-    expr_args: &Vec<aast::Argument<(), ()>>,
-) {
-    if functionlike_id == FunctionLikeIdentifier::Function(StrId::ASIO_JOIN) {
-        analysis_data.expr_effects.insert(
-            (pos.start_offset() as u32, pos.end_offset() as u32),
-            EFFECT_IMPURE,
-        );
-        return;
-    }
-
-    match function_storage.effects {
-        FnEffect::Some(stored_effects) => {
-            if stored_effects > EFFECT_WRITE_PROPS {
-                analysis_data.expr_effects.insert(
-                    (pos.start_offset() as u32, pos.end_offset() as u32),
-                    stored_effects,
-                );
-            }
-        }
-        FnEffect::Arg(arg_offset) => {
-            if let Some(arg) = expr_args.get(arg_offset as usize) {
-                let arg_expr = arg.to_expr_ref();
-                if let Some(arg_type) = analysis_data.expr_types.get(&(
-                    arg_expr.pos().start_offset() as u32,
-                    arg_expr.pos().end_offset() as u32,
-                )) {
-                    for arg_atomic_type in &arg_type.types {
-                        if let TAtomic::TClosure(closure) = arg_atomic_type {
-                            if let Some(evaluated_effects) = closure.effects {
-                                analysis_data.expr_effects.insert(
-                                    (pos.start_offset() as u32, pos.end_offset() as u32),
-                                    evaluated_effects,
-                                );
-                            } else {
-                                analysis_data.expr_effects.insert(
-                                    (pos.start_offset() as u32, pos.end_offset() as u32),
-                                    EFFECT_IMPURE,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        FnEffect::Pure => {
-            analysis_data.expr_effects.insert(
-                (pos.start_offset() as u32, pos.end_offset() as u32),
-                if function_storage.has_throw {
-                    EFFECT_CAN_THROW
-                } else {
-                    EFFECT_PURE
-                },
-            );
-        }
-        FnEffect::Unknown => {
-            // yet to be computed
-        }
-    }
-
-    for arg in expr_args {
-        analysis_data.combine_effects(arg.to_expr_ref().pos(), pos, pos);
     }
 }

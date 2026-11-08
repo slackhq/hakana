@@ -14,13 +14,14 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use oxidized::{aast, ast_defs::Pos};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
 use std::collections::BTreeMap;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    tuple_fields: &[aast::Expr<(), ()>],
+    tuple_fields: &[aast::Expr],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -80,7 +81,7 @@ fn add_tuple_value_dataflow(
     value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
     key_value: usize,
-    value: &aast::Expr<(), ()>,
+    value: &aast::Expr,
 ) -> Option<DataFlowNode> {
     if value_type.parent_nodes.is_empty()
         || (matches!(

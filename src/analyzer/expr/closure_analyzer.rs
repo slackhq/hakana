@@ -16,14 +16,14 @@ use hakana_code_info::t_atomic::{TAtomic, TClosure};
 use hakana_code_info::ttype::type_expander;
 use hakana_code_info::ttype::type_expander::TypeExpansionOptions;
 use hakana_code_info::ttype::wrap_atomic;
-use oxidized::aast;
+use hakana_parser::aast;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
-    fun: &aast::Fun_<(), ()>,
-    expr: &aast::Expr<(), ()>,
+    fun: &aast::Fun_,
+    expr: &aast::Expr,
 ) -> Result<(), AnalysisError> {
     let mut function_analyzer = FunctionLikeAnalyzer::new(statements_analyzer.file_analyzer);
     let mut analysis_result =

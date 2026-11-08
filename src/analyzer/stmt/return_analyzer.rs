@@ -24,8 +24,8 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_parser::aast;
 use hakana_str::{Interner, StrId};
-use oxidized::aast;
 
 use crate::{
     expression_analyzer, function_analysis_data::FunctionAnalysisData,
@@ -33,7 +33,7 @@ use crate::{
 };
 
 pub(crate) fn analyze(
-    stmt: &aast::Stmt<(), ()>,
+    stmt: &aast::Stmt,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
@@ -342,7 +342,7 @@ pub(crate) fn analyze(
                 for origin in &inferred_return_type.parent_nodes {
                     analysis_data
                         .data_flow_graph
-                        .add_mixed_data(origin, &stmt.0);
+                        .add_mixed_data(origin, statements_analyzer.get_hpos(&stmt.0));
                 }
 
                 // todo increment mixed count
@@ -667,7 +667,7 @@ pub(crate) fn handle_inout_at_return(
 fn handle_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     context: &BlockContext,
-    return_expr: &aast::Expr<(), ()>,
+    return_expr: &aast::Expr,
     inferred_type: &TUnion,
     data_flow_graph: &mut DataFlowGraph,
     functionlike_id: &FunctionLikeIdentifier,

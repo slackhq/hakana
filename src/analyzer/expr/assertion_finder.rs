@@ -16,13 +16,11 @@ use hakana_code_info::{
     t_atomic::TAtomic,
     t_union::populate_union_type,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::Hint;
+use hakana_parser::aast::Pos;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_str::StrId;
-use oxidized::{
-    aast,
-    aast_defs::Hint,
-    ast_defs::{self, Pos},
-};
 use rustc_hash::FxHashMap;
 
 pub(crate) enum OtherValuePosition {
@@ -38,7 +36,7 @@ pub(crate) enum OtherValuePosition {
  * if block, $a is a positive-int
  */
 pub(crate) fn scrape_assertions(
-    conditional: &aast::Expr<(), ()>,
+    conditional: &aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
     assertion_context: &AssertionContext,
     inside_negation: bool,
@@ -72,7 +70,7 @@ pub(crate) fn scrape_assertions(
             if let Some(FunctionLikeIdentifier::Function(name)) = functionlike_id {
                 return scrape_function_assertions(
                     &name,
-                    &call.args,
+                    call.args,
                     &conditional.1,
                     assertion_context,
                     analysis_data,
@@ -99,14 +97,14 @@ pub(crate) fn scrape_assertions(
 
     if let aast::Expr_::Unop(unup) = &conditional.2 {
         // if (!$foo) is handled elsewhere
-        if let oxidized::ast::Uop::Unot = unup.0 {
+        if let hakana_parser::aast::Uop::Unot = unup.0 {
             return Vec::new();
         }
     }
 
     if let aast::Expr_::Binop(binop) = &conditional.2 {
         match binop.bop {
-            ast_defs::Bop::Eqeq | ast_defs::Bop::Eqeqeq => {
+            aast::Bop::Eqeq | aast::Bop::Eqeqeq => {
                 return scrape_equality_assertions(
                     &binop.bop,
                     &binop.lhs,
@@ -117,7 +115,7 @@ pub(crate) fn scrape_assertions(
                     inside_conditional,
                 );
             }
-            ast_defs::Bop::Diff | ast_defs::Bop::Diff2 => {
+            aast::Bop::Diff | aast::Bop::Diff2 => {
                 return scrape_inequality_assertions(
                     &binop.bop,
                     &binop.lhs,
@@ -128,7 +126,7 @@ pub(crate) fn scrape_assertions(
                     inside_conditional,
                 );
             }
-            ast_defs::Bop::QuestionQuestion => {
+            aast::Bop::QuestionQuestion => {
                 if let aast::Expr_::False | aast::Expr_::Null = &binop.rhs.2 {
                     let var_name = get_var_id(
                         &binop.lhs,
@@ -142,7 +140,7 @@ pub(crate) fn scrape_assertions(
                     }
                 }
             }
-            ast_defs::Bop::Gt | ast_defs::Bop::Gte => {
+            aast::Bop::Gt | aast::Bop::Gte => {
                 // return scrape_greater_assertions(
                 //     &binop.1,
                 //     &binop.2,
@@ -205,7 +203,7 @@ fn process_custom_assertions(
 }
 
 fn get_is_assertions(
-    var_expr: &aast::Expr<(), ()>,
+    var_expr: &aast::Expr,
     hint: &Hint,
     assertion_context: &AssertionContext,
     analysis_data: &mut FunctionAnalysisData,
@@ -214,7 +212,7 @@ fn get_is_assertions(
     let mut if_types: FxHashMap<String, Vec<Vec<Assertion>>> = FxHashMap::default();
 
     let mut is_type = if let Some(t) = get_type_from_hint(
-        &hint.1,
+        hint.1,
         assertion_context.this_class_name,
         assertion_context.type_resolution_context,
         assertion_context.resolved_names,
@@ -299,7 +297,11 @@ fn get_is_assertions(
                             lhs_type.get_id(Some(interner)),
                             is_type.get_id(Some(interner)),
                         ),
-                        HPos::new(var_expr.pos(), assertion_context.file_source.file_path),
+                        HPos::new(
+                            var_expr.pos(),
+                            assertion_context.file_source.file_path,
+                            assertion_context.file_source.line_index,
+                        ),
                         &Some(match assertion_context.reference_source {
                             ReferenceSource::Symbol(_, fn_id) => {
                                 FunctionLikeIdentifier::Function(fn_id)
@@ -330,7 +332,11 @@ fn get_is_assertions(
                             lhs_type.get_id(Some(interner)),
                             is_type.get_id(Some(interner)),
                         ),
-                        HPos::new(var_expr.pos(), assertion_context.file_source.file_path),
+                        HPos::new(
+                            var_expr.pos(),
+                            assertion_context.file_source.file_path,
+                            assertion_context.file_source.line_index,
+                        ),
                         &Some(match assertion_context.reference_source {
                             ReferenceSource::Symbol(_, fn_id) => {
                                 FunctionLikeIdentifier::Function(fn_id)
@@ -351,7 +357,7 @@ fn get_is_assertions(
 }
 
 fn scrape_shapes_isset(
-    var_expr: &aast::Expr<(), ()>,
+    var_expr: &aast::Expr,
     assertion_context: &AssertionContext,
     if_types: &mut FxHashMap<String, Vec<Vec<Assertion>>>,
     negated: bool,
@@ -403,9 +409,9 @@ fn scrape_shapes_isset(
 }
 
 fn scrape_equality_assertions(
-    bop: &ast_defs::Bop,
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    bop: &aast::Bop,
+    left: &aast::Expr,
+    right: &aast::Expr,
     analysis_data: &mut FunctionAnalysisData,
     assertion_context: &AssertionContext,
     _cache: bool,
@@ -445,9 +451,9 @@ fn scrape_equality_assertions(
 }
 
 fn scrape_inequality_assertions(
-    bop: &ast_defs::Bop,
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    bop: &aast::Bop,
+    left: &aast::Expr,
+    right: &aast::Expr,
     analysis_data: &FunctionAnalysisData,
     assertion_context: &AssertionContext,
     _cache: bool,
@@ -483,8 +489,8 @@ fn scrape_inequality_assertions(
 }
 
 // fn has_literal_int_comparison(
-//     left: &aast::Expr<(), ()>,
-//     right: &aast::Expr<(), ()>,
+//     left: &aast::Expr,
+//     right: &aast::Expr,
 //     analysis_data: &TastInfo,
 // ) -> Option<(OtherValuePosition, i64)> {
 //     if let Some(right_type) = analysis_data.get_expr_type(right.pos()) {
@@ -504,7 +510,7 @@ fn scrape_inequality_assertions(
 
 fn scrape_function_assertions(
     function_name: &StrId,
-    args: &[aast::Argument<(), ()>],
+    args: &[aast::Argument],
     pos: &Pos,
     assertion_context: &AssertionContext,
     analysis_data: &mut FunctionAnalysisData,
@@ -551,7 +557,7 @@ fn scrape_function_assertions(
         {
             let mut in_arr_types = vec![];
             let mut has_reconcilable_type = true;
-            for val_expr in &vals.2 {
+            for val_expr in vals.2.iter() {
                 let val_expr_type = analysis_data.get_expr_type(val_expr.pos());
 
                 if let Some(val_expr_type) = val_expr_type {
@@ -581,9 +587,9 @@ fn scrape_function_assertions(
 }
 
 fn has_null_variable(
-    _bop: &ast_defs::Bop,
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    _bop: &aast::Bop,
+    left: &aast::Expr,
+    right: &aast::Expr,
 ) -> Option<OtherValuePosition> {
     if let aast::Expr_::Null = right.2 {
         return Some(OtherValuePosition::Right);
@@ -597,9 +603,9 @@ fn has_null_variable(
 }
 
 fn get_null_equality_assertions(
-    _bop: &ast_defs::Bop,
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    _bop: &aast::Bop,
+    left: &aast::Expr,
+    right: &aast::Expr,
     assertion_context: &AssertionContext,
     null_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
@@ -626,9 +632,9 @@ fn get_null_equality_assertions(
 }
 
 fn get_null_inequality_assertions(
-    _bop: &ast_defs::Bop,
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    _bop: &aast::Bop,
+    left: &aast::Expr,
+    right: &aast::Expr,
     assertion_context: &AssertionContext,
     null_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
@@ -655,9 +661,9 @@ fn get_null_inequality_assertions(
 }
 
 pub(crate) fn has_true_variable(
-    _bop: &ast_defs::Bop,
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    _bop: &aast::Bop,
+    left: &aast::Expr,
+    right: &aast::Expr,
 ) -> Option<OtherValuePosition> {
     if let aast::Expr_::True = right.2 {
         return Some(OtherValuePosition::Right);
@@ -671,9 +677,9 @@ pub(crate) fn has_true_variable(
 }
 
 fn get_true_equality_assertions(
-    _bop: &ast_defs::Bop,
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    _bop: &aast::Bop,
+    left: &aast::Expr,
+    right: &aast::Expr,
     assertion_context: &AssertionContext,
     true_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
@@ -699,8 +705,8 @@ fn get_true_equality_assertions(
 }
 
 pub(crate) fn has_false_variable(
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    left: &aast::Expr,
+    right: &aast::Expr,
 ) -> Option<OtherValuePosition> {
     if let aast::Expr_::False = right.2 {
         return Some(OtherValuePosition::Right);
@@ -714,8 +720,8 @@ pub(crate) fn has_false_variable(
 }
 
 pub(crate) fn has_typed_value_comparison(
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    left: &aast::Expr,
+    right: &aast::Expr,
     analysis_data: &FunctionAnalysisData,
     assertion_context: &AssertionContext,
 ) -> Option<OtherValuePosition> {
@@ -751,9 +757,9 @@ pub(crate) fn has_typed_value_comparison(
 }
 
 fn get_false_equality_assertions(
-    _bop: &ast_defs::Bop,
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    _bop: &aast::Bop,
+    left: &aast::Expr,
+    right: &aast::Expr,
     assertion_context: &AssertionContext,
     false_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
@@ -779,8 +785,8 @@ fn get_false_equality_assertions(
 }
 
 fn get_typed_value_equality_assertions(
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    left: &aast::Expr,
+    right: &aast::Expr,
     analysis_data: &FunctionAnalysisData,
     assertion_context: &AssertionContext,
     typed_value_position: OtherValuePosition,
@@ -859,8 +865,8 @@ fn get_typed_value_equality_assertions(
 }
 
 fn get_typed_value_inequality_assertions(
-    left: &aast::Expr<(), ()>,
-    right: &aast::Expr<(), ()>,
+    left: &aast::Expr,
+    right: &aast::Expr,
     analysis_data: &FunctionAnalysisData,
     assertion_context: &AssertionContext,
     typed_value_position: OtherValuePosition,

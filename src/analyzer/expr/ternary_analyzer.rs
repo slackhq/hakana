@@ -13,22 +13,23 @@ use hakana_algebra::Clause;
 use hakana_algebra::clause::ClauseKey;
 use hakana_code_info::assertion::Assertion;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any};
-use oxidized::aast;
-use oxidized::ast_defs::Uop;
-use oxidized::pos::Pos;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
+use hakana_parser::aast::Uop;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-pub(crate) fn analyze(
-    statements_analyzer: &StatementsAnalyzer,
+pub(crate) fn analyze<'ast>(
+    statements_analyzer: &StatementsAnalyzer<'ast>,
     expr: (
-        &aast::Expr<(), ()>,
-        &Option<aast::Expr<(), ()>>,
-        &aast::Expr<(), ()>,
+        &aast::Expr<'ast>,
+        &Option<aast::Expr<'ast>>,
+        &aast::Expr<'ast>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
+    let arena = statements_analyzer.arena();
     let codebase = statements_analyzer.codebase;
 
     let mut if_scope = IfScope::default();
@@ -173,8 +174,8 @@ pub(crate) fn analyze(
             cond_object_id,
             &aast::Expr(
                 (),
-                expr.0.1.clone(),
-                aast::Expr_::Unop(Box::new((Uop::Unot, expr.0.clone()))),
+                expr.0.1,
+                aast::Expr_::Unop(&*arena.alloc((Uop::Unot, *expr.0))),
             ),
             &assertion_context,
             analysis_data,
@@ -314,9 +315,8 @@ pub(crate) fn analyze(
     } else if stmt_cond_type
         .as_ref()
         .is_some_and(|ty| ty.is_always_false_or_null())
+        || lhs_type.as_ref().is_some_and(|ty| ty.is_nothing())
     {
-        temp_else_context.response
-    } else if lhs_type.as_ref().is_some_and(|ty| ty.is_nothing()) {
         temp_else_context.response
     } else if stmt_else_type.as_ref().is_some_and(|ty| ty.is_nothing()) {
         if_context.response

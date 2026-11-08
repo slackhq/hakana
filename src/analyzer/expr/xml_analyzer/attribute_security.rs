@@ -1,7 +1,7 @@
 use hakana_code_info::t_atomic::TAtomic;
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::taint::SinkType;
-use oxidized::aast;
+use hakana_parser::aast;
 
 /// Discriminators belong to this element, never shared class-property storage.
 /// Nonliteral values and spreads cannot establish a passive link context.
@@ -10,7 +10,7 @@ pub(super) struct AttributeContext {
 }
 
 impl AttributeContext {
-    pub(super) fn new(attributes: &[aast::XhpAttribute<(), ()>]) -> Self {
+    pub(super) fn new(attributes: &[aast::XhpAttribute]) -> Self {
         let mut rel = Some(String::new());
         let mut destination = Some(String::new());
         let mut mime_type = Some(String::new());
@@ -20,7 +20,7 @@ impl AttributeContext {
                     link_sink: SinkType::HtmlActiveResourceUri,
                 };
             };
-            let slot = match attribute.name.1.as_str() {
+            let slot = match attribute.name.1 {
                 "rel" => &mut rel,
                 "as" => &mut destination,
                 "type" => &mut mime_type,

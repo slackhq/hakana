@@ -34,8 +34,8 @@ use hakana_code_info::{
     },
     var_name::VarName,
 };
+use hakana_parser::aast::Pos;
 use hakana_str::StrId;
-use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 
 pub fn reconcile(

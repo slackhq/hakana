@@ -1,11 +1,14 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. MIT; see LICENSE.
-use parser_core_types::{
-    lexable_token::LexableToken, source_text::SourceText,
-    syntax_by_ref::positioned_syntax::PositionedSyntax, syntax_error::SyntaxError,
-    syntax_kind::SyntaxKind, token_kind::TokenKind, trivia_kind::TriviaKind,
-};
-use positioned_by_ref_parser::{parse_script, scan_leading_php_trivia, scan_leading_xhp_trivia};
-use std::{borrow::Cow, sync::Arc};
+use hakana_parser::cst::{self, SyntaxKind, TokenKind, TriviaKind, trivia};
+use std::borrow::Cow;
+
+/// Why a file could not be parsed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SyntaxError {
+    pub start_offset: usize,
+    pub end_offset: usize,
+    pub message: Cow<'static, str>,
+}
 #[derive(Clone, Debug)]
 pub struct Trivia {
     pub kind: TriviaKind,
@@ -179,67 +182,70 @@ impl Node {
         }
     }
 }
-fn convert<'a>(
-    n: &'a PositionedSyntax<'a>,
-    arena: &'a bumpalo::Bump,
-    src: &'a SourceText<'a>,
-) -> Node {
-    if let Some(t) = n.get_token() {
-        let start = t.start_offset();
-        let end = start + t.width();
-        let xhp = t.kind() == TokenKind::XHPBody;
-        let scan = |offset, width| {
-            let tr = if xhp {
-                scan_leading_xhp_trivia(arena, src, offset, width)
-            } else {
-                scan_leading_php_trivia(arena, src, offset, width)
+fn convert(n: &cst::Node, src: &str) -> Node {
+    match n {
+        cst::Node::Token(t) => {
+            let xhp = t.kind == TokenKind::XHPBody;
+            let scan = |offset: usize, width: usize| {
+                trivia::pieces(src.as_bytes(), offset, width, xhp)
+                    .into_iter()
+                    .map(|piece| Trivia {
+                        kind: piece.kind,
+                        text: src[piece.offset..piece.offset + piece.width].to_string(),
+                        start: piece.offset,
+                    })
+                    .collect()
             };
-            tr.into_iter()
-                .map(|t| Trivia {
+            Node {
+                kind: SyntaxKind::Token(t.kind),
+                children: vec![],
+                token: Some(Token {
                     kind: t.kind,
-                    text: String::from_utf8_lossy(&src.text()[t.offset..t.offset + t.width])
-                        .into_owned(),
-                    start: t.offset,
-                })
-                .collect()
-        };
-        Node {
-            kind: SyntaxKind::Token(t.kind()),
-            children: vec![],
-            token: Some(Token {
-                kind: t.kind(),
-                text: String::from_utf8_lossy(&src.text()[start..end]).into_owned(),
-                start,
-                leading: scan(start - t.leading_width(), t.leading_width()),
-                trailing: scan(end, t.trailing_width()),
-            }),
+                    text: t.text(src).to_string(),
+                    start: t.start(),
+                    leading: scan(t.offset as usize, t.leading_width as usize),
+                    trailing: scan(t.end(), t.trailing_width as usize),
+                }),
+            }
         }
-    } else {
-        Node {
+        _ => Node {
             kind: n.kind(),
-            children: n.iter_children().map(|c| convert(c, arena, src)).collect(),
+            children: n.children().iter().map(|c| convert(c, src)).collect(),
             token: None,
-        }
+        },
     }
 }
 pub fn parse(text: &str, xhp_modifier: bool) -> (Node, Vec<SyntaxError>) {
-    let arena = bumpalo::Bump::new();
-    let src = SourceText::make(
-        Arc::new(relative_path::RelativePath::make(
-            relative_path::Prefix::Dummy,
-            "input.hack".into(),
-        )),
-        text.as_bytes(),
-    );
-    let (root, errors, _) = parse_script(
-        &arena,
-        &src,
-        parser_core_types::parser_env::ParserEnv {
-            enable_xhp_class_modifier: xhp_modifier,
-            ..Default::default()
-        },
-    );
-    let mut node = convert(&root, &arena, &src);
+    let options = hakana_parser::ParserOptions {
+        enable_xhp_class_modifier: xhp_modifier,
+        ..Default::default()
+    };
+    let tree = match hakana_parser::parse_cst(text, false, options) {
+        Ok(tree) => tree,
+        Err(e) => {
+            let missing = Node {
+                kind: SyntaxKind::Missing,
+                children: vec![],
+                token: None,
+            };
+            let error = SyntaxError {
+                start_offset: e.offset as usize,
+                end_offset: e.offset as usize,
+                message: e.message.into(),
+            };
+            return (missing, vec![error]);
+        }
+    };
+    let errors = tree
+        .errors
+        .iter()
+        .map(|e| SyntaxError {
+            start_offset: e.start as usize,
+            end_offset: e.end as usize,
+            message: e.message.clone(),
+        })
+        .collect();
+    let mut node = convert(&tree.root, text);
     // Hakana's lexer intentionally leaves block comments in leading trivia for
     // analysis. Restore upstream attachment locally, without changing that lexer.
     let mut tokens = vec![];

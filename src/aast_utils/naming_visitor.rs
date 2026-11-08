@@ -1,10 +1,9 @@
 use hakana_str::{StrId, ThreadedInterner};
 
-use oxidized::{
-    aast,
-    aast_visitor::{AstParams, Node, Visitor},
-    ast_defs,
-};
+use hakana_parser::aast;
+use hakana_parser::aast_visitor::AstParams;
+use hakana_parser::aast_visitor::Node;
+use hakana_parser::aast_visitor::Visitor;
 use rustc_hash::FxHashMap;
 
 use crate::name_context::NameContext;
@@ -24,27 +23,23 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         self
     }
 
-    fn visit_def(
-        &mut self,
-        nc: &mut NameContext<'ast>,
-        p: &'ast aast::Def<(), ()>,
-    ) -> Result<(), ()> {
+    fn visit_def(&mut self, nc: &mut NameContext<'ast>, p: &'ast aast::Def) -> Result<(), ()> {
         match p {
             aast::Def::Namespace(ns) => {
                 if !ns.0.1.is_empty() {
-                    nc.start_namespace(ns.0.1.clone());
+                    nc.start_namespace(ns.0.1.to_string());
                 }
             }
             aast::Def::NamespaceUse(uses) => {
-                for (ns_kind, name, alias_name) in uses {
+                for (ns_kind, name, alias_name) in uses.iter() {
                     nc.add_alias(
                         self.interner,
                         if name.1.starts_with('\\') {
                             &name.1[1..]
                         } else {
-                            &name.1
+                            name.1
                         },
-                        &alias_name.1,
+                        alias_name.1,
                         ns_kind,
                     );
                 }
@@ -64,7 +59,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_class_(
         &mut self,
         nc: &mut NameContext<'ast>,
-        c: &'ast aast::Class_<(), ()>,
+        c: &'ast aast::Class_,
     ) -> Result<(), ()> {
         let namespace_name = nc.get_namespace_name();
 
@@ -85,17 +80,17 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             self.interner
                 .intern(c.name.1.trim_start_matches(':').replace(':', "\\"))
         } else {
-            self.interner.intern(c.name.1.clone())
+            self.interner.intern(c.name.1.to_string())
         };
 
         self.resolved_names
             .insert(c.name.0.start_offset() as u32, p);
 
-        for type_param_node in &c.tparams {
-            nc.generic_params.push(&type_param_node.name.1);
+        for type_param_node in c.tparams {
+            nc.generic_params.push(type_param_node.name.1);
             self.resolved_names.insert(
                 type_param_node.name.0.start_offset() as u32,
-                self.interner.intern_str(&type_param_node.name.1),
+                self.interner.intern_str(type_param_node.name.1),
             );
         }
 
@@ -110,25 +105,25 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_typedef(
         &mut self,
         nc: &mut NameContext<'ast>,
-        t: &'ast aast::Typedef<(), ()>,
+        t: &'ast aast::Typedef,
     ) -> Result<(), ()> {
         let namespace_name = nc.get_namespace_name();
 
         let p = if let Some(namespace_name) = namespace_name {
-            let str = namespace_name.clone() + "\\" + t.name.1.as_str();
+            let str = namespace_name.clone() + "\\" + t.name.1;
             self.interner.intern(str)
         } else {
-            self.interner.intern(t.name.1.clone())
+            self.interner.intern(t.name.1.to_string())
         };
 
         self.resolved_names
             .insert(t.name.0.start_offset() as u32, p);
 
-        for type_param_node in &t.tparams {
-            nc.generic_params.push(&type_param_node.name.1);
+        for type_param_node in t.tparams {
+            nc.generic_params.push(type_param_node.name.1);
             self.resolved_names.insert(
                 type_param_node.name.0.start_offset() as u32,
-                self.interner.intern_str(&type_param_node.name.1),
+                self.interner.intern_str(type_param_node.name.1),
             );
         }
 
@@ -142,10 +137,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_shape_field_info(
         &mut self,
         nc: &mut NameContext<'ast>,
-        p: &'ast oxidized::ast::ShapeFieldInfo,
+        p: &'ast hakana_parser::aast::ShapeFieldInfo,
     ) -> Result<(), ()> {
-        if let oxidized::nast::ShapeFieldName::SFclassConst(_, member_name) = &p.name {
-            let p = self.interner.intern(member_name.1.clone());
+        if let hakana_parser::aast::ShapeFieldName::SFclassConst(_, member_name) = &p.name {
+            let p = self.interner.intern(member_name.1.to_string());
             self.resolved_names
                 .insert(member_name.0.start_offset() as u32, p);
         }
@@ -155,7 +150,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_class_id(
         &mut self,
         nc: &mut NameContext<'ast>,
-        p: &'ast aast::ClassId<(), ()>,
+        p: &'ast aast::ClassId,
     ) -> Result<(), ()> {
         let was_in_class_id = nc.in_class_id;
 
@@ -173,7 +168,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     };
                     let resolved_name = nc.get_resolved_name(
                         self.interner,
-                        &name.to_string(),
+                        name,
                         aast::NsKind::NSClassAndNamespace,
                         if let Some(symbol_name) = nc.symbol_name {
                             if let Some(member_name) = nc.member_name {
@@ -204,10 +199,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_xhp_simple(
         &mut self,
         nc: &mut NameContext<'ast>,
-        p: &'ast oxidized::ast::XhpSimple,
+        p: &'ast hakana_parser::aast::XhpSimple,
     ) -> Result<(), ()> {
         if !p.name.1.starts_with("data-") && !p.name.1.starts_with("aria-") {
-            let name = self.interner.intern(":".to_string() + &p.name.1);
+            let name = self.interner.intern(":".to_string() + p.name.1);
             self.resolved_names
                 .insert(p.name.0.start_offset() as u32, name);
         }
@@ -215,11 +210,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         p.recurse(nc, self)
     }
 
-    fn visit_expr_(
-        &mut self,
-        nc: &mut NameContext<'ast>,
-        e: &'ast aast::Expr_<(), ()>,
-    ) -> Result<(), ()> {
+    fn visit_expr_(&mut self, nc: &mut NameContext<'ast>, e: &'ast aast::Expr_) -> Result<(), ()> {
         let in_xhp_id = nc.in_xhp_id;
 
         let result = match e {
@@ -232,7 +223,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 e.recurse(nc, self)
             }
             aast::Expr_::EnumClassLabel(boxed) => {
-                self.interner.intern(boxed.1.clone());
+                self.interner.intern(boxed.1.to_string());
 
                 if boxed.0.is_some() {
                     nc.in_class_id = true;
@@ -258,7 +249,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
                 self.resolved_names.insert(
                     boxed.1.0.start_offset() as u32,
-                    self.interner.intern(boxed.1.1.clone()),
+                    self.interner.intern(boxed.1.1.to_string()),
                 );
 
                 result
@@ -278,12 +269,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_shape_field_name(
         &mut self,
         nc: &mut NameContext<'ast>,
-        p: &'ast oxidized::nast::ShapeFieldName,
+        p: &'ast hakana_parser::aast::ShapeFieldName,
     ) -> Result<(), ()> {
-        if let oxidized::nast::ShapeFieldName::SFclassConst(id, _) = p {
+        if let hakana_parser::aast::ShapeFieldName::SFclassConst(id, _) = p {
             let resolved_name = nc.get_resolved_name(
                 self.interner,
-                &id.1,
+                id.1,
                 aast::NsKind::NSClass,
                 if let Some(symbol_name) = nc.symbol_name {
                     if let Some(member_name) = nc.member_name {
@@ -306,7 +297,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_lid(&mut self, nc: &mut NameContext<'ast>, p: &'ast aast::Lid) -> Result<(), ()> {
-        let var_id = self.interner.intern_str(&p.1.1);
+        let var_id = self.interner.intern_str(p.1.1);
         if nc.in_class_id {
             self.resolved_names
                 .insert(p.0.start_offset() as u32, var_id);
@@ -317,9 +308,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_fun_param(
         &mut self,
         nc: &mut NameContext<'ast>,
-        p: &'ast aast::FunParam<(), ()>,
+        p: &'ast aast::FunParam,
     ) -> Result<(), ()> {
-        let var_id = self.interner.intern_str(&p.name);
+        let var_id = self.interner.intern_str(p.name);
         self.resolved_names
             .insert(p.pos.start_offset() as u32, var_id);
 
@@ -329,7 +320,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_catch(
         &mut self,
         nc: &mut NameContext<'ast>,
-        catch: &'ast oxidized::nast::Catch,
+        catch: &'ast hakana_parser::aast::Catch,
     ) -> Result<(), ()> {
         nc.in_class_id = true;
         catch.recurse(nc, self)
@@ -338,13 +329,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_function_ptr_id(
         &mut self,
         nc: &mut NameContext<'ast>,
-        p: &'ast aast::FunctionPtrId<(), ()>,
+        p: &'ast aast::FunctionPtrId,
     ) -> Result<(), ()> {
         nc.in_function_id = true;
         p.recurse(nc, self)
     }
 
-    fn visit_id(&mut self, nc: &mut NameContext<'ast>, id: &'ast ast_defs::Id) -> Result<(), ()> {
+    fn visit_id(&mut self, nc: &mut NameContext<'ast>, id: &'ast aast::Id) -> Result<(), ()> {
         if nc.in_function_id {
             nc.in_constant_id = false;
         }
@@ -382,7 +373,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 } else {
                     nc.get_resolved_name(
                         self.interner,
-                        &id.1,
+                        id.1,
                         if nc.in_constant_id && !nc.in_class_id {
                             aast::NsKind::NSConst
                         } else if nc.in_class_id {
@@ -419,25 +410,25 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_fun_def(
         &mut self,
         nc: &mut NameContext<'ast>,
-        f: &'ast aast::FunDef<(), ()>,
+        f: &'ast aast::FunDef,
     ) -> Result<(), ()> {
         let namespace_name = nc.get_namespace_name();
 
         let p = if let Some(namespace_name) = namespace_name {
-            let str = namespace_name.clone() + "\\" + f.name.1.as_str();
+            let str = namespace_name.clone() + "\\" + f.name.1;
             self.interner.intern(str)
         } else {
-            self.interner.intern(f.name.1.clone())
+            self.interner.intern(f.name.1.to_string())
         };
 
         self.resolved_names
             .insert(f.name.0.start_offset() as u32, p);
 
-        for type_param_node in &f.tparams {
-            nc.generic_params.push(&type_param_node.name.1);
+        for type_param_node in f.tparams {
+            nc.generic_params.push(type_param_node.name.1);
             self.resolved_names.insert(
                 type_param_node.name.0.start_offset() as u32,
-                self.interner.intern_str(&type_param_node.name.1),
+                self.interner.intern_str(type_param_node.name.1),
             );
         }
 
@@ -454,20 +445,20 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_method_(
         &mut self,
         nc: &mut NameContext<'ast>,
-        m: &'ast aast::Method_<(), ()>,
+        m: &'ast aast::Method_,
     ) -> Result<(), ()> {
-        let p = self.interner.intern(m.name.1.clone());
+        let p = self.interner.intern(m.name.1.to_string());
 
         self.resolved_names
             .insert(m.name.0.start_offset() as u32, p);
 
         let original_param_count = nc.generic_params.len();
 
-        for type_param_node in &m.tparams {
-            nc.generic_params.push(&type_param_node.name.1);
+        for type_param_node in m.tparams {
+            nc.generic_params.push(type_param_node.name.1);
             self.resolved_names.insert(
                 type_param_node.name.0.start_offset() as u32,
-                self.interner.intern_str(&type_param_node.name.1),
+                self.interner.intern_str(type_param_node.name.1),
             );
         }
 
@@ -485,9 +476,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_class_const(
         &mut self,
         nc: &mut NameContext<'ast>,
-        c: &'ast aast::ClassConst<(), ()>,
+        c: &'ast aast::ClassConst,
     ) -> Result<(), ()> {
-        let p = self.interner.intern(c.id.1.clone());
+        let p = self.interner.intern(c.id.1.to_string());
 
         self.resolved_names.insert(c.id.0.start_offset() as u32, p);
 
@@ -501,7 +492,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_user_attribute(
         &mut self,
         nc: &mut NameContext<'ast>,
-        c: &'ast aast::UserAttribute<(), ()>,
+        c: &'ast aast::UserAttribute,
     ) -> Result<(), ()> {
         nc.in_class_id = true;
         c.recurse(nc, self)
@@ -510,15 +501,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_gconst(
         &mut self,
         nc: &mut NameContext<'ast>,
-        c: &'ast aast::Gconst<(), ()>,
+        c: &'ast aast::Gconst,
     ) -> Result<(), ()> {
         let namespace_name = nc.get_namespace_name();
 
         let p = if let Some(namespace_name) = namespace_name {
-            let str = namespace_name.clone() + "\\" + c.name.1.as_str();
+            let str = namespace_name.clone() + "\\" + c.name.1;
             self.interner.intern(str)
         } else {
-            self.interner.intern(c.name.1.clone())
+            self.interner.intern(c.name.1.to_string())
         };
 
         self.resolved_names
@@ -533,11 +524,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
     fn visit_hint_(&mut self, nc: &mut NameContext<'ast>, p: &'ast aast::Hint_) -> Result<(), ()> {
         match p {
-            oxidized::ast::Hint_::Happly(id, _) => {
-                if !NameContext::is_reserved(&id.1) {
+            hakana_parser::aast::Hint_::Happly(id, _) => {
+                if !NameContext::is_reserved(id.1) {
                     let resolved_name = nc.get_resolved_name(
                         self.interner,
-                        &id.1,
+                        id.1,
                         aast::NsKind::NSClassAndNamespace,
                         if let Some(symbol_name) = nc.symbol_name {
                             if let Some(member_name) = nc.member_name {
@@ -556,9 +547,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         .insert(id.0.start_offset() as u32, resolved_name);
                 }
             }
-            oxidized::ast::Hint_::Haccess(_, const_names) => {
-                for const_name in const_names {
-                    let resolved_name = self.interner.intern(const_name.1.clone());
+            hakana_parser::aast::Hint_::Haccess(_, const_names) => {
+                for const_name in const_names.iter() {
+                    let resolved_name = self.interner.intern(const_name.1.to_string());
 
                     self.resolved_names
                         .insert(const_name.0.start_offset() as u32, resolved_name);

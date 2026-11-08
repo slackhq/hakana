@@ -1,7 +1,6 @@
 use std::{
-    collections::BTreeMap,
     hash::BuildHasherDefault,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use indexmap::{IndexMap, IndexSet};
@@ -69,16 +68,16 @@ impl Interner {
 
 #[derive(Debug)]
 pub struct ThreadedInterner {
-    map: IndexMap<String, StrId>,
-    reverse_map: BTreeMap<StrId, usize>,
-    pub parent: Arc<Mutex<Interner>>,
+    map: IndexMap<String, StrId, BuildHasherDefault<FxHasher>>,
+    reverse_map: FxHashMap<StrId, usize>,
+    pub parent: Arc<RwLock<Interner>>,
 }
 
 impl ThreadedInterner {
-    pub fn new(interner: Arc<Mutex<Interner>>) -> Self {
+    pub fn new(interner: Arc<RwLock<Interner>>) -> Self {
         ThreadedInterner {
             map: IndexMap::default(),
-            reverse_map: BTreeMap::new(),
+            reverse_map: FxHashMap::default(),
             parent: interner.clone(),
         }
     }
@@ -88,10 +87,7 @@ impl ThreadedInterner {
             return *id;
         }
 
-        let id;
-        {
-            id = self.parent.lock().unwrap().intern(path.to_string());
-        }
+        let id = self.intern_shared(path);
         let index = self.map.insert_full(path.to_string(), id).0;
         self.reverse_map.insert(id, index);
 
@@ -103,14 +99,22 @@ impl ThreadedInterner {
             return *id;
         }
 
-        let id;
-        {
-            id = self.parent.lock().unwrap().intern(path.clone());
-        }
+        let id = self.intern_shared(&path);
         let index = self.map.insert_full(path, id).0;
         self.reverse_map.insert(id, index);
 
         id
+    }
+
+    /// The id of a string this thread has not seen before. Most such strings
+    /// are already known to another thread, so look under the shared lock
+    /// first: threads only queue up to add strings that are new to everyone.
+    fn intern_shared(&self, path: &str) -> StrId {
+        if let Some(id) = self.parent.read().unwrap().get(path) {
+            return id;
+        }
+        let owned = path.to_string();
+        self.parent.write().unwrap().intern(owned)
     }
 
     pub fn lookup(&self, id: StrId) -> &str {

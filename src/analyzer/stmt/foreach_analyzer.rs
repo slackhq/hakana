@@ -25,18 +25,14 @@ use hakana_code_info::{
         get_int, get_literal_int, get_literal_string, get_mixed_any, get_nothing,
     },
 };
+use hakana_parser::aast;
 use hakana_str::StrId;
 use itertools::Itertools;
-use oxidized::{aast, ast_defs};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    stmt: (
-        &aast::Expr<(), ()>,
-        &aast::AsExpr<(), ()>,
-        &aast::Block<(), ()>,
-    ),
-    pos: &ast_defs::Pos,
+    stmt: (&aast::Expr, &aast::AsExpr, &aast::Block),
+    pos: &aast::Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
@@ -169,7 +165,7 @@ pub(crate) fn analyze(
 
     loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.2.0,
+        stmt.2.0,
         vec![],
         vec![],
         &mut LoopScope::new(context.locals.clone()),
@@ -190,8 +186,8 @@ pub(crate) fn analyze(
 fn check_iterator_type(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    expr: &aast::Expr<(), ()>,
-    pos: &ast_defs::Pos,
+    expr: &aast::Expr,
+    pos: &aast::Pos,
     iterator_type: &TUnion,
     is_async: bool,
     context: &mut BlockContext,

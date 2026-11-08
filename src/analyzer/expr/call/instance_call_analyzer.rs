@@ -16,19 +16,19 @@ use hakana_code_info::data_flow::path::PathKind;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
-use oxidized::aast;
-use oxidized::pos::Pos;
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
 
 use super::atomic_method_call_analyzer::{self, AtomicMethodCallAnalysisResult};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (
-        &aast::Expr<(), ()>,
-        &aast::Expr<(), ()>,
-        &Vec<aast::Targ<()>>,
-        &Vec<aast::Argument<(), ()>>,
-        &Option<aast::Expr<(), ()>>,
+        &aast::Expr,
+        &aast::Expr,
+        &[aast::Targ],
+        &[aast::Argument],
+        &Option<aast::Expr>,
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
@@ -79,7 +79,9 @@ pub(crate) fn analyze(
     } else {
         if class_type.is_mixed() {
             for origin in &class_type.parent_nodes {
-                analysis_data.data_flow_graph.add_mixed_data(origin, pos);
+                analysis_data
+                    .data_flow_graph
+                    .add_mixed_data(origin, statements_analyzer.get_hpos(pos));
             }
         }
 

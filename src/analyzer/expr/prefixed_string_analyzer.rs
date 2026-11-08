@@ -10,16 +10,16 @@ use crate::scope::BlockContext;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 
-use oxidized::aast;
+use hakana_parser::aast;
 
 use crate::statements_analyzer::StatementsAnalyzer;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    boxed: &(String, aast::Expr<(), ()>),
+    boxed: &(&str, aast::Expr),
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
-    expr: &aast::Expr<(), ()>,
+    expr: &aast::Expr,
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(statements_analyzer, &boxed.1, analysis_data, context, true)?;
 

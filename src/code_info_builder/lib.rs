@@ -1,4 +1,3 @@
-use std::hash::Hash;
 use std::sync::Arc;
 
 use crate::typehint_resolver::get_type_from_hint;
@@ -17,17 +16,18 @@ use hakana_code_info::{
     taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
     type_resolution::TypeResolutionContext,
 };
+use hakana_parser::aast;
+use hakana_parser::aast::FunParam;
+use hakana_parser::aast::Id;
+use hakana_parser::aast::Tparam;
+use hakana_parser::aast::TypeHint;
+use hakana_parser::aast_visitor::AstParams;
+use hakana_parser::aast_visitor::Node;
+use hakana_parser::aast_visitor::Visitor;
+use hakana_parser::aast_visitor::visit;
 use hakana_str::{StrId, ThreadedInterner};
-use no_pos_hash::{Hasher, position_insensitive_hash};
-use oxidized::ast;
-use oxidized::ast::{FunParam, Tparam, TypeHint};
-use oxidized::ast_defs::Id;
-use oxidized::{
-    aast,
-    aast_visitor::{AstParams, Node, Visitor, visit},
-    ast_defs,
-};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::hash::{Hash, Hasher};
 
 mod classlike_scanner;
 mod functionlike_scanner;
@@ -74,7 +74,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         self
     }
 
-    fn visit_def(&mut self, c: &mut Context, p: &aast::Def<(), ()>) -> Result<(), ()> {
+    fn visit_def(&mut self, c: &mut Context, p: &aast::Def) -> Result<(), ()> {
         match p {
             aast::Def::Namespace(ns) => {
                 if !ns.0.1.is_empty() {
@@ -82,8 +82,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 }
             }
             aast::Def::NamespaceUse(uses) => {
-                for (_, name, alias_name) in uses {
-                    let adjusted_start = name.0.to_raw_span().start.beg_of_line() as usize;
+                for (_, name, alias_name) in uses.iter() {
+                    let adjusted_start = name
+                        .0
+                        .to_raw_span(self.file_source.line_index)
+                        .start
+                        .beg_of_line();
                     if let Some(ref mut uses_position) = c.uses_position {
                         uses_position.0 = std::cmp::min(uses_position.0, adjusted_start);
                         uses_position.1 =
@@ -106,7 +110,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         result
     }
 
-    fn visit_class_(&mut self, c: &mut Context, class: &aast::Class_<(), ()>) -> Result<(), ()> {
+    fn visit_class_(&mut self, c: &mut Context, class: &aast::Class_) -> Result<(), ()> {
         let class_name = *self
             .resolved_names
             .get(&(class.name.0.start_offset() as u32))
@@ -138,13 +142,17 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         )
     }
 
-    fn visit_gconst(&mut self, c: &mut Context, gc: &aast::Gconst<(), ()>) -> Result<(), ()> {
+    fn visit_gconst(&mut self, c: &mut Context, gc: &aast::Gconst) -> Result<(), ()> {
         let name = *self
             .resolved_names
             .get(&(gc.name.0.start_offset() as u32))
             .unwrap();
 
-        let definition_location = HPos::new(&gc.name.0, self.file_source.file_path);
+        let definition_location = HPos::new(
+            &gc.name.0,
+            self.file_source.file_path,
+            self.file_source.line_index,
+        );
 
         let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&name).unwrap_or(&vec![]));
 
@@ -157,7 +165,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             start_colum: definition_location.start_column,
             end_column: definition_location.end_column,
             children: Vec::new(),
-            signature_hash: { position_insensitive_hash(gc).wrapping_add(uses_hash) },
+            signature_hash: source_range_hash(
+                self.file_source.file_contents,
+                [
+                    Some(&gc.span),
+                    Some(&gc.name.0),
+                    gc.type_.as_ref().map(|h| &h.0),
+                ],
+            )
+            .wrapping_add(uses_hash),
             body_hash: None,
             is_function: false,
             is_constant: true,
@@ -168,13 +184,17 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             ConstantInfo {
                 pos: definition_location,
                 type_pos: if let Some(t) = &gc.type_ {
-                    Some(HPos::new(&t.0, self.file_source.file_path))
+                    Some(HPos::new(
+                        &t.0,
+                        self.file_source.file_path,
+                        self.file_source.line_index,
+                    ))
                 } else {
                     None
                 },
                 provided_type: if let Some(t) = &gc.type_ {
                     get_type_from_hint(
-                        &t.1,
+                        t.1,
                         None,
                         &TypeResolutionContext::new(),
                         self.resolved_names,
@@ -225,7 +245,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         gc.recurse(c, self)
     }
 
-    fn visit_func_body(&mut self, c: &mut Context, p: &aast::FuncBody<(), ()>) -> Result<(), ()> {
+    fn visit_func_body(&mut self, c: &mut Context, p: &aast::FuncBody) -> Result<(), ()> {
         if !self.user_defined {
             Result::Ok(())
         } else {
@@ -233,11 +253,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
     }
 
-    fn visit_typedef(
-        &mut self,
-        c: &mut Context,
-        typedef: &aast::Typedef<(), ()>,
-    ) -> Result<(), ()> {
+    fn visit_typedef(&mut self, c: &mut Context, typedef: &aast::Typedef) -> Result<(), ()> {
         let type_name = *self
             .resolved_names
             .get(&(typedef.name.0.start_offset() as u32))
@@ -268,7 +284,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
             let constraint_type = if let Some(k) = constraint {
                 get_type_from_hint(
-                    &k.1.1,
+                    k.1.1,
                     None,
                     &type_context,
                     self.resolved_names,
@@ -286,13 +302,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             )];
 
             match param.variance {
-                ast_defs::Variance::Covariant => {
+                aast::Variance::Covariant => {
                     generic_variance.insert(i, Variance::Covariant);
                 }
-                ast_defs::Variance::Contravariant => {
+                aast::Variance::Contravariant => {
                     generic_variance.insert(i, Variance::Contravariant);
                 }
-                ast_defs::Variance::Invariant => {
+                aast::Variance::Invariant => {
                     generic_variance.insert(i, Variance::Invariant);
                 }
             }
@@ -305,10 +321,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             template_type_map.push((*param_name, h));
         }
 
-        let mut definition_location = HPos::new(&typedef.span, self.file_source.file_path);
+        let mut definition_location = HPos::new(
+            &typedef.span,
+            self.file_source.file_path,
+            self.file_source.line_index,
+        );
 
         if let Some(user_attribute) = typedef.user_attributes.first() {
-            definition_location.start_line = user_attribute.name.0.line() as u32;
+            definition_location.start_line =
+                user_attribute.name.0.line(self.file_source.line_index) as u32;
             definition_location.start_offset = user_attribute.name.0.start_offset() as u32;
         }
 
@@ -323,7 +344,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             start_colum: definition_location.start_column,
             end_column: definition_location.end_column,
             children: Vec::new(),
-            signature_hash: { position_insensitive_hash(typedef).wrapping_add(uses_hash) },
+            signature_hash: hakana_parser::source_hash(
+                self.file_source.file_contents,
+                definition_location.start_offset as usize,
+                definition_location.end_offset as usize,
+            )
+            .wrapping_add(uses_hash),
             body_hash: None,
             is_function: false,
             is_constant: false,
@@ -368,7 +394,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let mut actual_type;
 
         match &typedef.assignment {
-            ast::TypedefAssignment::SimpleTypeDef(typedef_innser) => {
+            aast::TypedefAssignment::SimpleTypeDef(typedef_innser) => {
                 if typedef_innser.vis.is_opaque() {
                     source_file = Some(self.file_source.file_path);
                 } else {
@@ -376,7 +402,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 }
 
                 actual_type = get_type_from_hint(
-                    &typedef.runtime_type.1,
+                    typedef.runtime_type.1,
                     None,
                     &TypeResolutionContext {
                         template_type_map: template_type_map.clone(),
@@ -388,11 +414,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 )
                 .unwrap();
             }
-            ast::TypedefAssignment::CaseType(first_variant, other_variants) => {
+            aast::TypedefAssignment::CaseType(first_variant, other_variants) => {
                 source_file = None;
 
                 actual_type = get_type_from_hint(
-                    &first_variant.hint.1,
+                    first_variant.hint.1,
                     None,
                     &TypeResolutionContext {
                         template_type_map: template_type_map.clone(),
@@ -404,10 +430,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 )
                 .unwrap();
 
-                for other_variant in other_variants {
+                for other_variant in other_variants.iter() {
                     actual_type.types.extend(
                         get_type_from_hint(
-                            &other_variant.hint.1,
+                            other_variant.hint.1,
                             None,
                             &TypeResolutionContext {
                                 template_type_map: template_type_map.clone(),
@@ -428,7 +454,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             newtype_file: source_file,
             as_type: if let Some(as_hint) = &typedef.as_constraint {
                 get_type_from_hint(
-                    &as_hint.1,
+                    as_hint.1,
                     None,
                     &TypeResolutionContext {
                         template_type_map: template_type_map.clone(),
@@ -481,6 +507,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             HPos::new(
                                 shape_source_attribute.name.pos(),
                                 self.file_source.file_path,
+                                self.file_source.line_index,
                             ),
                             source_types,
                         ),
@@ -554,12 +581,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         typedef.recurse(c, self)
     }
 
-    fn visit_class_const(
-        &mut self,
-        c: &mut Context,
-        m: &aast::ClassConst<(), ()>,
-    ) -> Result<(), ()> {
-        let member_name = self.interner.intern(m.id.1.clone());
+    fn visit_class_const(&mut self, c: &mut Context, m: &aast::ClassConst) -> Result<(), ()> {
+        let member_name = self.interner.intern(m.id.1.to_string());
 
         c.member_name = Some(member_name);
 
@@ -573,9 +596,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_class_typeconst_def(
         &mut self,
         c: &mut Context,
-        m: &aast::ClassTypeconstDef<(), ()>,
+        m: &aast::ClassTypeconstDef,
     ) -> Result<(), ()> {
-        let member_name = self.interner.intern(m.name.1.clone());
+        let member_name = self.interner.intern(m.name.1.to_string());
 
         c.member_name = Some(member_name);
 
@@ -586,8 +609,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         result
     }
 
-    fn visit_class_var(&mut self, c: &mut Context, m: &aast::ClassVar<(), ()>) -> Result<(), ()> {
-        let member_name = self.interner.intern(m.id.1.clone());
+    fn visit_class_var(&mut self, c: &mut Context, m: &aast::ClassVar) -> Result<(), ()> {
+        let member_name = self.interner.intern(m.id.1.to_string());
 
         c.member_name = Some(member_name);
 
@@ -598,8 +621,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         result
     }
 
-    fn visit_method_(&mut self, c: &mut Context, m: &aast::Method_<(), ()>) -> Result<(), ()> {
-        let method_name = self.interner.intern(m.name.1.clone());
+    fn visit_method_(&mut self, c: &mut Context, m: &aast::Method_) -> Result<(), ()> {
+        let method_name = self.interner.intern(m.name.1.to_string());
         // Shared-state access belongs to this method, not subsequent methods
         // or classes visited with the same scanner context.
         let had_static_field_access = std::mem::take(&mut c.has_static_field_access);
@@ -670,7 +693,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         result
     }
 
-    fn visit_fun_def(&mut self, c: &mut Context, f: &aast::FunDef<(), ()>) -> Result<(), ()> {
+    fn visit_fun_def(&mut self, c: &mut Context, f: &aast::FunDef) -> Result<(), ()> {
         let name = *self
             .resolved_names
             .get(&(f.name.0.start_offset() as u32))
@@ -680,17 +703,17 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c,
             Some(name),
             &f.fun,
-            &f.tparams,
-            &f.where_constraints,
+            f.tparams,
+            f.where_constraints,
             Some(&f.name.0),
         );
 
         let (signature_hash, body_hash) = get_function_hashes(
-            &self.file_source.file_contents,
+            self.file_source.file_contents,
             &functionlike_storage.def_location,
             &f.name,
-            &f.tparams,
-            &f.fun.params,
+            f.tparams,
+            f.fun.params,
             &functionlike_storage.attributes,
             functionlike_storage
                 .suppressed_issues
@@ -698,7 +721,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 .map(|k| &k.0)
                 .collect(),
             &f.fun.ret,
-            &f.where_constraints,
+            f.where_constraints,
             &f.fun.ctxs,
             self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
         );
@@ -758,7 +781,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         result
     }
 
-    fn visit_stmt_(&mut self, c: &mut Context, p: &aast::Stmt_<(), ()>) -> Result<(), ()> {
+    fn visit_stmt_(&mut self, c: &mut Context, p: &aast::Stmt_) -> Result<(), ()> {
         let result = p.recurse(c, self);
 
         if let aast::Stmt_::Throw(..) = &p {
@@ -768,7 +791,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         result
     }
 
-    fn visit_expr(&mut self, c: &mut Context, p: &aast::Expr<(), ()>) -> Result<(), ()> {
+    fn visit_expr(&mut self, c: &mut Context, p: &aast::Expr) -> Result<(), ()> {
         let mut fun = None;
         match &p.2 {
             aast::Expr_::Yield(_) => {
@@ -781,13 +804,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 fun = Some(&f.fun);
             }
             aast::Expr_::ClassGet(boxed) => {
-                if let ast_defs::PropOrMethod::IsProp = &boxed.2 {
+                if let aast::PropOrMethod::IsProp = &boxed.2 {
                     c.has_static_field_access = true;
                 }
             }
             aast::Expr_::ObjGet(boxed) => {
                 if let aast::Expr_::Id(id) = &boxed.1.2 {
-                    self.interner.intern(id.1.clone());
+                    self.interner.intern(id.1.to_string());
                 }
             }
             aast::Expr_::Call(boxed) => {
@@ -810,7 +833,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c.has_throw = false;
             c.has_asio_join = false;
 
-            let mut functionlike_storage = self.visit_function(c, None, fun, &[], &vec![], None);
+            let mut functionlike_storage = self.visit_function(c, None, fun, &[], &[], None);
             let result = p.recurse(c, self);
 
             if c.has_yield {
@@ -850,10 +873,10 @@ impl<'a> Scanner<'a> {
         &mut self,
         c: &mut Context,
         name: Option<StrId>,
-        fun: &aast::Fun_<(), ()>,
-        tparams: &[aast::Tparam<(), ()>],
-        where_constraints: &Vec<aast::WhereConstraintHint>,
-        name_pos: Option<&oxidized::pos::Pos>,
+        fun: &aast::Fun_,
+        tparams: &[aast::Tparam],
+        where_constraints: &[aast::WhereConstraintHint],
+        name_pos: Option<&hakana_parser::aast::Pos>,
     ) -> FunctionLikeInfo {
         let parent_function_storage = if name.is_none() {
             if let Some(parent_function_id) = &c.function_name {
@@ -902,11 +925,11 @@ impl<'a> Scanner<'a> {
             &fun.span,
             name_pos,
             tparams,
-            &fun.params,
-            &fun.body.fb_ast.0,
+            fun.params,
+            fun.body.fb_ast.0,
             &fun.ret,
             &fun.fun_kind,
-            &fun.user_attributes.0,
+            fun.user_attributes.0,
             &fun.ctxs,
             where_constraints,
             &mut type_resolution_context,
@@ -1021,6 +1044,34 @@ fn get_caller_visible_body_hash(functionlike_info: &FunctionLikeInfo) -> u64 {
     functionlike_info.specialize_call.hash(&mut hasher);
     functionlike_info.async_version.hash(&mut hasher);
     hasher.finish()
+}
+
+/// A hash of the source text at the given positions, insensitive to layout and comments.
+///
+/// Each position is hashed on its own (one nested in an earlier one is skipped): the
+/// parts of a definition can be far apart, like an enum's base type and one of its cases.
+pub(crate) fn source_range_hash<const N: usize>(
+    file_contents: &str,
+    positions: [Option<&aast::Pos>; N],
+) -> u64 {
+    let mut hash = 0u64;
+    let mut seen: [(usize, usize); N] = [(0, 0); N];
+    let mut seen_count = 0;
+    for pos in positions.into_iter().flatten() {
+        let (start, end) = (pos.start_offset(), pos.end_offset());
+        if seen[..seen_count]
+            .iter()
+            .any(|(s, e)| *s <= start && end <= *e)
+        {
+            continue;
+        }
+        seen[seen_count] = (start, end);
+        seen_count += 1;
+        hash = hash
+            .rotate_left(17)
+            .wrapping_add(hakana_parser::source_hash(file_contents, start, end));
+    }
+    hash
 }
 
 fn get_uses_hash(uses: &Vec<(StrId, StrId)>) -> u64 {
@@ -1140,7 +1191,7 @@ fn get_function_hashes(
             signature_end = signature_end.max(last_hint.0.end_offset());
         }
 
-        if let ast::FunParamInfo::ParamOptional(Some(expr)) = &last_param.info {
+        if let aast::FunParamInfo::ParamOptional(Some(expr)) = &last_param.info {
             signature_end = signature_end.max(expr.1.end_offset());
         }
     }
@@ -1182,7 +1233,7 @@ fn get_function_hashes(
 }
 
 pub fn collect_info_for_aast(
-    program: &aast::Program<(), ()>,
+    program: &aast::Program,
     resolved_names: &FxHashMap<u32, StrId>,
     interner: &mut ThreadedInterner,
     codebase: &mut CodebaseInfo,

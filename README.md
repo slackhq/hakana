@@ -25,9 +25,11 @@ This tool is not designed to be run on every keypress, but it has a language ser
 
 Clone this repo, install Rust and Cargo if you haven't already.
 
-Run `./init.sh` to initialize the pinned submodules and apply `hhvm-patch.diff`.
-The patch enables WASM compilation and retains Hakana's support for legacy bool
-casts and `unset` targets.
+Run `./init.sh` to initialize the pinned submodules.
+Hakana has its own Hack parser and does not compile HHVM's; the submodule
+provides the standard-library definitions that are built in, and the reference
+parser that the parser's differential tests compare against. HHVM is used
+there exactly as checked out: nothing is patched.
 
 `third-party/xhp-lib` is vendored from the webapp checkout's
 `vendor/facebook/xhp-lib`. Its source revision is recorded in

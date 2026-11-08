@@ -9,7 +9,9 @@ use hakana_code_info::{
     EFFECT_PURE, EFFECT_READ_GLOBALS, EFFECT_READ_PROPS, analysis_result::Replacement,
     issue::IssueKind,
 };
-use oxidized::{aast, ast::Uop, ast_defs::Pos};
+use hakana_parser::aast;
+use hakana_parser::aast::Pos;
+use hakana_parser::aast::Uop;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
@@ -44,18 +46,15 @@ if (!x)
   (x: null)
   throw new Exception -- effects: remove null from the type of x
 */
-pub(crate) fn analyze(
-    statements_analyzer: &StatementsAnalyzer,
-    stmt: (
-        &aast::Expr<(), ()>,
-        &aast::Block<(), ()>,
-        &aast::Block<(), ()>,
-    ),
+pub(crate) fn analyze<'ast>(
+    statements_analyzer: &StatementsAnalyzer<'ast>,
+    stmt: (&aast::Expr<'ast>, &aast::Block<'ast>, &aast::Block<'ast>),
     stmt_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
+    let arena = statements_analyzer.arena();
     let codebase = statements_analyzer.file_analyzer.codebase;
 
     let mut if_scope = IfScope::default();
@@ -175,8 +174,8 @@ pub(crate) fn analyze(
             cond_object_id,
             &aast::Expr(
                 (),
-                stmt.0.1.clone(),
-                aast::Expr_::Unop(Box::new((Uop::Unot, stmt.0.clone()))),
+                stmt.0.1,
+                aast::Expr_::Unop(&*arena.alloc((Uop::Unot, *stmt.0))),
             ),
             &assertion_context,
             analysis_data,
@@ -389,7 +388,10 @@ pub(crate) fn analyze(
         if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS = *effects {
             analysis_data.add_replacement(
                 (
-                    stmt_pos.to_raw_span().start.beg_of_line() as u32,
+                    stmt_pos
+                        .to_raw_span(statements_analyzer.lines())
+                        .start
+                        .beg_of_line() as u32,
                     stmt_pos.end_offset() as u32 + 1,
                 ),
                 Replacement::Remove,

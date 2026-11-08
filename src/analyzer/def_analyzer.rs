@@ -12,14 +12,14 @@ use crate::{expression_analyzer, stmt_analyzer};
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_code_info::function_context::FunctionContext;
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_parser::aast;
 use hakana_reflector::typehint_resolver::get_type_references_from_hint;
 use hakana_str::StrId;
-use oxidized::aast;
 
 pub(crate) fn analyze(
     scope_analyzer: &dyn ScopeAnalyzer,
     statements_analyzer: &StatementsAnalyzer,
-    def: &aast::Def<(), ()>,
+    def: &aast::Def,
     context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
     analysis_data: &mut FunctionAnalysisData,
@@ -124,9 +124,6 @@ pub(crate) fn analyze(
         }
         aast::Def::Namespace(_) => {
             // already handled?
-        }
-        aast::Def::SetNamespaceEnv(_) => {
-            // maybe unnecessary
         }
         aast::Def::FileAttributes(_) => {
             // not sure

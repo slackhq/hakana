@@ -7,11 +7,13 @@ use hakana_code_info::data_flow::node::DataFlowNodeId;
 use hakana_code_info::data_flow::node::DataFlowNodeKind;
 use hakana_code_info::data_flow::node::VariableSourceKind;
 use hakana_code_info::data_flow::path::PathKind;
+use hakana_parser::aast;
+use hakana_parser::aast::CommentPos;
+use hakana_parser::aast_visitor::AstParams;
+use hakana_parser::aast_visitor::Node;
+use hakana_parser::aast_visitor::Visitor;
+use hakana_parser::aast_visitor::visit;
 use hakana_str::Interner;
-use oxidized::{
-    aast,
-    aast_visitor::{AstParams, Node, Visitor, visit},
-};
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -23,8 +25,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_code_info::data_flow::graph::DataFlowGraph;
 use hakana_code_info::data_flow::node::DataFlowNode;
 use hakana_code_info::data_flow::path::ArrayDataKind;
-use oxidized::ast_defs::Pos;
-use oxidized::prim_defs::Comment;
+use hakana_parser::aast::Comment;
 
 enum VariableUsage {
     NeverReferenced,
@@ -722,7 +723,8 @@ fn get_variable_child_nodes(
 
 struct Scanner<'a> {
     pub unused_variable_nodes: &'a Vec<DataFlowNode>,
-    pub comments: &'a Vec<(Pos, Comment)>,
+    pub comments: &'a Vec<(CommentPos, Comment)>,
+    pub lines: &'a hakana_parser::aast::LineIndex,
     pub in_single_block: bool,
 }
 
@@ -736,10 +738,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_expr(
         &mut self,
         analysis_data: &mut FunctionAnalysisData,
-        expr: &aast::Expr<(), ()>,
+        expr: &aast::Expr,
     ) -> Result<(), ()> {
         if let aast::Expr_::List(exprs) = &expr.2 {
-            for list_expr in exprs {
+            for list_expr in exprs.iter() {
                 let has_matching_node = self.unused_variable_nodes.iter().any(|n| match &n.kind {
                     DataFlowNodeKind::VariableUseSource { pos, .. } => {
                         pos.start_offset == list_expr.1.start_offset() as u32
@@ -764,7 +766,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_stmt(
         &mut self,
         analysis_data: &mut FunctionAnalysisData,
-        stmt: &aast::Stmt<(), ()>,
+        stmt: &aast::Stmt,
     ) -> Result<(), ()> {
         if let aast::Stmt_::If(boxed) = &stmt.1 {
             self.in_single_block =
@@ -804,7 +806,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
             if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS = *expression_effects {
                 if !self.in_single_block {
-                    let span = stmt.0.to_raw_span();
+                    let span = stmt.0.to_raw_span(self.lines);
                     analysis_data.add_replacement(
                         (stmt.0.start_offset() as u32, stmt.0.end_offset() as u32),
                         Replacement::TrimPrecedingWhitespace(span.start.beg_of_line() as u32),
@@ -855,12 +857,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 impl<'a> Scanner<'a> {
     fn remove_fixme_comments(
         &mut self,
-        stmt: &aast::Stmt<(), ()>,
+        stmt: &aast::Stmt,
         analysis_data: &mut FunctionAnalysisData,
         limit: usize,
     ) {
         for (comment_pos, comment) in self.comments {
-            if comment_pos.line() == stmt.0.line() {
+            if comment_pos.line() == stmt.0.line(self.lines) {
                 if let Comment::CmtBlock(block) = comment
                     && block.trim() == "HHAST_FIXME[UnusedVariable]"
                 {
@@ -873,12 +875,12 @@ impl<'a> Scanner<'a> {
 
                     return;
                 }
-            } else if comment_pos.line() == stmt.0.line() - 1
+            } else if comment_pos.line() == stmt.0.line(self.lines) - 1
                 && let Comment::CmtBlock(block) = comment
                 && let "HAKANA_FIXME[UnusedAssignment]" | "HAKANA_FIXME[UnusedAssignmentStatement]" =
                     block.trim()
             {
-                let stmt_start = stmt.0.to_raw_span().start;
+                let stmt_start = stmt.0.to_raw_span(self.lines).start;
                 analysis_data.add_replacement(
                     (
                         comment_pos.start_offset() as u32,
@@ -895,7 +897,7 @@ impl<'a> Scanner<'a> {
 }
 
 pub(crate) fn add_unused_expression_replacements(
-    stmts: &Vec<aast::Stmt<(), ()>>,
+    stmts: &[aast::Stmt],
     analysis_data: &mut FunctionAnalysisData,
     unused_source_nodes: &Vec<DataFlowNode>,
     statements_analyzer: &StatementsAnalyzer,
@@ -903,6 +905,7 @@ pub(crate) fn add_unused_expression_replacements(
     let mut scanner = Scanner {
         unused_variable_nodes: unused_source_nodes,
         comments: statements_analyzer.file_analyzer.file_source.comments,
+        lines: statements_analyzer.lines(),
         in_single_block: false,
     };
 
