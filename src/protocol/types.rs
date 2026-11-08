@@ -251,6 +251,17 @@ pub struct GetIssuesRequest {
     pub block_until_next_analysis: bool,
     /// Whether to send progress reports before the analysis is complete.
     pub send_progress_report: bool,
+    /// The `generation` of the last response this client was given, or 0 if it
+    /// has been given none. The server answers as soon as it has something else
+    /// to report - at once, if that happened while the client was away:
+    /// - the outcome of another analysis, or
+    /// - that it is rescanning (`GetIssuesResponse::rescanning`).
+    ///
+    /// A client that sends this is always answered this way, whatever
+    /// `block_until_next_analysis` says. Without it, "next" can only mean next
+    /// after the request arrives, and an analysis that completed just before is
+    /// missed; and only the outcome of an analysis is ever reported.
+    pub last_seen_generation: Option<u64>,
 }
 
 /// Response with current issues.
@@ -270,6 +281,14 @@ pub struct GetIssuesResponse {
     pub total_files_to_analyze: u32,
     /// Current analysis phase description.
     pub phase: String,
+    /// Identifies what this response reports - the outcome of an analysis run,
+    /// or that the server is rescanning - for
+    /// `GetIssuesRequest::last_seen_generation`. 0 when it reports neither (a
+    /// progress report, or a server that predates generations).
+    pub generation: u64,
+    /// The server has let go of the results it had and is analysing the whole
+    /// codebase again: there are no issues to report until that is done.
+    pub rescanning: bool,
 }
 
 /// Request for the migration candidates of a given migration.

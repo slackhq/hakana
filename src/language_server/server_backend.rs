@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crate::{get_diagnostic_severity, server_client};
 use hakana_analyzer::config::Config;
@@ -15,6 +16,264 @@ use tower_lsp::{Client, LanguageServer};
 enum DiagnosticsEvent {
     Analysis(FxHashMap<Url, Vec<Diagnostic>>),
     Edit(Url, Vec<TextDocumentContentChangeEvent>),
+    Opened(Url),
+    Saved(Url),
+    Closed(Url),
+    /// The server has let go of its results and is analysing everything again.
+    Rescanning,
+    /// An analysis failed.
+    AnalysisFailed,
+}
+
+/// What asking the server for its issues came to. The generations are those of
+/// the server's responses, 0 from a server that predates them.
+enum FetchedIssues {
+    /// The diagnostics of a completed analysis, by file.
+    Analysis {
+        generation: u64,
+        diagnostics: FxHashMap<Url, Vec<Diagnostic>>,
+    },
+    /// The server has no results for now: it is analysing the whole codebase
+    /// again.
+    Rescanning { generation: u64 },
+    /// The server answered, but has no completed analysis to report: the
+    /// analysis failed. This says nothing about the code.
+    NoResult { generation: u64 },
+    /// The server could not be reached.
+    Unreachable,
+}
+
+/// Where an edit happened, without the text: all that is needed to move the
+/// diagnostics around it.
+#[derive(Clone, Copy)]
+struct BufferEdit {
+    /// The range that was replaced. `None` when the whole document was.
+    replaced: Option<Range>,
+    /// Where the replacement text ends.
+    replacement_end: Position,
+}
+
+impl BufferEdit {
+    const WHOLE_DOCUMENT: Self = Self {
+        replaced: None,
+        replacement_end: Position {
+            line: 0,
+            character: 0,
+        },
+    };
+
+    fn new(content_change: &TextDocumentContentChangeEvent) -> Self {
+        match content_change.range {
+            Some(range) => Self {
+                replaced: Some(range),
+                replacement_end: ServerBasedBackend::position_after_text(
+                    range.start,
+                    &content_change.text,
+                ),
+            },
+            None => Self::WHOLE_DOCUMENT,
+        }
+    }
+}
+
+/// The diagnostics the editor is showing, and how its buffers differ from the
+/// files the server analyses.
+///
+/// The server reports positions in the files on disk. A buffer with unsaved
+/// edits has moved on from that, so its diagnostics are moved the same way -
+/// those on screen when an edit is made, and those of every analysis that
+/// arrives until the buffer is saved.
+///
+/// While the server has no results - it is analysing the whole codebase again -
+/// there are no diagnostics to show, and the ones from before may no longer
+/// hold. A single notice says so instead, on one of the open documents.
+#[derive(Default)]
+struct PublishedDiagnostics {
+    by_file: FxHashMap<Url, Vec<Diagnostic>>,
+    unsaved_edits: FxHashMap<Url, Vec<BufferEdit>>,
+    /// The documents open in the editor, the one opened last at the end.
+    open_documents: Vec<Url>,
+    notice: Option<Notice>,
+}
+
+/// What is shown in place of diagnostics while there are none to show.
+struct Notice {
+    message: &'static str,
+    /// The document it is shown on: none while no document is open.
+    shown_on: Option<Url>,
+}
+
+impl Notice {
+    const RESCANNING: &'static str =
+        "Hakana is rescanning the codebase. Its diagnostics will be back when it is done.";
+    const ANALYSIS_FAILED: &'static str =
+        "Hakana could not analyse the codebase. It will try again when a file changes.";
+
+    fn diagnostic(&self) -> Diagnostic {
+        Diagnostic::new(
+            Range {
+                start: Position::new(0, 0),
+                end: Position::new(0, 1),
+            },
+            Some(DiagnosticSeverity::ERROR),
+            None,
+            Some("Hakana".to_string()),
+            self.message.to_string(),
+            None,
+            None,
+        )
+    }
+}
+
+impl PublishedDiagnostics {
+    /// Past this many unsaved edits to one buffer they are no longer tracked one
+    /// by one: its diagnostics stay hidden until it is saved.
+    const MAX_UNSAVED_EDITS: usize = 10_000;
+
+    /// Take a new analysis result. Returns what to publish, in order.
+    fn apply_analysis(
+        &mut self,
+        mut all_diagnostics: FxHashMap<Url, Vec<Diagnostic>>,
+    ) -> Vec<(Url, Vec<Diagnostic>)> {
+        for (uri, edits) in &self.unsaved_edits {
+            if let Some(diagnostics) = all_diagnostics.get_mut(uri) {
+                ServerBasedBackend::apply_edits(diagnostics, edits);
+                if diagnostics.is_empty() {
+                    all_diagnostics.remove(uri);
+                }
+            }
+        }
+
+        let mut to_publish = vec![];
+
+        // There are diagnostics again, so the notice goes.
+        if let Some(Notice {
+            shown_on: Some(uri),
+            ..
+        }) = self.notice.take()
+            && !all_diagnostics.contains_key(&uri)
+        {
+            to_publish.push((uri, vec![]));
+        }
+
+        for old_uri in self.by_file.keys() {
+            if !all_diagnostics.contains_key(old_uri) {
+                to_publish.push((old_uri.clone(), vec![]));
+            }
+        }
+
+        for (uri, diagnostics) in &all_diagnostics {
+            to_publish.push((uri.clone(), diagnostics.clone()));
+        }
+
+        self.by_file = all_diagnostics;
+
+        to_publish
+    }
+
+    /// Take an edit to a buffer. Returns the file's diagnostics if they changed.
+    fn apply_edit(
+        &mut self,
+        uri: &Url,
+        content_changes: &[TextDocumentContentChangeEvent],
+    ) -> Option<Vec<Diagnostic>> {
+        let edits: Vec<BufferEdit> = content_changes.iter().map(BufferEdit::new).collect();
+
+        let unsaved_edits = self.unsaved_edits.entry(uri.clone()).or_default();
+        if edits.iter().any(|edit| edit.replaced.is_none())
+            || unsaved_edits.len() + edits.len() > Self::MAX_UNSAVED_EDITS
+        {
+            // Nothing before a whole-document replacement matters any more.
+            *unsaved_edits = vec![BufferEdit::WHOLE_DOCUMENT];
+        } else {
+            unsaved_edits.extend(&edits);
+        }
+
+        let diagnostics = self.by_file.get_mut(uri)?;
+
+        if !ServerBasedBackend::apply_edits(diagnostics, &edits) {
+            return None;
+        }
+
+        let diagnostics = diagnostics.clone();
+        if diagnostics.is_empty() {
+            self.by_file.remove(uri);
+        }
+
+        Some(diagnostics)
+    }
+
+    /// The buffer matches the file on disk again: it was saved, opened or closed.
+    fn matches_disk(&mut self, uri: &Url) {
+        self.unsaved_edits.remove(uri);
+    }
+
+    /// Replace the diagnostics with a notice. Returns what to publish, in order.
+    fn show_notice(&mut self, message: &'static str) -> Vec<(Url, Vec<Diagnostic>)> {
+        let mut to_publish: Vec<_> = self.by_file.drain().map(|(uri, _)| (uri, vec![])).collect();
+
+        let shown_on = match self.notice.take() {
+            Some(notice) if notice.message == message => {
+                // It is there already.
+                self.notice = Some(notice);
+                return to_publish;
+            }
+            Some(notice) => notice.shown_on,
+            None => self.open_documents.last().cloned(),
+        };
+        let notice = Notice { message, shown_on };
+        if let Some(uri) = &notice.shown_on {
+            to_publish.push((uri.clone(), vec![notice.diagnostic()]));
+        }
+        self.notice = Some(notice);
+
+        to_publish
+    }
+
+    /// An analysis failed. The diagnostics on screen stay; but if what is on
+    /// screen is the notice that results are on their way, they no longer are.
+    fn analysis_failed(&mut self) -> Vec<(Url, Vec<Diagnostic>)> {
+        if self.notice.is_some() {
+            self.show_notice(Notice::ANALYSIS_FAILED)
+        } else {
+            vec![]
+        }
+    }
+
+    /// A document was opened. Returns what to publish.
+    fn opened(&mut self, uri: Url) -> Vec<(Url, Vec<Diagnostic>)> {
+        self.matches_disk(&uri);
+        self.open_documents.retain(|open| *open != uri);
+        self.open_documents.push(uri.clone());
+
+        // A notice that had no document to be shown on has one now.
+        match &mut self.notice {
+            Some(notice) if notice.shown_on.is_none() => {
+                notice.shown_on = Some(uri.clone());
+                vec![(uri, vec![notice.diagnostic()])]
+            }
+            _ => vec![],
+        }
+    }
+
+    /// A document was closed. Returns what to publish, in order.
+    fn closed(&mut self, uri: Url) -> Vec<(Url, Vec<Diagnostic>)> {
+        self.matches_disk(&uri);
+        self.open_documents.retain(|open| *open != uri);
+
+        // The notice moves on from a document that is no longer in view.
+        match &mut self.notice {
+            Some(notice) if notice.shown_on.as_ref() == Some(&uri) => {
+                notice.shown_on = self.open_documents.last().cloned();
+                let mut to_publish = vec![(uri, vec![])];
+                if let Some(next) = &notice.shown_on {
+                    to_publish.push((next.clone(), vec![notice.diagnostic()]));
+                }
+                to_publish
+            }
+            _ => vec![],
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -32,6 +291,11 @@ static EXCLUDED_ISSUE_KINDS: [IssueKind; 2] =
     [IssueKind::UndefinedVariable, IssueKind::TooFewArguments];
 
 impl ServerBasedBackend {
+    /// How long to wait before asking the server again after it could not be
+    /// reached, doubling up to the maximum while it stays unreachable.
+    const MIN_RETRY_DELAY: Duration = Duration::from_millis(250);
+    const MAX_RETRY_DELAY: Duration = Duration::from_secs(30);
+
     pub fn new(
         client: Client,
         analysis_config: Config,
@@ -47,21 +311,29 @@ impl ServerBasedBackend {
     }
 
     /// Update existing diagnostics after a file is changed in the editor.
+    #[cfg(test)]
     fn apply_content_changes(
         diagnostics: &mut Vec<Diagnostic>,
         content_changes: &[TextDocumentContentChangeEvent],
     ) -> bool {
+        let edits: Vec<BufferEdit> = content_changes.iter().map(BufferEdit::new).collect();
+        Self::apply_edits(diagnostics, &edits)
+    }
+
+    /// Move diagnostics to where the edits left the code they are about, dropping
+    /// those whose code was edited. Returns whether anything changed.
+    fn apply_edits(diagnostics: &mut Vec<Diagnostic>, edits: &[BufferEdit]) -> bool {
         let mut diagnostics_changed = false;
 
-        for content_change in content_changes {
+        for edit in edits {
             // For full document replacements, clear out all diagnostics.
-            let Some(edit_range) = content_change.range else {
+            let Some(edit_range) = edit.replaced else {
                 diagnostics_changed |= !diagnostics.is_empty();
                 diagnostics.clear();
                 continue;
             };
 
-            let replacement_end = Self::position_after_text(edit_range.start, &content_change.text);
+            let replacement_end = edit.replacement_end;
 
             // Keep diagnostics outside the edit range, shifting their positions as needed
             // to account for the changed content.
@@ -94,6 +366,17 @@ impl ServerBasedBackend {
         }
 
         diagnostics_changed
+    }
+
+    fn send_diagnostics_event(&self, event: DiagnosticsEvent) {
+        if let Some(diagnostics_tx) = self
+            .diagnostics_tx
+            .lock()
+            .ok()
+            .and_then(|tx| tx.as_ref().cloned())
+        {
+            let _ = diagnostics_tx.send(event);
+        }
     }
 
     /// Determine whether two ranges overlap.
@@ -158,18 +441,34 @@ impl ServerBasedBackend {
         analysis_config: &Arc<Config>,
         server_conn: &Arc<server_client::ServerConnection>,
         block_until_next_analysis: bool,
-    ) -> FxHashMap<Url, Vec<Diagnostic>> {
+        last_seen_generation: u64,
+    ) -> FetchedIssues {
         client
             .log_message(MessageType::INFO, "Fetching issues from server")
             .await;
 
         // Get issues from the server
         let result = server_conn
-            .get_issues(None, true, true, block_until_next_analysis)
+            .get_issues(
+                None,
+                true,
+                true,
+                block_until_next_analysis,
+                Some(last_seen_generation),
+            )
             .await;
 
         match result {
             Ok(response) => {
+                let generation = response.generation;
+
+                if response.rescanning {
+                    client
+                        .log_message(MessageType::INFO, "Server is rescanning the codebase")
+                        .await;
+                    return FetchedIssues::Rescanning { generation };
+                }
+
                 if !response.analysis_complete {
                     client
                         .log_message(
@@ -178,7 +477,7 @@ impl ServerBasedBackend {
                         )
                         .await;
                     // Don't update diagnostics while analysis is in progress
-                    return FxHashMap::default();
+                    return FetchedIssues::NoResult { generation };
                 }
 
                 let mut all_diagnostics = FxHashMap::default();
@@ -241,7 +540,10 @@ impl ServerBasedBackend {
                     )
                     .await;
 
-                all_diagnostics
+                FetchedIssues::Analysis {
+                    generation,
+                    diagnostics: all_diagnostics,
+                }
             }
             Err(e) => {
                 client
@@ -251,7 +553,7 @@ impl ServerBasedBackend {
                     )
                     .await;
 
-                FxHashMap::default()
+                FetchedIssues::Unreachable
             }
         }
     }
@@ -268,7 +570,7 @@ impl LanguageServer for ServerBasedBackend {
                         change: Some(TextDocumentSyncKind::INCREMENTAL),
                         will_save: Some(false),
                         will_save_wait_until: Some(false),
-                        save: Some(TextDocumentSyncSaveOptions::Supported(false)),
+                        save: Some(TextDocumentSyncSaveOptions::Supported(true)),
                     },
                 )),
                 definition_provider: Some(OneOf::Left(true)),
@@ -276,6 +578,18 @@ impl LanguageServer for ServerBasedBackend {
             },
             ..InitializeResult::default()
         })
+    }
+
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        self.send_diagnostics_event(DiagnosticsEvent::Opened(params.text_document.uri));
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        self.send_diagnostics_event(DiagnosticsEvent::Saved(params.text_document.uri));
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        self.send_diagnostics_event(DiagnosticsEvent::Closed(params.text_document.uri));
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -290,13 +604,8 @@ impl LanguageServer for ServerBasedBackend {
             .extension()
             .and_then(&OsStr::to_str)
             && SUPPORTED_EXTENSIONS.contains(&file_ext)
-            && let Some(diagnostics_tx) = self
-                .diagnostics_tx
-                .lock()
-                .ok()
-                .and_then(|tx| tx.as_ref().cloned())
         {
-            let _ = diagnostics_tx.send(DiagnosticsEvent::Edit(file_uri, params.content_changes));
+            self.send_diagnostics_event(DiagnosticsEvent::Edit(file_uri, params.content_changes));
         }
     }
 
@@ -330,16 +639,65 @@ impl LanguageServer for ServerBasedBackend {
                 // On startup, allow populating initial diagnostics from warm server state if
                 // it exists, then block until subsequent analysis runs.
                 let mut block_until_next_analysis = false;
+                // What the server last told us, 0 for nothing yet. Given this, the server
+                // answers at once if it has had something else to say since - without
+                // it, an analysis that completes between two requests would be missed.
+                let mut last_seen_generation = 0;
+                let mut retry_delay = Self::MIN_RETRY_DELAY;
 
                 loop {
-                    let all_diagnostics = Self::do_analysis_via_server(
+                    let fetched = Self::do_analysis_via_server(
                         &analysis_client,
                         &analysis_config,
                         &analysis_conn,
                         block_until_next_analysis,
+                        last_seen_generation,
                     )
                     .await;
-                    block_until_next_analysis = true;
+
+                    // Only a completed analysis says what the diagnostics are. Anything
+                    // else leaves those on screen as they are.
+                    let all_diagnostics = match fetched {
+                        FetchedIssues::Analysis {
+                            generation,
+                            diagnostics,
+                        } => {
+                            block_until_next_analysis = true;
+                            last_seen_generation = generation;
+                            retry_delay = Self::MIN_RETRY_DELAY;
+                            diagnostics
+                        }
+                        FetchedIssues::Rescanning { generation } => {
+                            block_until_next_analysis = true;
+                            last_seen_generation = generation;
+                            retry_delay = Self::MIN_RETRY_DELAY;
+                            if diagnostics_tx.send(DiagnosticsEvent::Rescanning).is_err() {
+                                break;
+                            }
+                            continue;
+                        }
+                        FetchedIssues::NoResult { generation } => {
+                            block_until_next_analysis = true;
+                            last_seen_generation = generation;
+                            retry_delay = Self::MIN_RETRY_DELAY;
+                            if diagnostics_tx
+                                .send(DiagnosticsEvent::AnalysisFailed)
+                                .is_err()
+                            {
+                                break;
+                            }
+                            tokio::time::sleep(retry_delay).await;
+                            continue;
+                        }
+                        FetchedIssues::Unreachable => {
+                            // The server that answers next may be a new one: take
+                            // whatever it has, rather than wait for it to change.
+                            block_until_next_analysis = false;
+                            tokio::time::sleep(retry_delay).await;
+                            retry_delay = (retry_delay * 2).min(Self::MAX_RETRY_DELAY);
+                            continue;
+                        }
+                    };
 
                     if diagnostics_tx
                         .send(DiagnosticsEvent::Analysis(all_diagnostics))
@@ -356,52 +714,53 @@ impl LanguageServer for ServerBasedBackend {
                 }
             });
 
-            let mut diagnostics_by_file: FxHashMap<Url, Vec<Diagnostic>> = FxHashMap::default();
+            let mut published = PublishedDiagnostics::default();
 
             loop {
                 tokio::select! {
                     Some(event) = diagnostics_rx.recv() => {
                         match event {
                             DiagnosticsEvent::Analysis(all_diagnostics) => {
-                                for old_uri in diagnostics_by_file.keys() {
-                                    if !all_diagnostics.contains_key(old_uri) {
-                                        client
-                                            .publish_diagnostics(old_uri.clone(), vec![], None)
-                                            .await;
-                                    }
+                                for (uri, diagnostics) in published.apply_analysis(all_diagnostics) {
+                                    client.publish_diagnostics(uri, diagnostics, None).await;
                                 }
-
-                                for (uri, diagnostics) in &all_diagnostics {
-                                    client
-                                        .publish_diagnostics(
-                                            uri.clone(),
-                                            diagnostics.clone(),
-                                            None,
-                                        )
-                                        .await;
-                                }
-
-                                diagnostics_by_file = all_diagnostics;
 
                                 client
                                     .log_message(MessageType::INFO, "Diagnostics sent")
                                     .await;
                             }
                             DiagnosticsEvent::Edit(file_uri, content_changes) => {
-                                let Some(diagnostics) = diagnostics_by_file.get_mut(&file_uri)
-                                else {
-                                    continue;
-                                };
-
-                                if Self::apply_content_changes(diagnostics, &content_changes) {
-                                    let diagnostics = diagnostics.clone();
-                                    if diagnostics.is_empty() {
-                                        diagnostics_by_file.remove(&file_uri);
-                                    }
-
+                                if let Some(diagnostics) =
+                                    published.apply_edit(&file_uri, &content_changes)
+                                {
                                     client
                                         .publish_diagnostics(file_uri, diagnostics, None)
                                         .await;
+                                }
+                            }
+                            DiagnosticsEvent::Saved(file_uri) => {
+                                published.matches_disk(&file_uri);
+                            }
+                            DiagnosticsEvent::Opened(file_uri) => {
+                                for (uri, diagnostics) in published.opened(file_uri) {
+                                    client.publish_diagnostics(uri, diagnostics, None).await;
+                                }
+                            }
+                            DiagnosticsEvent::Closed(file_uri) => {
+                                for (uri, diagnostics) in published.closed(file_uri) {
+                                    client.publish_diagnostics(uri, diagnostics, None).await;
+                                }
+                            }
+                            DiagnosticsEvent::Rescanning => {
+                                for (uri, diagnostics) in
+                                    published.show_notice(Notice::RESCANNING)
+                                {
+                                    client.publish_diagnostics(uri, diagnostics, None).await;
+                                }
+                            }
+                            DiagnosticsEvent::AnalysisFailed => {
+                                for (uri, diagnostics) in published.analysis_failed() {
+                                    client.publish_diagnostics(uri, diagnostics, None).await;
                                 }
                             }
                         }

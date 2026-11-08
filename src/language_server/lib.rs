@@ -32,6 +32,8 @@ pub struct Backend {
     all_diagnostics: RwLock<Option<FxHashMap<Url, Vec<Diagnostic>>>>,
     file_changes: RwLock<Option<FxHashMap<String, FileStatus>>>,
     files_with_errors: RwLock<FxHashSet<Url>>,
+    /// Held by the analysis that is running, of which there is one at a time.
+    analysis_running: tokio::sync::Mutex<()>,
 }
 
 impl Backend {
@@ -45,6 +47,7 @@ impl Backend {
             all_diagnostics: RwLock::new(None),
             file_changes: RwLock::new(None),
             files_with_errors: RwLock::new(FxHashSet::default()),
+            analysis_running: tokio::sync::Mutex::new(()),
         }
     }
 
@@ -144,8 +147,7 @@ impl LanguageServer for Backend {
             .await
             .unwrap();
 
-        self.do_analysis().await;
-        self.emit_issues().await;
+        self.analyze_and_emit_issues().await;
 
         self.client
             .log_message(MessageType::INFO, "server initialized!")
@@ -184,13 +186,12 @@ impl LanguageServer for Backend {
             }
         }
 
-        if Path::new(".git/index.lock").exists() {
+        if git_is_busy() {
             self.client
                 .log_message(MessageType::INFO, "Waiting a sec while git is doing stuff")
                 .await;
         } else {
-            self.do_analysis().await;
-            self.emit_issues().await;
+            self.analyze_and_emit_issues().await;
         }
     }
 
@@ -213,49 +214,53 @@ impl LanguageServer for Backend {
         };
         let file_path = file_path.to_string_lossy().into_owned();
 
+        // Convert LSP position to offset
+        let Ok(file_contents) = tokio::fs::read_to_string(&file_path).await else {
+            return Ok(None);
+        };
+        let offset = self.position_to_offset(&file_contents, position);
+
+        // While an analysis is running there is no result to answer from, and
+        // the answer is that nothing was found.
         let scan_data_guard = self.previous_scan_data.read().await;
         let analysis_result_guard = self.previous_analysis_result.read().await;
-        if let Some(scan_data) = scan_data_guard.as_ref() {
-            // Convert LSP position to offset
-            if let Ok(file_contents) = std::fs::read_to_string(&file_path) {
-                let offset = self.position_to_offset(&file_contents, position);
 
-                // Create FilePath from the file path string
-                if let Some(file_path_id) = scan_data.interner.get(&file_path) {
-                    let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
+        // Create FilePath from the file path string
+        if let Some(scan_data) = scan_data_guard.as_ref()
+            && let Some(file_path_id) = scan_data.interner.get(&file_path)
+        {
+            let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
 
-                    // Check member definition locations (methods, properties, constants)
-                    if let Some(analysis_result) = analysis_result_guard.as_ref()
-                        && let Some(definition_locations) =
-                            analysis_result.definition_locations.get(&file_path_obj)
-                    {
-                        // Find all matching ranges and pick the most specific (narrowest) one
-                        let mut best_match = None;
-                        let mut best_range_size = u32::MAX;
+            // Check member definition locations (methods, properties, constants)
+            if let Some(analysis_result) = analysis_result_guard.as_ref()
+                && let Some(definition_locations) =
+                    analysis_result.definition_locations.get(&file_path_obj)
+            {
+                // Find all matching ranges and pick the most specific (narrowest) one
+                let mut best_match = None;
+                let mut best_range_size = u32::MAX;
 
-                        for ((start_offset, end_offset), (classlike_name, member_name)) in
-                            definition_locations
-                        {
-                            if (offset as u32) >= *start_offset && (offset as u32) <= *end_offset {
-                                let range_size = end_offset - start_offset;
-                                if range_size < best_range_size {
-                                    best_range_size = range_size;
-                                    best_match = Some((classlike_name, member_name));
-                                }
-                            }
-                        }
-
-                        if let Some((classlike_name, member_name)) = best_match {
-                            if let Some(pos) = scan_data
-                                .codebase
-                                .get_symbol_pos(classlike_name, member_name)
-                            {
-                                return Ok(pos_to_offset(pos, &scan_data.interner));
-                            }
-
-                            return Ok(None);
+                for ((start_offset, end_offset), (classlike_name, member_name)) in
+                    definition_locations
+                {
+                    if (offset as u32) >= *start_offset && (offset as u32) <= *end_offset {
+                        let range_size = end_offset - start_offset;
+                        if range_size < best_range_size {
+                            best_range_size = range_size;
+                            best_match = Some((classlike_name, member_name));
                         }
                     }
+                }
+
+                if let Some((classlike_name, member_name)) = best_match {
+                    if let Some(pos) = scan_data
+                        .codebase
+                        .get_symbol_pos(classlike_name, member_name)
+                    {
+                        return Ok(pos_to_offset(pos, &scan_data.interner));
+                    }
+
+                    return Ok(None);
                 }
             }
         }
@@ -288,19 +293,46 @@ fn pos_to_offset(def_pos: HPos, interner: &Interner) -> Option<GotoDefinitionRes
     None
 }
 
+/// Git holds this lock while it rewrites the working tree. The files are
+/// analysed once it is done, which the file watcher reports.
+fn git_is_busy() -> bool {
+    Path::new(".git/index.lock").exists()
+}
+
 impl Backend {
+    /// Analyse the codebase - what has changed, if it has been analysed before -
+    /// and publish the diagnostics.
+    ///
+    /// If an analysis is running already, this returns at once: that analysis
+    /// goes round again for whatever changes were reported while it ran. (Were
+    /// each caller to wait its turn instead, every file change reported during
+    /// an analysis would hold on to one of the few requests the language server
+    /// handles at a time, and with all of those waiting no request is handled.)
+    async fn analyze_and_emit_issues(&self) {
+        loop {
+            {
+                let Ok(_analysis_running) = self.analysis_running.try_lock() else {
+                    return;
+                };
+                self.do_analysis().await;
+                self.emit_issues().await;
+            }
+
+            // A change reported from here on finds no analysis running, and
+            // starts one itself.
+            if self.file_changes.read().await.is_none() || git_is_busy() {
+                return;
+            }
+        }
+    }
+
+    /// Run one analysis. The locks on the state are held only to take what the
+    /// analysis works from and to put back what it comes to, not while it runs:
+    /// file changes can be noted and requests answered in the meantime.
     async fn do_analysis(&self) {
-        let mut previous_scan_data_guard = self.previous_scan_data.write().await;
-        let mut previous_analysis_result_guard = self.previous_analysis_result.write().await;
-        let mut all_diagnostics_guard = self.all_diagnostics.write().await;
-
-        let successful_scan_data = previous_scan_data_guard.take();
-
-        let analysis_result = previous_analysis_result_guard.take();
-
-        let mut file_changes_guard = self.file_changes.write().await;
-
-        let file_changes = file_changes_guard.take();
+        let successful_scan_data = self.previous_scan_data.write().await.take();
+        let analysis_result = self.previous_analysis_result.write().await.take();
+        let file_changes = self.file_changes.write().await.take();
 
         self.client
             .log_message(
@@ -335,83 +367,87 @@ impl Backend {
             )
         });
 
-        loop {
+        // Every way the analysis can end is an end: it returns a result, it
+        // returns an error, or it panics.
+        let result = loop {
             tokio::select! {
                 Some(log_message) = log_rx.recv() => {
                     client
                         .log_message(MessageType::INFO, log_message)
                         .await;
                 },
-                Ok(result) = (&mut task_result) => {
-                    match result {
-                        Ok((analysis_result, successful_scan_data)) => {
-                            let mut all_diagnostics = FxHashMap::default();
+                result = &mut task_result => {
+                    break match result {
+                        Ok(result) => result.map_err(|error| error.to_string()),
+                        Err(join_error) => Err(join_error.to_string()),
+                    };
+                }
+            }
+        };
 
-                            for (file, emitted_issues) in analysis_result.get_all_issues(
-                                &successful_scan_data.interner,
-                                &self.analysis_config.root_dir,
-                                false,
-                            ) {
-                                let mut diagnostics = vec![];
-                                for emitted_issue in emitted_issues {
-                                    diagnostics.push(Diagnostic::new(
-                                        Range {
-                                            start: Position {
-                                                line: emitted_issue.pos.start_line - 1,
-                                                character: emitted_issue.pos.start_column as u32 - 1,
-                                            },
-                                            end: Position {
-                                                line: emitted_issue.pos.end_line - 1,
-                                                character: emitted_issue.pos.end_column as u32 - 1,
-                                            },
-                                        },
-                                        Some(get_diagnostic_severity(&emitted_issue.kind.to_string())),
-                                        Some(NumberOrString::String(emitted_issue.kind.to_string())),
-                                        Some("Hakana".to_string()),
-                                        emitted_issue.description.clone(),
-                                        None,
-                                        None,
-                                    ));
-                                }
+        match result {
+            Ok((analysis_result, successful_scan_data)) => {
+                let mut all_diagnostics = FxHashMap::default();
 
-                                match Url::from_file_path(&file) {
-                                    Ok(url) => {
-                                        all_diagnostics.insert(url, diagnostics);
-                                    }
-                                    Err(_) => {
-                                        self.client
-                                            .log_message(
-                                                MessageType::ERROR,
-                                                format!("Failure to get url from file {}", file),
-                                            )
-                                            .await;
-                                    }
-                                }
-                            }
+                for (file, emitted_issues) in analysis_result.get_all_issues(
+                    &successful_scan_data.interner,
+                    &self.analysis_config.root_dir,
+                    false,
+                ) {
+                    let mut diagnostics = vec![];
+                    for emitted_issue in emitted_issues {
+                        diagnostics.push(Diagnostic::new(
+                            Range {
+                                start: Position {
+                                    line: emitted_issue.pos.start_line - 1,
+                                    character: emitted_issue.pos.start_column as u32 - 1,
+                                },
+                                end: Position {
+                                    line: emitted_issue.pos.end_line - 1,
+                                    character: emitted_issue.pos.end_column as u32 - 1,
+                                },
+                            },
+                            Some(get_diagnostic_severity(&emitted_issue.kind.to_string())),
+                            Some(NumberOrString::String(emitted_issue.kind.to_string())),
+                            Some("Hakana".to_string()),
+                            emitted_issue.description.clone(),
+                            None,
+                            None,
+                        ));
+                    }
 
-                            *all_diagnostics_guard = Some(all_diagnostics);
-                            *previous_scan_data_guard = Some(successful_scan_data);
-                            *previous_analysis_result_guard = Some(analysis_result);
+                    match Url::from_file_path(&file) {
+                        Ok(url) => {
+                            all_diagnostics.insert(url, diagnostics);
                         }
-                        Err(error) => {
-                            *previous_scan_data_guard = None;
-                            *previous_analysis_result_guard = None;
-                            *all_diagnostics_guard = None;
-
+                        Err(_) => {
                             self.client
                                 .log_message(
                                     MessageType::ERROR,
-                                    format!("Analysis failed with error {}", error),
+                                    format!("Failure to get url from file {}", file),
                                 )
                                 .await;
                         }
                     }
-                    break;
                 }
+
+                *self.all_diagnostics.write().await = Some(all_diagnostics);
+                *self.previous_scan_data.write().await = Some(successful_scan_data);
+                *self.previous_analysis_result.write().await = Some(analysis_result);
+            }
+            Err(error) => {
+                // Nothing is left to build on, so the next analysis starts from
+                // scratch. The diagnostics on screen stay until it is done.
+                *self.all_diagnostics.write().await = None;
+
+                self.client
+                    .log_message(
+                        MessageType::ERROR,
+                        format!("Analysis failed with error {}", error),
+                    )
+                    .await;
             }
         }
-
-        *file_changes_guard = None;
     }
 
     async fn emit_issues(&self) {

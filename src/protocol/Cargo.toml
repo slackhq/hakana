@@ -10,6 +10,7 @@ rustc-hash = "1.1.0"
 tokio = { version = "1.28", features = ["net", "io-util"] }
 
 [dev-dependencies]
+tempfile = "3"
 tokio = { version = "1.28", features = ["rt", "macros", "time"] }
 
 [lib]

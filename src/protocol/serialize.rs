@@ -116,6 +116,18 @@ fn write_option_string(buf: &mut Vec<u8>, s: &Option<String>) {
     }
 }
 
+fn write_option_u64(buf: &mut Vec<u8>, v: Option<u64>) {
+    match v {
+        Some(v) => {
+            write_bool(buf, true);
+            write_u64(buf, v);
+        }
+        None => {
+            write_bool(buf, false);
+        }
+    }
+}
+
 fn read_u8(data: &[u8]) -> Result<(u8, &[u8]), ProtocolError> {
     if data.is_empty() {
         return Err(ProtocolError::UnexpectedEof);
@@ -169,6 +181,16 @@ fn read_option_string(data: &[u8]) -> Result<(Option<String>, &[u8]), ProtocolEr
     if present {
         let (s, rest) = read_string(rest)?;
         Ok((Some(s), rest))
+    } else {
+        Ok((None, rest))
+    }
+}
+
+fn read_option_u64(data: &[u8]) -> Result<(Option<u64>, &[u8]), ProtocolError> {
+    let (present, rest) = read_bool(data)?;
+    if present {
+        let (v, rest) = read_u64(rest)?;
+        Ok((Some(v), rest))
     } else {
         Ok((None, rest))
     }
@@ -688,6 +710,7 @@ impl Serialize for GetIssuesRequest {
         write_bool(buf, self.find_unused_definitions);
         write_bool(buf, self.block_until_next_analysis);
         write_bool(buf, self.send_progress_report);
+        write_option_u64(buf, self.last_seen_generation);
     }
 }
 
@@ -698,6 +721,12 @@ impl Deserialize for GetIssuesRequest {
         let (find_unused_definitions, rest) = read_bool(rest)?;
         let (block_until_next_analysis, rest) = read_bool(rest)?;
         let (send_progress_report, rest) = read_bool(rest)?;
+        // Not sent by clients that predate generations.
+        let (last_seen_generation, rest) = if rest.is_empty() {
+            (None, rest)
+        } else {
+            read_option_u64(rest)?
+        };
         Ok((
             Self {
                 filter,
@@ -705,6 +734,7 @@ impl Deserialize for GetIssuesRequest {
                 find_unused_definitions,
                 block_until_next_analysis,
                 send_progress_report,
+                last_seen_generation,
             },
             rest,
         ))
@@ -725,6 +755,8 @@ impl Serialize for GetIssuesResponse {
         write_u32(buf, self.files_analyzed);
         write_u32(buf, self.total_files_to_analyze);
         write_string(buf, &self.phase);
+        write_u64(buf, self.generation);
+        write_bool(buf, self.rescanning);
     }
 }
 
@@ -743,6 +775,17 @@ impl Deserialize for GetIssuesResponse {
         let (files_analyzed, rest) = read_u32(rest)?;
         let (total_files_to_analyze, rest) = read_u32(rest)?;
         let (phase, rest) = read_string(rest)?;
+        // Not sent by servers that predate generations.
+        let (generation, rest) = if rest.is_empty() {
+            (0, rest)
+        } else {
+            read_u64(rest)?
+        };
+        let (rescanning, rest) = if rest.is_empty() {
+            (false, rest)
+        } else {
+            read_bool(rest)?
+        };
         Ok((
             Self {
                 analysis_complete,
@@ -752,6 +795,8 @@ impl Deserialize for GetIssuesResponse {
                 files_analyzed,
                 total_files_to_analyze,
                 phase,
+                generation,
+                rescanning,
             },
             rest,
         ))
@@ -1283,6 +1328,75 @@ mod tests {
         } else {
             panic!("Expected GetMigrationCandidatesResponse");
         }
+    }
+
+    #[test]
+    fn test_roundtrip_get_issues_generations() {
+        let request = GetIssuesRequest {
+            filter: Some("src/".to_string()),
+            block_until_next_analysis: true,
+            last_seen_generation: Some(u64::MAX - 1),
+            ..Default::default()
+        };
+        let encoded = encode_message(&Message::GetIssues(request));
+        let (decoded, _) = decode_message(&encoded).unwrap();
+        let Message::GetIssues(decoded) = decoded else {
+            panic!("Expected GetIssuesRequest");
+        };
+        assert_eq!(decoded.filter.as_deref(), Some("src/"));
+        assert!(decoded.block_until_next_analysis);
+        assert_eq!(decoded.last_seen_generation, Some(u64::MAX - 1));
+
+        let response = GetIssuesResponse {
+            analysis_complete: true,
+            issues: vec![],
+            files_scanned: 1,
+            total_files_to_scan: 2,
+            files_analyzed: 3,
+            total_files_to_analyze: 4,
+            phase: "Complete".to_string(),
+            generation: 42,
+            rescanning: true,
+        };
+        let encoded = encode_message(&Message::GetIssuesResult(response));
+        let (decoded, _) = decode_message(&encoded).unwrap();
+        let Message::GetIssuesResult(decoded) = decoded else {
+            panic!("Expected GetIssuesResponse");
+        };
+        assert_eq!(decoded.total_files_to_analyze, 4);
+        assert_eq!(decoded.generation, 42);
+        assert!(decoded.rescanning);
+    }
+
+    /// A client and a server of different versions can be talking to each other:
+    /// the language server outlives the server it started, and the reverse.
+    #[test]
+    fn test_get_issues_from_a_peer_without_generations() {
+        // What a request looked like before `last_seen_generation` was added.
+        let mut payload = Vec::new();
+        write_option_string(&mut payload, &None);
+        write_bool(&mut payload, true);
+        write_bool(&mut payload, true);
+        write_bool(&mut payload, true);
+        write_bool(&mut payload, false);
+        let (request, rest) = GetIssuesRequest::deserialize(&payload).unwrap();
+        assert!(rest.is_empty());
+        assert!(request.block_until_next_analysis);
+        assert_eq!(request.last_seen_generation, None);
+
+        // And a response, before `generation` was.
+        let mut payload = Vec::new();
+        write_bool(&mut payload, true);
+        write_u32(&mut payload, 0);
+        for count in 1..=4 {
+            write_u32(&mut payload, count);
+        }
+        write_string(&mut payload, "Complete");
+        let (response, rest) = GetIssuesResponse::deserialize(&payload).unwrap();
+        assert!(rest.is_empty());
+        assert_eq!(response.total_files_to_analyze, 4);
+        assert_eq!(response.generation, 0);
+        assert!(!response.rescanning);
     }
 
     #[test]

@@ -96,6 +96,42 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("exited"));
     }
 
+    /// Race 4: two clients start a server at the same moment. One of the two
+    /// servers finds the other listening and exits; the client that started it
+    /// has a server to talk to all the same.
+    #[tokio::test]
+    async fn wait_for_server_accepts_a_server_started_by_someone_else() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let socket_path = SocketPath::from_path(temp_dir.path().join("hakana.sock"));
+        let _other_server =
+            hakana_protocol::ServerSocket::bind(socket_path.clone()).expect("Failed to bind");
+        let factory = DirectProcessServerFactory;
+        let child = Command::new("sh")
+            .arg("-c")
+            .arg("exit 1")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("Failed to spawn test process");
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let mut server_process = ServerProcess {
+            child,
+            systemd_unit: None,
+        };
+        let result = factory
+            .wait_for_server(&socket_path, &mut server_process, Duration::from_secs(1))
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "a server is listening, whoever started it: {:?}",
+            result
+        );
+    }
+
     #[tokio::test]
     async fn wait_for_server_times_out() {
         let temp_dir = tempdir().expect("Failed to create temp dir");

@@ -1,6 +1,6 @@
 //! Request handlers for the hakana server.
 
-use crate::{ServerConfig, ServerState};
+use crate::{AnalysisOutcome, AnalysisUpdate, LatestUpdate, ServerConfig, ServerState};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_code_info::analysis_result::AnalysisResult;
 use hakana_orchestrator::SuccessfulScanData;
@@ -19,12 +19,24 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::mpsc::Sender;
 
+/// What a request is waiting to be told.
+#[derive(Clone, Copy)]
+enum Wanted {
+    /// The outcome of the run with this generation, or of a later one.
+    OutcomeFrom(u64),
+    /// The outcome of a run, after the update with this generation.
+    OutcomeOtherThan(Option<u64>),
+    /// Any update but the one with this generation, which the client has.
+    UpdateOtherThan(u64),
+}
+
 /// Handles incoming requests.
 pub struct RequestHandler {
     config: Arc<ServerConfig>,
     state: Arc<Mutex<ServerState>>,
     shutdown_tx: Sender<bool>,
     start_time: Instant,
+    updates: tokio::sync::watch::Receiver<LatestUpdate>,
 }
 
 impl RequestHandler {
@@ -33,48 +45,106 @@ impl RequestHandler {
         state: Arc<Mutex<ServerState>>,
         shutdown_tx: Sender<bool>,
         start_time: Instant,
+        updates: tokio::sync::watch::Receiver<LatestUpdate>,
     ) -> Self {
         Self {
             config,
             state,
             shutdown_tx,
             start_time,
+            updates,
         }
     }
 
-    /// Handle a goto-definition request.
-    pub fn handle_goto_definition(&self, req: GotoDefinitionRequest) -> Message {
-        let state = self.state.lock().unwrap();
-        let (scan_data, analysis_result) = match (state.scan_data(), state.analysis_result()) {
-            (Some(sd), Some(ar)) => (sd, ar),
-            _ => {
-                return Message::GotoDefinitionResult(GotoDefinitionResponse {
-                    found: false,
-                    file_path: None,
-                    start_line: None,
-                    start_column: None,
-                    end_line: None,
-                    end_column: None,
-                });
-            }
+    /// What a request is to be answered with.
+    ///
+    /// - From a client that says which update it has: any other update. One that
+    ///   is there already is returned at once.
+    /// - Otherwise, not blocking: the outcome of the run started last - which is
+    ///   waited for if it is still running, as it will be newer than anything
+    ///   there is.
+    /// - Otherwise, blocking: the outcome of a run that follows whatever is there
+    ///   when the request is made.
+    ///
+    /// With `only_if_available`, `None` is returned rather than waiting. It is
+    /// also returned if the server stops before there is anything to return.
+    async fn update_for_request(
+        &self,
+        block_until_next_analysis: bool,
+        last_seen_generation: Option<u64>,
+        only_if_available: bool,
+    ) -> Option<Arc<AnalysisUpdate>> {
+        let mut updates = self.updates.clone();
+
+        let wanted = if let Some(seen) = last_seen_generation {
+            Wanted::UpdateOtherThan(seen)
+        } else if !block_until_next_analysis {
+            Wanted::OutcomeFrom(self.state.lock().unwrap().last_started_generation())
+        } else {
+            Wanted::OutcomeOtherThan(updates.borrow().as_ref().map(|update| update.generation()))
         };
+        let is_wanted = |latest: &LatestUpdate| {
+            latest.as_deref().is_some_and(|update| {
+                let is_outcome = matches!(update, AnalysisUpdate::Completed(_));
+                match wanted {
+                    Wanted::OutcomeFrom(generation) => {
+                        is_outcome && update.generation() >= generation
+                    }
+                    Wanted::OutcomeOtherThan(seen) => {
+                        is_outcome && Some(update.generation()) != seen
+                    }
+                    Wanted::UpdateOtherThan(seen) => update.generation() != seen,
+                }
+            })
+        };
+
+        if only_if_available {
+            let latest = updates.borrow();
+            return latest.clone().filter(|_| is_wanted(&latest));
+        }
+
+        updates
+            .wait_for(is_wanted)
+            .await
+            .ok()
+            .and_then(|latest| latest.clone())
+    }
+
+    /// The last analysis result, to answer a request from.
+    ///
+    /// The state is locked only to get hold of it. Whatever takes time - reading
+    /// files, above all - is done with the lock released, and off the threads
+    /// that serve connections: a thread waiting for a file is a thread on which
+    /// no other request, and none of the server's own events, is handled.
+    fn analysis_data(&self) -> Option<Arc<(AnalysisResult, SuccessfulScanData)>> {
+        self.state.lock().unwrap().analysis_data.clone()
+    }
+
+    /// Handle a goto-definition request.
+    pub async fn handle_goto_definition(&self, req: GotoDefinitionRequest) -> Message {
+        let not_found = || {
+            Message::GotoDefinitionResult(GotoDefinitionResponse {
+                found: false,
+                file_path: None,
+                start_line: None,
+                start_column: None,
+                end_line: None,
+                end_column: None,
+            })
+        };
+
+        let Some(analysis_data) = self.analysis_data() else {
+            return not_found();
+        };
+        let (analysis_result, scan_data) = analysis_data.as_ref();
 
         // Build the full file path
         let full_path = format!("{}/{}", self.config.root_dir, req.file_path);
 
         // Read file contents to convert line/column to offset
-        let file_contents = match std::fs::read_to_string(&full_path) {
+        let file_contents = match tokio::fs::read_to_string(&full_path).await {
             Ok(contents) => contents,
-            Err(_) => {
-                return Message::GotoDefinitionResult(GotoDefinitionResponse {
-                    found: false,
-                    file_path: None,
-                    start_line: None,
-                    start_column: None,
-                    end_line: None,
-                    end_column: None,
-                });
-            }
+            Err(_) => return not_found(),
         };
 
         // Convert line/column to byte offset (1-indexed input)
@@ -83,16 +153,7 @@ impl RequestHandler {
         // Get the FilePath ID
         let file_path_id = match scan_data.interner.get(&full_path) {
             Some(id) => id,
-            None => {
-                return Message::GotoDefinitionResult(GotoDefinitionResponse {
-                    found: false,
-                    file_path: None,
-                    start_line: None,
-                    start_column: None,
-                    end_line: None,
-                    end_column: None,
-                });
-            }
+            None => return not_found(),
         };
 
         let file_path_obj = hakana_code_info::code_location::FilePath(file_path_id);
@@ -132,14 +193,7 @@ impl RequestHandler {
             }
         }
 
-        Message::GotoDefinitionResult(GotoDefinitionResponse {
-            found: false,
-            file_path: None,
-            start_line: None,
-            start_column: None,
-            end_line: None,
-            end_column: None,
-        })
+        not_found()
     }
 
     /// Handle a goto-definition request by fully-qualified symbol name.
@@ -157,11 +211,10 @@ impl RequestHandler {
             })
         };
 
-        let state = self.state.lock().unwrap();
-        let scan_data = match state.scan_data() {
-            Some(sd) => sd,
-            None => return not_found(),
+        let Some(analysis_data) = self.analysis_data() else {
+            return not_found();
         };
+        let scan_data = &analysis_data.1;
 
         let (symbol_id, member_id) =
             match resolve_symbol_name(&req.symbol_name, &scan_data.interner) {
@@ -196,21 +249,36 @@ impl RequestHandler {
     }
 
     /// Handle a find-symbol-references request (by symbol name).
-    pub fn handle_find_symbol_references(&self, req: FindSymbolReferencesRequest) -> Message {
-        use hakana_code_info::symbol_references_utils::get_references_for_symbol;
-        let state = self.state.lock().unwrap();
-
-        // Check if analysis is ready
-        let (scan_data, analysis_result) = match (state.scan_data(), state.analysis_result()) {
-            (Some(sd), Some(ar)) => (sd, ar),
-            _ => {
-                return Message::FindSymbolReferencesResult(FindSymbolReferencesResponse {
-                    symbol_found: false,
-                    references: Vec::new(),
-                });
-            }
+    pub async fn handle_find_symbol_references(&self, req: FindSymbolReferencesRequest) -> Message {
+        let not_found = || {
+            Message::FindSymbolReferencesResult(FindSymbolReferencesResponse {
+                symbol_found: false,
+                references: Vec::new(),
+            })
         };
 
+        // Check if analysis is ready
+        let Some(analysis_data) = self.analysis_data() else {
+            return not_found();
+        };
+        let root_dir = self.config.root_dir.clone();
+
+        // This reads every file with a reference in it.
+        tokio::task::spawn_blocking(move || {
+            Self::find_symbol_references(&req, &analysis_data, &root_dir)
+        })
+        .await
+        .unwrap_or_else(|_| not_found())
+    }
+
+    fn find_symbol_references(
+        req: &FindSymbolReferencesRequest,
+        analysis_data: &(AnalysisResult, SuccessfulScanData),
+        root_dir: &str,
+    ) -> Message {
+        use hakana_code_info::symbol_references_utils::get_references_for_symbol;
+
+        let (analysis_result, scan_data) = analysis_data;
         let interner = &scan_data.interner;
         let symbol_name = &req.symbol_name;
 
@@ -238,7 +306,7 @@ impl RequestHandler {
                         let full_path = if r.file.starts_with('/') {
                             r.file.clone()
                         } else {
-                            format!("{}/{}", self.config.root_dir, r.file)
+                            format!("{}/{}", root_dir, r.file)
                         };
 
                         // Get or load file contents
@@ -297,31 +365,19 @@ impl RequestHandler {
         Message::Ack(AckResponse)
     }
 
-    pub async fn handle_get_issues(
-        &self,
-        analysis_rx: &mut tokio::sync::broadcast::Receiver<
-            Result<Arc<(AnalysisResult, SuccessfulScanData)>, String>,
-        >,
-        req: hakana_protocol::GetIssuesRequest,
-    ) -> Message {
-        if !req.block_until_next_analysis {
-            let analysis_result = {
-                let state = self.state.lock().unwrap();
-                state
-                    .analysis_data
-                    .as_ref()
-                    .filter(|_| !state.is_analysis_in_progress())
-                    .cloned()
-            };
+    pub async fn handle_get_issues(&self, req: hakana_protocol::GetIssuesRequest) -> Message {
+        let update = self
+            .update_for_request(
+                req.block_until_next_analysis,
+                req.last_seen_generation,
+                req.send_progress_report,
+            )
+            .await;
 
-            if let Some(analysis_result) = analysis_result {
-                return self.create_get_issues_response(req, &analysis_result);
-            }
-        }
-
-        if req.send_progress_report {
+        // Without an outcome to report, the answer is how far the run has got.
+        let in_progress = |generation, rescanning| {
             let state = self.state.lock().unwrap();
-            return Message::GetIssuesResult(GetIssuesResponse {
+            Message::GetIssuesResult(GetIssuesResponse {
                 analysis_complete: false,
                 issues: vec![],
                 files_scanned: state.files_scanned(),
@@ -329,28 +385,45 @@ impl RequestHandler {
                 files_analyzed: state.files_analyzed(),
                 total_files_to_analyze: state.total_files_to_analyze(),
                 phase: state.phase().to_string(),
-            });
-        }
+                generation,
+                rescanning,
+            })
+        };
 
-        if let Ok(result) = analysis_rx.recv().await
-            && let Ok(result) = result.as_ref()
-        {
-            return self.create_get_issues_response(req, result);
+        let outcome = match update.as_deref() {
+            None => {
+                let rescanning = matches!(
+                    self.updates.borrow().as_deref(),
+                    Some(AnalysisUpdate::Rescanning { .. })
+                );
+                return in_progress(0, rescanning);
+            }
+            Some(AnalysisUpdate::Rescanning { generation }) => {
+                return in_progress(*generation, true);
+            }
+            Some(AnalysisUpdate::Completed(outcome)) => outcome,
+        };
+
+        match &outcome.result {
+            Ok(result) => self.create_get_issues_response(req, outcome, result),
+            Err(_) => Message::GetIssuesResult(GetIssuesResponse {
+                analysis_complete: false,
+                issues: vec![],
+                files_scanned: outcome.files_scanned,
+                total_files_to_scan: outcome.total_files_to_scan,
+                files_analyzed: outcome.files_analyzed,
+                total_files_to_analyze: outcome.total_files_to_analyze,
+                phase: "Analysis failed".to_string(),
+                generation: outcome.generation,
+                rescanning: false,
+            }),
         }
-        Message::GetIssuesResult(GetIssuesResponse {
-            analysis_complete: false,
-            issues: vec![],
-            files_scanned: 0,
-            total_files_to_scan: 0,
-            files_analyzed: 0,
-            total_files_to_analyze: 0,
-            phase: "Complete".to_string(),
-        })
     }
 
     fn create_get_issues_response(
         &self,
         req: hakana_protocol::GetIssuesRequest,
+        outcome: &AnalysisOutcome,
         result: &Arc<(AnalysisResult, SuccessfulScanData)>,
     ) -> Message {
         let (analysis_result, scan_data) = result.as_ref();
@@ -372,16 +445,16 @@ impl RequestHandler {
 
         info!("Returning {} issues", issues.len());
 
-        let state = self.state.lock().unwrap();
-
         Message::GetIssuesResult(GetIssuesResponse {
             analysis_complete: true,
             issues,
-            files_scanned: state.files_scanned(),
-            total_files_to_scan: state.total_files_to_scan(),
-            files_analyzed: state.files_analyzed(),
-            total_files_to_analyze: state.total_files_to_analyze(),
+            files_scanned: outcome.files_scanned,
+            total_files_to_scan: outcome.total_files_to_scan,
+            files_analyzed: outcome.files_analyzed,
+            total_files_to_analyze: outcome.total_files_to_analyze,
             phase: "Complete".to_string(),
+            generation: outcome.generation,
+            rescanning: false,
         })
     }
 
@@ -394,9 +467,6 @@ impl RequestHandler {
     /// from the standalone result; use `--standalone` to get the exact migration-mode result.
     pub async fn handle_get_migration_candidates(
         &self,
-        analysis_rx: &mut tokio::sync::broadcast::Receiver<
-            Result<Arc<(AnalysisResult, SuccessfulScanData)>, String>,
-        >,
         req: hakana_protocol::GetMigrationCandidatesRequest,
     ) -> Message {
         let hooks: Vec<Arc<dyn CustomHook>> = self
@@ -415,23 +485,11 @@ impl RequestHandler {
             });
         }
 
-        if !req.block_until_next_analysis {
-            let analysis_data = {
-                let state = self.state.lock().unwrap();
-                state
-                    .analysis_data
-                    .as_ref()
-                    .filter(|_| !state.is_analysis_in_progress())
-                    .cloned()
-            };
-
-            if let Some(analysis_data) = analysis_data {
-                return self.create_migration_candidates_response(&req, &hooks, &analysis_data);
-            }
-        }
-
-        if let Ok(result) = analysis_rx.recv().await
-            && let Ok(result) = result.as_ref()
+        if let Some(update) = self
+            .update_for_request(req.block_until_next_analysis, None, false)
+            .await
+            && let AnalysisUpdate::Completed(outcome) = update.as_ref()
+            && let Ok(result) = &outcome.result
         {
             return self.create_migration_candidates_response(&req, &hooks, result);
         }

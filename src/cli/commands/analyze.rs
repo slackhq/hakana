@@ -149,6 +149,7 @@ pub async fn handle(
             find_unused_definitions: true,
             block_until_next_analysis: false,
             send_progress_report: true,
+            last_seen_generation: None,
         });
 
         let pb = if stdout_is_tty {

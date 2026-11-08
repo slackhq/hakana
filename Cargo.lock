@@ -1342,6 +1342,7 @@ dependencies = [
  "hakana-code-info",
  "hakana-orchestrator",
  "rustc-hash 1.1.0",
+ "tempfile",
  "tokio",
 ]
 

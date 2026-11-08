@@ -43,6 +43,12 @@ impl WatchmanHandle {
     }
 }
 
+/// Watch `root_dir`, and report what changes in it from now on.
+///
+/// The caller takes stock of the files itself once this has returned: what
+/// watchman sends first for a new subscription - every file there is - is not
+/// passed on. Analysing everything again on account of it would repeat what the
+/// caller has just done.
 pub async fn start_subscription(
     root_dir: PathBuf,
     ignore_files: Vec<String>,
@@ -135,6 +141,14 @@ async fn run_subscription(
 
     log::info!("Watchman subscription created: {}", subscription.name());
 
+    // A subscription that does not pick up from an earlier one starts with a
+    // listing of every file ("fresh instance"). For the subscription made at
+    // startup that is no news: whoever asked for it looks at the files only once
+    // it is in place, and so sees at least what the listing describes. Any other
+    // listing - after a reconnect that could not resume, or when watchman lost
+    // track - stands for changes that may have been missed, and is reported.
+    let mut initial_listing_expected = startup_tx.is_some();
+
     // Send startup notification on initial subscription only
     if let Some(startup_tx) = startup_tx.take() {
         startup_tx
@@ -143,14 +157,20 @@ async fn run_subscription(
     }
 
     loop {
-        match handle_subscription_event(
-            &project_root,
-            last_clock,
-            &config_relative_path,
-            tx,
-            subscription.next().await,
-        )
-        .await
+        let event = subscription.next().await;
+
+        if initial_listing_expected && let Ok(SubscriptionData::FilesChanged(result)) = &event {
+            initial_listing_expected = false;
+
+            if result.is_fresh_instance {
+                log::info!("watchman is watching; its initial listing of files is not news");
+                *last_clock = Some(result.clock.clone());
+                continue;
+            }
+        }
+
+        match handle_subscription_event(&project_root, last_clock, &config_relative_path, tx, event)
+            .await
         {
             Ok(true) => continue,
             // The server itself is exiting, so exit the subscriber itself.
@@ -433,17 +453,6 @@ mod tests {
         {
             let mut watchman = start_subscription(tmp.path().to_path_buf(), vec![], None).await;
 
-            assert!(
-                matches!(
-                    watchman
-                        .recv()
-                        .await
-                        .expect("could not receive watchman event"),
-                    WatchmanEvent::FreshInstance,
-                ),
-                "expected initial notification with is_fresh_instance"
-            );
-
             fs::write(&hack_file, "new content").expect("could not update file");
 
             match watchman
@@ -463,6 +472,36 @@ mod tests {
         Ok(())
     }
 
+    /// The listing of every file that a new subscription starts with is not
+    /// reported: the first thing heard of is the first change.
+    #[tokio::test]
+    async fn initial_listing_is_not_reported() -> Result<(), Error> {
+        let tmp = TempDir::new().expect("could not create temp dir");
+        let hack_file = tmp.path().canonicalize()?.join("test.hack");
+        fs::write(&hack_file, "content").expect("could not create test file");
+
+        let mut watchman = start_subscription(tmp.path().to_path_buf(), vec![], None).await;
+
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(500), watchman.recv())
+                .await
+                .is_err(),
+            "something was reported though nothing changed"
+        );
+
+        fs::write(&hack_file, "new content").expect("could not update file");
+
+        assert!(matches!(
+            watchman
+                .recv()
+                .await
+                .expect("could not receive watchman event"),
+            WatchmanEvent::FileChanges(_)
+        ));
+
+        Ok(())
+    }
+
     #[tokio::test]
     async fn handle_deleted_hack_file() -> Result<(), Error> {
         let tmp = TempDir::new().expect("could not create temp dir");
@@ -471,17 +510,6 @@ mod tests {
 
         {
             let mut watchman = start_subscription(tmp.path().to_path_buf(), vec![], None).await;
-
-            assert!(
-                matches!(
-                    watchman
-                        .recv()
-                        .await
-                        .expect("could not receive watchman event"),
-                    WatchmanEvent::FreshInstance,
-                ),
-                "expected initial notification with is_fresh_instance"
-            );
 
             fs::remove_file(&hack_file).expect("could not delete file");
 
@@ -570,17 +598,6 @@ mod tests {
             let mut watchman =
                 start_subscription(tmp.path().to_path_buf(), vec![], config_path).await;
 
-            assert!(
-                matches!(
-                    watchman
-                        .recv()
-                        .await
-                        .expect("could not receive watchman event"),
-                    WatchmanEvent::FreshInstance,
-                ),
-                "expected initial notification with is_fresh_instance"
-            );
-
             fs::write(&config_file, "{\"updated\": true}").expect("could not update config file");
 
             match watchman
@@ -609,17 +626,6 @@ mod tests {
             let config_path = Some(config_file.clone());
             let mut watchman =
                 start_subscription(tmp.path().to_path_buf(), vec![], config_path).await;
-
-            assert!(
-                matches!(
-                    watchman
-                        .recv()
-                        .await
-                        .expect("could not receive watchman event"),
-                    WatchmanEvent::FreshInstance,
-                ),
-                "expected initial notification with is_fresh_instance"
-            );
 
             fs::write(&config_file, "{\"updated\": true}").expect("could not update config file");
             fs::write(&hack_file, "new code").expect("could not update hack file");

@@ -8,6 +8,15 @@ use hakana_orchestrator::SuccessfulScanData;
 use hakana_orchestrator::file::FileStatus;
 use rustc_hash::FxHashMap;
 
+/// What an analysis run covers.
+#[derive(Clone)]
+pub(crate) enum AnalysisScope {
+    /// The whole codebase, from nothing.
+    Everything,
+    /// These changes to the files, on top of the last result.
+    Changes(FxHashMap<String, FileStatus>),
+}
+
 /// Warm state maintained by the server.
 pub struct ServerState {
     pub analysis_data: Option<Arc<(AnalysisResult, SuccessfulScanData)>>,
@@ -15,6 +24,10 @@ pub struct ServerState {
     shutting_down: bool,
     /// Whether an analysis is currently running.
     analysis_in_progress: bool,
+    /// The generation given out last (see `AnalysisUpdate`).
+    last_generation: u64,
+    /// The generation of the analysis run started last.
+    last_started_generation: u64,
     /// Number of pending requests.
     pending_requests: u32,
     /// Current analysis phase description.
@@ -29,6 +42,11 @@ pub struct ServerState {
     pub total_files_to_analyze: Arc<AtomicU32>,
     /// Pending file changes.
     pub pending_changes: FxHashMap<String, FileStatus>,
+    /// What the analysis run under way covers.
+    pub(crate) in_flight: Option<AnalysisScope>,
+    /// What a run that failed was to cover. The next run covers it as well:
+    /// nothing else would bring those changes up again.
+    pub(crate) unanalyzed: Option<AnalysisScope>,
 }
 
 impl ServerState {
@@ -36,7 +54,16 @@ impl ServerState {
         Self {
             analysis_data: None,
             shutting_down: false,
-            analysis_in_progress: false,
+            // The first analysis is on its way from the moment the server exists:
+            // until it has completed there is nothing to be ready with.
+            analysis_in_progress: true,
+            // Generations count up from the time the server started, so that a
+            // client that outlives a server does not mistake a run of the server
+            // that replaced it for one it has already seen.
+            last_generation: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |since_epoch| since_epoch.as_millis() as u64),
+            last_started_generation: 0,
             pending_requests: 0,
             phase: "Initializing".to_string(),
             files_scanned: Arc::new(0.into()),
@@ -44,6 +71,8 @@ impl ServerState {
             files_analyzed: Arc::new(0.into()),
             total_files_to_analyze: Arc::new(0.into()),
             pending_changes: FxHashMap::default(),
+            in_flight: None,
+            unanalyzed: None,
         }
     }
 
@@ -65,6 +94,27 @@ impl ServerState {
     /// Set analysis in progress state.
     pub fn set_analysis_in_progress(&mut self, in_progress: bool) {
         self.analysis_in_progress = in_progress;
+    }
+
+    /// Note that an analysis run is starting, and get its generation.
+    pub fn begin_analysis(&mut self, phase: &str) -> u64 {
+        self.analysis_in_progress = true;
+        self.phase = phase.to_string();
+        self.last_started_generation = self.next_generation();
+        self.last_started_generation
+    }
+
+    /// A generation for something the server has to report (see
+    /// `AnalysisUpdate`): higher than any before it.
+    pub fn next_generation(&mut self) -> u64 {
+        self.last_generation += 1;
+        self.last_generation
+    }
+
+    /// The generation of the analysis run started last: the one that is running,
+    /// if one is.
+    pub fn last_started_generation(&self) -> u64 {
+        self.last_started_generation
     }
 
     /// Get number of pending requests.

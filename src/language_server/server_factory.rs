@@ -92,6 +92,13 @@ pub(super) async fn wait_for_server(
     let poll_interval = Duration::from_millis(100);
 
     loop {
+        // A server listening is all that is asked for. It need not be the one
+        // started here: when two clients start a server at the same moment, one
+        // of the two servers finds the other in place and exits.
+        if socket_path.server_exists() && ClientSocket::connect(socket_path).await.is_ok() {
+            return Ok(());
+        }
+
         match server_process.child.try_wait() {
             Ok(Some(status)) => {
                 let log_path = std::env::temp_dir().join("hakana-server.log");
@@ -129,10 +136,6 @@ pub(super) async fn wait_for_server(
                 io::ErrorKind::TimedOut,
                 "Timed out waiting for server to start",
             ));
-        }
-
-        if socket_path.server_exists() && ClientSocket::connect(socket_path).await.is_ok() {
-            return Ok(());
         }
 
         tokio::time::sleep(poll_interval).await;
