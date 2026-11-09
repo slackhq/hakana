@@ -228,6 +228,7 @@ pub fn reconcile(
         }
 
         let mut did_remove_type = false;
+        let mut did_change_type = false;
 
         let mut refined_type = refine_atomic_with_union(
             statements_analyzer,
@@ -236,6 +237,7 @@ pub fn reconcile(
             existing_var_type,
             pos,
             &mut did_remove_type,
+            &mut did_change_type,
             !assertion.has_equality(),
         );
 
@@ -243,7 +245,10 @@ pub fn reconcile(
             && let Some(pos) = pos
             && can_report_issues
         {
-            if existing_var_type.types == refined_type.types {
+            // Whether the assertion told us anything is decided type by type.
+            // Comparing the lists of types before and after would depend on
+            // the order the refined types happen to come back in.
+            if !did_change_type {
                 if !assertion.has_equality() && !assertion_type.is_mixed() && !did_remove_type {
                     trigger_issue_for_impossible(
                         analysis_data,
@@ -300,15 +305,17 @@ fn refine_atomic_with_union(
     existing_var_type: &TUnion,
     pos: Option<&Pos>,
     did_remove_type: &mut bool,
+    did_change_type: &mut bool,
     is_type_assertion: bool,
 ) -> TUnion {
-    let intersection_type = intersect_union_with_atomic(
+    let intersection_type = intersect_union_with_atomic_noting_changes(
         statements_analyzer,
         analysis_data,
         existing_var_type,
         new_type,
         pos,
         did_remove_type,
+        did_change_type,
     );
 
     if let Some(mut intersection_type) = intersection_type {
@@ -356,6 +363,29 @@ pub(crate) fn intersect_union_with_atomic(
     pos: Option<&Pos>,
     did_remove_type: &mut bool,
 ) -> Option<TUnion> {
+    intersect_union_with_atomic_noting_changes(
+        statements_analyzer,
+        analysis_data,
+        existing_var_type,
+        new_type,
+        pos,
+        did_remove_type,
+        &mut false,
+    )
+}
+
+/// As `intersect_union_with_atomic`, and says whether any of the existing
+/// types was dropped or narrowed. If none was, the new type tells us nothing
+/// we did not know.
+fn intersect_union_with_atomic_noting_changes(
+    statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &mut FunctionAnalysisData,
+    existing_var_type: &TUnion,
+    new_type: &TAtomic,
+    pos: Option<&Pos>,
+    did_remove_type: &mut bool,
+    did_change_type: &mut bool,
+) -> Option<TUnion> {
     let mut acceptable_types = Vec::new();
 
     for existing_atomic in &existing_var_type.types {
@@ -369,7 +399,19 @@ pub(crate) fn intersect_union_with_atomic(
         );
 
         if let Some(intersected_atomic_type) = intersected_atomic_type {
+            if !*did_change_type && intersected_atomic_type != *existing_atomic {
+                // `_` in the new type stands for whatever was there
+                let mut without_placeholders = intersected_atomic_type.clone();
+                without_placeholders.remove_placeholders(statements_analyzer.codebase);
+
+                if without_placeholders != *existing_atomic {
+                    *did_change_type = true;
+                }
+            }
+
             acceptable_types.push(intersected_atomic_type);
+        } else {
+            *did_change_type = true;
         }
     }
 

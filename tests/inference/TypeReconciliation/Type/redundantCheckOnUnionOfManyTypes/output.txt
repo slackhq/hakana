@@ -1,0 +1,3 @@
+ERROR: RedundantTypeComparison - input.hack:22:12 - Type of $cases[$n]['input'] is always string
+ERROR: RedundantTypeComparison - input.hack:28:12 - Type string(alpha)|string(bravo) is always string
+ERROR: RedundantTypeComparison - input.hack:34:9 - Type dict<arraykey, mixed>|vec<mixed> is always HH\KeyedContainer<_, _>
