@@ -62,14 +62,17 @@ pub(crate) fn analyze(
     // we special-case this because isset is used in
     // null coalesce ternaries where the positions may be fake
     if name == "isset" && !expr.2.is_empty() {
-        let first_arg = &expr.2[0].to_expr_ref();
-        return isset_analyzer::analyze(
-            statements_analyzer,
-            first_arg,
-            pos,
-            analysis_data,
-            context,
-        );
+        for arg in expr.2.iter() {
+            isset_analyzer::analyze(
+                statements_analyzer,
+                arg.to_expr_ref(),
+                pos,
+                analysis_data,
+                context,
+            )?;
+        }
+
+        return Ok(());
     }
 
     if (name == "unset" || name == "\\unset") && !expr.2.is_empty() {

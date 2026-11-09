@@ -1,0 +1,1 @@
+ERROR: PossiblyInvalidArgument - input.hack:17:19 - Argument 1 of takes_int expects int, possibly different type ?int provided

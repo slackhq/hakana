@@ -533,21 +533,28 @@ fn scrape_function_assertions(
     let mut if_types = FxHashMap::default();
 
     if function_name == &StrId::ISSET {
-        let (first_arg, first_var_name, first_var_type) = firsts.unwrap();
-        if let Some(first_var_name) = first_var_name
-            && let Some(first_var_type) = first_var_type
-        {
-            if matches!(first_arg, aast::Expr((), _, aast::Expr_::Lvar(_)))
-                && &first_arg.1 != pos
-                && !first_var_type.is_mixed()
-                && !first_var_type.possibly_undefined_from_try
+        // isset($a, $b) holds when every one of its arguments is set
+        for arg in args {
+            let arg = arg.to_expr_ref();
+            let var_name = get_var_id(
+                arg,
+                assertion_context.this_class_name,
+                assertion_context.resolved_names,
+                assertion_context.codebase,
+            );
+
+            if let Some(var_name) = var_name
+                && let Some(var_type) = analysis_data.get_expr_type(arg.pos())
             {
-                if_types.insert(
-                    first_var_name.clone(),
-                    vec![vec![Assertion::IsNotType(TAtomic::TNull)]],
-                );
-            } else {
-                if_types.insert(first_var_name.clone(), vec![vec![Assertion::IsIsset]]);
+                if matches!(arg, aast::Expr((), _, aast::Expr_::Lvar(_)))
+                    && &arg.1 != pos
+                    && !var_type.is_mixed()
+                    && !var_type.possibly_undefined_from_try
+                {
+                    if_types.insert(var_name, vec![vec![Assertion::IsNotType(TAtomic::TNull)]]);
+                } else {
+                    if_types.insert(var_name, vec![vec![Assertion::IsIsset]]);
+                }
             }
         }
     } else if function_name == &StrId::IN_ARRAY {
@@ -747,11 +754,24 @@ pub(crate) fn has_typed_value_comparison(
     }
 
     if let Some(left_type) = analysis_data.get_expr_type(left.pos())
-        && left_var_id.is_none()
         && left_type.is_single()
         && !left_type.is_mixed()
     {
-        return Some(OtherValuePosition::Left);
+        if left_var_id.is_none() {
+            return Some(OtherValuePosition::Left);
+        }
+
+        // Both sides are variables, and only the left one has a single type.
+        // If that is one of the types the right one can have, as in
+        // `$a === $b` with `int $a` and `?int $b`, the comparison says which
+        // of them `$b` is.
+        if right_var_id.is_some()
+            && analysis_data
+                .get_expr_type(right.pos())
+                .is_some_and(|right_type| right_type.types.contains(left_type.get_single()))
+        {
+            return Some(OtherValuePosition::Left);
+        }
     }
     None
 }
