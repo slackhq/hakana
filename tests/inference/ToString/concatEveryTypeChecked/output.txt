@@ -1,0 +1,4 @@
+ERROR: ImplicitStringCast - input.hack:4:21 - Cannot convert null to type string implicitly
+ERROR: ImplicitStringCast - input.hack:9:21 - Cannot convert Unprintable to type string implicitly
+ERROR: ImplicitStringCast - input.hack:13:19 - Cannot convert Unprintable to type string implicitly
+ERROR: ImplicitStringCast - input.hack:13:19 - Cannot convert null to type string implicitly

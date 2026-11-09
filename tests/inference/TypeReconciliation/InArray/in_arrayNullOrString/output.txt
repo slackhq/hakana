@@ -1,0 +1,1 @@
+ERROR: ImplicitStringCast - input.hack:6:19 - Cannot convert null to type string implicitly

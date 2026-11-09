@@ -155,6 +155,10 @@ pub(crate) fn analyze_concat_nodes(
                             statements_analyzer.get_file_path_actual(),
                         ),
                         _ => {
+                            // Every type the operand can have is checked. To
+                            // stop at the first one that is not a literal
+                            // would let `string` hide the `null` of `?string`,
+                            // or not, depending on which of them came first.
                             if !can_be_coerced_to_string(
                                 statements_analyzer,
                                 analysis_data,
@@ -173,7 +177,6 @@ pub(crate) fn analyze_concat_nodes(
                             local_nonempty_string = false;
                             all_literals = false;
                             existing_literal_string_values = None;
-                            break;
                         }
                     }
                 }
@@ -318,10 +321,14 @@ fn can_be_coerced_to_string(
             as_type: Some(as_type),
             ..
         }
-        | TAtomic::TGenericParam(TGenericParam { as_type, .. }) => as_type
-            .types
-            .iter()
-            .all(|t| can_be_coerced_to_string(statements_analyzer, analysis_data, expr, t, false)),
+        | TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
+            // each type is looked at, whatever the others turn out to be:
+            // looking at a type variable gives it a bound
+            as_type.types.iter().fold(true, |can_be_coerced, t| {
+                can_be_coerced_to_string(statements_analyzer, analysis_data, expr, t, false)
+                    && can_be_coerced
+            })
+        }
 
         _ => false,
     }
