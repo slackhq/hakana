@@ -1,4 +1,9 @@
-use std::{borrow::Borrow, sync::Arc};
+use std::{
+    borrow::Borrow,
+    cell::RefCell,
+    collections::BTreeMap,
+    sync::{Arc, Weak},
+};
 
 use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -7,7 +12,7 @@ use crate::{
     classlike_info::Variance,
     code_location::HPos,
     codebase_info::CodebaseInfo,
-    t_atomic::{TAtomic, TGenericParam},
+    t_atomic::{DictKey, TAtomic, TGenericParam},
     t_union::{TUnion, TypeNode},
 };
 
@@ -154,6 +159,56 @@ pub fn contains(union: &TUnion) -> bool {
     union.types.iter().any(atomic_contains)
 }
 
+type ShapeFields = BTreeMap<DictKey, (bool, Arc<TUnion>)>;
+
+thread_local! {
+    /// Whether the fields of a shape hold a type variable, for the shapes
+    /// this thread has looked through.
+    ///
+    /// A big shape is asked this again and again: each time one of its fields
+    /// is read, each time it is passed to a function. Its fields sit in a
+    /// shared map that nobody can change while it is shared, so the answer
+    /// for a map stands for as long as the map does. The weak pointer kept
+    /// with each answer is what makes the map's address a safe key: the
+    /// address cannot be given to another map while that pointer is around.
+    /// (It also means a sole owner who changes the map gets a fresh one, so
+    /// the map an answer was given for is never changed in place.)
+    static SHAPES_WITH_VARIABLES: RefCell<FxHashMap<*const ShapeFields, (Weak<ShapeFields>, bool)>> =
+        RefCell::default();
+}
+
+/// Shapes smaller than this are quicker to look through than to look up.
+const MIN_REMEMBERED_SHAPE_FIELDS: usize = 4;
+
+/// Bounds what a long-lived thread holds on to.
+const MAX_REMEMBERED_SHAPES: usize = 1 << 12;
+
+fn shape_fields_contain(fields: &Arc<ShapeFields>) -> bool {
+    if fields.len() < MIN_REMEMBERED_SHAPE_FIELDS {
+        return fields.values().any(|(_, ty)| contains(ty));
+    }
+
+    let key = Arc::as_ptr(fields);
+
+    if let Some(known) =
+        SHAPES_WITH_VARIABLES.with_borrow(|shapes| shapes.get(&key).map(|(_, known)| *known))
+    {
+        return known;
+    }
+
+    // not while borrowing the answers: the fields can be shapes themselves
+    let contains_variable = fields.values().any(|(_, ty)| contains(ty));
+
+    SHAPES_WITH_VARIABLES.with_borrow_mut(|shapes| {
+        if shapes.len() >= MAX_REMEMBERED_SHAPES {
+            shapes.clear();
+        }
+        shapes.insert(key, (Arc::downgrade(fields), contains_variable));
+    });
+
+    contains_variable
+}
+
 fn atomic_contains(atomic: &TAtomic) -> bool {
     match atomic {
         TAtomic::TTypeVariable { .. } => true,
@@ -186,10 +241,7 @@ fn atomic_contains(atomic: &TAtomic) -> bool {
             dict.params
                 .as_ref()
                 .is_some_and(|(key, value)| contains(key) || contains(value))
-                || dict
-                    .known_items
-                    .as_ref()
-                    .is_some_and(|items| items.values().any(|(_, ty)| contains(ty)))
+                || dict.known_items.as_ref().is_some_and(shape_fields_contain)
         }
         TAtomic::TKeyset { type_param, .. } => contains(type_param),
         TAtomic::TAwaitable { value } => contains(value),
@@ -609,6 +661,73 @@ mod tests {
             lower_bounds: lower.into_iter().map(bound).collect(),
             upper_bounds: upper.into_iter().map(bound).collect(),
         }
+    }
+
+    fn shape(fields: Vec<TUnion>) -> TUnion {
+        wrap_atomic(TAtomic::TDict(crate::t_atomic::TDict {
+            known_items: Some(Arc::new(
+                fields
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, ty)| (DictKey::Int(i as u64), (false, Arc::new(ty))))
+                    .collect(),
+            )),
+            ..Default::default()
+        }))
+    }
+
+    #[test]
+    fn remembered_shapes_answer_for_their_own_fields() {
+        // big enough to be remembered
+        let plain = shape(vec![get_int(), get_string(), get_num(), get_int()]);
+        let with_variable = shape(vec![get_int(), get_string(), get_num(), variable("T")]);
+        let nested = shape(vec![
+            get_int(),
+            get_string(),
+            get_num(),
+            with_variable.clone(),
+        ]);
+
+        for _ in 0..2 {
+            assert!(!contains(&plain));
+            assert!(contains(&with_variable));
+            assert!(contains(&nested));
+        }
+
+        // A copy shares the fields, and the answer.
+        let mut changed = plain.clone();
+        assert!(!contains(&changed));
+
+        // Changing the copy's fields must not change the answer for the
+        // original, nor leave the copy with the original's answer.
+        let TAtomic::TDict(dict) = &mut changed.types[0] else {
+            unreachable!()
+        };
+        Arc::make_mut(dict.known_items.as_mut().unwrap())
+            .insert(DictKey::Int(9), (false, Arc::new(variable("T"))));
+        assert!(contains(&changed));
+        assert!(!contains(&plain));
+
+        // The same holds for a shape nobody else has a copy of.
+        let mut sole = shape(vec![get_int(), get_string(), get_num(), get_int()]);
+        assert!(!contains(&sole));
+        let TAtomic::TDict(dict) = &mut sole.types[0] else {
+            unreachable!()
+        };
+        Arc::make_mut(dict.known_items.as_mut().unwrap())
+            .insert(DictKey::Int(9), (false, Arc::new(variable("T"))));
+        assert!(contains(&sole));
+
+        // Shapes come and go; the answers remembered for them go too.
+        for _ in 0..(MAX_REMEMBERED_SHAPES * 2) {
+            assert!(!contains(&shape(vec![
+                get_int(),
+                get_string(),
+                get_num(),
+                get_int()
+            ])));
+        }
+        assert!(contains(&with_variable));
     }
 
     fn deferred_constraint(lower: TUnion, enum_type: TUnion) -> SubtypeConstraint {
