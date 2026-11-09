@@ -1810,7 +1810,7 @@ fn reconcile_not_in_array(
             key,
             statements_analyzer,
             analysis_data,
-            rest_type.get_id(Some(statements_analyzer.interner)),
+            &std::cell::LazyCell::new(|| rest_type.get_id(Some(statements_analyzer.interner))),
             pos,
             calling_functionlike_id,
             negated,

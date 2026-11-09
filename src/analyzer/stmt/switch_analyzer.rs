@@ -10,6 +10,7 @@ use hakana_parser::aast;
 use hakana_parser::aast::Pos;
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
+use std::cell::LazyCell;
 use std::rc::Rc;
 
 use crate::{
@@ -201,7 +202,7 @@ pub(crate) fn analyze<'ast>(
                     None,
                     statements_analyzer,
                     analysis_data,
-                    "".to_string(),
+                    &LazyCell::new(String::new),
                     None,
                     &None,
                     false,

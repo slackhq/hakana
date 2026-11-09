@@ -397,7 +397,6 @@ fn get_sources_grouped_by_usage(
     graph: &DataFlowGraph,
     function_pos: HPos,
 ) -> Vec<(Vec<&DataFlowNode>, FxHashMap<&DataFlowNode, Vec<HPos>>)> {
-    let mut sink_to_sources: FxHashMap<DataFlowNodeId, Vec<&DataFlowNode>> = FxHashMap::default();
     let mut source_to_sinks = FxHashMap::default();
 
     // First, collect all relevant sources
@@ -423,19 +422,33 @@ fn get_sources_grouped_by_usage(
         }
     }
 
-    // For each source, find all its sinks and map sink -> sources
-    for source_node in &relevant_sources {
-        if let Some(sink_ids) = get_all_variable_uses(graph, source_node) {
+    if relevant_sources.is_empty() {
+        return vec![];
+    }
+
+    let mut flows = NumberedFlows::new(graph);
+    let source_numbers = relevant_sources
+        .iter()
+        .map(|source_node| flows.number(graph, &source_node.id))
+        .collect::<Vec<_>>();
+    let mut visited = vec![false; flows.ids.len()];
+    let mut sink_numbers = Vec::new();
+
+    // Group sources by their set of sinks
+    let mut usage_groups: FxHashMap<Vec<&DataFlowNodeId>, Vec<&DataFlowNode>> =
+        FxHashMap::default();
+
+    for (source_node, source_number) in relevant_sources.iter().zip(source_numbers) {
+        // The sinks that this source feeds
+        let mut source_sinks = Vec::new();
+
+        flows.get_all_variable_uses(source_number, &mut visited, &mut sink_numbers);
+
+        if !sink_numbers.is_empty() {
             let mut sink_positions = vec![];
 
-            // Find the sink nodes that correspond to these positions
-            for sink_id in sink_ids {
-                // Find the sink node with this position
-                if let Some(DataFlowNode {
-                    kind: DataFlowNodeKind::VariableUseSink { pos },
-                    ..
-                }) = &graph.sinks.get(&sink_id)
-                {
+            for sink_number in &sink_numbers {
+                if let Some(pos) = flows.sink_positions[*sink_number as usize] {
                     // only count sinks inside the function bounds
                     // Hakana will add function param locations as sinks
                     // when vars passed as args to those functions
@@ -444,29 +457,13 @@ fn get_sources_grouped_by_usage(
                         && pos.file_path == function_pos.file_path
                     {
                         sink_positions.push(*pos);
-                        sink_to_sources
-                            .entry(sink_id.clone())
-                            .or_default()
-                            .push(source_node);
+                        source_sinks.push(flows.ids[*sink_number as usize]);
                     }
                 }
             }
 
             // Store sink positions for this source
-            source_to_sinks.insert(source_node, sink_positions.clone());
-        }
-    }
-
-    // Group sources by their set of sinks
-    let mut usage_groups: FxHashMap<Vec<DataFlowNodeId>, Vec<&DataFlowNode>> = FxHashMap::default();
-
-    for source_node in &relevant_sources {
-        // Find all sinks that this source feeds
-        let mut source_sinks = Vec::new();
-        for (sink_id, sources) in &sink_to_sources {
-            if sources.iter().any(|s| std::ptr::eq(*s, *source_node)) {
-                source_sinks.push(sink_id.clone());
-            }
+            source_to_sinks.insert(*source_node, sink_positions);
         }
 
         // Sort sinks for consistent grouping
@@ -486,8 +483,8 @@ fn get_sources_grouped_by_usage(
             // Create a map of source -> sink positions for this group
             let mut group_sink_map = FxHashMap::default();
             for source in &sources {
-                if let Some(sink_positions) = source_to_sinks.get(source) {
-                    group_sink_map.insert(*source, sink_positions.clone());
+                if let Some(sink_positions) = source_to_sinks.remove(source) {
+                    group_sink_map.insert(*source, sink_positions);
                 }
             }
             (sources, group_sink_map)
@@ -582,41 +579,93 @@ fn is_optimization_pattern(
     false
 }
 
-fn get_all_variable_uses(
-    graph: &DataFlowGraph,
-    source_node: &DataFlowNode,
-) -> Option<Vec<DataFlowNodeId>> {
-    let mut visited_nodes = FxHashSet::default();
-    let mut sink_nodes = Vec::new();
-    let mut to_visit = vec![source_node.id.clone()];
+/// The graph's edges with its nodes numbered. Every source is followed to
+/// the uses it reaches, and looking each node up by id at every step of every
+/// one of those walks costs far more than numbering the nodes once.
+struct NumberedFlows<'a> {
+    numbers: FxHashMap<&'a DataFlowNodeId, u32>,
+    ids: Vec<&'a DataFlowNodeId>,
+    /// The nodes each node leads to, in the order the graph gives them
+    edges: Vec<Vec<u32>>,
+    /// Where the node is, if it is a variable use
+    sink_positions: Vec<Option<&'a HPos>>,
+}
 
-    while let Some(node_id) = to_visit.pop() {
-        if visited_nodes.contains(&node_id) {
-            continue;
+impl<'a> NumberedFlows<'a> {
+    fn new(graph: &'a DataFlowGraph) -> Self {
+        let mut flows = Self {
+            numbers: FxHashMap::default(),
+            ids: Vec::new(),
+            edges: Vec::new(),
+            sink_positions: Vec::new(),
+        };
+
+        for (from_id, to_ids) in &graph.forward_edges {
+            let from = flows.number(graph, from_id);
+            let to = to_ids
+                .keys()
+                .map(|to_id| flows.number(graph, to_id))
+                .collect();
+            flows.edges[from as usize] = to;
         }
-        visited_nodes.insert(node_id.clone());
 
-        // Check if this node is a sink
-        if let Some(sink_node) = graph.sinks.get(&node_id)
-            && let DataFlowNodeKind::VariableUseSink { .. } = &sink_node.kind
-        {
-            sink_nodes.push(sink_node.id.clone());
+        flows
+    }
+
+    fn number(&mut self, graph: &'a DataFlowGraph, id: &'a DataFlowNodeId) -> u32 {
+        if let Some(number) = self.numbers.get(id) {
+            return *number;
         }
 
-        // Add connected nodes to visit
-        if let Some(edges) = graph.forward_edges.get(&node_id) {
-            for to_id in edges.keys() {
-                if !visited_nodes.contains(to_id) {
-                    to_visit.push(to_id.clone());
+        let number = self.ids.len() as u32;
+        self.numbers.insert(id, number);
+        self.ids.push(id);
+        self.edges.push(Vec::new());
+        self.sink_positions.push(
+            if let Some(DataFlowNode {
+                kind: DataFlowNodeKind::VariableUseSink { pos },
+                ..
+            }) = graph.sinks.get(id)
+            {
+                Some(pos)
+            } else {
+                None
+            },
+        );
+        number
+    }
+
+    /// Fills `sink_nodes` with the variable uses reachable from a node.
+    /// `visited` has an entry per node, all false, and is left that way.
+    fn get_all_variable_uses(&self, source: u32, visited: &mut [bool], sink_nodes: &mut Vec<u32>) {
+        sink_nodes.clear();
+
+        let mut visited_nodes = Vec::new();
+        let mut to_visit = vec![source];
+
+        while let Some(node) = to_visit.pop() {
+            if visited[node as usize] {
+                continue;
+            }
+            visited[node as usize] = true;
+            visited_nodes.push(node);
+
+            // Check if this node is a sink
+            if self.sink_positions[node as usize].is_some() {
+                sink_nodes.push(node);
+            }
+
+            // Add connected nodes to visit
+            for to in &self.edges[node as usize] {
+                if !visited[*to as usize] {
+                    to_visit.push(*to);
                 }
             }
         }
-    }
 
-    if sink_nodes.is_empty() {
-        None
-    } else {
-        Some(sink_nodes)
+        for node in visited_nodes {
+            visited[node as usize] = false;
+        }
     }
 }
 

@@ -12,6 +12,7 @@ use crate::{
 };
 use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::hash_map::Entry;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WholeProgramKind {
@@ -162,22 +163,23 @@ impl DataFlowGraph {
                 .or_insert(prefix);
         }
 
-        for (key, edges) in graph.forward_edges {
-            for (to_id, paths) in edges {
-                for path in paths {
-                    self.add_path_with_source_transforms(
-                        &key,
-                        &to_id,
-                        path.kind,
-                        path.added_taints,
-                        path.removed_taints,
-                        path.source_transforms,
-                    );
+        if self.kind == GraphKind::FunctionBody {
+            // A function-body graph holds exactly one path per edge and no
+            // self-edges (see `add_path_with_source_transforms`), and its
+            // backward edges mirror its forward ones. So the edges can be
+            // moved across rather than re-added one path at a time, with an
+            // incoming edge replacing the one already here.
+            for (from_id, edges) in graph.forward_edges {
+                match self.forward_edges.entry(from_id) {
+                    Entry::Vacant(entry) => {
+                        entry.insert(edges);
+                    }
+                    Entry::Occupied(mut entry) => {
+                        entry.get_mut().extend(edges);
+                    }
                 }
             }
-        }
 
-        if self.kind == GraphKind::FunctionBody {
             for (key, edges) in graph.backward_edges {
                 self.backward_edges.entry(key).or_default().extend(edges);
             }
@@ -189,6 +191,21 @@ impl DataFlowGraph {
                 }
             }
         } else {
+            for (key, edges) in graph.forward_edges {
+                for (to_id, paths) in edges {
+                    for path in paths {
+                        self.add_path_with_source_transforms(
+                            &key,
+                            &to_id,
+                            path.kind,
+                            path.added_taints,
+                            path.removed_taints,
+                            path.source_transforms,
+                        );
+                    }
+                }
+            }
+
             for (key, specializations) in graph.specializations {
                 self.specializations
                     .entry(key)

@@ -241,6 +241,57 @@ fn replace_in_place(union: &mut TUnion, template_result: &TemplateResult, codeba
     }
 }
 
+/// Whether `replace_in_place` leaves a union exactly as it is. That takes a
+/// union of one type, since several are put through the combiner again; a
+/// type that is not a template param; and the same of every union inside it.
+fn is_unaffected(union: &TUnion) -> bool {
+    let [atomic] = union.types.as_slice() else {
+        return false;
+    };
+
+    match atomic {
+        TAtomic::TGenericParam(..)
+        | TAtomic::TGenericClassname { .. }
+        | TAtomic::TGenericClassPtr { .. }
+        | TAtomic::TGenericTypename { .. } => false,
+        TAtomic::TVec(TVec {
+            type_param,
+            known_items,
+            ..
+        }) => {
+            is_unaffected(type_param)
+                && known_items
+                    .as_ref()
+                    .is_none_or(|items| items.values().all(|(_, t)| is_unaffected(t)))
+        }
+        TAtomic::TDict(TDict {
+            params,
+            known_items,
+            ..
+        }) => {
+            params
+                .as_ref()
+                .is_none_or(|params| is_unaffected(&params.0) && is_unaffected(&params.1))
+                && known_items
+                    .as_ref()
+                    .is_none_or(|items| items.values().all(|(_, t)| is_unaffected(t)))
+        }
+        TAtomic::TKeyset { type_param, .. } => is_unaffected(type_param),
+        TAtomic::TNamedObject(TNamedObject {
+            type_params: Some(type_params),
+            ..
+        })
+        | TAtomic::TTypeAlias {
+            type_params: Some(type_params),
+            ..
+        } => type_params.iter().all(is_unaffected),
+        TAtomic::TAwaitable { value, .. } => is_unaffected(value),
+        // rare enough to leave to the walk itself
+        TAtomic::TClosure(..) => false,
+        _ => true,
+    }
+}
+
 fn replace_template_param(
     inferred_lower_bounds: &IndexMap<StrId, FxHashMap<GenericParent, Vec<TemplateBound>>>,
     param_name: &StrId,
@@ -338,9 +389,15 @@ fn replace_atomic(
                 replace_in_place(&mut params.1, template_result, codebase);
             }
 
-            if let Some(known_items) = known_items {
+            // The map and its values are shared with every other copy of
+            // this shape: only take a private copy of what can change.
+            if let Some(known_items) = known_items
+                && known_items.values().any(|(_, t)| !is_unaffected(t))
+            {
                 for (_, t) in Arc::make_mut(known_items).values_mut() {
-                    replace_in_place(Arc::make_mut(t), template_result, codebase);
+                    if !is_unaffected(t) {
+                        replace_in_place(Arc::make_mut(t), template_result, codebase);
+                    }
                 }
             }
         }

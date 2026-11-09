@@ -22,6 +22,7 @@ use hakana_parser::aast::Pos;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
+use std::cell::LazyCell;
 
 pub(crate) fn reconcile(
     assertion: &Assertion,
@@ -30,7 +31,8 @@ pub(crate) fn reconcile(
     key: Option<&VarName>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    old_var_type_string: String,
+    // worked out on first use: see `assertion_reconciler::reconcile`
+    old_var_type_string: &LazyCell<String, impl FnOnce() -> String>,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     negated: bool,
@@ -98,7 +100,7 @@ pub(crate) fn reconcile(
                     trigger_issue_for_impossible(
                         analysis_data,
                         statements_analyzer,
-                        &old_var_type_string,
+                        old_var_type_string,
                         key,
                         assertion,
                         !has_changes,
@@ -122,7 +124,7 @@ pub(crate) fn reconcile(
             trigger_issue_for_impossible(
                 analysis_data,
                 statements_analyzer,
-                &old_var_type_string,
+                old_var_type_string,
                 key,
                 assertion,
                 true,
@@ -144,7 +146,7 @@ pub(crate) fn reconcile(
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
-                    &old_var_type_string,
+                    old_var_type_string,
                     key,
                     assertion,
                     false,
@@ -402,7 +404,8 @@ pub(crate) fn handle_literal_negated_equality(
     key: Option<&VarName>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    old_var_type_string: String,
+    // worked out on first use: see `assertion_reconciler::reconcile`
+    old_var_type_string: &LazyCell<String, impl FnOnce() -> String>,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     negated: bool,
@@ -726,7 +729,7 @@ pub(crate) fn handle_literal_negated_equality(
         trigger_issue_for_impossible(
             analysis_data,
             statements_analyzer,
-            &old_var_type_string,
+            old_var_type_string,
             key,
             assertion,
             !did_remove_type,

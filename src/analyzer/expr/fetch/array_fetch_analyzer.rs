@@ -12,7 +12,7 @@ use hakana_code_info::{
 };
 use hakana_code_info::{
     ttype::{
-        add_optional_union_type, add_union_type,
+        add_optional_union_type, add_union_type, add_union_types,
         comparison::{type_comparison_result::TypeComparisonResult, union_type_comparator},
         get_arraykey, get_int, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, get_null,
         get_string,
@@ -917,15 +917,16 @@ pub(crate) fn handle_array_access_on_dict(
             }
         }
 
-        let mut value_param = if let Some(params) = params {
-            (*params.1).clone()
-        } else {
-            get_nothing()
-        };
-
-        for (_, known_item) in known_items.values() {
-            value_param = add_union_type(value_param, known_item, codebase, false);
-        }
+        let value_param = add_union_types(
+            if let Some(params) = params {
+                (*params.1).clone()
+            } else {
+                get_nothing()
+            },
+            known_items.values().map(|(_, known_item)| &**known_item),
+            codebase,
+            false,
+        );
 
         let mut union_comparison_result = TypeComparisonResult::new();
 

@@ -45,7 +45,7 @@ impl Hash for TUnion {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum TypeNode<'a> {
     Union(&'a TUnion),
     Atomic(&'a TAtomic),
@@ -61,7 +61,15 @@ impl<'a> TypeNode<'a> {
 }
 
 pub trait HasTypeNodes {
-    fn get_child_nodes(&self) -> Vec<TypeNode<'_>>;
+    /// Appends this node's children, so that a walk over a whole type can
+    /// feed one work list rather than allocate a list per node.
+    fn push_child_nodes<'a>(&'a self, nodes: &mut Vec<TypeNode<'a>>);
+
+    fn get_child_nodes(&self) -> Vec<TypeNode<'_>> {
+        let mut nodes = vec![];
+        self.push_child_nodes(&mut nodes);
+        nodes
+    }
 }
 
 impl TUnion {
@@ -73,6 +81,13 @@ impl TUnion {
         for atomic in self.types.iter_mut() {
             atomic.clear_had_template();
         }
+    }
+
+    /// Whether `clear_had_template` would change anything. Lets callers leave
+    /// shared (`Arc`) types alone instead of copying them just to clear a
+    /// flag that is not set.
+    pub fn has_had_template(&self) -> bool {
+        self.had_template || self.types.iter().any(|atomic| atomic.has_had_template())
     }
 
     pub fn new(types: Vec<TAtomic>) -> TUnion {
@@ -294,49 +309,61 @@ impl TUnion {
         let mut all_child_nodes = vec![];
 
         while let Some(child_node) = child_nodes.pop() {
-            let new_child_nodes = match child_node {
-                TypeNode::Union(union) => union.get_child_nodes(),
-                TypeNode::Atomic(atomic) => atomic.get_child_nodes(),
-            };
-
             all_child_nodes.push(child_node);
 
-            child_nodes.extend(new_child_nodes);
+            match child_node {
+                TypeNode::Union(union) => union.push_child_nodes(&mut child_nodes),
+                TypeNode::Atomic(atomic) => atomic.push_child_nodes(&mut child_nodes),
+            };
         }
 
         all_child_nodes
     }
 
-    pub fn has_template_types(&self) -> bool {
-        let all_child_nodes = self.get_all_child_nodes();
+    /// Whether any node `get_all_child_nodes` would return satisfies the
+    /// predicate, without collecting them and stopping at the first that does.
+    pub fn any_child_node(&self, mut predicate: impl FnMut(&TypeNode<'_>) -> bool) -> bool {
+        let mut child_nodes = self.get_child_nodes();
 
-        for child_node in all_child_nodes {
-            if let TypeNode::Atomic(
-                TAtomic::TGenericParam(TGenericParam { .. })
-                | TAtomic::TGenericClassPtr { .. }
-                | TAtomic::TGenericClassname { .. }
-                | TAtomic::TGenericTypename { .. },
-            ) = child_node
-            {
+        while let Some(child_node) = child_nodes.pop() {
+            if predicate(&child_node) {
                 return true;
             }
+
+            match child_node {
+                TypeNode::Union(union) => union.push_child_nodes(&mut child_nodes),
+                TypeNode::Atomic(atomic) => atomic.push_child_nodes(&mut child_nodes),
+            };
         }
 
         false
     }
 
+    pub fn has_template_types(&self) -> bool {
+        self.any_child_node(|child_node| {
+            matches!(
+                child_node,
+                TypeNode::Atomic(
+                    TAtomic::TGenericParam(TGenericParam { .. })
+                        | TAtomic::TGenericClassPtr { .. }
+                        | TAtomic::TGenericClassname { .. }
+                        | TAtomic::TGenericTypename { .. },
+                )
+            )
+        })
+    }
+
     pub fn has_awaitable_types(&self) -> bool {
-        self.get_all_child_nodes()
-            .iter()
-            .any(|a| matches!(a, TypeNode::Atomic(TAtomic::TAwaitable { .. })))
+        self.any_child_node(|a| matches!(a, TypeNode::Atomic(TAtomic::TAwaitable { .. })))
     }
 
     pub fn get_template_types(&self) -> Vec<&TAtomic> {
-        let all_child_nodes = self.get_all_child_nodes();
+        // the walk `get_all_child_nodes` does, keeping only what is asked for
+        let mut child_nodes = self.get_child_nodes();
 
         let mut template_types = Vec::new();
 
-        for child_node in all_child_nodes {
+        while let Some(child_node) = child_nodes.pop() {
             if let TypeNode::Atomic(inner) = child_node
                 && let TAtomic::TGenericParam(TGenericParam { .. })
                 | TAtomic::TGenericClassPtr { .. }
@@ -346,6 +373,11 @@ impl TUnion {
             {
                 template_types.push(inner);
             }
+
+            match child_node {
+                TypeNode::Union(union) => union.push_child_nodes(&mut child_nodes),
+                TypeNode::Atomic(atomic) => atomic.push_child_nodes(&mut child_nodes),
+            };
         }
 
         template_types
@@ -820,8 +852,8 @@ impl PartialEq for TUnion {
 }
 
 impl HasTypeNodes for TUnion {
-    fn get_child_nodes(&self) -> Vec<TypeNode<'_>> {
-        self.types.iter().map(TypeNode::Atomic).collect()
+    fn push_child_nodes<'a>(&'a self, nodes: &mut Vec<TypeNode<'a>>) {
+        nodes.extend(self.types.iter().map(TypeNode::Atomic));
     }
 }
 

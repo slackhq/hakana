@@ -476,6 +476,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             location: definition_location,
             user_defined: self.user_defined,
             attributes,
+            expansions: Default::default(),
         };
 
         if let Some(shape_source_attribute) = shape_source_attribute {

@@ -8,7 +8,9 @@ use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_code_info::analysis_result::Replacement;
+use hakana_code_info::codebase_info::CodebaseInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
+use hakana_code_info::t_atomic::{TAtomic, TDict, TVec};
 use hakana_code_info::t_union::TUnion;
 use hakana_code_info::ttype::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use hakana_code_info::var_name::VarName;
@@ -146,13 +148,10 @@ pub(crate) fn analyze<'ast, 'expr>(
         } else if let Some(root_type) = root_type
             && (root_type.has_typealias()
                 || hakana_code_info::ttype::type_variable::contains(&root_type)
-                || root_type.types.iter().all(|atomic| {
-                    hakana_code_info::ttype::get_arrayish_params(
-                        atomic,
-                        statements_analyzer.codebase,
-                    )
-                    .is_some_and(|(_, value)| value.is_nothing())
-                }))
+                || root_type
+                    .types
+                    .iter()
+                    .all(|atomic| has_no_arrayish_value(atomic, statements_analyzer.codebase)))
         {
             replacement_left = Some(get_left_expr(
                 context,
@@ -344,4 +343,45 @@ fn replace_expr_with_root<'ast>(
             *expr = root;
         }
     }
+}
+
+/// Whether `get_arrayish_params` gives this type a value type of `nothing`.
+fn has_no_arrayish_value(atomic: &TAtomic, codebase: &CodebaseInfo) -> bool {
+    // The value type is the union of the value param and of every known item,
+    // and a union with a member other than `nothing` is not `nothing`. Asking
+    // that first saves building the union, which for a big shape is costly.
+    let (value_param, has_item) = match atomic {
+        TAtomic::TDict(TDict {
+            params,
+            known_items,
+            ..
+        }) => (
+            params.as_ref().map(|params| &*params.1),
+            known_items.as_ref().is_some_and(|known_items| {
+                known_items
+                    .values()
+                    .any(|(_, item_type)| !item_type.is_nothing())
+            }),
+        ),
+        TAtomic::TVec(TVec {
+            type_param,
+            known_items,
+            ..
+        }) => (
+            Some(&**type_param),
+            known_items.as_ref().is_some_and(|known_items| {
+                known_items
+                    .values()
+                    .any(|(_, item_type)| !item_type.is_nothing())
+            }),
+        ),
+        _ => (None, false),
+    };
+
+    if has_item || value_param.is_some_and(|value_param| !value_param.is_nothing()) {
+        return false;
+    }
+
+    hakana_code_info::ttype::get_arrayish_params(atomic, codebase)
+        .is_some_and(|(_, value)| value.is_nothing())
 }

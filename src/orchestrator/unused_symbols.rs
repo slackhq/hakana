@@ -84,9 +84,9 @@ pub(crate) fn find_unused_definitions(
 
     let mut referenced_symbols_and_members_in_production = FxHashSet::default();
 
-    for (k, v) in referenced_symbols_and_members.clone().into_iter() {
+    for (k, v) in &referenced_symbols_and_members {
         if !v.is_subset(&test_symbols) {
-            referenced_symbols_and_members_in_production.insert(k);
+            referenced_symbols_and_members_in_production.insert(*k);
         }
     }
 
@@ -113,9 +113,9 @@ pub(crate) fn find_unused_definitions(
 
     let mut referenced_overridden_class_members_in_production = FxHashSet::default();
 
-    for (k, v) in referenced_overridden_class_members.clone().into_iter() {
+    for (k, v) in &referenced_overridden_class_members {
         if !v.is_subset(&test_symbols) {
-            referenced_overridden_class_members_in_production.insert(k);
+            referenced_overridden_class_members_in_production.insert(*k);
         }
     }
 

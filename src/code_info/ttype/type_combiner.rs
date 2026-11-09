@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
-    classlike_info::Variance,
-    code_location::FilePath,
+    classlike_info::{ClassLikeInfo, Variance},
     codebase_info::{CodebaseInfo, symbols::SymbolKind},
     t_atomic::{DictKey, TAtomic, TDict, TNamedObject, TVec},
     t_union::TUnion,
@@ -12,19 +11,21 @@ use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::ttype::{
-    combine_union_types,
-    comparison::{object_type_comparator, type_comparison_result::TypeComparisonResult},
-    get_int,
-    type_combination::{self, TypeCombination},
+    combine_union_types, get_int,
+    type_combination::{self, CombinedObject, CombinerKey, TypeCombination},
     wrap_atomic,
 };
 
 pub fn combine(
-    types: Vec<TAtomic>,
+    mut types: Vec<TAtomic>,
     codebase: &CodebaseInfo,
     overwrite_empty_array: bool,
 ) -> Vec<TAtomic> {
     if types.len() == 1 {
+        return types;
+    }
+
+    if combine_unrelated(&mut types) {
         return types;
     }
 
@@ -44,41 +45,48 @@ pub fn combine(
     }
 
     if combination.is_simple() {
-        if combination.value_types.contains_key("false") {
+        if combination.value_types.contains_key(&CombinerKey::False) {
             return vec![TAtomic::TFalse];
         }
 
-        if combination.value_types.contains_key("true") {
+        if combination.value_types.contains_key(&CombinerKey::True) {
             return vec![TAtomic::TTrue];
         }
 
         return combination.value_types.into_values().collect();
     }
 
-    if combination.value_types.contains_key("void") {
-        combination.value_types.remove("void");
+    if combination.value_types.contains_key(&CombinerKey::Void) {
+        combination.value_types.remove(&CombinerKey::Void);
 
-        if combination.value_types.contains_key("null") {
+        if combination.value_types.contains_key(&CombinerKey::Null) {
             combination
                 .value_types
-                .insert("null".to_string(), TAtomic::TNull);
+                .insert(CombinerKey::Null, TAtomic::TNull);
         }
     }
 
-    if combination.value_types.contains_key("false") && combination.value_types.contains_key("true")
+    if combination.value_types.contains_key(&CombinerKey::False)
+        && combination.value_types.contains_key(&CombinerKey::True)
     {
-        combination.value_types.remove("false");
-        combination.value_types.remove("true");
+        combination.value_types.remove(&CombinerKey::False);
+        combination.value_types.remove(&CombinerKey::True);
         combination
             .value_types
-            .insert("bool".to_string(), TAtomic::TBool);
+            .insert(CombinerKey::Bool, TAtomic::TBool);
     }
 
     let mut new_types = Vec::new();
 
     if combination.has_dict {
         new_types.push(TAtomic::TDict(TDict {
-            known_items: if combination.dict_entries.is_empty() {
+            known_items: if let Some(entries) = combination.lone_dict_entries {
+                if entries.is_empty() {
+                    None
+                } else {
+                    Some(entries)
+                }
+            } else if combination.dict_entries.is_empty() {
                 None
             } else {
                 Some(Arc::new(combination.dict_entries))
@@ -150,21 +158,21 @@ pub fn combine(
             .collect::<Vec<_>>(),
     );
 
-    if combination.value_types.contains_key("string")
-        && combination.value_types.contains_key("float")
-        && combination.value_types.contains_key("int")
-        && combination.value_types.contains_key("bool")
+    if combination.value_types.contains_key(&CombinerKey::String)
+        && combination.value_types.contains_key(&CombinerKey::Float)
+        && combination.value_types.contains_key(&CombinerKey::Int)
+        && combination.value_types.contains_key(&CombinerKey::Bool)
     {
-        combination.value_types.remove("string");
-        combination.value_types.remove("float");
-        combination.value_types.remove("int");
-        combination.value_types.remove("bool");
+        combination.value_types.remove(&CombinerKey::String);
+        combination.value_types.remove(&CombinerKey::Float);
+        combination.value_types.remove(&CombinerKey::Int);
+        combination.value_types.remove(&CombinerKey::Bool);
         new_types.push(TAtomic::TScalar {});
     }
 
     for (enum_name, (as_type, underlying_type)) in combination.enum_types {
         combination.value_types.insert(
-            enum_name.0.to_string(),
+            CombinerKey::Symbol(enum_name),
             TAtomic::TEnum {
                 name: enum_name,
                 as_type,
@@ -176,7 +184,7 @@ pub fn combine(
     for (enum_name, values) in combination.enum_value_types {
         for (member_name, (as_type, underlying_type)) in values.1 {
             combination.value_types.insert(
-                format!("{}::{}", enum_name.0, member_name.0),
+                CombinerKey::EnumCase(enum_name, member_name),
                 TAtomic::TEnumLiteralCase {
                     enum_name,
                     member_name,
@@ -187,11 +195,11 @@ pub fn combine(
         }
     }
 
-    let mut has_nothing = combination.value_types.contains_key("nothing");
+    let mut has_nothing = combination.value_types.contains_key(&CombinerKey::Nothing);
 
     let combination_value_type_count = combination.value_types.len();
 
-    for (_, atomic) in combination.value_types {
+    for atomic in combination.value_types.into_values() {
         let tc = if has_nothing { 1 } else { 0 };
         if atomic.is_mixed()
             && combination.mixed_from_loop_isset.unwrap_or(false)
@@ -217,10 +225,60 @@ pub fn combine(
     new_types
 }
 
-fn scrape_type_properties(
+/// Where a type that has no effect on the others stands in a result (the
+/// order of its `CombinerKey`), or `None` for a type that may merge with,
+/// absorb or be absorbed by another.
+fn unrelated_rank(atomic: &TAtomic) -> Option<u8> {
+    match atomic {
+        TAtomic::TBool => Some(0),
+        TAtomic::TInt => Some(1),
+        TAtomic::TFloat => Some(2),
+        TAtomic::TString => Some(3),
+        TAtomic::TNamedObject(TNamedObject {
+            type_params: None, ..
+        }) => Some(UNRELATED_CLASS),
+        TAtomic::TNull => Some(5),
+        _ => None,
+    }
+}
+
+const UNRELATED_CLASS: u8 = 4;
+
+/// Most unions that get combined are a couple of plain types, such as `?int`
+/// or `?Foo`, which have nothing to say to each other: the result is those
+/// types, once each, in order. Does that in place, or returns false for
+/// anything that needs the full treatment.
+fn combine_unrelated(types: &mut Vec<TAtomic>) -> bool {
+    let mut seen = 0u8;
+
+    for atomic in types.iter() {
+        let Some(rank) = unrelated_rank(atomic) else {
+            return false;
+        };
+
+        // two classes may be parent and child
+        if rank == UNRELATED_CLASS && seen & (1 << rank) != 0 {
+            return false;
+        }
+
+        seen |= 1 << rank;
+    }
+
+    // nothing to combine, or bool|int|float|string, which is `scalar`
+    if seen == 0 || seen & 0b1111 == 0b1111 {
+        return false;
+    }
+
+    types.sort_by_key(unrelated_rank);
+    types.dedup_by_key(|atomic| unrelated_rank(atomic));
+
+    true
+}
+
+fn scrape_type_properties<'a>(
     atomic: TAtomic,
-    combination: &mut TypeCombination,
-    codebase: &CodebaseInfo,
+    combination: &mut TypeCombination<'a>,
+    codebase: &'a CodebaseInfo,
     overwrite_empty_array: bool,
 ) {
     match atomic {
@@ -241,7 +299,7 @@ fn scrape_type_properties(
                 combination.mixed_from_loop_isset = Some(true);
             }
 
-            combination.value_types.insert("mixed".to_string(), atomic);
+            combination.value_types.insert(CombinerKey::Mixed, atomic);
             return;
         }
         TAtomic::TMixedWithFlags(any, nonnull_mixed) => {
@@ -258,7 +316,7 @@ fn scrape_type_properties(
 
                 combination.mixed_from_loop_isset = Some(false);
 
-                if combination.value_types.contains_key("null") {
+                if combination.value_types.contains_key(&CombinerKey::Null) {
                     combination.vanilla_mixed = true;
                     return;
                 }
@@ -291,15 +349,15 @@ fn scrape_type_properties(
 
     // bool|false = bool
     if let TAtomic::TFalse | TAtomic::TTrue = atomic
-        && combination.value_types.contains_key("bool")
+        && combination.value_types.contains_key(&CombinerKey::Bool)
     {
         return;
     }
 
     // false|bool = bool
     if let TAtomic::TBool = atomic {
-        combination.value_types.remove("false");
-        combination.value_types.remove("true");
+        combination.value_types.remove(&CombinerKey::False);
+        combination.value_types.remove(&CombinerKey::True);
     }
 
     if let TAtomic::TVec(TVec {
@@ -479,7 +537,25 @@ fn scrape_type_properties(
             combination.dict_alias_name = Some(None);
         }
 
-        if let Some(known_items) = known_items {
+        if let Some(known_items) = known_items
+            && !had_previous_dict
+            && combination.dict_entries.is_empty()
+            && combination.lone_dict_entries.is_none()
+            && combination.dict_type_params.is_none()
+        {
+            // The first shape: its fields are, as they stand, what merging
+            // them into nothing would give.
+            if known_items
+                .values()
+                .all(|(possibly_undefined, _)| *possibly_undefined)
+            {
+                combination.dict_always_filled = false;
+            }
+
+            combination.lone_dict_entries = Some(known_items.clone());
+        } else if let Some(known_items) = known_items {
+            combination.own_dict_entries();
+
             let has_existing_entries = !combination.dict_entries.is_empty() || had_previous_dict;
             let mut possibly_undefined_entries = combination
                 .dict_entries
@@ -549,6 +625,8 @@ fn scrape_type_properties(
                 }
             }
         } else if !overwrite_empty_array {
+            combination.own_dict_entries();
+
             if match &params {
                 Some((_, value_param)) => value_param.is_nothing(),
                 None => true,
@@ -618,7 +696,10 @@ fn scrape_type_properties(
         combination
             .value_types
             .retain(|_, t| !matches!(t, TAtomic::TNamedObject { .. }));
-        combination.value_types.insert(atomic.get_key(), atomic);
+        combination.objects.clear();
+        combination
+            .value_types
+            .insert(CombinerKey::of(&atomic), atomic);
 
         return;
     }
@@ -794,7 +875,7 @@ fn scrape_type_properties(
         if let Some((as_type, underlying_type)) = matched_len_constraint {
             combination.enum_value_types.remove(&enum_name);
             combination.value_types.insert(
-                enum_name.0.to_string(),
+                CombinerKey::Symbol(enum_name),
                 TAtomic::TEnum {
                     name: enum_name,
                     as_type,
@@ -822,176 +903,156 @@ fn scrape_type_properties(
     }
 
     if let TAtomic::TNamedObject(TNamedObject {
-        name: ref fq_class_name,
+        name: fq_class_name,
         type_params: None,
         ..
     }) = atomic
     {
-        if !combination.has_object_top_type {
-            if combination.value_types.contains_key(&atomic.get_key()) {
+        let key = CombinerKey::Symbol(fq_class_name);
+
+        if combination.has_object_top_type || combination.value_types.contains_key(&key) {
+            return;
+        }
+
+        let symbol_type = codebase.symbols.all.get(&fq_class_name);
+
+        let (is_class, is_interface) = match symbol_type {
+            Some(SymbolKind::EnumClass | SymbolKind::Class) => (true, false),
+            Some(SymbolKind::Interface) => (false, true),
+            Some(SymbolKind::Enum) => (false, false),
+            // not something that has parents or children
+            _ => {
+                combination.value_types.insert(key, atomic);
+                combination
+                    .objects
+                    .push(CombinedObject::new(fq_class_name, symbol_type));
                 return;
             }
-        } else {
-            return;
-        }
-
-        let symbol_type = if let Some(symbol_type) = codebase.symbols.all.get(fq_class_name) {
-            symbol_type
-        } else {
-            combination.value_types.insert(atomic.get_key(), atomic);
-            return;
         };
 
-        if !matches!(
-            symbol_type,
-            SymbolKind::EnumClass | SymbolKind::Class | SymbolKind::Enum | SymbolKind::Interface
-        ) {
-            combination.value_types.insert(atomic.get_key(), atomic);
-            return;
-        }
+        // The ancestors of the new class are looked up once, and those of
+        // each class already here once in the life of the combination: a
+        // union of many classes compares every pair of them.
+        let mut new_class_info = None;
+        let mut objects_to_remove = Vec::new();
 
-        let is_class = matches!(symbol_type, SymbolKind::EnumClass | SymbolKind::Class);
-        let is_interface = matches!(symbol_type, SymbolKind::Interface);
+        for existing in combination.objects.iter_mut() {
+            let existing_is_interface = match existing.kind {
+                Some(SymbolKind::EnumClass | SymbolKind::Class) => false,
+                Some(SymbolKind::Interface) => true,
+                _ => continue,
+            };
 
-        let mut types_to_remove = Vec::new();
+            // remove subclasses, and interfaces that extend this one
+            if existing.info(codebase).is_some_and(|existing_info| {
+                existing_info.all_parent_classes.contains(&fq_class_name)
+                    || existing_info.all_parent_interfaces.contains(&fq_class_name)
+            }) {
+                objects_to_remove.push(existing.name);
+                continue;
+            }
 
-        for (key, existing_type) in &combination.value_types {
-            if let TAtomic::TNamedObject(TNamedObject {
-                name: existing_name,
-                ..
-            }) = &existing_type
+            if !is_class && !is_interface {
+                continue;
+            }
+
+            let new_class_info: &ClassLikeInfo = match new_class_info
+                .get_or_insert_with(|| codebase.classlike_infos.get(&fq_class_name))
             {
-                // TObjectIntersection types are handled separately
-                if matches!(atomic, TAtomic::TObjectIntersection { .. })
-                    || matches!(existing_type, TAtomic::TObjectIntersection { .. })
-                {
-                    if object_type_comparator::is_shallowly_contained_by(
-                        codebase,
-                        &FilePath(StrId::EMPTY),
-                        existing_type,
-                        &atomic,
-                        false,
-                        &mut TypeComparisonResult::new(),
-                    ) {
-                        types_to_remove.push(existing_name.0.to_string());
-                        continue;
-                    }
+                Some(new_class_info) => new_class_info,
+                None => continue,
+            };
 
-                    if object_type_comparator::is_shallowly_contained_by(
-                        codebase,
-                        &FilePath(StrId::EMPTY),
-                        &atomic,
-                        existing_type,
-                        false,
-                        &mut TypeComparisonResult::new(),
-                    ) {
-                        return;
-                    }
+            // skip if covered by a parent class, or by an interface it has
+            let is_covered = if is_interface {
+                new_class_info
+                    .all_parent_interfaces
+                    .contains(&existing.name)
+                    || new_class_info.all_parent_classes.contains(&existing.name)
+            } else if existing_is_interface {
+                new_class_info
+                    .all_parent_interfaces
+                    .contains(&existing.name)
+            } else {
+                new_class_info.all_parent_classes.contains(&existing.name)
+            };
 
-                    continue;
-                }
-
-                let existing_symbol_type =
-                    if let Some(symbol_type) = codebase.symbols.all.get(existing_name) {
-                        symbol_type
-                    } else {
-                        continue;
-                    };
-
-                if matches!(
-                    existing_symbol_type,
-                    SymbolKind::EnumClass | SymbolKind::Class
-                ) {
-                    // remove subclasses
-                    if codebase.class_extends_or_implements(existing_name, fq_class_name) {
-                        types_to_remove.push(key.clone());
-                        continue;
-                    }
-
-                    if is_class {
-                        // if covered by a parent class
-                        if codebase.class_or_trait_extends(fq_class_name, existing_name) {
-                            return;
-                        }
-                    } else if is_interface {
-                        // if covered by a parent class
-                        if codebase.interface_extends(fq_class_name, existing_name) {
-                            return;
-                        }
-                    }
-                } else if matches!(existing_symbol_type, SymbolKind::Interface) {
-                    if codebase.interface_extends(existing_name, fq_class_name) {
-                        types_to_remove.push(existing_name.0.to_string());
-                        continue;
-                    }
-
-                    if is_class {
-                        // skip if interface is implemented by fq_class_name
-                        if codebase.class_or_trait_implements(fq_class_name, existing_name) {
-                            return;
-                        }
-                    } else if is_interface
-                        && codebase.interface_extends(fq_class_name, existing_name)
-                    {
-                        return;
-                    }
-                }
+            if is_covered {
+                return;
             }
         }
 
-        combination.value_types.insert(atomic.get_key(), atomic);
+        combination.value_types.insert(key, atomic);
 
-        for type_key in types_to_remove {
-            combination.value_types.remove(&type_key);
+        if !objects_to_remove.is_empty() {
+            for name in &objects_to_remove {
+                combination.value_types.remove(&CombinerKey::Symbol(*name));
+            }
+            combination
+                .objects
+                .retain(|existing| !objects_to_remove.contains(&existing.name));
         }
+
+        combination
+            .objects
+            .push(CombinedObject::new(fq_class_name, symbol_type));
 
         return;
     }
 
     if let TAtomic::TScalar = atomic {
-        combination.literal_strings = FxHashSet::default();
-        combination.literal_ints = FxHashSet::default();
+        combination.literal_strings.clear();
+        combination.literal_ints.clear();
         combination.value_types.retain(|k, _| {
-            k != "string"
-                && k != "int"
-                && k != "bool"
-                && k != "false"
-                && k != "true"
-                && k != "float"
-                && k != "arraykey"
-                && k != "num"
+            !matches!(
+                k,
+                CombinerKey::String
+                    | CombinerKey::Int
+                    | CombinerKey::Bool
+                    | CombinerKey::False
+                    | CombinerKey::True
+                    | CombinerKey::Float
+                    | CombinerKey::Arraykey
+                    | CombinerKey::Num
+            )
         });
 
-        combination.value_types.insert(atomic.get_key(), atomic);
+        combination
+            .value_types
+            .insert(CombinerKey::of(&atomic), atomic);
         return;
     }
 
     if let TAtomic::TArraykey { .. } = atomic {
-        if combination.value_types.contains_key("scalar") {
+        if combination.value_types.contains_key(&CombinerKey::Scalar) {
             return;
         }
 
-        combination.literal_strings = FxHashSet::default();
-        combination.literal_ints = FxHashSet::default();
+        combination.literal_strings.clear();
+        combination.literal_ints.clear();
         combination
             .value_types
-            .retain(|k, _| k != "string" && k != "int");
+            .retain(|k, _| !matches!(k, CombinerKey::String | CombinerKey::Int));
 
-        combination.value_types.insert(atomic.get_key(), atomic);
+        combination
+            .value_types
+            .insert(CombinerKey::of(&atomic), atomic);
         return;
     }
 
     if let TAtomic::TNum = atomic {
-        if combination.value_types.contains_key("scalar") {
+        if combination.value_types.contains_key(&CombinerKey::Scalar) {
             return;
         }
 
-        combination.literal_ints = FxHashSet::default();
+        combination.literal_ints.clear();
         combination
             .value_types
-            .retain(|k, _| k != "float" && k != "int");
+            .retain(|k, _| !matches!(k, CombinerKey::Float | CombinerKey::Int));
 
-        combination.value_types.insert(atomic.get_key(), atomic);
+        combination
+            .value_types
+            .insert(CombinerKey::of(&atomic), atomic);
         return;
     }
 
@@ -1000,27 +1061,29 @@ fn scrape_type_properties(
     | TAtomic::TStringWithFlags(..)
     | TAtomic::TInt
     | TAtomic::TLiteralInt { .. } = atomic
-        && (combination.value_types.contains_key("arraykey")
-            || combination.value_types.contains_key("scalar"))
+        && (combination.value_types.contains_key(&CombinerKey::Arraykey)
+            || combination.value_types.contains_key(&CombinerKey::Scalar))
     {
         return;
     }
 
     if let TAtomic::TFloat | TAtomic::TInt | TAtomic::TLiteralInt { .. } = atomic
-        && (combination.value_types.contains_key("num")
-            || combination.value_types.contains_key("scalar"))
+        && (combination.value_types.contains_key(&CombinerKey::Num)
+            || combination.value_types.contains_key(&CombinerKey::Scalar))
     {
         return;
     }
 
     if let TAtomic::TString = atomic {
-        combination.literal_strings = FxHashSet::default();
-        combination.value_types.insert(atomic.get_key(), atomic);
+        combination.literal_strings.clear();
+        combination
+            .value_types
+            .insert(CombinerKey::of(&atomic), atomic);
         return;
     }
 
     if let TAtomic::TStringWithFlags(mut is_nonempty, is_nonspecific_literal) = atomic {
-        if let Some(existing_string_type) = combination.value_types.get_mut("string") {
+        if let Some(existing_string_type) = combination.value_types.get_mut(&CombinerKey::String) {
             if let TAtomic::TString = existing_string_type {
                 return;
             }
@@ -1047,7 +1110,7 @@ fn scrape_type_properties(
         }
 
         combination.value_types.insert(
-            "string".to_string(),
+            CombinerKey::String,
             if !is_nonempty && !is_nonspecific_literal {
                 TAtomic::TString
             } else {
@@ -1055,13 +1118,13 @@ fn scrape_type_properties(
             },
         );
 
-        combination.literal_strings = FxHashSet::default();
+        combination.literal_strings.clear();
 
         return;
     }
 
     if let TAtomic::TLiteralString { value, .. } = &atomic {
-        if let Some(existing_string_type) = combination.value_types.get_mut("string") {
+        if let Some(existing_string_type) = combination.value_types.get_mut(&CombinerKey::String) {
             match existing_string_type {
                 TAtomic::TString => return,
                 TAtomic::TStringWithFlags(is_nonempty, is_nonspecific_literal) => {
@@ -1080,13 +1143,13 @@ fn scrape_type_properties(
             }
         } else if combination.literal_strings.len() > 20 {
             combination.value_types.insert(
-                "string".to_string(),
+                CombinerKey::String,
                 TAtomic::TStringWithFlags(
                     combination.literal_strings.iter().all(|s| !s.is_empty()),
                     true,
                 ),
             );
-            combination.literal_strings = FxHashSet::default();
+            combination.literal_strings.clear();
         } else {
             combination.literal_strings.insert(value.clone());
         }
@@ -1095,21 +1158,23 @@ fn scrape_type_properties(
     }
 
     if let TAtomic::TInt = atomic {
-        combination.literal_ints = FxHashSet::default();
-        combination.value_types.insert(atomic.get_key(), atomic);
+        combination.literal_ints.clear();
+        combination
+            .value_types
+            .insert(CombinerKey::of(&atomic), atomic);
         return;
     }
 
     if let TAtomic::TLiteralInt { value } = atomic {
-        if let Some(existing_int_type) = combination.value_types.get("int") {
+        if let Some(existing_int_type) = combination.value_types.get(&CombinerKey::Int) {
             if let TAtomic::TInt = existing_int_type {
                 return;
             }
         } else if combination.literal_ints.len() > 20 {
-            combination.literal_ints = FxHashSet::default();
+            combination.literal_ints.clear();
             combination
                 .value_types
-                .insert("int".to_string(), TAtomic::TInt);
+                .insert(CombinerKey::Int, TAtomic::TInt);
         } else {
             combination.literal_ints.insert(value);
         }
@@ -1117,7 +1182,9 @@ fn scrape_type_properties(
         return;
     }
 
-    combination.value_types.insert(atomic.get_key(), atomic);
+    combination
+        .value_types
+        .insert(CombinerKey::of(&atomic), atomic);
 }
 
 fn adjust_key_value_dict_params(

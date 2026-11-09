@@ -323,8 +323,9 @@ pub fn combine_union_types(
     if type_1.is_vanilla_mixed() && type_2.is_vanilla_mixed() {
         combined_type = get_mixed();
     } else {
-        let mut all_atomic_types = type_1.types.clone();
-        all_atomic_types.extend(type_2.types.clone());
+        let mut all_atomic_types = Vec::with_capacity(type_1.types.len() + type_2.types.len());
+        all_atomic_types.extend(type_1.types.iter().cloned());
+        all_atomic_types.extend(type_2.types.iter().cloned());
 
         combined_type = TUnion::new(type_combiner::combine(
             all_atomic_types,
@@ -393,8 +394,9 @@ pub fn add_union_type(
     base_type.types = if base_type.is_vanilla_mixed() && other_type.is_vanilla_mixed() {
         base_type.types
     } else {
-        let mut all_atomic_types = base_type.types.clone();
-        all_atomic_types.extend(other_type.types.clone());
+        // the base type is ours: its types can be moved rather than copied
+        let mut all_atomic_types = std::mem::take(&mut base_type.types);
+        all_atomic_types.extend(other_type.types.iter().cloned());
 
         type_combiner::combine(all_atomic_types, codebase, overwrite_empty_array)
     };
@@ -420,6 +422,71 @@ pub fn add_union_type(
     }
 
     base_type.uri_prefix = uri_prefix;
+    base_type
+}
+
+/// Adds a run of types to the base type in one go. Adding them one at a time
+/// with `add_union_type` combines the growing result again at every step,
+/// which for the fields of a big shape is most of the work. The outcome can
+/// differ slightly from that of the step-by-step fold, which depends on the
+/// order of the types and loses some precision along the way (it can forget
+/// that a merged shape is never empty, and can leave `bool|scalar`).
+pub fn add_union_types<'a>(
+    mut base_type: TUnion,
+    other_types: impl IntoIterator<Item = &'a TUnion>,
+    codebase: &CodebaseInfo,
+    overwrite_empty_array: bool, // default false
+) -> TUnion {
+    let mut all_atomic_types = std::mem::take(&mut base_type.types);
+    let mut added_types = false;
+    let mut added_parent_nodes = false;
+
+    for other_type in other_types {
+        added_types = true;
+
+        if base_type.uri_prefix.is_some() || other_type.uri_prefix.is_some() {
+            base_type.uri_prefix = base_type
+                .uri_prefix()
+                .zip(other_type.uri_prefix())
+                .map(|(left, right)| left.join(right));
+        }
+
+        all_atomic_types.extend(other_type.types.iter().cloned());
+
+        if !other_type.had_template {
+            base_type.had_template = false;
+        }
+
+        if !other_type.reference_free {
+            base_type.reference_free = false;
+        }
+
+        if other_type.possibly_undefined_from_try {
+            base_type.possibly_undefined_from_try = true;
+        }
+
+        if other_type.ignore_falsable_issues {
+            base_type.ignore_falsable_issues = true;
+        }
+
+        if !other_type.parent_nodes.is_empty() {
+            base_type
+                .parent_nodes
+                .extend(other_type.parent_nodes.iter().cloned());
+            added_parent_nodes = true;
+        }
+    }
+
+    base_type.types = if added_types {
+        type_combiner::combine(all_atomic_types, codebase, overwrite_empty_array)
+    } else {
+        all_atomic_types
+    };
+
+    if added_parent_nodes {
+        extend_dataflow_uniquely(&mut base_type.parent_nodes, vec![]);
+    }
+
     base_type
 }
 
@@ -906,7 +973,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             }
 
             if let Some(known_items) = known_items {
-                for (key, (_, property_type)) in known_items.iter() {
+                for key in known_items.keys() {
                     key_types.push(match key {
                         DictKey::Int(i) => TAtomic::TLiteralInt { value: *i as i64 },
                         DictKey::String(k) => TAtomic::TLiteralString { value: k.clone() },
@@ -915,8 +982,16 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
                             .unwrap()
                             .get_single_owned(),
                     });
-                    value_param = add_union_type(value_param, property_type, codebase, false);
                 }
+
+                value_param = add_union_types(
+                    value_param,
+                    known_items
+                        .values()
+                        .map(|(_, property_type)| &**property_type),
+                    codebase,
+                    false,
+                );
             }
 
             let key_param = TUnion::new(combine(key_types, codebase, false));

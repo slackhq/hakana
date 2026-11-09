@@ -430,6 +430,70 @@ fn resolve_variable(
 
 /// Visit nested unions as well as the atomic wrappers around class pointers and
 /// intersections. Keep all union metadata, including dataflow parents, intact.
+/// Whether `resolve_in_place` leaves a union exactly as it is. That takes a
+/// union of one type, since several are put through the combiner again; a
+/// type that is not a variable; and the same of every union inside it.
+fn is_settled(union: &TUnion) -> bool {
+    let [atomic] = union.types.as_slice() else {
+        return false;
+    };
+
+    match atomic {
+        TAtomic::TTypeVariable { .. } => false,
+        TAtomic::TNamedObject(object) => object
+            .type_params
+            .as_ref()
+            .is_none_or(|params| params.iter().all(is_settled)),
+        TAtomic::TReference { type_params, .. } => type_params
+            .as_ref()
+            .is_none_or(|params| params.iter().all(is_settled)),
+        TAtomic::TTypeAlias {
+            type_params,
+            as_type,
+            ..
+        } => {
+            type_params
+                .as_ref()
+                .is_none_or(|params| params.iter().all(is_settled))
+                && as_type.as_ref().is_none_or(|ty| is_settled(ty))
+        }
+        TAtomic::TVec(vec) => {
+            is_settled(&vec.type_param)
+                && vec
+                    .known_items
+                    .as_ref()
+                    .is_none_or(|items| items.values().all(|(_, ty)| is_settled(ty)))
+                && vec.variadic_type.as_ref().is_none_or(is_settled)
+        }
+        TAtomic::TDict(dict) => {
+            dict.params
+                .as_ref()
+                .is_none_or(|(key, value)| is_settled(key) && is_settled(value))
+                && dict
+                    .known_items
+                    .as_ref()
+                    .is_none_or(|items| items.values().all(|(_, ty)| is_settled(ty)))
+        }
+        TAtomic::TKeyset { type_param, .. } => is_settled(type_param),
+        TAtomic::TAwaitable { value } => is_settled(value),
+        // The other types `map_children` looks inside are rare enough to
+        // leave to the walk itself.
+        TAtomic::TGenericParam(..)
+        | TAtomic::TClassTypeConstant { .. }
+        | TAtomic::TClosure(..)
+        | TAtomic::TClassname { .. }
+        | TAtomic::TClassPtr { .. }
+        | TAtomic::TTypename { .. }
+        | TAtomic::TGenericClassname { .. }
+        | TAtomic::TGenericClassPtr { .. }
+        | TAtomic::TGenericTypename { .. }
+        | TAtomic::TObjectIntersection { .. } => false,
+        _ => true,
+    }
+}
+
+/// Applies `resolve_in_place` (the only `f` there is) to the unions directly
+/// inside a type.
 fn map_children(atomic: &mut TAtomic, f: &mut impl FnMut(&mut TUnion)) {
     match atomic {
         TAtomic::TNamedObject(object) => {
@@ -471,9 +535,15 @@ fn map_children(atomic: &mut TAtomic, f: &mut impl FnMut(&mut TUnion)) {
                 f(key);
                 f(value);
             }
-            if let Some(items) = &mut dict.known_items {
+            // The map and its values are shared with every other copy of
+            // this shape: only take a private copy of what can change.
+            if let Some(items) = &mut dict.known_items
+                && items.values().any(|(_, ty)| !is_settled(ty))
+            {
                 for (_, ty) in Arc::make_mut(items).values_mut() {
-                    f(Arc::make_mut(ty));
+                    if !is_settled(ty) {
+                        f(Arc::make_mut(ty));
+                    }
                 }
             }
         }

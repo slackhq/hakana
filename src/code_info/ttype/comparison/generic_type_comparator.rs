@@ -383,7 +383,7 @@ fn has_nested_template_solved_type(union: &TUnion) -> bool {
         return true;
     }
 
-    union.get_all_child_nodes().iter().any(|node| {
+    union.any_child_node(|node| {
         if let crate::t_union::TypeNode::Union(child_union) = node {
             child_union.had_template
         } else {

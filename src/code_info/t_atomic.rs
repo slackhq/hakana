@@ -471,9 +471,15 @@ impl TAtomic {
                     params.0.clear_had_template();
                     params.1.clear_had_template();
                 }
-                if let Some(known_items) = known_items {
+                // The map and its values are shared with every other copy of
+                // this shape: only take a private copy of what has to change.
+                if let Some(known_items) = known_items
+                    && known_items.values().any(|(_, t)| t.has_had_template())
+                {
                     for (_, t) in std::sync::Arc::make_mut(known_items).values_mut() {
-                        std::sync::Arc::make_mut(t).clear_had_template();
+                        if t.has_had_template() {
+                            std::sync::Arc::make_mut(t).clear_had_template();
+                        }
                     }
                 }
             }
@@ -484,6 +490,57 @@ impl TAtomic {
                 value.clear_had_template();
             }
             _ => {}
+        }
+    }
+
+    /// Whether `clear_had_template` would change anything: the same walk,
+    /// read-only.
+    pub fn has_had_template(&self) -> bool {
+        match self {
+            TAtomic::TNamedObject(TNamedObject {
+                type_params: Some(type_params),
+                ..
+            })
+            | TAtomic::TReference {
+                type_params: Some(type_params),
+                ..
+            } => type_params.iter().any(|t| t.has_had_template()),
+            TAtomic::TTypeAlias {
+                type_params,
+                as_type,
+                ..
+            } => {
+                type_params
+                    .as_ref()
+                    .is_some_and(|type_params| type_params.iter().any(|t| t.has_had_template()))
+                    || as_type.as_ref().is_some_and(|t| t.has_had_template())
+            }
+            TAtomic::TVec(TVec {
+                type_param,
+                known_items,
+                variadic_type,
+                ..
+            }) => {
+                type_param.has_had_template()
+                    || known_items.as_ref().is_some_and(|known_items| {
+                        known_items.values().any(|(_, t)| t.has_had_template())
+                    })
+                    || variadic_type.as_ref().is_some_and(|t| t.has_had_template())
+            }
+            TAtomic::TDict(TDict {
+                params,
+                known_items,
+                ..
+            }) => {
+                params.as_ref().is_some_and(|params| {
+                    params.0.has_had_template() || params.1.has_had_template()
+                }) || known_items.as_ref().is_some_and(|known_items| {
+                    known_items.values().any(|(_, t)| t.has_had_template())
+                })
+            }
+            TAtomic::TKeyset { type_param, .. } => type_param.has_had_template(),
+            TAtomic::TAwaitable { value, .. } => value.has_had_template(),
+            _ => false,
         }
     }
 
@@ -1753,124 +1810,91 @@ impl TAtomic {
 }
 
 impl HasTypeNodes for TAtomic {
-    fn get_child_nodes(&self) -> Vec<TypeNode<'_>> {
+    fn push_child_nodes<'a>(&'a self, nodes: &mut Vec<TypeNode<'a>>) {
         match self {
             TAtomic::TDict(TDict {
                 params,
                 known_items,
                 ..
             }) => {
-                let mut vec = vec![];
-
                 if let Some(params) = params {
-                    vec.push(TypeNode::Union(&params.0));
-                    vec.push(TypeNode::Union(&params.1));
+                    nodes.push(TypeNode::Union(&params.0));
+                    nodes.push(TypeNode::Union(&params.1));
                 }
                 if let Some(known_items) = known_items {
-                    for (_, prop_type) in known_items.values() {
-                        vec.push(TypeNode::Union(prop_type));
-                    }
+                    nodes.extend(
+                        known_items
+                            .values()
+                            .map(|(_, prop_type)| TypeNode::Union(prop_type)),
+                    );
                 }
-
-                vec
             }
             TAtomic::TClosure(closure) => {
-                let mut vec = vec![];
                 if let Some(return_type) = &closure.return_type {
-                    vec.push(TypeNode::Union(return_type));
+                    nodes.push(TypeNode::Union(return_type));
                 }
 
                 for param in &closure.params {
                     if let Some(param_type) = &param.signature_type {
-                        vec.push(TypeNode::Union(param_type));
+                        nodes.push(TypeNode::Union(param_type));
                     }
                 }
-
-                vec
             }
             TAtomic::TKeyset { type_param, .. } => {
-                vec![TypeNode::Union(type_param)]
+                nodes.push(TypeNode::Union(type_param));
             }
             TAtomic::TAwaitable { value, .. } => {
-                vec![TypeNode::Union(value)]
+                nodes.push(TypeNode::Union(value));
             }
             TAtomic::TNamedObject(TNamedObject {
                 type_params: Some(type_params),
                 ..
-            }) => {
-                let mut vec = vec![];
-                for type_param in type_params {
-                    vec.push(TypeNode::Union(type_param));
-                }
-                vec
+            })
+            | TAtomic::TReference {
+                type_params: Some(type_params),
+                ..
+            } => {
+                nodes.extend(type_params.iter().map(TypeNode::Union));
             }
-            TAtomic::TNamedObject(TNamedObject {
-                type_params: None, ..
-            }) => vec![],
             TAtomic::TVec(TVec {
                 type_param,
                 known_items,
                 ..
             }) => {
-                let mut vec = vec![TypeNode::Union(type_param)];
+                nodes.push(TypeNode::Union(type_param));
                 if let Some(known_items) = known_items {
-                    for (_, prop_type) in known_items.values() {
-                        vec.push(TypeNode::Union(prop_type));
-                    }
+                    nodes.extend(
+                        known_items
+                            .values()
+                            .map(|(_, prop_type)| TypeNode::Union(prop_type)),
+                    );
                 }
-
-                vec
-            }
-            TAtomic::TReference {
-                type_params: Some(type_params),
-                ..
-            } => {
-                let mut vec = vec![];
-                for type_param in type_params {
-                    vec.push(TypeNode::Union(type_param));
-                }
-                vec
-            }
-            TAtomic::TReference {
-                type_params: None, ..
-            } => {
-                vec![]
             }
             TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
-                vec![TypeNode::Union(as_type)]
+                nodes.push(TypeNode::Union(as_type));
             }
             TAtomic::TTypeAlias {
                 type_params,
                 as_type,
                 ..
             } => {
-                let mut nodes = vec![];
+                if let Some(type_params) = type_params {
+                    nodes.extend(type_params.iter().map(TypeNode::Union));
+                }
 
-                match type_params {
-                    None => {}
-                    Some(type_params) => {
-                        for type_param in type_params {
-                            nodes.push(TypeNode::Union(type_param));
-                        }
-                    }
-                };
-
-                match as_type {
-                    None => {}
-                    Some(as_type) => {
-                        nodes.push(TypeNode::Union(as_type));
-                    }
-                };
-
-                nodes
+                if let Some(as_type) = as_type {
+                    nodes.push(TypeNode::Union(as_type));
+                }
             }
             TAtomic::TClassname { as_type }
             | TAtomic::TClassPtr { as_type }
             | TAtomic::TTypename { as_type } => {
-                vec![TypeNode::Atomic(as_type)]
+                nodes.push(TypeNode::Atomic(as_type));
             }
-            TAtomic::TObjectIntersection { types } => types.iter().map(TypeNode::Atomic).collect(),
-            _ => vec![],
+            TAtomic::TObjectIntersection { types } => {
+                nodes.extend(types.iter().map(TypeNode::Atomic));
+            }
+            _ => {}
         }
     }
 }

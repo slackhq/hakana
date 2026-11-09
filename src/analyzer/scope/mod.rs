@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::{collections::BTreeMap, rc::Rc};
 
 use control_action::ControlAction;
@@ -251,20 +252,37 @@ impl BlockContext {
     ) -> FxHashMap<VarName, TUnion> {
         let mut redefined_vars = FxHashMap::default();
 
-        let mut var_ids = self.locals.keys().collect::<Vec<_>>();
-        var_ids.extend(new_locals.keys());
+        // Both maps are sorted by variable, so one pass over the two finds
+        // what a lookup per variable in each of them would.
+        let mut these_locals = self.locals.iter().peekable();
+        let mut new_locals = new_locals.iter().peekable();
 
-        for var_id in var_ids {
-            if let Some(this_type) = self.locals.get(var_id) {
-                if let Some(new_type) = new_locals.get(var_id) {
+        loop {
+            let order = match (these_locals.peek(), new_locals.peek()) {
+                (Some((this_id, _)), Some((new_id, _))) => this_id.cmp(new_id),
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                (None, None) => break,
+            };
+
+            match order {
+                Ordering::Equal => {
+                    let (var_id, this_type) = these_locals.next().unwrap();
+                    let (_, new_type) = new_locals.next().unwrap();
                     if new_type != this_type {
                         redefined_vars.insert(var_id.clone(), (**this_type).clone());
                     }
-                } else if include_new_vars {
-                    redefined_vars.insert(var_id.clone(), (**this_type).clone());
                 }
-            } else {
-                removed_vars.insert(var_id.clone());
+                Ordering::Less => {
+                    let (var_id, this_type) = these_locals.next().unwrap();
+                    if include_new_vars {
+                        redefined_vars.insert(var_id.clone(), (**this_type).clone());
+                    }
+                }
+                Ordering::Greater => {
+                    let (var_id, _) = new_locals.next().unwrap();
+                    removed_vars.insert(var_id.clone());
+                }
             }
         }
 
@@ -480,7 +498,7 @@ impl BlockContext {
         let mut removed_var_ids = vec![];
 
         self.locals.retain(|var_id, _| {
-            let retain = !var_id.contains("->") && !var_id.contains("::");
+            let retain = !is_member_var_id(var_id);
             if !retain {
                 removed_var_ids.push(var_id.clone());
             }
@@ -496,7 +514,7 @@ impl BlockContext {
 
             for var_id in clause.possibilities.keys() {
                 if let ClauseKey::Name(var_id) = var_id
-                    && (var_id.contains("->") || var_id.contains("::"))
+                    && is_member_var_id(var_id)
                 {
                     retain_clause = false;
                 }
@@ -534,11 +552,38 @@ fn should_keep_clause(clause: &Rc<Clause>, remove_var_id: &str, new_type: Option
 }
 
 #[inline]
+/// Whether a variable id names a property: it contains `->` or `::`.
+/// A plain scan, because setting up a substring search costs more than
+/// looking through an id this short.
+fn is_member_var_id(var_id: &str) -> bool {
+    var_id
+        .as_bytes()
+        .windows(2)
+        .any(|pair| pair == b"->" || pair == b"::")
+}
+
+/// `var_id.find(root_var_id)`, as a plain scan: these are short strings
+/// compared in bulk, and setting up a substring search for each pair costs
+/// more than the search.
+fn find_in_var_id(var_id: &str, root_var_id: &str) -> Option<usize> {
+    let haystack = var_id.as_bytes();
+    let needle = root_var_id.as_bytes();
+
+    let Some(first) = needle.first() else {
+        return Some(0);
+    };
+
+    (0..=haystack.len().checked_sub(needle.len())?)
+        .find(|start| haystack[*start] == *first && haystack[*start..].starts_with(needle))
+}
+
 pub fn var_has_root(var_id: &str, root_var_id: &str) -> bool {
-    if let Some(pos) = var_id.find(root_var_id) {
-        if var_id == root_var_id {
-            return false;
-        }
+    // a root is followed by more of the variable
+    if var_id.len() <= root_var_id.len() {
+        return false;
+    }
+
+    if let Some(pos) = find_in_var_id(var_id, root_var_id) {
         let bytes = var_id.as_bytes();
         if pos > 0 && (bytes[pos - 1] as char) == ':' {
             return false;

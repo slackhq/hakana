@@ -161,6 +161,10 @@ pub fn populate_codebase(
     }
 
     for (name, type_alias) in codebase.type_definitions.iter_mut() {
+        // Expansions remembered by an earlier analysis were derived from the
+        // codebase as it was then.
+        type_alias.expansions = Default::default();
+
         for attribute_info in &type_alias.attributes {
             symbol_references.add_symbol_reference_to_symbol(*name, attribute_info.name, true);
         }

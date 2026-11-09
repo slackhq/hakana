@@ -233,15 +233,12 @@ impl VirtualFileSystem {
         config: &Config,
         files_to_analyze: &mut Vec<String>,
     ) {
-        let metadata = if let Ok(metadata) = fs::metadata(path) {
-            metadata
-        } else {
-            return;
-        };
-
-        if metadata.is_file()
-            && let Some(extension) = path.extension()
+        // Only Hack files matter here, and the name says which those are:
+        // check it before asking the file system about every entry in the tree.
+        if let Some(extension) = path.extension()
             && (extension.eq("hack") || extension.eq("php") || extension.eq("hhi"))
+            && let Ok(metadata) = fs::metadata(path)
+            && metadata.is_file()
         {
             let str_path = path.to_str().unwrap().to_string();
 

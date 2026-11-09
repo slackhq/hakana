@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{cell::LazyCell, collections::BTreeMap, sync::Arc};
 
 use super::{
     negated_assertion_reconciler, simple_assertion_reconciler, trigger_issue_for_impossible,
@@ -62,7 +62,10 @@ pub fn reconcile(
         return get_missing_type(assertion, inside_loop, codebase);
     };
 
-    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.interner));
+    // Only an issue about the assertion ever describes the type it was made
+    // on, and few reconciliations raise one: describing a big type is costly.
+    let old_var_type_string =
+        LazyCell::new(|| existing_var_type.get_id(Some(statements_analyzer.interner)));
 
     if is_negation {
         return negated_assertion_reconciler::reconcile(
@@ -72,7 +75,7 @@ pub fn reconcile(
             key,
             statements_analyzer,
             analysis_data,
-            old_var_type_string,
+            &old_var_type_string,
             if can_report_issues { pos } else { None },
             calling_functionlike_id,
             negated,

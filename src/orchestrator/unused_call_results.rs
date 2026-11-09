@@ -1,6 +1,7 @@
 use hakana_analyzer::config::Config;
 use hakana_code_info::{
     analysis_result::{AnalysisResult, Replacement},
+    code_location::FilePath,
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
     functionlike_info::FunctionLikeInfo,
@@ -96,6 +97,8 @@ pub(crate) fn check(
         }
     }
 
+    let mut skipped_files: FxHashMap<FilePath, bool> = FxHashMap::default();
+
     for (symbol, info) in &codebase.functionlike_infos {
         let Some(call) = usage.get(symbol) else {
             // Never-called and test-only definitions have their own diagnostics.
@@ -126,11 +129,15 @@ pub(crate) fn check(
             continue;
         };
         let path = interner.lookup(&pos.file_path.0);
-        if config.test_files.iter().any(|p| p.matches(path))
-            || ignored_paths
-                .as_ref()
-                .is_some_and(|paths| paths.iter().any(|p| path.contains(p)))
-        {
+        // Many functions share a file, and a production file fails every
+        // pattern, so decide once per file.
+        let skip_file = *skipped_files.entry(pos.file_path).or_insert_with(|| {
+            config.test_files.iter().any(|p| p.matches(path))
+                || ignored_paths
+                    .as_ref()
+                    .is_some_and(|paths| paths.iter().any(|p| path.contains(p)))
+        });
+        if skip_file {
             continue;
         }
         let id = if symbol.1 == StrId::EMPTY {
@@ -417,8 +424,8 @@ fn emit(
         .suppressed_issues
         .iter()
         .any(|(kind, _)| *kind == issue.kind)
-        || !config.allow_issue_kind_in_file(&issue.kind, path)
         || !config.can_add_issue(&issue)
+        || !config.allow_issue_kind_in_file(&issue.kind, path)
     {
         return;
     }

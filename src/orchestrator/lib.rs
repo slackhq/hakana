@@ -360,6 +360,12 @@ pub fn scan_and_analyze_with_progress<F: FnOnce()>(
 
     let mut scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
 
+    // The alias expansions the analysis remembered have done their job. They
+    // would only take up room in a process that keeps the codebase around.
+    for type_definition in scan_data.codebase.type_definitions.values_mut() {
+        type_definition.expansions = Default::default();
+    }
+
     add_invalid_files(&scan_data, &mut analysis_result);
 
     if config.find_unused_definitions {

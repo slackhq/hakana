@@ -14,7 +14,7 @@ use crate::{
     t_atomic::{DictKey, TAtomic, TClosure, TDict, TGenericParam, TNamedObject, TVec},
     t_union::TUnion,
     ttype::intersect_union_types_simple,
-    type_definition_info::TypeDefinitionInfo,
+    type_definition_info::{ExpandedAlias, TypeDefinitionInfo},
 };
 use crate::{functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier};
 use hakana_str::{Interner, StrId};
@@ -66,6 +66,27 @@ impl Default for TypeExpansionOptions<'_> {
     }
 }
 
+/// What an expansion depended on besides the codebase and the options a
+/// cached alias expansion is keyed by. It decides whether the expansion of a
+/// type alias can be remembered, and where a remembered one may be reused.
+#[derive(Default)]
+struct ExpansionTrace {
+    /// The result depended on the caller (`this`, where constraints, being
+    /// inside a newtype's own file) or had side effects on the data flow graph
+    uncacheable: bool,
+    /// Files of the newtypes that stayed opaque because the expansion happened
+    /// outside them. Inside one of these files the result would differ.
+    opaque_newtype_files: Vec<FilePath>,
+}
+
+impl ExpansionTrace {
+    fn add_opaque_newtype_file(&mut self, file_path: FilePath) {
+        if !self.opaque_newtype_files.contains(&file_path) {
+            self.opaque_newtype_files.push(file_path);
+        }
+    }
+}
+
 pub fn expand_union(
     codebase: &CodebaseInfo,
     // interner is only used for data_flow_graph addition, so it's optional
@@ -75,6 +96,28 @@ pub fn expand_union(
     options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
     cost: &mut u32,
+) {
+    expand_union_traced(
+        codebase,
+        interner,
+        file_path,
+        return_type,
+        options,
+        data_flow_graph,
+        cost,
+        &mut ExpansionTrace::default(),
+    );
+}
+
+fn expand_union_traced(
+    codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
+    file_path: &FilePath,
+    return_type: &mut TUnion,
+    options: &TypeExpansionOptions,
+    data_flow_graph: &mut DataFlowGraph,
+    cost: &mut u32,
+    trace: &mut ExpansionTrace,
 ) {
     let mut overall_extra_data_flow_nodes = vec![];
 
@@ -94,6 +137,7 @@ pub fn expand_union(
             &mut skip_atomic,
             &mut replacements,
             &mut overall_extra_data_flow_nodes,
+            trace,
         );
 
         if skip_atomic {
@@ -129,6 +173,7 @@ pub fn expand_union(
             &mut skip_this_atomic, // expand_atomic sets this to true if it wants to replace
             &mut replacements_for_current_atomic, // expand_atomic pushes replacements here
             &mut overall_extra_data_flow_nodes, // expand_atomic can still add global extras
+            trace,
         );
 
         if skip_this_atomic {
@@ -161,6 +206,7 @@ fn expand_atomic(
     skip_key: &mut bool,
     new_return_type_parts: &mut Vec<TAtomic>,
     extra_data_flow_nodes: &mut Vec<DataFlowNode>,
+    trace: &mut ExpansionTrace,
 ) {
     *cost += 1;
 
@@ -172,7 +218,7 @@ fn expand_atomic(
     }) = return_type_part
     {
         if let Some(params) = params {
-            expand_union(
+            expand_union_traced(
                 codebase,
                 interner,
                 file_path,
@@ -180,8 +226,9 @@ fn expand_atomic(
                 options,
                 data_flow_graph,
                 cost,
+                trace,
             );
-            expand_union(
+            expand_union_traced(
                 codebase,
                 interner,
                 file_path,
@@ -189,6 +236,7 @@ fn expand_atomic(
                 options,
                 data_flow_graph,
                 cost,
+                trace,
             );
         }
 
@@ -254,7 +302,7 @@ fn expand_atomic(
                 for (_, item_type) in Arc::make_mut(known_items).values_mut() {
                     let mut scratch = 0;
                     if union_needs_expansion(item_type, options, &mut scratch) {
-                        expand_union(
+                        expand_union_traced(
                             codebase,
                             interner,
                             file_path,
@@ -262,6 +310,7 @@ fn expand_atomic(
                             options,
                             data_flow_graph,
                             cost,
+                            trace,
                         );
                     } else {
                         *cost += scratch;
@@ -279,7 +328,7 @@ fn expand_atomic(
         ..
     }) = return_type_part
     {
-        expand_union(
+        expand_union_traced(
             codebase,
             interner,
             file_path,
@@ -287,11 +336,12 @@ fn expand_atomic(
             options,
             data_flow_graph,
             cost,
+            trace,
         );
 
         if let Some(known_items) = known_items {
             for (_, item_type) in known_items.values_mut() {
-                expand_union(
+                expand_union_traced(
                     codebase,
                     interner,
                     file_path,
@@ -299,11 +349,12 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                     cost,
+                    trace,
                 );
             }
         }
     } else if let TAtomic::TKeyset { type_param, .. } = return_type_part {
-        expand_union(
+        expand_union_traced(
             codebase,
             interner,
             file_path,
@@ -311,9 +362,10 @@ fn expand_atomic(
             options,
             data_flow_graph,
             cost,
+            trace,
         );
     } else if let TAtomic::TAwaitable { value } = return_type_part {
-        expand_union(
+        expand_union_traced(
             codebase,
             interner,
             file_path,
@@ -321,6 +373,7 @@ fn expand_atomic(
             options,
             data_flow_graph,
             cost,
+            trace,
         );
     } else if let TAtomic::TNamedObject(TNamedObject {
         name,
@@ -329,6 +382,11 @@ fn expand_atomic(
         ..
     }) = return_type_part
     {
+        if *name == StrId::THIS || *is_this {
+            // what `this` stands for is the caller's business
+            trace.uncacheable = true;
+        }
+
         if *name == StrId::THIS {
             *name = match options.static_class_type {
                 StaticClassType::None => StrId::THIS,
@@ -364,7 +422,7 @@ fn expand_atomic(
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(
+                expand_union_traced(
                     codebase,
                     interner,
                     file_path,
@@ -372,12 +430,13 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                     cost,
+                    trace,
                 );
             }
         }
     } else if let TAtomic::TClosure(closure) = return_type_part {
         if let Some(ref mut return_type) = closure.return_type {
-            expand_union(
+            expand_union_traced(
                 codebase,
                 interner,
                 file_path,
@@ -385,12 +444,13 @@ fn expand_atomic(
                 options,
                 data_flow_graph,
                 cost,
+                trace,
             );
         }
 
         for param in closure.params.iter_mut() {
             if let Some(ref mut param_type) = param.signature_type {
-                expand_union(
+                expand_union_traced(
                     codebase,
                     interner,
                     file_path,
@@ -398,6 +458,7 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                     cost,
+                    trace,
                 );
             }
         }
@@ -407,13 +468,16 @@ fn expand_atomic(
         ..
     }) = return_type_part
     {
+        // where constraints belong to the caller
+        trace.uncacheable = true;
+
         if let Some(where_constraints) = options.where_constraints {
             for (_, constraint_type) in where_constraints.iter().filter(|(k, _)| k == param_name) {
                 **as_type = intersect_union_types_simple(as_type, constraint_type, codebase)
                     .unwrap_or(get_nothing());
             }
         }
-        expand_union(
+        expand_union_traced(
             codebase,
             interner,
             file_path,
@@ -421,6 +485,7 @@ fn expand_atomic(
             options,
             data_flow_graph,
             cost,
+            trace,
         );
     } else if let TAtomic::TClassname { as_type, .. }
     | TAtomic::TTypename { as_type, .. }
@@ -438,6 +503,7 @@ fn expand_atomic(
             &mut false,
             &mut atomic_return_type_parts,
             extra_data_flow_nodes,
+            trace,
         );
 
         if !atomic_return_type_parts.is_empty() {
@@ -459,7 +525,7 @@ fn expand_atomic(
         if let Some(enum_storage) = codebase.classlike_infos.get(enum_name) {
             if let Some(storage_as_type) = enum_storage.enum_as_type.as_deref() {
                 let mut as_type_union = wrap_atomic(storage_as_type.clone());
-                expand_union(
+                expand_union_traced(
                     codebase,
                     interner,
                     file_path,
@@ -467,13 +533,14 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                     cost,
+                    trace,
                 );
                 *as_type = Some(Arc::new(as_type_union.get_single_owned()));
             }
 
             if let Some(storage_underlying_type) = enum_storage.enum_underlying_type.as_deref() {
                 let mut underlying_type_union = wrap_atomic(storage_underlying_type.clone());
-                expand_union(
+                expand_union_traced(
                     codebase,
                     interner,
                     file_path,
@@ -481,6 +548,7 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                     cost,
+                    trace,
                 );
                 *underlying_type = Some(Arc::new(underlying_type_union.get_single_owned()));
             }
@@ -508,6 +576,7 @@ fn expand_atomic(
                 skip_key,
                 new_return_type_parts,
                 extra_data_flow_nodes,
+                trace,
             );
 
             new_return_type_parts.push(literal_value);
@@ -520,7 +589,7 @@ fn expand_atomic(
             );
 
             if let Some(mut const_type) = const_type {
-                expand_union(
+                expand_union_traced(
                     codebase,
                     interner,
                     file_path,
@@ -528,6 +597,7 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                     cost,
+                    trace,
                 );
 
                 new_return_type_parts.extend(const_type.types);
@@ -563,8 +633,50 @@ fn expand_atomic(
             return;
         }
 
+        if !options.force_alias_expansion
+            && let Some(newtype_file) = type_definition.newtype_file
+        {
+            // a newtype is only transparent inside its own file
+            if newtype_file == *file_path {
+                trace.uncacheable = true;
+            } else {
+                trace.add_opaque_newtype_file(newtype_file);
+            }
+        }
+
         if can_expand_type {
             *skip_key = true;
+
+            // What a non-generic alias expands to depends on little besides
+            // the codebase, so it is worked out once and shared from then on:
+            // big shape aliases are used in thousands of signatures, and
+            // expanding one means copying it, level by level.
+            let cache_slot =
+                if type_params.is_none() && type_definition.shape_field_taints.is_none() {
+                    Some(
+                        (options.force_alias_expansion as usize)
+                            | ((options.expand_hakana_types as usize) << 1),
+                    )
+                } else {
+                    None
+                };
+
+            if let Some(cache_slot) = cache_slot
+                && let Some(expanded) = type_definition.expansions.get(cache_slot)
+                && !expanded.opaque_newtype_files.contains(file_path)
+            {
+                *cost += expanded.cost;
+                for newtype_file in &expanded.opaque_newtype_files {
+                    trace.add_opaque_newtype_file(*newtype_file);
+                }
+                new_return_type_parts.extend(expanded.types.iter().cloned());
+                return;
+            }
+
+            let cost_before = *cost;
+            let outer_trace = &mut *trace;
+            let mut alias_trace = ExpansionTrace::default();
+            let trace = &mut alias_trace;
 
             let mut actual_type = if let Some(type_params) = type_params {
                 let mut new_template_types = IndexMap::new();
@@ -589,7 +701,7 @@ fn expand_atomic(
                 type_definition.actual_type.clone()
             };
 
-            expand_union(
+            expand_union_traced(
                 codebase,
                 interner,
                 file_path,
@@ -597,6 +709,7 @@ fn expand_atomic(
                 options,
                 data_flow_graph,
                 cost,
+                trace,
             );
 
             let expanded_types = actual_type
@@ -651,6 +764,9 @@ fn expand_atomic(
                             extra_data_flow_nodes.push(shape_node.clone());
 
                             data_flow_graph.add_node(shape_node);
+
+                            // the nodes above are added on every use
+                            trace.uncacheable = true;
                         }
 
                         if !options.force_alias_expansion {
@@ -660,6 +776,24 @@ fn expand_atomic(
                     v
                 })
                 .collect::<Vec<_>>();
+
+            if let Some(cache_slot) = cache_slot
+                && !alias_trace.uncacheable
+            {
+                type_definition.expansions.set(
+                    cache_slot,
+                    ExpandedAlias {
+                        types: expanded_types.clone(),
+                        cost: *cost - cost_before,
+                        opaque_newtype_files: alias_trace.opaque_newtype_files.clone(),
+                    },
+                );
+            }
+
+            outer_trace.uncacheable |= alias_trace.uncacheable;
+            for newtype_file in alias_trace.opaque_newtype_files {
+                outer_trace.add_opaque_newtype_file(newtype_file);
+            }
 
             new_return_type_parts.extend(expanded_types);
         } else if let Some(definition_as_type) = &type_definition.as_type {
@@ -691,7 +825,7 @@ fn expand_atomic(
                 definition_as_type.clone()
             };
 
-            expand_union(
+            expand_union_traced(
                 codebase,
                 interner,
                 file_path,
@@ -699,6 +833,7 @@ fn expand_atomic(
                 options,
                 data_flow_graph,
                 cost,
+                trace,
             );
 
             *as_type = Some(Box::new(definition_as_type));
@@ -706,7 +841,7 @@ fn expand_atomic(
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(
+                expand_union_traced(
                     codebase,
                     interner,
                     file_path,
@@ -714,6 +849,7 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                     cost,
+                    trace,
                 );
             }
         }
@@ -735,6 +871,7 @@ fn expand_atomic(
             &mut false,
             &mut atomic_return_type_parts,
             extra_data_flow_nodes,
+            trace,
         );
 
         if !atomic_return_type_parts.is_empty() {
@@ -906,7 +1043,7 @@ fn expand_atomic(
 
         if let Some(mut resolved_type) = type_constant_result {
             if !is_this {
-                expand_union(
+                expand_union_traced(
                     codebase,
                     interner,
                     file_path,
@@ -914,6 +1051,7 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                     cost,
+                    trace,
                 );
 
                 *skip_key = true;
@@ -932,7 +1070,7 @@ fn expand_atomic(
                 }));
             } else {
                 // is_this is true - keep as abstract type constant
-                expand_union(
+                expand_union_traced(
                     codebase,
                     interner,
                     file_path,
@@ -940,15 +1078,22 @@ fn expand_atomic(
                     options,
                     data_flow_graph,
                     cost,
+                    trace,
                 );
 
                 **as_type = resolved_type;
             }
         }
     } else if let TAtomic::TClosureAlias { id, .. } = &return_type_part {
-        if let Some(value) =
-            get_closure_from_id(id, codebase, interner, file_path, data_flow_graph, cost)
-        {
+        if let Some(value) = get_closure_from_id_traced(
+            id,
+            codebase,
+            interner,
+            file_path,
+            data_flow_graph,
+            cost,
+            trace,
+        ) {
             *skip_key = true;
             new_return_type_parts.push(value);
         }
@@ -968,6 +1113,7 @@ fn expand_atomic(
                 &mut inner_skip_key,
                 &mut inner_new_parts,
                 extra_data_flow_nodes,
+                trace,
             );
             // If expand_atomic wants to replace the inner type, use the first replacement
             if inner_skip_key && !inner_new_parts.is_empty() {
@@ -1112,6 +1258,26 @@ pub fn get_closure_from_id(
     data_flow_graph: &mut DataFlowGraph,
     cost: &mut u32,
 ) -> Option<TAtomic> {
+    get_closure_from_id_traced(
+        id,
+        codebase,
+        interner,
+        file_path,
+        data_flow_graph,
+        cost,
+        &mut ExpansionTrace::default(),
+    )
+}
+
+fn get_closure_from_id_traced(
+    id: &FunctionLikeIdentifier,
+    codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
+    file_path: &FilePath,
+    data_flow_graph: &mut DataFlowGraph,
+    cost: &mut u32,
+    trace: &mut ExpansionTrace,
+) -> Option<TAtomic> {
     match id {
         FunctionLikeIdentifier::Function(name) => {
             if let Some(functionlike_info) = codebase.functionlike_infos.get(&(*name, StrId::EMPTY))
@@ -1124,6 +1290,7 @@ pub fn get_closure_from_id(
                     data_flow_graph,
                     &TypeExpansionOptions::default(),
                     cost,
+                    trace,
                 ));
             }
         }
@@ -1144,6 +1311,7 @@ pub fn get_closure_from_id(
                         ..Default::default()
                     },
                     cost,
+                    trace,
                 ));
             }
         }
@@ -1162,6 +1330,7 @@ fn get_expanded_closure(
     data_flow_graph: &mut DataFlowGraph,
     options: &TypeExpansionOptions,
     cost: &mut u32,
+    trace: &mut ExpansionTrace,
 ) -> TAtomic {
     TAtomic::TClosure(Box::new(TClosure {
         params: functionlike_info
@@ -1170,7 +1339,7 @@ fn get_expanded_closure(
             .map(|param| FnParameter {
                 signature_type: if let Some(t) = &param.signature_type {
                     let mut t = t.clone();
-                    expand_union(
+                    expand_union_traced(
                         codebase,
                         interner,
                         file_path,
@@ -1178,6 +1347,7 @@ fn get_expanded_closure(
                         options,
                         data_flow_graph,
                         cost,
+                        trace,
                     );
                     Some(Box::new(t))
                 } else {
@@ -1190,7 +1360,7 @@ fn get_expanded_closure(
             .collect(),
         return_type: if let Some(return_type) = &functionlike_info.return_type {
             let mut return_type = return_type.clone();
-            expand_union(
+            expand_union_traced(
                 codebase,
                 interner,
                 file_path,
@@ -1198,6 +1368,7 @@ fn get_expanded_closure(
                 options,
                 data_flow_graph,
                 cost,
+                trace,
             );
             Some(return_type)
         } else {

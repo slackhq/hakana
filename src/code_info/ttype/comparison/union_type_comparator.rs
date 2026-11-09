@@ -69,8 +69,12 @@ pub fn is_contained_by(
         inside_assertion,
     };
 
-    let container_has_template = container_type.has_template_or_static()
-        || super::super::type_variable::contains(container_type);
+    // Only asked about when the input has a template param, and answering
+    // means walking the whole container type.
+    let container_has_template = std::cell::LazyCell::new(|| {
+        container_type.has_template_or_static()
+            || super::super::type_variable::contains(container_type)
+    });
 
     let mut input_atomic_types = input_type.types.iter().collect::<Vec<_>>();
 
@@ -100,7 +104,7 @@ pub fn is_contained_by(
                 continue;
             }
             TAtomic::TGenericParam(TGenericParam { as_type, .. }) => {
-                if !container_has_template {
+                if !*container_has_template {
                     input_atomic_types.extend(as_type.types.iter().collect::<Vec<_>>());
                     continue;
                 }
