@@ -263,6 +263,17 @@ pub(crate) fn analyze(
 
     check_php_standard_library(statements_analyzer, pos, analysis_data, context, name);
 
+    if name == StrId::FIXME_UNSAFE_CAST {
+        super::unsafe_cast_analyzer::check(
+            statements_analyzer,
+            expr.1,
+            expr.2,
+            &template_result,
+            analysis_data,
+            context,
+        );
+    }
+
     let stmt_type = function_call_return_type_fetcher::fetch(
         statements_analyzer,
         expr,

@@ -1,0 +1,14 @@
+ERROR: InvalidArgument - input.hack:18:45 - Argument 1 of HH\FIXME\UNSAFE_CAST expects mixed, more specific type int provided
+ERROR: InvalidArgument - input.hack:22:44 - Argument 1 of HH\FIXME\UNSAFE_CAST expects ?int, more specific type int provided
+ERROR: InvalidArgument - input.hack:26:51 - Argument 1 of HH\FIXME\UNSAFE_CAST expects arraykey, more specific type int provided
+ERROR: InvalidArgument - input.hack:31:49 - Argument 1 of HH\FIXME\UNSAFE_CAST expects mixed, more specific type int provided
+ERROR: InvalidArgument - input.hack:40:50 - Argument 1 of HH\FIXME\UNSAFE_CAST expects ?string, more specific type string provided
+ERROR: InvalidArgument - input.hack:44:45 - Argument 1 of HH\FIXME\UNSAFE_CAST expects mixed, more specific type string provided
+ERROR: InvalidArgument - input.hack:48:46 - Argument 1 of HH\FIXME\UNSAFE_CAST expects Animal, more specific type Dog provided
+ERROR: InvalidArgument - input.hack:52:61 - Argument 1 of HH\FIXME\UNSAFE_CAST expects vec<arraykey>, more specific type vec<int> provided
+ERROR: InvalidArgument - input.hack:56:73 - Argument 1 of HH\FIXME\UNSAFE_CAST expects dict<arraykey, Dog>, more specific type dict<string, Puppy> provided
+ERROR: InvalidArgument - input.hack:60:46 - Argument 1 of HH\FIXME\UNSAFE_CAST expects string, more specific type Suit provided
+ERROR: InvalidArgument - input.hack:64:45 - Argument 1 of HH\FIXME\UNSAFE_CAST expects mixed, more specific type T:fn-fromBoundedTemplate provided
+ERROR: InvalidArgument - input.hack:68:73 - Argument 1 of HH\FIXME\UNSAFE_CAST expects shape('a' => int, ?'b' => string), more specific type shape('a' => int, 'b' => string) provided
+ERROR: InvalidArgument - input.hack:72:54 - Argument 1 of HH\FIXME\UNSAFE_CAST expects mixed, more specific type int provided
+ERROR: InvalidArgument - input.hack:78:51 - Argument 1 of HH\FIXME\UNSAFE_CAST expects mixed, more specific type int provided

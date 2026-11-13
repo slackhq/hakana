@@ -14,5 +14,6 @@ pub(crate) mod new_analyzer;
 pub(crate) mod static_call_analyzer;
 pub(crate) mod template_inference;
 mod type_assertion_analyzer;
+mod unsafe_cast_analyzer;
 
 pub(crate) mod response_effects;
