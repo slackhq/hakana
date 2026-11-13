@@ -744,6 +744,32 @@ pub fn get_type_from_hint(
                 "HH\\FIXME\\MISSING_RETURN_TYPE" => {
                     return None;
                 }
+                // `supportdyn<T>` is a T that may also be used as a dynamic.
+                // Nothing here tracks that, and as the opaque newtype the
+                // HHI declares it would accept no T at all.
+                "supportdyn" | "HH\\supportdyn" if extra_info.len() == 1 => {
+                    let inner = &extra_info[0];
+                    let union = get_type_from_hint(
+                        inner.1,
+                        classlike_name,
+                        type_context,
+                        resolved_names,
+                        file_path,
+                        inner.0.start_offset() as u32,
+                    )?;
+
+                    let mut last = None;
+
+                    for atomic_type in union.types.into_iter() {
+                        if last.is_none() {
+                            last = Some(atomic_type);
+                        } else {
+                            types.push(atomic_type);
+                        }
+                    }
+
+                    last?
+                }
                 _ => get_reference_type(
                     id,
                     extra_info,
