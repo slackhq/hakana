@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::time::Instant;
 
 use super::HhiAsset;
@@ -19,7 +19,8 @@ use crate::cache::load_cached_codebase;
 use crate::cache::load_cached_interner;
 use crate::file::FileStatus;
 use crate::file::VirtualFileSystem;
-use crate::get_aast_for_path;
+use crate::read_ahead::{self, ConsumerGuard, FileQueue, ReadFile};
+use crate::{get_aast_for_path, get_aast_for_path_and_read_contents};
 use ast_differ::get_diff;
 use hakana_aast_helper::name_context::NameContext;
 use hakana_analyzer::config::Config;
@@ -312,36 +313,58 @@ pub fn scan_files(
 
         let mut group_size = threads as usize;
 
-        let mut path_groups = FxHashMap::default();
-
         if files_to_scan.len() < 4 * group_size {
             group_size = 1;
         }
 
-        for (i, str_path) in files_to_scan.into_iter().enumerate() {
-            let group = i % group_size;
-            path_groups
-                .entry(group)
-                .or_insert_with(Vec::new)
-                .push(str_path);
-        }
+        let paths = Arc::new(files_to_scan.into_iter().copied().collect::<Vec<_>>());
 
         let mut handles = vec![];
 
+        // Files are read ahead by threads of their own (see `read_ahead`),
+        // and each worker takes the next file read as it becomes free.
+        let readers = read_ahead::READERS.min(paths.len());
+        let queue = Arc::new(FileQueue::new(readers, group_size));
+        let next_path = Arc::new(AtomicUsize::new(0));
+
+        for _ in 0..readers {
+            let paths = paths.clone();
+            let next_path = next_path.clone();
+            let queue = queue.clone();
+            let interner = interner.clone();
+
+            handles.push(std::thread::spawn(move || {
+                loop {
+                    let index = next_path.fetch_add(1, Ordering::Relaxed);
+                    let Some(file_path) = paths.get(index) else {
+                        break;
+                    };
+                    let str_path = interner.read().unwrap().lookup(&file_path.0).to_string();
+                    if !queue.push(ReadFile {
+                        index,
+                        contents: read_ahead::read_file(&str_path),
+                    }) {
+                        break;
+                    }
+                }
+                queue.close();
+            }));
+        }
+
         let thread_codebases = Arc::new(Mutex::new(vec![]));
 
-        for (_, path_group) in path_groups {
-            let pgc = path_group.iter().map(|c| *(*c)).collect::<Vec<_>>();
+        let analyze_map = Arc::new(files_to_analyze.iter().cloned().collect::<FxHashSet<_>>());
+
+        for _ in 0..group_size {
+            let paths = paths.clone();
+            let queue = queue.clone();
 
             let codebases = thread_codebases.clone();
 
             let bar = bar.clone();
             let files_scanned_counter = files_scanned_counter.clone();
 
-            let analyze_map = files_to_analyze
-                .clone()
-                .into_iter()
-                .collect::<FxHashSet<_>>();
+            let analyze_map = analyze_map.clone();
 
             let interner = interner.clone();
 
@@ -356,7 +379,9 @@ pub fn scan_files(
                 let empty_name_context = NameContext::new(&mut new_interner);
                 let mut local_resolved_names = FxHashMap::default();
 
-                for file_path in &pgc {
+                let _guard = ConsumerGuard(&queue);
+                while let Some(read) = queue.pop() {
+                    let file_path = &paths[read.index];
                     let str_path = new_interner
                         .parent
                         .read()
@@ -367,6 +392,7 @@ pub fn scan_files(
                     match scan_file(
                         &str_path,
                         *file_path,
+                        read.contents.map(|(contents, _)| contents),
                         &config.all_custom_issues,
                         &mut new_codebase,
                         &mut new_interner,
@@ -540,6 +566,7 @@ pub fn add_builtins_to_scan(
 pub(crate) fn scan_file(
     str_path: &str,
     file_path: FilePath,
+    read_ahead: Option<String>,
     all_custom_issues: &FxHashSet<String>,
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
@@ -550,7 +577,12 @@ pub(crate) fn scan_file(
     debug!("scanning {}", str_path);
 
     let arena = hakana_aast_helper::FileArena::new();
-    let parsed = get_aast_for_path(&arena, file_path, str_path)?;
+    let parsed = match &read_ahead {
+        Some(contents) => {
+            get_aast_for_path_and_read_contents(&arena, file_path, str_path, contents)?
+        }
+        None => get_aast_for_path(&arena, file_path, str_path)?,
+    };
 
     let (resolved_names, uses) =
         hakana_aast_helper::scope_names(&parsed.program, interner, empty_name_context);

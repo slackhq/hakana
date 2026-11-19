@@ -1,5 +1,8 @@
 use crate::file::get_file_contents_hash;
-use crate::{SuccessfulScanData, get_aast_for_path, update_progressbar};
+use crate::read_ahead::{self, ConsumerGuard, FileQueue, ReadFile};
+use crate::{
+    SuccessfulScanData, get_aast_for_path, get_aast_for_path_and_read_contents, update_progressbar,
+};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
 use hakana_code_info::FileSource;
@@ -68,15 +71,48 @@ pub fn analyze_files(
 
     let arc_file_analysis_time = Arc::new(Mutex::new(Duration::default()));
 
-    // File sizes vary substantially. Claim work as each worker becomes free
-    // instead of leaving workers idle behind a fixed group of expensive files.
+    // Files are read ahead by threads of their own (see `read_ahead`). File
+    // sizes vary substantially: each worker takes the next file read as it
+    // becomes free, instead of being left idle behind a fixed group of
+    // expensive files.
     let paths = Arc::new(paths);
     let next_path = Arc::new(AtomicUsize::new(0));
 
-    for _ in 0..group_size.min(paths.len()) {
+    let workers = group_size.min(paths.len());
+    let readers = read_ahead::READERS.min(paths.len());
+    let queue = Arc::new(FileQueue::new(readers, workers));
+
+    for _ in 0..readers {
         let scan_data = scan_data.clone();
         let paths = paths.clone();
         let next_path = next_path.clone();
+        let queue = queue.clone();
+
+        handles.push(std::thread::spawn(move || {
+            loop {
+                let index = next_path.fetch_add(1, Ordering::Relaxed);
+                let Some(str_path) = paths.get(index) else {
+                    break;
+                };
+                let file_path = FilePath(scan_data.interner.get(str_path).unwrap());
+                // (Files the workers skip are not read.)
+                let contents = if scan_data.resolved_names.contains_key(&file_path) {
+                    read_ahead::read_file(str_path)
+                } else {
+                    None
+                };
+                if !queue.push(ReadFile { index, contents }) {
+                    break;
+                }
+            }
+            queue.close();
+        }));
+    }
+
+    for _ in 0..workers {
+        let scan_data = scan_data.clone();
+        let paths = paths.clone();
+        let queue = queue.clone();
 
         let analysis_result = analysis_result.clone();
 
@@ -97,13 +133,16 @@ pub fn analyze_files(
             let mut new_analysis_result =
                 AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
-            while let Some(str_path) = paths.get(next_path.fetch_add(1, Ordering::Relaxed)) {
+            let _guard = ConsumerGuard(&queue);
+            while let Some(read) = queue.pop() {
+                let str_path = &paths[read.index];
                 let file_path = FilePath(interner.get(str_path).unwrap());
 
                 if let Some(resolved_names) = resolved_names.get(&file_path) {
                     file_analysis_time += analyze_file(
                         file_path,
                         str_path,
+                        read.contents,
                         scan_data.file_system.file_hashes_and_times.get(&file_path),
                         codebase,
                         interner,
@@ -145,6 +184,7 @@ pub fn analyze_files(
 fn analyze_file(
     file_path: FilePath,
     str_path: &String,
+    read_ahead: Option<(String, u64)>,
     last_hash_and_time: Option<&(u64, u64)>,
     codebase: &CodebaseInfo,
     interner: &Interner,
@@ -154,17 +194,25 @@ fn analyze_file(
 ) -> Duration {
     debug!("Analyzing {}", &str_path);
 
-    if let Ok(metadata) = fs::metadata(str_path) {
-        let updated_time = metadata
-            .modified()
-            .unwrap()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_micros() as u64;
+    let updated_time = match &read_ahead {
+        Some((_, updated_time)) => Some(*updated_time),
+        None => fs::metadata(str_path).ok().map(|metadata| {
+            metadata
+                .modified()
+                .unwrap()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros() as u64
+        }),
+    };
 
+    if let Some(updated_time) = updated_time {
         if let Some((file_hash, last_updated_time)) = last_hash_and_time
             && updated_time != *last_updated_time
-            && get_file_contents_hash(str_path).unwrap_or(0) != *file_hash
+            && match &read_ahead {
+                Some((contents, _)) => xxhash_rust::xxh3::xxh3_64(contents.as_bytes()),
+                None => get_file_contents_hash(str_path).unwrap_or(0),
+            } != *file_hash
         {
             analysis_result.has_invalid_hack_files = true;
             analysis_result
@@ -193,7 +241,13 @@ fn analyze_file(
     }
 
     let arena = hakana_aast_helper::FileArena::new();
-    let parsed = match get_aast_for_path(&arena, file_path, str_path) {
+    let parsed = match &read_ahead {
+        Some((contents, _)) => {
+            get_aast_for_path_and_read_contents(&arena, file_path, str_path, contents)
+        }
+        None => get_aast_for_path(&arena, file_path, str_path),
+    };
+    let parsed = match parsed {
         Ok(parsed) => {
             if parsed.has_syntax_error {
                 // The scan already recorded the error, and the salvaged tree

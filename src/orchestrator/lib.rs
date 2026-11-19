@@ -41,6 +41,7 @@ mod cache;
 mod diff;
 pub mod file;
 mod optional_parameter_fixer;
+mod read_ahead;
 pub mod scanner;
 mod unused_call_results;
 mod unused_symbols;
@@ -664,6 +665,16 @@ pub fn get_aast_for_path<'a>(
     file_path_str: &str,
 ) -> Result<ParsedFile<'a>, ParserError> {
     let file_contents = get_file_contents(arena, file_path_str)?;
+    get_aast_for_path_and_read_contents(arena, file_path, file_path_str, file_contents)
+}
+
+/// Parses a file already read.
+pub(crate) fn get_aast_for_path_and_read_contents<'a>(
+    arena: &'a Bump,
+    file_path: FilePath,
+    file_path_str: &str,
+    file_contents: &'a str,
+) -> Result<ParsedFile<'a>, ParserError> {
     let parsed = get_aast_for_path_and_contents(arena, file_path, file_path_str, file_contents)?;
     Ok(ParsedFile {
         program: parsed.program,

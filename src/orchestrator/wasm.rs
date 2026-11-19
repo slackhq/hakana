@@ -113,6 +113,7 @@ pub fn get_single_file_codebase(
         scan_file(
             file.as_ref(),
             interned_file_path,
+            None,
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
@@ -133,6 +134,7 @@ pub fn get_single_file_codebase(
         scan_file(
             file.as_ref(),
             interned_file_path,
+            None,
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
@@ -152,6 +154,7 @@ pub fn get_single_file_codebase(
         scan_file(
             str_path,
             interned_file_path,
+            None,
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
