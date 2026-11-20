@@ -102,6 +102,7 @@ pub enum IssueKind {
     NullArrayOffset,
     NullIterator,
     OnlyUsedInTests,
+    OverlyBroadReturnType,
     ParadoxicalCondition,
     PHPStandardLibrary,
     PossibleMethodCallOnNull,
@@ -167,7 +168,7 @@ pub enum IssueKind {
     VariableDefinedOutsideIf,
 }
 
-static AUTOFIXABLE_ISSUES: [IssueKind; 24] = [
+static AUTOFIXABLE_ISSUES: [IssueKind; 25] = [
     IssueKind::UnusedOptionalParameter,
     IssueKind::UnusedClass,
     IssueKind::UnusedTypeDefinition,
@@ -192,6 +193,7 @@ static AUTOFIXABLE_ISSUES: [IssueKind; 24] = [
     IssueKind::ImpossibleNullTypeComparison,
     IssueKind::MissingIndirectServiceCallsAttribute,
     IssueKind::RedundantIssetCheck,
+    IssueKind::OverlyBroadReturnType,
 ];
 
 impl IssueKind {

@@ -1,0 +1,59 @@
+abstract class ResultBase<+T, +TErr> {}
+
+final class ResultOk<+T> extends ResultBase<T, nothing> {
+	public function __construct(private T $t) {}
+}
+
+final class ResultError<+TErr> extends ResultBase<nothing, TErr> {
+	public function __construct(private string $message) {}
+}
+
+<<file: __EnableUnstableFeatures('case_types')>>
+<<Hakana\RequireMostSpecificReturnType>>
+case type ResultWithError<+T, +TErr> as ResultBase<T, TErr> = ResultOk<T> | ResultError<TErr>;
+
+type Result<+T> = ResultWithError<T, mixed>;
+
+function always_ok(int $i): ResultOk<shape('a' => int, 'b' => vec<int>)> {
+	return new ResultOk(shape('a' => $i, 'b' => vec[]));
+}
+
+function always_error(): ResultError<mixed> {
+	return new ResultError('nope');
+}
+
+function direct(): ResultError<string> {
+	return new ResultError('nope');
+}
+
+async function always_ok_async(Awaitable<int> $gen): Awaitable<?\ResultOk<int>> {
+	$i = await $gen;
+	if ($i > 0) {
+		return null;
+	}
+	return new ResultOk($i);
+}
+
+function multiline(
+	int $i,
+): ResultOk<vec<int>> {
+	return new ResultOk(vec[$i]);
+}
+
+function either(int $i): Result<int> {
+	if ($i > 0) {
+		return new ResultOk($i);
+	}
+	return new ResultError('negative');
+}
+
+/* HAKANA_IGNORE[OverlyBroadReturnType] tests stub this with an error */
+function suppressed(): Result<int> {
+	return new ResultOk(1);
+}
+
+async function multiline_async(Awaitable<int> $gen): Awaitable<
+	ResultOk<vec<int>>,
+> {
+	return new ResultOk(vec[await $gen]);
+}

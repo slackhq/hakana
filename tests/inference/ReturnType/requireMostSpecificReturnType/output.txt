@@ -1,0 +1,6 @@
+ERROR: OverlyBroadReturnType - input.hack:18:29 - Every value returned is a ResultOk, so the return type should name ResultOk rather than Result<int>
+ERROR: OverlyBroadReturnType - input.hack:26:26 - Every value returned is a ResultError, so the return type should name ResultError rather than Result<int>
+ERROR: OverlyBroadReturnType - input.hack:31:30 - Every value returned is a ResultOk, so the return type should name ResultOk rather than ResultWithError<int, string>
+ERROR: OverlyBroadReturnType - input.hack:36:54 - Every value returned is a ResultOk, so the return type should name ResultOk rather than Awaitable<?Result<int>>
+ERROR: OverlyBroadReturnType - input.hack:74:36 - Every value returned is a ResultOk, so the return type should name ResultOk rather than Result<int>
+ERROR: ExtendFinalClass - input.hack:145:13 - Cannot extend final class

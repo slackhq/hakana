@@ -7,7 +7,7 @@ use crate::{
     EFFECT_PURE, GenericParent,
     attribute_info::AttributeInfo,
     code_location::HPos,
-    codebase_info::CodebaseInfo,
+    codebase_info::{CodebaseInfo, symbols::SymbolKind},
     function_context::{FunctionContext, FunctionLikeIdentifier},
     functionlike_parameter::FunctionLikeParameter,
     issue::IssueKind,
@@ -325,5 +325,62 @@ impl FunctionLikeInfo {
         } else {
             true
         }
+    }
+
+    /// Whether this method, `class_name::method_name`, overrides or
+    /// implements another, or a subclass overrides it or could: trait methods
+    /// are copied into every class that uses them, and abstract methods have
+    /// no body to look at.
+    pub fn overrides_or_may_be_overridden(
+        &self,
+        codebase: &CodebaseInfo,
+        class_name: StrId,
+        method_name: StrId,
+    ) -> bool {
+        let Some(classlike_info) = codebase.classlike_infos.get(&class_name) else {
+            return true;
+        };
+
+        if matches!(classlike_info.kind, SymbolKind::Trait) {
+            return true;
+        }
+
+        if classlike_info
+            .overridden_method_ids
+            .get(&method_name)
+            .is_some_and(|overridden| !overridden.is_empty())
+        {
+            return true;
+        }
+
+        if let Some(method_info) = &self.method_info {
+            if method_info.is_abstract {
+                return true;
+            }
+
+            // (Final methods and classes are not a shortcut, unlike in
+            // `is_simple_fn`: mock classes extend final classes, under an
+            // `HH_FIXME`.)
+            if matches!(method_info.visibility, MemberVisibility::Private) {
+                return false;
+            }
+        }
+
+        // A descendant overrides the method if it takes it from somewhere else
+        // (its own declaration, or a trait's).
+        codebase
+            .all_classlike_descendants
+            .get(&class_name)
+            .is_some_and(|descendants| {
+                descendants.iter().any(|descendant| {
+                    codebase
+                        .classlike_infos
+                        .get(descendant)
+                        .and_then(|descendant_info| {
+                            descendant_info.declaring_method_ids.get(&method_name)
+                        })
+                        .is_some_and(|declaring_class| *declaring_class != class_name)
+                })
+            })
     }
 }

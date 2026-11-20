@@ -141,6 +141,38 @@ literals for fixtures passed as shapes, and `Shapes::toDict` where a dictionary 
 required. A conversion back to a shape after editing dynamic keys may still need to
 be retained with `HAKANA_IGNORE[RedundantTypeComparison]`.
 
+## Most specific return types
+
+A type alias or case type that names several classes can require functions to
+name the one they return. With `<<Hakana\RequireMostSpecificReturnType>>` on the
+alias, `OverlyBroadReturnType` reports a function whose return type is the alias
+(directly, through other aliases, nullable, or inside `Awaitable`) when every
+value it returns is an instance of the same one of those classes:
+
+```hack
+<<Hakana\RequireMostSpecificReturnType>>
+case type ResultWithError<+T, +TErr> = ResultOk<T> | ResultError<TErr>;
+
+type Result<+T> = ResultWithError<T, mixed>;
+
+function get_count(): Result<int> { // should be ResultOk<int>
+    return new ResultOk(5);
+}
+```
+
+Type arguments are not compared. Closures, generated code, methods that
+override or implement another, and methods that a subclass overrides or could
+(trait and abstract methods) are excluded. `hakana fix --issue
+OverlyBroadReturnType` rewrites the alias in the return type, carrying its type
+arguments down the aliases (`Result<Foo>` becomes `ResultOk<Foo>` or
+`ResultError<mixed>`); return types it cannot rewrite are reported instead.
+Callers then see the narrower type: re-run analysis afterward and review newly
+redundant or impossible checks, and stubs in tests that return the other class.
+Where tests stub a function to return the other class, keep its return type and
+put `/* HAKANA_IGNORE[OverlyBroadReturnType] */` on the line above the function
+(or above its return type): the fix leaves suppressed return types alone, in
+test code too.
+
 ## Unused parts of function signatures
 
 With unused-definition analysis enabled, allow `UnusedReturnValue` to report

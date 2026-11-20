@@ -12,7 +12,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::stmt_analyzer::AnalysisError;
-use crate::{cyclomatic_complexity_analyzer, expression_analyzer};
+use crate::{cyclomatic_complexity_analyzer, expression_analyzer, return_type_specificity};
 use crate::{file_analyzer::FileAnalyzer, function_analysis_data::FunctionAnalysisData};
 use hakana_code_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_code_info::classlike_info::ClassLikeInfo;
@@ -131,6 +131,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             function_storage,
             BlockContext::new(function_context),
             stmt.fun.params,
+            &stmt.fun.ret,
             stmt.fun.body.fb_ast.0,
             analysis_result,
             None,
@@ -200,6 +201,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &lambda_storage,
             context,
             stmt.params,
+            &stmt.ret,
             stmt.body.fb_ast.0,
             analysis_result,
             Some(analysis_data),
@@ -369,6 +371,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             functionlike_storage,
             context,
             stmt.params,
+            &stmt.ret,
             stmt.body.fb_ast.0,
             analysis_result,
             None,
@@ -482,6 +485,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         functionlike_storage: &FunctionLikeInfo,
         mut context: BlockContext,
         params: &[aast::FunParam],
+        return_hint: &aast::TypeHint,
         fb_ast: &[aast::Stmt],
         analysis_result: &mut AnalysisResult,
         parent_analysis_data: Option<&mut FunctionAnalysisData>,
@@ -659,10 +663,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         //let start_t = std::time::Instant::now();
 
-        if let Err(AnalysisError::InternalError(error, pos)) =
-            statements_analyzer.analyze(fb_ast, &mut analysis_data, &mut context, &mut None)
-        {
-            return Err(AnalysisError::InternalError(error, pos));
+        match statements_analyzer.analyze(fb_ast, &mut analysis_data, &mut context, &mut None) {
+            Ok(()) => {}
+            Err(AnalysisError::InternalError(error, pos)) => {
+                return Err(AnalysisError::InternalError(error, pos));
+            }
+            // The analysis of the body stopped there.
+            Err(AnalysisError::UserError) => analysis_data.has_unanalysed_code = true,
         }
 
         // let end_t = start_t.elapsed();
@@ -1000,6 +1007,14 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 }
             }
         }
+
+        return_type_specificity::check(
+            statements_analyzer,
+            functionlike_storage,
+            &context,
+            &mut analysis_data,
+            return_hint,
+        );
 
         if matches!(
             analysis_data.data_flow_graph.kind,

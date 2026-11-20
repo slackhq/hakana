@@ -106,6 +106,11 @@ pub struct FunctionAnalysisData {
     pub case_scopes: Vec<CaseScope>,
     pub issues_to_emit: Vec<Issue>,
     pub inferred_return_types: Vec<TUnion>,
+    /// Whether part of the body was not analysed, so that what it would do,
+    /// or return, is not known: a statement the analysis considers
+    /// unreachable (other than a `break`, `continue` or bare `return`), or
+    /// what follows the point where the analysis gave up.
+    pub has_unanalysed_code: bool,
     /// Unannotated closure returns retain their locations for generic bounds.
     pub closure_return_types: FxHashMap<(FilePath, u32), Vec<(TUnion, HPos)>>,
     /// Literal field locations allow deferred constraints to blame the value.
@@ -175,6 +180,7 @@ impl FunctionAnalysisData {
             case_scopes: Vec::new(),
             issues_to_emit: Vec::new(),
             inferred_return_types: Vec::new(),
+            has_unanalysed_code: false,
             closure_return_types: FxHashMap::default(),
             shape_field_positions: FxHashMap::default(),
             inferred_yield_type: None,

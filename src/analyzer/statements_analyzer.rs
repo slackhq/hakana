@@ -67,38 +67,40 @@ impl<'a> StatementsAnalyzer<'a> {
     ) -> Result<(), AnalysisError> {
         for stmt in stmts {
             if context.has_returned {
-                if self.get_config().find_unused_expressions {
-                    let is_harmless = match &stmt.1 {
-                        aast::Stmt_::Break => true,
-                        aast::Stmt_::Continue => true,
-                        aast::Stmt_::Return(boxed) => boxed.is_none(),
-                        _ => false,
-                    };
+                let is_harmless = match &stmt.1 {
+                    aast::Stmt_::Break => true,
+                    aast::Stmt_::Continue => true,
+                    aast::Stmt_::Return(boxed) => boxed.is_none(),
+                    _ => false,
+                };
 
-                    if stmt.0.line(self.lines()) > 0 {
-                        if is_harmless {
-                            analysis_data.maybe_add_issue(
-                                Issue::new(
-                                    IssueKind::UselessControlFlow,
-                                    "This control flow is unnecessary".to_string(),
-                                    self.get_hpos(&stmt.0),
-                                    &context.function_context.calling_functionlike_id,
-                                ),
-                                self.get_config(),
-                                self.get_file_path_actual(),
-                            );
-                        } else {
-                            analysis_data.maybe_add_issue(
-                                Issue::new(
-                                    IssueKind::UnevaluatedCode,
-                                    "Unused code after return/throw/continue".to_string(),
-                                    self.get_hpos(&stmt.0),
-                                    &context.function_context.calling_functionlike_id,
-                                ),
-                                self.get_config(),
-                                self.get_file_path_actual(),
-                            );
-                        }
+                if !is_harmless {
+                    analysis_data.has_unanalysed_code = true;
+                }
+
+                if self.get_config().find_unused_expressions && stmt.0.line(self.lines()) > 0 {
+                    if is_harmless {
+                        analysis_data.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::UselessControlFlow,
+                                "This control flow is unnecessary".to_string(),
+                                self.get_hpos(&stmt.0),
+                                &context.function_context.calling_functionlike_id,
+                            ),
+                            self.get_config(),
+                            self.get_file_path_actual(),
+                        );
+                    } else {
+                        analysis_data.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::UnevaluatedCode,
+                                "Unused code after return/throw/continue".to_string(),
+                                self.get_hpos(&stmt.0),
+                                &context.function_context.calling_functionlike_id,
+                            ),
+                            self.get_config(),
+                            self.get_file_path_actual(),
+                        );
                     }
                 }
             } else {

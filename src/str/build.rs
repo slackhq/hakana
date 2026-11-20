@@ -275,6 +275,7 @@ fn main() -> Result<()> {
         "Hakana\\MustUse",
         "Hakana\\NotTestOnly",
         "Hakana\\RequestHandler",
+        "Hakana\\RequireMostSpecificReturnType",
         "Hakana\\SecurityAnalysis\\IgnorePath",
         "Hakana\\SecurityAnalysis\\IgnorePathIfTrue",
         "Hakana\\SecurityAnalysis\\RemoveTaintsWhenReturningTrue",

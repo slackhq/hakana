@@ -1,0 +1,11 @@
+namespace Foo;
+
+function always_ok(): \ResultOk<int> {
+	return new \ResultOk(1);
+}
+
+final class Bar {
+	public function alwaysError(): \ResultError<mixed> {
+		return new \ResultError('nope');
+	}
+}
