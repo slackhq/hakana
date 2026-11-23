@@ -1,0 +1,59 @@
+use namespace HH\Lib\Str;
+
+final class A {
+    public string $s = '';
+    const string C = 'c';
+}
+
+function plain(string $s): bool {
+    return $s === '';
+}
+
+function negated(string $s): bool {
+    return $s !== '';
+}
+
+function negated_with_space(string $s): bool {
+    return $s !== '';
+}
+
+function in_condition(string $s, string $t): void {
+    if ($s === '' && $t !== '') {
+        echo 'a';
+    }
+    if ($s !== '' || $t === '') {
+        echo 'b';
+    }
+    invariant($s !== '', 'must not be empty');
+    $x = $s === '' ? 1 : 2;
+    $y = $x === 1 ? $t === '' : $t !== '';
+    echo $x;
+    echo $y ? 'y' : 'n';
+}
+
+function in_comparison(string $s): bool {
+    return ($s === '') === false;
+}
+
+function double_negation(string $s): bool {
+    return !($s !== '');
+}
+
+function operands(A $a, ?string $n, string $s, string $t): void {
+    $b1 = $a->s === '';
+    $b2 = A::C === '';
+    $b3 = $s.$t === '';
+    $b4 = ($n ?? '') === '';
+    $b5 = Str\trim($s) === '';
+    $b6 = ($s === 'a' ? $s : $t) === '';
+    echo $b1 ? 'a' : 'b';
+    echo $b2 ? 'a' : 'b';
+    echo $b3 ? 'a' : 'b';
+    echo $b4 ? 'a' : 'b';
+    echo $b5 ? 'a' : 'b';
+    echo $b6 ? 'a' : 'b';
+}
+
+function nullable(?string $s): bool {
+    return Str\is_empty($s);
+}

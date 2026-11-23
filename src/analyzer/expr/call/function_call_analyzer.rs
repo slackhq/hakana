@@ -313,6 +313,16 @@ pub(crate) fn analyze(
                 );
             }
         }
+        StrId::LIB_STR_IS_EMPTY => {
+            super::str_is_empty_analyzer::check(
+                statements_analyzer,
+                expr.2,
+                expr.3,
+                pos,
+                analysis_data,
+                context,
+            );
+        }
         StrId::LIB_C_IS_EMPTY => {
             let expr_var_id = expression_identifier::get_var_id(
                 expr.2[0].to_expr_ref(),
