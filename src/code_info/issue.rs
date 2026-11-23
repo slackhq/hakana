@@ -121,6 +121,7 @@ pub enum IssueKind {
     RedundantTypeComparison,
     ShadowedLoopVar,
     StrictObjectEquality,
+    StrIsEmptyCall,
     TaintedData(Box<SinkType>),
     InvalidSecurityAnnotation,
     TestOnlyCall,
@@ -168,7 +169,7 @@ pub enum IssueKind {
     VariableDefinedOutsideIf,
 }
 
-static AUTOFIXABLE_ISSUES: [IssueKind; 25] = [
+static AUTOFIXABLE_ISSUES: [IssueKind; 26] = [
     IssueKind::UnusedOptionalParameter,
     IssueKind::UnusedClass,
     IssueKind::UnusedTypeDefinition,
@@ -194,6 +195,7 @@ static AUTOFIXABLE_ISSUES: [IssueKind; 25] = [
     IssueKind::MissingIndirectServiceCallsAttribute,
     IssueKind::RedundantIssetCheck,
     IssueKind::OverlyBroadReturnType,
+    IssueKind::StrIsEmptyCall,
 ];
 
 impl IssueKind {

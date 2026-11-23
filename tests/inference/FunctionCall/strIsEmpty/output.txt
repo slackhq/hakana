@@ -1,0 +1,2 @@
+ERROR: StrIsEmptyCall - input.hack:4:12 - HH\Lib\Str\is_empty() is going away, compare the string with '' instead
+ERROR: StrIsEmptyCall - input.hack:8:12 - HH\Lib\Str\is_empty() is going away, and its argument has the nullable type ?string: decide what null means here and compare with null and '' explicitly
