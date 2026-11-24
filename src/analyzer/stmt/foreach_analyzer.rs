@@ -91,8 +91,20 @@ pub(crate) fn analyze(
             context,
         );
 
-        key_type = Some(result.0.unwrap_or(get_arraykey(true)));
-        value_type = Some(result.1.unwrap_or(get_mixed_any()));
+        // An iterator that yields `nothing` is an empty one, whatever its
+        // class: as with `vec[]`, the loop is one that does not run.
+        key_type = Some(
+            result
+                .0
+                .filter(|key_type| !key_type.is_nothing())
+                .unwrap_or(get_arraykey(true)),
+        );
+        value_type = Some(
+            result
+                .1
+                .filter(|value_type| !value_type.is_nothing())
+                .unwrap_or(get_mixed_any()),
+        );
         always_non_empty_array = result.2;
     }
 

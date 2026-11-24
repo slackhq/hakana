@@ -635,6 +635,16 @@ fn scrape_type_properties<'a>(
                     *tu = true;
                 }
             } else {
+                // The known entries become part of the key and value types.
+                // When they are all there was so far, those types start from
+                // this dict's own.
+                if combination.dict_type_params.is_none()
+                    && let Some((key_param, value_param)) = params
+                {
+                    combination.dict_type_params =
+                        Some(((**key_param).clone(), (**value_param).clone()));
+                }
+
                 for (key, (_, entry_type)) in &combination.dict_entries {
                     if let Some((ref mut existing_key_param, ref mut existing_value_param)) =
                         combination.dict_type_params

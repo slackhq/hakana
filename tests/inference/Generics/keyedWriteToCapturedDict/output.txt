@@ -1,0 +1,1 @@
+ERROR: PossiblyUndefinedStringArrayOffset - input.hack:36:12 - Fetch on dict<string, int(0)|int(1)> using possibly-undefined key 'primary'

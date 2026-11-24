@@ -1,0 +1,2 @@
+ERROR: InvalidReturnStatement - input.hack:50:12 - The type vec<nothing> does not match the declared return type int for keeps_what_the_lambda_returns
+ERROR: ImpossibleAssignment - input.hack:57:5 - This assignment is impossible

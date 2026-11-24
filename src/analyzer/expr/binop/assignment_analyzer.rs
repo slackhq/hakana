@@ -43,6 +43,7 @@ use hakana_code_info::ttype::get_literal_int;
 use hakana_code_info::ttype::get_mixed;
 use hakana_code_info::ttype::get_mixed_any;
 use hakana_code_info::ttype::get_nothing;
+use hakana_code_info::ttype::type_variable;
 use hakana_parser::aast;
 use hakana_parser::aast::Pos;
 
@@ -360,6 +361,25 @@ fn analyze_list_assignment(
     context: &mut BlockContext,
 ) {
     let codebase = statements_analyzer.codebase;
+
+    // The slots come from what the variable stands for: a tuple held by an
+    // inferred `Ref<_>` is destructured like any other. A tuple that is known
+    // keeps the variables in its slots, and with them what is learnt later.
+    let resolved_value_type;
+    let assign_value_type = if assign_value_type
+        .types
+        .iter()
+        .any(|atomic| matches!(atomic, TAtomic::TTypeVariable { .. }))
+    {
+        resolved_value_type = type_variable::resolve(
+            assign_value_type,
+            &analysis_data.type_variable_bounds,
+            codebase,
+        );
+        &resolved_value_type
+    } else {
+        assign_value_type
+    };
 
     for (offset, assign_var_item) in expressions.iter().enumerate() {
         let list_var_id = expression_identifier::get_var_id(

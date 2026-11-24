@@ -588,7 +588,9 @@ fn update_array_assignment_child_type(
                             .iter()
                             .flat_map(|bound| &bound.bound_type.types)
                             .find_map(|ty| match ty {
-                                TAtomic::TDict(dict) if dict.is_shape => {
+                                // A dict literal knows its keys just as a shape does:
+                                // the write changes one of them and leaves the rest.
+                                TAtomic::TDict(dict) if dict.known_items.is_some() => {
                                     Some(update_atomic_given_key(
                                         ty.clone(),
                                         &get_array_assignment_offset_types(&key_type),
