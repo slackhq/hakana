@@ -1,1 +1,0 @@
-ERROR: VarUsedThenRedefinedInLoop - input.hack:9:13 - Variable $a is used in loop before being redefined, which may dirty the outer value

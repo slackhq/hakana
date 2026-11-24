@@ -1,8 +1,7 @@
 use crate::config::Config;
 use crate::custom_hook::FunctionLikeParamData;
 use crate::dataflow::unused_variable_analyzer::{
-    add_unused_expression_replacements, check_variables_redefined_in_loop,
-    check_variables_scoped_incorrectly, check_variables_used,
+    add_unused_expression_replacements, check_variables_scoped_incorrectly, check_variables_used,
 };
 use crate::expr::call_analyzer::reconcile_lower_bounds_with_upper_bounds;
 use crate::expr::fetch::atomic_property_fetch_analyzer;
@@ -135,7 +134,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             stmt.fun.body.fb_ast.0,
             analysis_result,
             None,
-            false,
         )?;
         Ok(())
     }
@@ -205,7 +203,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             stmt.body.fb_ast.0,
             analysis_result,
             Some(analysis_data),
-            false,
         )?;
 
         if if let Some(existing_return_type) = &lambda_storage.return_type {
@@ -267,29 +264,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     self.file_analyzer.file_source.line_index,
                 ),
             ));
-        };
-
-        // Check for missing __Override attribute
-        let is_missing_override_attribute = if classlike_storage
-            .overridden_method_ids
-            .contains_key(&method_name)
-        {
-            let has_override_attribute = functionlike_storage
-                .attributes
-                .iter()
-                .any(|a| a.name == StrId::OVERRIDE);
-
-            let is_constructor = method_name == StrId::CONSTRUCT;
-            let is_private = if let Some(method_info) = &functionlike_storage.method_info {
-                method_info.visibility
-                    == hakana_code_info::member_visibility::MemberVisibility::Private
-            } else {
-                false
-            };
-
-            !has_override_attribute && !is_constructor && !is_private
-        } else {
-            false
         };
 
         let comments = self
@@ -375,7 +349,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             stmt.body.fb_ast.0,
             analysis_result,
             None,
-            is_missing_override_attribute,
         )?;
 
         Ok(())
@@ -489,7 +462,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         fb_ast: &[aast::Stmt],
         analysis_result: &mut AnalysisResult,
         parent_analysis_data: Option<&mut FunctionAnalysisData>,
-        is_missing_override_attribute: bool,
     ) -> Result<(Option<TUnion>, u8), AnalysisError> {
         context.inside_async = functionlike_storage.is_async;
 
@@ -579,23 +551,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
             );
-        }
-
-        // Check for missing __Override attribute
-        if is_missing_override_attribute {
-            analysis_data.maybe_add_issue(
-            Issue::new(
-                IssueKind::MissingOverrideAttribute,
-                format!(
-                    "Method {} overrides a parent method but is missing the <<__Override>> attribute",
-                    functionlike_id.to_string(self.interner)
-                ),
-                functionlike_storage.name_location.unwrap(),
-                &context.function_context.calling_functionlike_id,
-            ),
-            statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual(),
-        );
         }
 
         let mut cost = 0;
@@ -1572,47 +1527,17 @@ fn report_unused_expressions(
 ) {
     let unused_source_nodes = check_variables_used(&analysis_data.data_flow_graph);
 
-    // Check for variables defined outside if blocks but only used inside
-    let (incorrectly_scoped_nodes, async_incorrectly_scoped_nodes) =
-        check_variables_scoped_incorrectly(
-            &analysis_data.data_flow_graph,
-            &analysis_data.if_block_boundaries,
-            &analysis_data.loop_boundaries,
-            &analysis_data.for_loop_init_boundaries,
-            &analysis_data.concurrent_block_boundaries,
-            functionlike_storage.def_location,
-        );
-
-    // Check for variables used then redefined in loop
-    let redefined_in_loop_nodes = check_variables_redefined_in_loop(
+    // Check for awaited variables defined outside if blocks but only used inside
+    let async_incorrectly_scoped_nodes = check_variables_scoped_incorrectly(
         &analysis_data.data_flow_graph,
-        &analysis_data.loop_boundaries,
-        &analysis_data.variable_assignments,
         &analysis_data.if_block_boundaries,
-        statements_analyzer.interner,
+        &analysis_data.loop_boundaries,
+        &analysis_data.for_loop_init_boundaries,
+        &analysis_data.concurrent_block_boundaries,
+        functionlike_storage.def_location,
     );
 
     if functionlike_storage.is_production_code {
-        // Report incorrectly scoped variables
-        for node in &incorrectly_scoped_nodes {
-            if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::VariableDefinedOutsideIf,
-                        format!(
-                            "Variable {} is defined outside if block but only used inside",
-                            node.id.to_label(statements_analyzer.interner)
-                        ),
-                        *pos,
-                        calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-            }
-        }
-
-        // Report async incorrectly scoped variables
         for node in &async_incorrectly_scoped_nodes {
             if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
                 analysis_data.maybe_add_issue(
@@ -1620,25 +1545,6 @@ fn report_unused_expressions(
                         IssueKind::AwaitVariableDefinedOutsideIf,
                         format!(
                             "Awaited variable {} is defined outside if block but only used inside",
-                            node.id.to_label(statements_analyzer.interner)
-                        ),
-                        *pos,
-                        calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-            }
-        }
-
-        // Report variables used then redefined in loop
-        for node in &redefined_in_loop_nodes {
-            if let DataFlowNodeKind::VariableUseSource { pos, .. } = &node.kind {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::VarUsedThenRedefinedInLoop,
-                        format!(
-                            "Variable {} is used in loop before being redefined, which may dirty the outer value",
                             node.id.to_label(statements_analyzer.interner)
                         ),
                         *pos,

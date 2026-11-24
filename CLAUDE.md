@@ -239,12 +239,12 @@ When encountering type-related test failures, common patterns include:
   - Use counter-based approach: check `analysis_data.await_calls_count` before/after RHS analysis
   - `has_await_call` field tracks if assignment RHS contained await expressions
   - `has_awaitable` field tracks if assignment type is `Awaitable<T>` (for function parameters)
-- **Issue type naming**: Issue types may change names between commits (e.g., `VariableDefinedOutsideIfOnlyUsedInside` -> `VariableDefinedOutsideIf`)
+- **Issue type naming**: Issue types may change names or be removed between commits
   - Always check `src/code_info/issue.rs` for current issue type names
   - Update test output files when issue types change
 
-#### VariableDefinedOutsideIf Analysis Implementation
-The `VariableDefinedOutsideIf` and `AsyncVariableDefinedOutsideIf` checks are implemented in `check_variables_scoped_incorrectly()` in `src/analyzer/dataflow/unused_variable_analyzer.rs`.
+#### AwaitVariableDefinedOutsideIf Analysis Implementation
+The `AwaitVariableDefinedOutsideIf` check (an awaited value assigned before an `if` but only used inside it) is implemented in `check_variables_scoped_incorrectly()` in `src/analyzer/dataflow/unused_variable_analyzer.rs`.
 
 **Key Guards Against False Positives**:
 - **Multiple if block usage**: Variables used in multiple if blocks (e.g., both if and else) are exempted via `is_used_in_multiple_if_blocks()`

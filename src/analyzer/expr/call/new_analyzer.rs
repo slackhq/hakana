@@ -111,6 +111,12 @@ pub(crate) fn analyze(
 
     let mut can_extend = false;
 
+    // `new $obj(...)` makes another instance of the object's class, which is never abstract
+    let lhs_is_instance_expr = matches!(
+        &expr.0.2,
+        aast::ClassId_::CIexpr(lhs_expr) if !matches!(lhs_expr.2, aast::Expr_::Id(_))
+    );
+
     let lhs_type = match &expr.0.2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
@@ -166,7 +172,8 @@ pub(crate) fn analyze(
             analysis_data,
             context,
             lhs_type_part,
-            can_extend,
+            can_extend
+                || (lhs_is_instance_expr && matches!(lhs_type_part, TAtomic::TNamedObject(_))),
             &mut result,
         )?;
     }

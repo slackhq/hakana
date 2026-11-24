@@ -1,0 +1,4 @@
+ERROR: UnusedPublicOrProtectedProperty - input.hack:15:26 - Unused public or protected property UrgentEmail::$never_read
+ERROR: UnusedPublicOrProtectedProperty - input.hack:20:24 - Unused public or protected property BaseLinter::$never_read
+ERROR: UnusedPublicOrProtectedProperty - input.hack:35:74 - Unused public or protected property SetupRequest::$never_read
+ERROR: UnusedPublicOrProtectedProperty - input.hack:50:34 - Unused public or protected property Conjunction::$never_read

@@ -1,0 +1,1 @@
+ERROR: FalsableReturnStatement - input.hack:6:12 - The declared return type ?int for find_position is not falsable, but the function returns false|int|null

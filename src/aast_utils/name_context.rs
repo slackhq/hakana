@@ -196,7 +196,14 @@ impl NameContext<'_> {
             | "__ReturnDisposable"
             | "__Sealed"
             | "__Soft"
-            | "__CLASS__" => {
+            // pseudoconstants are never namespaced
+            | "__CLASS__"
+            | "__COMPILER_FRONTEND__"
+            | "__FUNCTION_CREDENTIAL__"
+            | "__LINE__"
+            | "__METHOD__"
+            | "__NAMESPACE__"
+            | "__TRAIT__" => {
                 return interner.intern_str(name);
             }
             _ => {}

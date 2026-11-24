@@ -896,6 +896,30 @@ pub fn is_contained_by(
                 atomic_comparison_result,
             );
         }
+
+        // An alias that was never expanded, such as the one an enum is declared `as`
+        if let Some(type_definition) = codebase.type_definitions.get(input_name)
+            && type_definition.template_types.is_empty()
+        {
+            let aliased_type = if type_definition.newtype_file.is_some() {
+                type_definition.as_type.as_ref()
+            } else {
+                Some(&type_definition.actual_type)
+            };
+
+            if let Some(aliased_type) = aliased_type {
+                return aliased_type.types.iter().all(|aliased_atomic| {
+                    is_contained_by(
+                        codebase,
+                        file_path,
+                        aliased_atomic,
+                        container_type_part,
+                        inside_assertion,
+                        atomic_comparison_result,
+                    )
+                });
+            }
+        }
     }
 
     false

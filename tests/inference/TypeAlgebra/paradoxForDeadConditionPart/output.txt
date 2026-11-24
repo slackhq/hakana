@@ -1,0 +1,5 @@
+ERROR: ParadoxicalCondition - input.hack:6:9 - Condition (($a) && ($b)) contradicts a previously-established condition ((!$a) || (!$b))
+ERROR: ImpossibleTruthinessCheck - input.hack:6:16 - Type false is never truthy
+ERROR: ParadoxicalCondition - input.hack:18:9 - Condition (($a) && ($b)) contradicts a previously-established condition ((!$a) || (!$b))
+ERROR: ImpossibleTruthinessCheck - input.hack:18:9 - Type false is never truthy
+ERROR: ImpossibleTruthinessCheck - input.hack:18:15 - Type false is never truthy

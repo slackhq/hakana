@@ -1,0 +1,1 @@
+ERROR: InvalidReturnStatement - input.hack:22:12 - The type OrderBy does not match the declared return type int for as_int

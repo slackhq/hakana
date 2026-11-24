@@ -1,0 +1,1 @@
+ERROR: NonExistentType - input.hack:22:12 - Unknown class Unknown

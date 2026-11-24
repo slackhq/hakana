@@ -249,6 +249,10 @@ fn is_unaffected(union: &TUnion) -> bool {
         return false;
     };
 
+    is_atomic_unaffected(atomic)
+}
+
+fn is_atomic_unaffected(atomic: &TAtomic) -> bool {
     match atomic {
         TAtomic::TGenericParam(..)
         | TAtomic::TGenericClassname { .. }
@@ -286,6 +290,9 @@ fn is_unaffected(union: &TUnion) -> bool {
             ..
         } => type_params.iter().all(is_unaffected),
         TAtomic::TAwaitable { value, .. } => is_unaffected(value),
+        TAtomic::TClassname { as_type }
+        | TAtomic::TClassPtr { as_type }
+        | TAtomic::TTypename { as_type } => is_atomic_unaffected(as_type),
         // rare enough to leave to the walk itself
         TAtomic::TClosure(..) => false,
         _ => true,
@@ -434,6 +441,15 @@ fn replace_atomic(
         } => {
             for type_param in type_params {
                 replace_in_place(type_param, template_result, codebase);
+            }
+        }
+        // `classname<Foo<T>>` – what a generic alias such as `HH\enumname<T>` stands for
+        TAtomic::TClassname { ref mut as_type }
+        | TAtomic::TClassPtr { ref mut as_type }
+        | TAtomic::TTypename { ref mut as_type } => {
+            if !is_atomic_unaffected(as_type) {
+                let inner = std::mem::replace(&mut **as_type, TAtomic::TObject);
+                **as_type = replace_atomic(inner, template_result, codebase);
             }
         }
         _ => (),

@@ -112,19 +112,6 @@ pub(crate) fn analyze(
 
         if let Some(mut inferred_return_type) = analysis_data.get_expr_type(&return_expr.1).cloned()
         {
-            if inferred_return_type.is_nothing() {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::NothingReturn,
-                        "This function call evaluates to nothing — likely calling a noreturn function"
-                            .to_string(),
-                        statements_analyzer.get_hpos(&return_expr.1),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(), statements_analyzer.get_file_path_actual()
-                );
-            }
-
             if inferred_return_type.is_void() {
                 inferred_return_type = get_null();
             }
@@ -573,6 +560,8 @@ pub(crate) fn analyze(
             // todo at some point in the future all notions of falsability can be removed
             if inferred_return_type.is_falsable()
                 && !expected_return_type.is_falsable()
+                // `?bool` takes a false without being "falsable"
+                && !expected_return_type.has_bool()
                 && !expected_return_type.has_template()
                 && (!inferred_return_type.ignore_falsable_issues
                     || statements_analyzer.get_config().strict_falsable_types)

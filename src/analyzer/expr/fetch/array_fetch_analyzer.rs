@@ -695,19 +695,20 @@ pub(crate) fn handle_array_access_on_vec(
 ) -> TUnion {
     let codebase = statements_analyzer.codebase;
 
-    let mut union_comparison_result = TypeComparisonResult::new();
-    let offset_type_contained_by_expected = union_type_comparator::is_contained_by(
-        codebase,
-        statements_analyzer.get_file_path(),
-        &dim_type,
-        &get_int(),
-        false,
-        false,
-        false,
-        &mut union_comparison_result,
-    );
+    let expected_offset_type = match &vec {
+        // a keyset is keyed by its own values
+        TAtomic::TKeyset { type_param, .. } => {
+            // `$keyset[] = $value` arrives here with an int offset
+            if in_assignment || context.inside_isset || context.inside_unset {
+                get_arraykey(false)
+            } else {
+                (**type_param).clone()
+            }
+        }
+        _ => get_int(),
+    };
 
-    if offset_type_contained_by_expected {
+    if can_offset_match_expected(statements_analyzer, &dim_type, &expected_offset_type) {
         *has_valid_expected_offset = true;
     }
 
@@ -788,6 +789,37 @@ pub(crate) fn handle_array_access_on_vec(
     get_nothing()
 }
 
+/// Whether an offset of this type can be one of the container's keys. The
+/// offset need not be as narrow as the key type (`dict<MyEnum, _>` read with
+/// an `int`, `keyset<non-empty-string>` with a `string`): only an offset that
+/// can never be a key is invalid.
+fn can_offset_match_expected(
+    statements_analyzer: &StatementsAnalyzer,
+    offset_type: &TUnion,
+    expected_offset_type: &TUnion,
+) -> bool {
+    let codebase = statements_analyzer.codebase;
+    let file_path = statements_analyzer.get_file_path();
+
+    union_type_comparator::is_contained_by(
+        codebase,
+        file_path,
+        offset_type,
+        expected_offset_type,
+        false,
+        false,
+        false,
+        &mut TypeComparisonResult::new(),
+    ) || (!offset_type.is_mixed()
+        && union_type_comparator::can_expression_types_be_identical(
+            codebase,
+            file_path,
+            offset_type,
+            expected_offset_type,
+            false,
+        ))
+}
+
 // Handle array access on dict-like collections
 pub(crate) fn handle_array_access_on_dict(
     statements_analyzer: &StatementsAnalyzer,
@@ -804,7 +836,7 @@ pub(crate) fn handle_array_access_on_dict(
 ) -> TUnion {
     let codebase = statements_analyzer.codebase;
 
-    let key_param = if in_assignment || context.inside_isset {
+    let key_param = if in_assignment || context.inside_isset || context.inside_unset {
         get_arraykey(false)
     } else if let Some(params) = &dict.params {
         (*params.0).clone()
@@ -812,19 +844,7 @@ pub(crate) fn handle_array_access_on_dict(
         get_nothing()
     };
 
-    let mut union_comparison_result = TypeComparisonResult::new();
-    let offset_type_contained_by_expected = union_type_comparator::is_contained_by(
-        codebase,
-        statements_analyzer.get_file_path(),
-        dim_type,
-        &key_param,
-        false,
-        false,
-        false,
-        &mut union_comparison_result,
-    );
-
-    if offset_type_contained_by_expected {
+    if can_offset_match_expected(statements_analyzer, dim_type, &key_param) {
         *has_valid_expected_offset = true;
     }
 

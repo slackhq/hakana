@@ -1,1 +1,0 @@
-ERROR: MissingOverrideAttribute - input.hack:2:21 - Method C::foo overrides a parent method but is missing the <<__Override>> attribute

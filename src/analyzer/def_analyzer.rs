@@ -128,17 +128,8 @@ pub(crate) fn analyze(
         aast::Def::FileAttributes(_) => {
             // not sure
         }
-        aast::Def::Module(boxed) => {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::UnrecognizedStatement,
-                    "Unrecognized statement".to_string(),
-                    statements_analyzer.get_hpos(&boxed.span),
-                    &None,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
+        aast::Def::Module(_) => {
+            // a module declaration has nothing to analyse
         }
         aast::Def::ClassAlias(boxed) => {
             analysis_data.maybe_add_issue(
@@ -152,17 +143,8 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual(),
             );
         }
-        aast::Def::SetModule(boxed) => {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::UnrecognizedStatement,
-                    "Unrecognized statement".to_string(),
-                    statements_analyzer.get_hpos(boxed.pos()),
-                    &None,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
+        aast::Def::SetModule(_) => {
+            // `module foo;` – module membership is not something Hakana checks
         }
     }
 

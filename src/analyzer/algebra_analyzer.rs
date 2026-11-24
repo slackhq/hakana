@@ -74,85 +74,118 @@ pub(crate) fn check_for_paradox(
         formula_2_hashes.insert(formula_2_clause);
     }
 
-    for negated_clause_2 in &negated_formula_2 {
-        if !negated_clause_2.reconcilable || negated_clause_2.wedge {
+    // Each clause of the negated condition is the negation of one way the condition can hold,
+    // so a clause that follows from what is already known rules that way out.
+    let contradicted_clauses = negated_formula_2
+        .iter()
+        .map(|negated_clause_2| {
+            if !negated_clause_2.reconcilable || negated_clause_2.wedge {
+                return None;
+            }
+
+            formula_1
+                .iter()
+                .find(|clause_1| contains_possibilities_of(negated_clause_2, clause_1))
+        })
+        .collect::<Vec<_>>();
+
+    for (negated_clause_2, clause_1) in negated_formula_2.iter().zip(&contradicted_clauses) {
+        let Some(clause_1) = clause_1 else {
+            continue;
+        };
+
+        // The condition may hold in other ways, and those can use the same parts:
+        // `($a is A || $a is B) && ($b is A || $b is B)` has nothing to remove after
+        // `$a is B && $b is B` was ruled out. Only a part that no other way uses is a paradox.
+        let has_part_of_no_other_way =
+            negated_clause_2
+                .possibilities
+                .iter()
+                .any(|(key, possibilities)| {
+                    possibilities.keys().any(|assertion_hash| {
+                        !negated_formula_2.iter().zip(&contradicted_clauses).any(
+                            |(other_clause, other_clause_1)| {
+                                other_clause_1.is_none()
+                                    && other_clause
+                                        .possibilities
+                                        .get(key)
+                                        .is_some_and(|p| p.contains_key(assertion_hash))
+                            },
+                        )
+                    })
+                });
+
+        if !has_part_of_no_other_way {
             continue;
         }
 
-        for clause_1 in formula_1 {
-            if !clause_1.reconcilable || clause_1.wedge {
-                continue;
-            }
+        let mini_formula_2 = hakana_algebra::negate_formula(vec![negated_clause_2.clone()]);
 
-            let mut negated_clause_2_contains_1_possibilities = true;
-
-            'outer: for (key, clause_1_possibilities) in &clause_1.possibilities {
-                if let Some(clause_2_possibilities) = negated_clause_2.possibilities.get(key) {
-                    if clause_2_possibilities != clause_1_possibilities {
-                        negated_clause_2_contains_1_possibilities = false;
-                        break;
-                    }
+        if let Ok(mini_formula_2) = mini_formula_2 {
+            let mut paradox_message = String::new();
+            if !mini_formula_2.first().unwrap().wedge {
+                paradox_message += "Condition (";
+                if mini_formula_2.len() > 1 {
+                    paradox_message += "(";
+                    paradox_message += mini_formula_2
+                        .iter()
+                        .map(|c| c.to_string(statements_analyzer.interner))
+                        .collect::<Vec<String>>()
+                        .join(") && (")
+                        .as_str();
+                    paradox_message += ")"
                 } else {
-                    negated_clause_2_contains_1_possibilities = false;
-                    break;
+                    paradox_message += mini_formula_2
+                        .first()
+                        .unwrap()
+                        .to_string(statements_analyzer.interner)
+                        .as_str();
                 }
-
-                for (_, possibility) in clause_1_possibilities {
-                    if let Assertion::InArray(_) | Assertion::NotInArray(_) = possibility {
-                        negated_clause_2_contains_1_possibilities = false;
-                        break 'outer;
-                    }
-                }
+            } else {
+                paradox_message += "Condition not (";
+                paradox_message += negated_clause_2
+                    .to_string(statements_analyzer.interner)
+                    .as_str();
             }
 
-            if negated_clause_2_contains_1_possibilities {
-                let mini_formula_2 = hakana_algebra::negate_formula(vec![negated_clause_2.clone()]);
+            paradox_message += ") contradicts a previously-established condition (";
+            paradox_message += clause_1.to_string(statements_analyzer.interner).as_str();
+            paradox_message += ")";
 
-                if let Ok(mini_formula_2) = mini_formula_2 {
-                    let mut paradox_message = String::new();
-                    if !mini_formula_2.first().unwrap().wedge {
-                        paradox_message += "Condition (";
-                        if mini_formula_2.len() > 1 {
-                            paradox_message += "(";
-                            paradox_message += mini_formula_2
-                                .iter()
-                                .map(|c| c.to_string(statements_analyzer.interner))
-                                .collect::<Vec<String>>()
-                                .join(") && (")
-                                .as_str();
-                            paradox_message += ")"
-                        } else {
-                            paradox_message += mini_formula_2
-                                .first()
-                                .unwrap()
-                                .to_string(statements_analyzer.interner)
-                                .as_str();
-                        }
-                    } else {
-                        paradox_message += "Condition not (";
-                        paradox_message += negated_clause_2
-                            .to_string(statements_analyzer.interner)
-                            .as_str();
-                    }
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::ParadoxicalCondition,
+                    paradox_message,
+                    statements_analyzer.get_hpos(pos),
+                    calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
 
-                    paradox_message += ") contradicts a previously-established condition (";
-                    paradox_message += clause_1.to_string(statements_analyzer.interner).as_str();
-                    paradox_message += ")";
-
-                    analysis_data.maybe_add_issue(
-                        Issue::new(
-                            IssueKind::ParadoxicalCondition,
-                            paradox_message,
-                            statements_analyzer.get_hpos(pos),
-                            calling_functionlike_id,
-                        ),
-                        statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual(),
-                    );
-
-                    return;
-                }
-            }
+            return;
         }
     }
+}
+
+/// Whether everything `clause_1` allows is also allowed by `negated_clause_2`
+fn contains_possibilities_of(negated_clause_2: &Clause, clause_1: &Clause) -> bool {
+    if !clause_1.reconcilable || clause_1.wedge {
+        return false;
+    }
+
+    for (key, clause_1_possibilities) in &clause_1.possibilities {
+        if negated_clause_2.possibilities.get(key) != Some(clause_1_possibilities) {
+            return false;
+        }
+
+        if clause_1_possibilities
+            .values()
+            .any(|p| matches!(p, Assertion::InArray(_) | Assertion::NotInArray(_)))
+        {
+            return false;
+        }
+    }
+
+    true
 }

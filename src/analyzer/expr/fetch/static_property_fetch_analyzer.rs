@@ -165,6 +165,20 @@ pub(crate) fn analyze(
             false,
         );
 
+    // `static::$prop` in a class that inherits the property reads the inherited one
+    if let Some(declaring_property_class) =
+        codebase.get_declaring_class_for_property(&property_id.0, &property_id.1)
+        && declaring_property_class != property_id.0
+    {
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(
+                &context.function_context,
+                (declaring_property_class, property_id.1),
+                false,
+            );
+    }
+
     // Track member definition location for go-to-definition support
     if statements_analyzer
         .get_config()
@@ -311,6 +325,15 @@ fn analyze_variable_static_property_fetch(
     // Extract classlike name from the expression type
     let classlike_name = stmt_class_type.types.iter().find_map(|t| match t {
         TAtomic::TNamedObject(TNamedObject { name, .. }) => Some(*name),
+        // `$class::$prop`, where `$class` is a `class<Foo>` or a `classname<Foo>`
+        TAtomic::TClassname { as_type }
+        | TAtomic::TClassPtr { as_type }
+        | TAtomic::TGenericClassname { as_type, .. }
+        | TAtomic::TGenericClassPtr { as_type, .. } => match &**as_type {
+            TAtomic::TNamedObject(TNamedObject { name, .. }) => Some(*name),
+            _ => None,
+        },
+        TAtomic::TLiteralClassname { name } | TAtomic::TLiteralClassPtr { name } => Some(*name),
         _ => None,
     });
 

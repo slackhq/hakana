@@ -19,7 +19,6 @@ pub enum IssueKind {
     AbstractInstantiation,
     AwaitInSyncContext,
     BannedFunction,
-    CloneInsideLoop,
     CustomIssue(Box<String>),
     DuplicateClassDefinition,
     DuplicateConstantDefinition,
@@ -63,7 +62,6 @@ pub enum IssueKind {
     MissingFinalOrAbstract,
     MissingIndirectServiceCallsAttribute,
     MissingInoutToken,
-    MissingOverrideAttribute,
     MissingRequiredNamedArgument,
     MissingRequiredXhpAttribute,
     MixedAnyArgument,
@@ -95,7 +93,6 @@ pub enum IssueKind {
     NonExistentType,
     NonExistentXhpAttribute,
     NonEnumSwitchValue,
-    NothingReturn,
     NoValue,
     NullablePropertyAssignment,
     NullableReturnStatement,
@@ -164,9 +161,7 @@ pub enum IssueKind {
     UpcastAwaitable,
     UselessControlFlow,
     UselessDefaultCase,
-    VarUsedThenRedefinedInLoop,
     AwaitVariableDefinedOutsideIf,
-    VariableDefinedOutsideIf,
 }
 
 static AUTOFIXABLE_ISSUES: [IssueKind; 26] = [
@@ -277,7 +272,6 @@ impl IssueKind {
                 | Self::UnusedClosureParameter
                 | Self::UnusedPipeVariable
                 | Self::AwaitVariableDefinedOutsideIf
-                | Self::VariableDefinedOutsideIf
         )
     }
 

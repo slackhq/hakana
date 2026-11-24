@@ -187,6 +187,36 @@ pub(crate) fn analyze(
         }
     };
 
+    // `T::class` on a reified type parameter
+    if const_name == "class"
+        && let Some((_, defining_entities)) = statements_analyzer
+            .get_type_resolution_context()
+            .template_type_map
+            .iter()
+            .find(|(n, _)| *n == classlike_name)
+        && let Some((defining_entity, as_type)) = defining_entities.first()
+    {
+        let mut nonnull_as_types = as_type
+            .types
+            .iter()
+            .filter(|atomic| !matches!(atomic, TAtomic::TNull));
+        let classname_as_type = match (nonnull_as_types.next(), nonnull_as_types.next()) {
+            (Some(atomic), None) => atomic.clone(),
+            _ => TAtomic::TObject,
+        };
+
+        analysis_data.set_expr_type(
+            pos,
+            wrap_atomic(TAtomic::TGenericClassPtr {
+                param_name: classlike_name,
+                defining_entity: *defining_entity,
+                as_type: Box::new(classname_as_type),
+            }),
+        );
+
+        return Ok(());
+    }
+
     let stmt_type = analyse_known_class_constant(
         codebase,
         analysis_data,

@@ -178,31 +178,6 @@ pub(crate) fn analyze<'ast>(
         context.inside_general_use = false;
     }
 
-    // Track regular assignments (not compound assignments like +=, .=, etc)
-    // Also exclude assignments that are part of unary operations (++, --)
-    if let aast::Expr_::Lvar(_) = &assign_var.2
-        && binop.is_none()
-        && !context.inside_assignment_op
-        && let Some(var_id) = &var_id
-    {
-        if context.inside_loop && context.for_loop_init_bounds.0 > 0 {
-            // do nothing, for loop assignment
-        } else {
-            analysis_data
-                .variable_assignments
-                .entry(var_id.clone())
-                .or_default()
-                .insert((
-                    assign_var.pos().start_offset() as u32,
-                    if let Some(e) = expr.2 {
-                        e.pos().end_offset() as u32
-                    } else {
-                        assign_var.pos().end_offset() as u32
-                    },
-                ));
-        }
-    }
-
     let assign_value_type = if let Some(assign_value_type) = assign_value_type {
         assign_value_type.clone()
     } else if let Some(assign_value) = assign_value {
@@ -220,37 +195,6 @@ pub(crate) fn analyze<'ast>(
     if let (Some(var_id), Some(existing_var_type), None) = (&var_id, &existing_var_type, binop) {
         if context.inside_loop
             && !context.inside_assignment_op
-            && let Some(assign_value) = assign_value
-            && let aast::Expr_::Clone(cloned_expr) = &assign_value.2
-            && let aast::Expr_::Lvar(cloned_var) = &cloned_expr.2
-            && cloned_var.name() == var_id
-        {
-            let mut origin_node_ids = vec![];
-
-            for parent_node in &existing_var_type.parent_nodes {
-                origin_node_ids.extend(analysis_data.data_flow_graph.get_origin_node_ids(
-                    &parent_node.id,
-                    &[],
-                    false,
-                ));
-            }
-
-            if origin_node_ids.len() > 1 {
-                analysis_data.maybe_add_issue(
-                                    Issue::new(
-                                        IssueKind::CloneInsideLoop,
-                                        format!("Overwriting an object {} outside the loop with a clone likely not intended", var_id),
-                                        statements_analyzer.get_hpos(pos),
-                                        &context.function_context.calling_functionlike_id,
-                                    ),
-                                    statements_analyzer.get_config(),
-                                    statements_analyzer.get_file_path_actual(),
-                                )
-            }
-        }
-
-        if context.inside_loop
-            && !context.inside_assignment_op
             && context.for_loop_init_bounds.0 > 0
             && var_id != "$_"
         {
@@ -263,12 +207,6 @@ pub(crate) fn analyze<'ast>(
                     false,
                 ));
             }
-
-            if let Some(assign_value) = assign_value
-                && let aast::Expr_::Clone(cloned_expr) = &assign_value.2
-                && let aast::Expr_::Lvar(cloned_var) = &cloned_expr.2
-                && cloned_var.name() == var_id
-            {}
 
             origin_node_ids.retain(|id| {
                 if let Some(node) = analysis_data.data_flow_graph.get_node(id) {
@@ -434,22 +372,6 @@ fn analyze_list_assignment(
         let list_var_id_str = list_var_id.unwrap_or("".to_string());
         if list_var_id_str == "$_" {
             continue;
-        }
-
-        // Track list assignments
-        if !list_var_id_str.is_empty() {
-            analysis_data
-                .variable_assignments
-                .entry(list_var_id_str.clone())
-                .or_default()
-                .insert((
-                    assign_var_item.pos().start_offset() as u32,
-                    if let Some(e) = source_expr {
-                        e.pos().end_offset() as u32
-                    } else {
-                        assign_var_item.pos().end_offset() as u32
-                    },
-                ));
         }
 
         let mut value_type = get_nothing();

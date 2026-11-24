@@ -9,7 +9,7 @@ use hakana_code_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_code_info::functionlike_info::FunctionLikeInfo;
 use hakana_code_info::issue::{Issue, IssueKind};
 use hakana_code_info::member_visibility::MemberVisibility;
-use hakana_code_info::property_info::PropertyKind;
+use hakana_code_info::property_info::{PropertyInfo, PropertyKind};
 use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -522,6 +522,13 @@ pub(crate) fn find_unused_definitions(
 
                     if !referenced_symbols_and_members.contains(&pair)
                         && !referenced_overridden_class_members.contains(&pair)
+                        && !is_property_referenced_in_ancestor(
+                            classlike_info,
+                            property_name_ptr,
+                            property_storage,
+                            codebase,
+                            &referenced_symbols_and_members,
+                        )
                     {
                         if let Some(suppressed_issues) = &property_storage.suppressed_issues
                             && suppressed_issues.contains_key(&IssueKind::UnusedPrivateProperty)
@@ -807,6 +814,43 @@ fn add_testonly_issue(
             .or_default()
             .push(issue);
     }
+}
+
+/// A property that redeclares an ancestor's is read wherever the ancestor's
+/// is: `$this->title` in the parent class sees the child's value. The ancestor
+/// may have the property from a trait, which is then where it is read.
+fn is_property_referenced_in_ancestor(
+    classlike_info: &ClassLikeInfo,
+    property_name_ptr: &StrId,
+    property_storage: &PropertyInfo,
+    codebase: &CodebaseInfo,
+    referenced_symbols_and_members: &FxHashSet<(StrId, StrId)>,
+) -> bool {
+    if matches!(property_storage.visibility, MemberVisibility::Private) {
+        return false;
+    }
+
+    classlike_info
+        .all_parent_classes
+        .iter()
+        .any(|parent_classlike| {
+            let Some(declaring_classlike) = codebase
+                .classlike_infos
+                .get(parent_classlike)
+                .and_then(|parent_info| parent_info.declaring_property_ids.get(property_name_ptr))
+            else {
+                return false;
+            };
+
+            referenced_symbols_and_members.contains(&(*declaring_classlike, *property_name_ptr))
+                && codebase
+                    .classlike_infos
+                    .get(declaring_classlike)
+                    .and_then(|declaring_info| declaring_info.properties.get(property_name_ptr))
+                    .is_some_and(|parent_property| {
+                        !matches!(parent_property.visibility, MemberVisibility::Private)
+                    })
+        })
 }
 
 fn is_method_referenced_somewhere_else(

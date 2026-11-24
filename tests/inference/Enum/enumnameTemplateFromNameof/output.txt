@@ -1,0 +1,1 @@
+ERROR: InvalidReturnStatement - input.hack:32:12 - The type Suit does not match the declared return type int for wrong_type

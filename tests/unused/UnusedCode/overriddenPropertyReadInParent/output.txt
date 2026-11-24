@@ -1,0 +1,2 @@
+ERROR: UnusedPublicOrProtectedProperty - input.hack:4:22 - Unused public or protected property Page::$never_read
+ERROR: UnusedPublicOrProtectedProperty - input.hack:14:22 - Unused public or protected property HomePage::$never_read

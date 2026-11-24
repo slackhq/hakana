@@ -156,7 +156,6 @@ pub struct FunctionAnalysisData {
     pub for_loop_init_boundaries: Vec<(u32, u32)>,
     pub concurrent_block_boundaries: Vec<(u32, u32)>,
     pub definition_locations: FxHashMap<(u32, u32), (StrId, StrId)>,
-    pub variable_assignments: FxHashMap<String, FxHashSet<(u32, u32)>>,
 }
 
 impl FunctionAnalysisData {
@@ -233,7 +232,6 @@ impl FunctionAnalysisData {
             for_loop_init_boundaries: Vec::new(),
             concurrent_block_boundaries: Vec::new(),
             definition_locations: FxHashMap::default(),
-            variable_assignments: FxHashMap::default(),
         }
     }
 

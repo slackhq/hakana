@@ -13,7 +13,6 @@ use hakana_parser::aast_visitor::AstParams;
 use hakana_parser::aast_visitor::Node;
 use hakana_parser::aast_visitor::Visitor;
 use hakana_parser::aast_visitor::visit;
-use hakana_str::Interner;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -93,206 +92,6 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> (Vec<DataFlowNode>, Vec<Da
     (unused_nodes, unused_but_referenced_nodes)
 }
 
-fn get_nearest_if_block(offset: u32, if_block_boundaries: &[(u32, u32)]) -> Option<(u32, u32)> {
-    if_block_boundaries
-        .iter()
-        .enumerate()
-        .filter(|(_, (start, end))| offset >= *start && offset <= *end)
-        .min_by_key(|(_, (start, end))| end - start)
-        .map(|k| *k.1)
-}
-
-fn are_in_same_control_scope(
-    offset1: u32,
-    offset2: u32,
-    if_block_boundaries: &[(u32, u32)],
-) -> bool {
-    let block1 = get_nearest_if_block(offset1, if_block_boundaries);
-    let block2 = get_nearest_if_block(offset2, if_block_boundaries);
-
-    match (block1, block2) {
-        (Some(block1), Some(block2)) => block1 == block2,
-        (None, None) => false,
-        _ => false,
-    }
-}
-
-pub fn check_variables_redefined_in_loop(
-    graph: &DataFlowGraph,
-    loop_boundaries: &[(u32, u32, u32)],
-    variable_assignments: &FxHashMap<String, FxHashSet<(u32, u32)>>,
-    if_block_boundaries: &[(u32, u32)],
-    _interner: &Interner,
-) -> Vec<DataFlowNode> {
-    // Early exits for common cases
-    if loop_boundaries.is_empty() || variable_assignments.is_empty() {
-        return Vec::new();
-    }
-
-    // Filter to only variables with multiple assignments (potential redefinitions)
-    let multi_assignment_vars: FxHashMap<&String, &FxHashSet<(u32, u32)>> = variable_assignments
-        .iter()
-        .filter(|(_, offsets)| offsets.len() > 1)
-        .collect();
-
-    if multi_assignment_vars.is_empty() {
-        return Vec::new();
-    }
-
-    // println!("printing variable map");
-
-    // for (from_id, to) in &graph.forward_edges {
-    //     for (to_id, _) in to {
-    //         println!(
-    //             "{} -> {}",
-    //             from_id.to_string(_interner),
-    //             to_id.to_string(_interner)
-    //         );
-    //     }
-    // }
-
-    // println!("{:#?}", multi_assignment_vars);
-
-    // Build a reverse index: offset -> source node for quick lookup
-    let mut offset_to_source: FxHashMap<u32, &DataFlowNode> = FxHashMap::default();
-    for source_node in graph.sources.values() {
-        if let (DataFlowNodeKind::VariableUseSource { pos, .. }, DataFlowNodeId::Var(..)) =
-            (&source_node.kind, &source_node.id)
-        {
-            offset_to_source.insert(pos.start_offset, source_node);
-        }
-    }
-
-    let mut redefined_nodes = Vec::new();
-
-    // For each variable with multiple assignments
-    for (_, assignment_offsets) in multi_assignment_vars {
-        // For each loop
-        for &(loop_start, loop_end, loop_init_end) in loop_boundaries {
-            // Partition assignments into inside/outside loop
-            let (mut assignments_inside, assignments_outside): (Vec<(u32, u32)>, Vec<(u32, u32)>) =
-                assignment_offsets
-                    .iter()
-                    .partition(|&&offset| offset.0 >= loop_start && offset.0 <= loop_end);
-
-            assignments_inside.retain(|offset| {
-                if offset.0 < loop_init_end {
-                    return false;
-                }
-
-                let Some(nearest_if_block) = get_nearest_if_block(offset.0, if_block_boundaries)
-                else {
-                    return false;
-                };
-
-                nearest_if_block.0 > loop_start
-            });
-
-            // Skip if no assignments on both sides of the loop boundary
-            if assignments_inside.is_empty() || assignments_outside.is_empty() {
-                continue;
-            }
-
-            // Here we want to iterate over each inside source, getting its variable usages,
-            // and see if any of them have backward edges from both the outside _and_ inside sources
-            // (limiting to usages above the inside source declaration),
-            // and if so we penalise the inside source below.
-
-            for inside_offset in &assignments_inside {
-                let Some(inside_source) = offset_to_source.get(&inside_offset.0) else {
-                    continue;
-                };
-
-                let Some(forward_edges) = graph.forward_edges.get(&inside_source.id) else {
-                    continue;
-                };
-
-                let forward_edges = forward_edges
-                    .iter()
-                    .filter(|(e, _)| matches!(e, DataFlowNodeId::Var(..)))
-                    .collect::<Vec<_>>();
-
-                if forward_edges.len() == 1 {
-                    continue;
-                }
-
-                let has_use_in_same_block = forward_edges.iter().any(|(e, _)| {
-                    let Some(forward_node) = graph.get_node(e) else {
-                        return false;
-                    };
-
-                    let Some(forward_node_pos) = &forward_node.get_pos() else {
-                        return false;
-                    };
-
-                    if forward_node_pos.start_offset < inside_offset.1 {
-                        return false;
-                    }
-
-                    are_in_same_control_scope(
-                        inside_offset.0,
-                        forward_node_pos.start_offset,
-                        if_block_boundaries,
-                    )
-                });
-
-                if has_use_in_same_block {
-                    let has_suspicious_assignment = forward_edges.iter().any(|(e, _)| {
-                        let Some(forward_node) = graph.get_node(e) else {
-                            return false;
-                        };
-
-                        let Some(forward_node_pos) = &forward_node.get_pos() else {
-                            return false;
-                        };
-
-                        if forward_node_pos.start_offset >= loop_start
-                            && forward_node_pos.start_offset >= loop_init_end
-                            && forward_node_pos.start_offset <= inside_offset.0
-                        {
-                            let Some(backward_edges) = graph.backward_edges.get(&forward_node.id)
-                            else {
-                                return false;
-                            };
-
-                            if backward_edges.len() == 1 {
-                                return false;
-                            }
-
-                            // println!("got here at {}", forward_node_pos.start_line);
-                            // println!("from {}-{}", var_name, inside_offset);
-
-                            backward_edges.iter().any(|e| {
-                                if e == &inside_source.id {
-                                    return false;
-                                }
-
-                                let Some(backward_node) = graph.get_node(e) else {
-                                    return false;
-                                };
-
-                                if let Some(backward_node_pos) = &backward_node.get_pos() {
-                                    backward_node_pos.start_offset < loop_start
-                                } else {
-                                    false
-                                }
-                            })
-                        } else {
-                            false
-                        }
-                    });
-
-                    if has_suspicious_assignment {
-                        redefined_nodes.push((*inside_source).clone());
-                    }
-                }
-            }
-        }
-    }
-
-    redefined_nodes
-}
-
 pub fn check_variables_scoped_incorrectly(
     graph: &DataFlowGraph,
     if_block_boundaries: &[(u32, u32)],
@@ -300,13 +99,12 @@ pub fn check_variables_scoped_incorrectly(
     for_loop_init_boundaries: &[(u32, u32)],
     concurrent_block_boundaries: &[(u32, u32)],
     function_pos: HPos,
-) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
-    let mut incorrectly_scoped = Vec::new();
+) -> Vec<DataFlowNode> {
     let mut async_incorrectly_scoped = Vec::new();
 
     // Skip if there are no if blocks to analyze
     if if_block_boundaries.is_empty() {
-        return (incorrectly_scoped, async_incorrectly_scoped);
+        return async_incorrectly_scoped;
     }
 
     let sources_by_usage = get_sources_grouped_by_usage(graph, function_pos);
@@ -381,8 +179,6 @@ pub fn check_variables_scoped_incorrectly(
 
                         if has_await_source {
                             async_incorrectly_scoped.push((*source).clone());
-                        } else {
-                            incorrectly_scoped.push((*source).clone());
                         }
                     }
                 }
@@ -390,7 +186,7 @@ pub fn check_variables_scoped_incorrectly(
         }
     }
 
-    (incorrectly_scoped, async_incorrectly_scoped)
+    async_incorrectly_scoped
 }
 
 fn get_sources_grouped_by_usage(

@@ -5,7 +5,7 @@ use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_code_info::EFFECT_READ_PROPS;
 use hakana_code_info::issue::{Issue, IssueKind};
-use hakana_code_info::t_atomic::{TAtomic, TGenericParam};
+use hakana_code_info::t_atomic::{TAtomic, TGenericParam, TNamedObject};
 use hakana_code_info::ttype::{add_union_type, get_mixed_any, get_null};
 use hakana_code_info::var_name::VarName;
 use hakana_parser::aast;
@@ -68,6 +68,17 @@ pub(crate) fn analyze(
     {
         // short circuit if the type is known in scope
         handle_scoped_property(context, analysis_data, pos, var_id);
+
+        if !in_assignment && let Some(prop_name) = &prop_name {
+            add_scoped_property_reference(
+                statements_analyzer,
+                expr.0,
+                stmt_var_id.as_deref(),
+                prop_name,
+                analysis_data,
+                context,
+            );
+        }
 
         return Ok(());
     }
@@ -178,6 +189,46 @@ pub(crate) fn analyze(
     }
 
     Ok(())
+}
+
+/// A property whose value is known in this scope is still read here. Nothing else
+/// says so for a promoted constructor parameter that the constructor itself reads.
+fn add_scoped_property_reference(
+    statements_analyzer: &StatementsAnalyzer,
+    lhs_expr: &Expr,
+    lhs_var_id: Option<&str>,
+    prop_name: &str,
+    analysis_data: &mut FunctionAnalysisData,
+    context: &BlockContext,
+) {
+    let Some(prop_name) = statements_analyzer.interner.get(prop_name) else {
+        return;
+    };
+
+    let lhs_type = lhs_var_id
+        .and_then(|lhs_var_id| context.locals.get(lhs_var_id))
+        .or_else(|| analysis_data.get_rc_expr_type(lhs_expr.pos()))
+        .cloned();
+
+    let Some(lhs_type) = lhs_type else {
+        return;
+    };
+
+    for lhs_atomic in &lhs_type.types {
+        if let TAtomic::TNamedObject(TNamedObject { name, .. }) = lhs_atomic
+            && let Some(declaring_property_class) = statements_analyzer
+                .codebase
+                .get_declaring_class_for_property(name, &prop_name)
+        {
+            analysis_data
+                .symbol_references
+                .add_reference_to_class_member(
+                    &context.function_context,
+                    (declaring_property_class, prop_name),
+                    false,
+                );
+        }
+    }
 }
 
 /**
