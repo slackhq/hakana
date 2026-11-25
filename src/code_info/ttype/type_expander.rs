@@ -963,6 +963,18 @@ fn expand_atomic(
                     .iter()
                     .any(|c| codebase.class_extends_or_implements(static_name, c))
             {
+                // The concrete class declares or inherits every type constant
+                // of the classes it extends, and its own is the narrower one:
+                // theirs have nothing to add to it.
+                if codebase
+                    .classlike_infos
+                    .get(static_name)
+                    .is_some_and(|static_info| static_info.type_constants.contains_key(member_name))
+                {
+                    classes_to_check
+                        .retain(|c| !codebase.class_extends_or_implements(static_name, c));
+                }
+
                 classes_to_check.insert(0, static_name);
             }
         }
