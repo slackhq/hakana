@@ -193,7 +193,7 @@ pub(crate) fn find_unused_definitions(
                 let issue = Issue::new(
                     IssueKind::OnlyUsedInTests,
                     format!(
-                        "Production-code function {} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> attribute",
+                        "Production-code function {} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> or <<Hakana\\OnlyUsedInTests>> attribute",
                         interner.lookup(&functionlike_name.0)
                     ),
                     *pos,
@@ -305,6 +305,7 @@ pub(crate) fn find_unused_definitions(
 
                 if classlike_info.is_production_code
                     && classlike_name != &StrId::HAKANA_TEST_ONLY
+                    && classlike_name != &StrId::HAKANA_ONLY_USED_IN_TESTS
                     && !referenced_symbols_and_members_in_production
                         .contains(&(*classlike_name, StrId::EMPTY))
                 {
@@ -314,7 +315,7 @@ pub(crate) fn find_unused_definitions(
                         let issue = Issue::new(
                             IssueKind::OnlyUsedInTests,
                             format!(
-                                "Production-code class {} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> attribute",
+                                "Production-code class {} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> or <<Hakana\\OnlyUsedInTests>> attribute",
                                 interner.lookup(classlike_name)
                             ),
                             *pos,
@@ -495,7 +496,7 @@ pub(crate) fn find_unused_definitions(
                             let issue = Issue::new(
                                 IssueKind::OnlyUsedInTests,
                                 format!(
-                                    "Production-code method {}::{} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> attribute",
+                                    "Production-code method {}::{} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> or <<Hakana\\OnlyUsedInTests>> attribute",
                                     interner.lookup(classlike_name),
                                     interner.lookup(method_name_ptr)
                                 ),

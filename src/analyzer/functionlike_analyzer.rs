@@ -734,7 +734,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if !all_expected_service_calls.is_empty() {
                 analysis_data.maybe_add_issue(
                     Issue::new(
-                        IssueKind::UnnecessaryServiceCallsAttribute,
+                        IssueKind::UnnecessaryAttribute,
                         format!("This function expects to call services ({}) but no associated calls can be found", all_expected_service_calls.iter().join(", ")),
                         functionlike_storage.name_location.unwrap_or(functionlike_storage.def_location),
                         &context.function_context.calling_functionlike_id,

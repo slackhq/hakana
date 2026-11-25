@@ -222,6 +222,14 @@ pub fn default_config_for_test(dir: &str, hooks_provider: &dyn HooksProvider) ->
         analysis_config.find_unused_expressions = true;
     } else if dir.contains("/migration-candidates/") {
         analysis_config.in_migration = true;
+        if analysis_config
+            .hooks
+            .iter()
+            .any(|hook| hook.needs_unused_definitions())
+        {
+            analysis_config.find_unused_definitions = true;
+            analysis_config.find_unused_expressions = true;
+        }
     }
 
     if dir.contains("/goto-definition/") || dir.contains("/references/") || dir.contains("/diff/") {

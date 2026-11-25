@@ -70,6 +70,13 @@ pub trait InternalHook {
         true
     }
 
+    /// Whether `migration-candidates` should report unused definitions (e.g.
+    /// `OnlyUsedInTests`) into the analysis result this hook's `get_candidates` sees,
+    /// computed the same way `analyze` does.
+    fn needs_unused_definitions(&self) -> bool {
+        false
+    }
+
     // This hook is run after analysing every top-level definition (class, function etc)
     #[allow(unused_variables)]
     fn after_def_analysis(

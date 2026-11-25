@@ -95,6 +95,7 @@ pub(crate) fn scan(
     storage.namespace_position = namespace_position;
 
     storage.is_production_code &= file_source.is_production_code;
+    storage.is_test_only_code = !file_source.is_production_code;
 
     storage.suppressed_issues = suppressed_issues;
 
@@ -663,9 +664,14 @@ pub(crate) fn scan(
             }
             StrId::HAKANA_TEST_ONLY => {
                 storage.is_production_code = false;
+                storage.is_test_only_code = true;
+            }
+            StrId::HAKANA_ONLY_USED_IN_TESTS => {
+                storage.is_production_code = false;
             }
             StrId::HAKANA_NOT_TEST_ONLY => {
                 storage.is_production_code = true;
+                storage.is_test_only_code = false;
             }
             _ => {}
         }

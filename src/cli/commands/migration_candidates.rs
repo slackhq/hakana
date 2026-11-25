@@ -184,6 +184,12 @@ fn handle_standalone(
         .collect();
 
     config.in_migration = true;
+    // Match `analyze`, which reports unused definitions with unused-expression
+    // analysis on: without it the set of reported definitions differs.
+    if config.hooks.iter().any(|h| h.needs_unused_definitions()) {
+        config.find_unused_definitions = true;
+        config.find_unused_expressions = true;
+    }
 
     if config.hooks.is_empty() {
         println!("Migration {} not recognised", migration_name);

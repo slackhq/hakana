@@ -13,7 +13,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use crate::expr::call::arguments_analyzer;
-use crate::expr::call_analyzer::{apply_effects, check_template_result};
+use crate::expr::call_analyzer::{apply_effects, check_template_result, test_only_call_issue};
 use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_analyzer};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
@@ -238,12 +238,10 @@ pub(crate) fn analyze(
         && context.function_context.is_production(codebase)
     {
         analysis_data.maybe_add_issue(
-            Issue::new(
-                IssueKind::TestOnlyCall,
-                format!(
-                    "Cannot call test-only function {} from non-test context",
-                    statements_analyzer.interner.lookup(&name)
-                ),
+            test_only_call_issue(
+                statements_analyzer.interner.lookup(&name).to_string(),
+                (!function_storage.is_test_only_code)
+                    .then(|| statements_analyzer.interner.lookup(&name).to_string()),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),

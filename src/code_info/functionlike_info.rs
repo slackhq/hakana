@@ -206,6 +206,11 @@ pub struct FunctionLikeInfo {
 
     pub is_production_code: bool,
 
+    /// Whether this was written for tests: it's in a test file, or it or its class is marked
+    /// <<Hakana\TestOnly>>. Code that isn't production code but isn't test-only code is
+    /// production code marked <<Hakana\OnlyUsedInTests>>.
+    pub is_test_only_code: bool,
+
     pub ignore_noreturn_calls: bool,
 
     pub banned_function_message: Option<StrId>,
@@ -285,6 +290,7 @@ impl FunctionLikeInfo {
             where_constraints: vec![],
             async_version: None,
             is_production_code: true,
+            is_test_only_code: false,
             has_throw: false,
             is_closure: false,
             overriding: false,

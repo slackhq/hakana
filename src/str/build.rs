@@ -274,6 +274,7 @@ fn main() -> Result<()> {
         "Hakana\\Immutable",
         "Hakana\\MustUse",
         "Hakana\\NotTestOnly",
+        "Hakana\\OnlyUsedInTests",
         "Hakana\\RequestHandler",
         "Hakana\\RequireMostSpecificReturnType",
         "Hakana\\SecurityAnalysis\\IgnorePath",

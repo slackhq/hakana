@@ -596,13 +596,27 @@ pub(crate) fn check_method_args(
         && functionlike_storage.user_defined
         && context.function_context.is_production(codebase)
     {
+        // Name the declaration carrying <<Hakana\OnlyUsedInTests>>: the class, if the method
+        // inherits it from there, otherwise the method itself.
+        let declaring_method_id = codebase.get_declaring_method_id(method_id);
+        let marked = (!functionlike_storage.is_test_only_code).then(|| {
+            if codebase
+                .classlike_infos
+                .get(&declaring_method_id.0)
+                .is_some_and(|class| !class.is_production_code)
+            {
+                statements_analyzer
+                    .interner
+                    .lookup(&declaring_method_id.0)
+                    .to_string()
+            } else {
+                declaring_method_id.to_string(statements_analyzer.interner)
+            }
+        });
         analysis_data.maybe_add_issue(
-            Issue::new(
-                IssueKind::TestOnlyCall,
-                format!(
-                    "Cannot call test-only function {} from non-test context",
-                    method_id.to_string(statements_analyzer.interner),
-                ),
+            test_only_call_issue(
+                method_id.to_string(statements_analyzer.interner),
+                marked,
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
@@ -612,6 +626,43 @@ pub(crate) fn check_method_args(
     }
 
     Ok(())
+}
+
+/// The issue for production code calling the test-only function `called`. `marked` names the
+/// declaration carrying <<Hakana\OnlyUsedInTests>>, if that is what makes it test-only.
+pub(crate) fn test_only_call_issue(
+    called: String,
+    marked: Option<String>,
+    pos: HPos,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
+) -> Issue {
+    match marked {
+        Some(marked) => Issue::new(
+            IssueKind::UnnecessaryAttribute,
+            if marked == called {
+                format!(
+                    "{} is marked <<Hakana\\OnlyUsedInTests>> but production code now calls it, so remove the attribute",
+                    marked
+                )
+            } else {
+                format!(
+                    "{} is marked <<Hakana\\OnlyUsedInTests>> but production code now calls {}, so remove the attribute",
+                    marked, called
+                )
+            },
+            pos,
+            calling_functionlike_id,
+        ),
+        None => Issue::new(
+            IssueKind::TestOnlyCall,
+            format!(
+                "Cannot call test-only function {} from non-test context",
+                called
+            ),
+            pos,
+            calling_functionlike_id,
+        ),
+    }
 }
 
 pub(crate) fn apply_effects(

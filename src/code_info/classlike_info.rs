@@ -222,6 +222,11 @@ pub struct ClassLikeInfo {
 
     pub is_production_code: bool,
 
+    /// Whether this was written for tests: it's in a test file or marked <<Hakana\TestOnly>>.
+    /// Code that isn't production code but isn't test-only code is production code marked
+    /// <<Hakana\OnlyUsedInTests>>.
+    pub is_test_only_code: bool,
+
     pub suppressed_issues: Vec<(IssueKind, HPos)>,
 }
 
@@ -289,6 +294,7 @@ impl ClassLikeInfo {
             uses_position: None,
             namespace_position: None,
             is_production_code: true,
+            is_test_only_code: false,
             template_readonly: FxHashSet::default(),
             suppressed_issues: vec![],
         }

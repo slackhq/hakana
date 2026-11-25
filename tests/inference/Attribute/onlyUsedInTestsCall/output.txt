@@ -1,0 +1,11 @@
+ERROR: UnnecessaryAttribute - input.hack:41:2 - soft is marked <<Hakana\OnlyUsedInTests>> but production code now calls it, so remove the attribute
+ERROR: TestOnlyCall - input.hack:42:2 - Cannot call test-only function hard from non-test context
+ERROR: UnnecessaryAttribute - input.hack:43:10 - Soft is marked <<Hakana\OnlyUsedInTests>> but production code now calls Soft::__construct, so remove the attribute
+ERROR: UnnecessaryAttribute - input.hack:44:2 - Soft is marked <<Hakana\OnlyUsedInTests>> but production code now calls Soft::run, so remove the attribute
+ERROR: TestOnlyCall - input.hack:45:2 - Cannot call test-only function Soft::fake from non-test context
+ERROR: UnnecessaryAttribute - input.hack:46:2 - Soft is marked <<Hakana\OnlyUsedInTests>> but production code now calls SoftChild::run, so remove the attribute
+ERROR: UnnecessaryAttribute - input.hack:46:3 - Soft is marked <<Hakana\OnlyUsedInTests>> but production code now calls SoftChild::__construct, so remove the attribute
+ERROR: TestOnlyCall - input.hack:47:2 - Cannot call test-only function Hard::run from non-test context
+ERROR: UnnecessaryAttribute - input.hack:48:2 - Prod::soft is marked <<Hakana\OnlyUsedInTests>> but production code now calls it, so remove the attribute
+ERROR: TestOnlyCall - input.hack:49:2 - Cannot call test-only function Prod::hard from non-test context
+ERROR: TestOnlyCall - input.hack:50:2 - Cannot call test-only function test_helper from non-test context

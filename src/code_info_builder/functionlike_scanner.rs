@@ -84,6 +84,7 @@ pub(crate) fn scan_method(
     );
 
     functionlike_info.is_production_code &= classlike_storage.is_production_code;
+    functionlike_info.is_test_only_code |= classlike_storage.is_test_only_code;
 
     if classlike_name == StrId::BUILTIN_ENUM
         && (method_name == StrId::COERCE
@@ -446,6 +447,10 @@ pub(crate) fn get_functionlike(
                 functionlike_info.ignore_taint_path = true;
             }
             StrId::HAKANA_TEST_ONLY => {
+                functionlike_info.is_production_code = false;
+                functionlike_info.is_test_only_code = true;
+            }
+            StrId::HAKANA_ONLY_USED_IN_TESTS => {
                 functionlike_info.is_production_code = false;
             }
             StrId::HAKANA_HAS_DB_ASIO_JOIN => {

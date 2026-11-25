@@ -941,6 +941,7 @@ impl<'a> Scanner<'a> {
         );
 
         functionlike_storage.is_production_code &= self.file_source.is_production_code;
+        functionlike_storage.is_test_only_code |= !self.file_source.is_production_code;
 
         if matches!(
             name,
