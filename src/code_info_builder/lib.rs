@@ -62,6 +62,9 @@ struct Scanner<'a> {
     all_custom_issues: &'a FxHashSet<String>,
     user_defined: bool,
     closure_refs: Vec<u32>,
+    /// The type parameters of the function being visited, for the closures in its body:
+    /// the function itself is only added to the codebase once its body has been visited.
+    function_template_types: Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
     ast_nodes: Vec<DefSignatureNode>,
     uses: Uses,
     shape_type_constants: FxHashMap<StrId, ShapeTypeConstant>,
@@ -743,8 +746,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         });
 
         c.function_name = Some(name);
+        self.function_template_types = functionlike_storage.template_types.clone();
 
         let result = f.recurse(c, self);
+
+        self.function_template_types = vec![];
 
         if c.has_yield {
             functionlike_storage.has_yield = true;
@@ -879,26 +885,19 @@ impl<'a> Scanner<'a> {
         where_constraints: &[aast::WhereConstraintHint],
         name_pos: Option<&hakana_parser::aast::Pos>,
     ) -> FunctionLikeInfo {
-        let parent_function_storage = if name.is_none() {
-            if let Some(parent_function_id) = &c.function_name {
-                self.codebase
-                    .functionlike_infos
-                    .get(&(*parent_function_id, StrId::EMPTY))
-            } else if let (Some(parent_class_id), Some(parent_method_id)) =
-                (&c.classlike_name, &c.member_name)
-            {
-                self.codebase
-                    .functionlike_infos
-                    .get(&(*parent_class_id, *parent_method_id))
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        let mut template_type_map = if let Some(parent_function_storage) = parent_function_storage {
-            parent_function_storage.template_types.clone()
+        // a closure can refer to the type parameters of the function or method it is in
+        let mut template_type_map = if name.is_some() {
+            vec![]
+        } else if c.function_name.is_some() {
+            self.function_template_types.clone()
+        } else if let (Some(parent_class_id), Some(parent_method_id)) =
+            (&c.classlike_name, &c.member_name)
+            && let Some(parent_method_storage) = self
+                .codebase
+                .functionlike_infos
+                .get(&(*parent_class_id, *parent_method_id))
+        {
+            parent_method_storage.template_types.clone()
         } else {
             vec![]
         };
@@ -1254,6 +1253,7 @@ pub fn collect_info_for_aast(
         user_defined,
         all_custom_issues,
         closure_refs: vec![],
+        function_template_types: vec![],
         ast_nodes: Vec::new(),
         uses,
         shape_type_constants: FxHashMap::default(),

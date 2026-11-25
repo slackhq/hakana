@@ -1,0 +1,1 @@
+ERROR: LessSpecificNestedAnyReturnStatement - input.hack:50:9 - The type T:fn-wrong is more general than the declared return type int for wrong
