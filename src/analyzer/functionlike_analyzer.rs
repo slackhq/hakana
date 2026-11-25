@@ -722,8 +722,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             );
         }
 
-        // Check for unnecessary service call attributes
-        if parent_analysis_data.is_none() {
+        // Check for unnecessary service call attributes. Calls from non-production code aren't
+        // recorded (see check_service_calls), so there's nothing to compare against there.
+        if parent_analysis_data.is_none() && functionlike_storage.is_production_code {
             let mut all_expected_service_calls = functionlike_storage
                 .transitive_service_calls
                 .iter()
